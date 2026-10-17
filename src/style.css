@@ -585,8 +585,8 @@ body.in-barn .barnOnly { display: block !important; }
 .barnScene .lantern { animation: lantern 3.4s ease-in-out infinite; }
 .barnScene .lantern:nth-of-type(2n) { animation-delay: -1.7s; }
 @keyframes lantern { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
-.previewRibbon { position: fixed; top: 0; right: 0; left: auto; bottom: auto; z-index: 100000; transform: none; background: #b197fc; color: #fff; font-weight: 900; font-size: 12px; letter-spacing: 1px; padding: 4px 12px 6px; border: 2px solid var(--ink); border-top: 0; border-right: 0; border-radius: 0 0 0 14px; pointer-events: none; }
-body.is-preview .tools { margin-right: 72px; }
+.previewRibbon { position: fixed; top: auto; right: 0; left: auto; bottom: 0; z-index: 100000; transform: none; background: #b197fc; color: #fff; font-weight: 900; font-size: 12px; letter-spacing: 1px; padding: 4px 12px 6px; border: 2px solid var(--ink); border-bottom: 0; border-right: 0; border-radius: 14px 0 0 0; pointer-events: none; }
+body.is-preview .shelf { width: auto; margin-right: 96px; }
 
 /* ---------- polish: portrait, tap targets, home, phone note ---------- */
 .minimap { flex: 0 0 auto; min-width: 128px; width: 180px; height: 48px; }
