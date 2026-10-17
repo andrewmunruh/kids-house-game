@@ -1,0 +1,40 @@
+import WebSocket from '/workspace/kids-house-game/node_modules/ws/index.js';
+const port = process.env.PORT ?? '8787'; const base = 'http://localhost:' + port;
+const { code, parentKey } = await (await fetch(base + '/api/create', { method: 'POST' })).json();
+console.log('created', code, !!parentKey);
+const open = () => new Promise(r => { const ws = new WebSocket('ws://localhost:' + port + '/ws/' + code); const q = []; ws.on('message', d => q.push(JSON.parse(d))); ws.on('open', () => r({ ws, q, send: m => ws.send(JSON.stringify(m)) })); });
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const A = await open(), B = await open(), C = await open();
+A.send({ t: 'join', nickname: 'Sunny Bunny', look: { skin: '#ffe0c4' }, house: { version: 1, rooms: { living: { wallpaper: '#ffffff', floor: '#000000', pattern: 0, items: [{ id: 'x', kind: 'sofa', x: 100, y: 400 }, { id: '<script>', kind: 'bad kind!', x: 1 }] } }, character: { skin: '#123456' } } });
+B.send({ t: 'join', nickname: 'Zippy Fox', look: {} }); C.send({ t: 'join', nickname: 'Zippy Fox', look: {} });
+await wait(300);
+const wA = A.q.find(m => m.t === 'welcome'), wB = B.q.find(m => m.t === 'welcome');
+console.log('C dup nickname ->', C.q.map(m => m.t + ':' + (m.code ?? '')));
+const hA = wA.houses.find(h => h.ownerId === wA.pid);
+console.log('A house imported: items', hA.state.rooms.living.items.map(i => i.kind + '@' + i.x), 'chars', hA.state.characters.map(c => c.skin), 'houses seen by B', wB.houses.length);
+B.send({ t: 'act', houseId: hA.id, cid: 1, action: { type: 'item/add', room: 'living', item: { id: 'b1', kind: 'cat', x: 1500, y: 520, flip: false, z: 0, scale: 1 } } });
+B.send({ t: 'act', houseId: hA.id, cid: 2, action: { type: 'game/reset' } });
+B.send({ t: 'act', houseId: hA.id, cid: 3, action: { type: 'char/update', id: 'c1', patch: { skin: 'red;evil', __proto__: 1 } } });
+await wait(200);
+console.log('A got act from B:', A.q.filter(m => m.t === 'act').map(m => m.action.type + ' by ' + (m.by === wB.pid ? 'B' : '?')), 'B nacks', B.q.filter(m => m.t === 'nack').map(m => m.cid + ':' + m.reason));
+A.send({ t: 'lock', houseId: hA.id, locked: true }); await wait(100);
+B.send({ t: 'act', houseId: hA.id, cid: 4, action: { type: 'item/delete', room: 'living', id: 'b1' } }); await wait(150);
+console.log('locked: B nack', B.q.filter(m => m.t === 'nack').map(m => m.cid + ':' + m.reason).pop(), 'B saw houseMeta locked', B.q.some(m => m.t === 'houseMeta' && m.meta.locked));
+// chat proximity
+A.send({ t: 'pres', p: { where: 'house', houseId: hA.id, room: 'living', x: 1000, y: 540, flip: false } });
+B.send({ t: 'pres', p: { where: 'house', houseId: hA.id, room: 'living', x: 1200, y: 540, flip: false } });
+const D = await open(); D.send({ t: 'join', nickname: 'Cozy Koala', look: {} }); await wait(150);
+D.send({ t: 'pres', p: { where: 'street', x: 1000, y: 540, flip: false } }); await wait(100);
+B.send({ t: 'say', b: { kind: 'phrase', v: 0 } }); B.send({ t: 'say', b: { kind: 'text', v: 'call me 555 123 4567' } }); B.send({ t: 'say', b: { kind: 'text', v: 'your house is so cute' } }); await wait(150);
+console.log('bubbles A', A.q.filter(m => m.t === 'bubble').map(m => JSON.stringify(m.b)), 'D', D.q.filter(m => m.t === 'bubble').length, 'B fails', B.q.filter(m => m.t === 'sayFail').map(m => m.reason));
+// parent
+const P = await open(); P.send({ t: 'parent', key: 'wrong', op: 'info' }); P.send({ t: 'parent', key: parentKey, op: 'freeChat', on: false }); await wait(150);
+B.send({ t: 'say', b: { kind: 'text', v: 'hello' } }); await wait(100);
+console.log('parent', P.q.map(m => m.t + (m.code ? ':' + m.code : '')), 'B after presetsOnly', B.q.filter(m => m.t === 'sayFail').pop().reason);
+P.send({ t: 'parent', key: parentKey, op: 'rename', houseId: hA.id, name: 'Castle of Fun' }); P.send({ t: 'parent', key: parentKey, op: 'remove', pid: D.q.find(m => m.t === 'welcome').pid }); await wait(200);
+console.log('A sees rename', A.q.filter(m => m.t === 'houseMeta' && m.meta.id === hA.id).pop().meta.name, 'D removed', D.q.some(m => m.t === 'removed'), 'players now', P.q.filter(m => m.t === 'parentInfo').pop().players.map(p => p.nickname));
+// rejoin with token
+const tokB = B.q.find(m => m.t === 'joined').token; B.ws.close(); await wait(100);
+const B2 = await open(); B2.send({ t: 'hello', token: tokB }); await wait(150);
+console.log('B rejoin welcome', B2.q.some(m => m.t === 'welcome'), 'house has cat', B2.q.find(m => m.t === 'welcome').houses.find(h => h.id === hA.id).state.rooms.living.items.some(i => i.id === 'b1'));
+process.exit(0);

@@ -1,0 +1,21 @@
+# Neighborhood server on Cloudflare (Workers Free plan is enough for a handful of kids).
+# Deploy: npx wrangler login && npx wrangler deploy
+name = "cozy-hood"
+main = "server/worker.ts"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[vars]
+# lock the API to the game's origin (GitHub Pages); "*" while testing locally
+ALLOWED_ORIGIN = "https://andrewmunruh.github.io"
+
+[[durable_objects.bindings]]
+name = "HOOD"
+class_name = "HoodDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["HoodDO"]
+
+[observability]
+enabled = false
