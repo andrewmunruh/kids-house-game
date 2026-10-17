@@ -286,6 +286,7 @@ body.reconnecting::after { content: 'Reconnecting…'; position: fixed; top: 70p
 .shake { animation: nope .4s; }
 .toast { position: fixed; left: 50%; bottom: 160px; transform: translateX(-50%); z-index: 50000; background: var(--ink); color: #fff; padding: 12px 22px; border-radius: 20px; font-weight: 800; font-size: 17px;
   box-shadow: 0 6px 0 rgba(0,0,0,.15); animation: rise .3s cubic-bezier(.3,1.6,.5,1); max-width: 80vw; text-align: center; }
+body.view-ranch.riding .toast { top: 76px; bottom: auto; }
 .toast.out { opacity: 0; transition: opacity .4s; }
 .thing.me { background: radial-gradient(circle at 50% 80%, #fff3b0, #fffbe6 70%); }
 .meStar, .pk .meStar { position: absolute; right: 4px; top: 2px; color: #ffb703; font-size: 20px; text-shadow: 0 0 2px #5a3d5c; }
@@ -451,7 +452,14 @@ body.view-ranch #btnParent, body.view-ranch #btnSolo { display: none !important;
 .ranchWorld .rprop, .ranchWorld .animal, .ranchWorld .horse, .ranchWorld .bucket, .ranchWorld .plot { position: absolute; background: none; border: 0; padding: 0; box-shadow: none; z-index: 4; }
 .ranchWorld .rprop svg, .ranchWorld .animal svg, .ranchWorld .horse svg, .ranchWorld .bucket svg, .ranchWorld .plot svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .ranchWorld .animal, .ranchWorld .horse { z-index: 5; transition: left .1s linear; }
-.ranchWorld .animal.flipped svg, .savatar.flipped > .mount svg { transform: scaleX(-1); }
+.ranchWorld .animal.flipped svg { transform: scaleX(-1); }
+.savatar.flipped > .mount { transform: scaleX(-1); transform-origin: 50% 50%; }
+.ranchWorld > .savatars { z-index: auto; }
+.ranchWorld > .fenceLayer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.ranchWorld .horse.flipped svg { transform: scaleX(-1); }
+.ranchWorld .horse.trotting { transition: opacity .2s; }
+.ranchWorld .horse.trotting .leg.a { animation: legA .22s ease-in-out infinite alternate; }
+.ranchWorld .horse.trotting .leg.b { animation: legA .22s ease-in-out infinite alternate-reverse; }
 .ranchWorld .animal .tail, .ranchWorld .horse .tail, .mount .tail { transform-box: fill-box; transform-origin: 100% 0; animation: sway 2.4s ease-in-out infinite; }
 .ranchWorld .animal .head, .ranchWorld .horse .head, .mount .head { transform-box: fill-box; transform-origin: 0% 100%; }
 .ranchWorld .horse .head { animation: nod 3.2s ease-in-out infinite; }
@@ -471,7 +479,7 @@ body.view-ranch #btnParent, body.view-ranch #btnSolo { display: none !important;
 @keyframes tractorBounce { 0%, 100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-6%) rotate(-3deg); } 60% { transform: translateY(0) rotate(2deg); } }
 .appleTree.shake svg { animation: shake .45s ease-in-out; transform-origin: 50% 100%; }
 @keyframes shake { 25% { transform: rotate(-2.5deg); } 75% { transform: rotate(2.5deg); } }
-.rfx { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
+.rfx { position: absolute; inset: 0; pointer-events: none; }
 .fallenApple { position: absolute; pointer-events: auto; background: none; border: 0; padding: 0; box-shadow: none; transition: left .7s ease-out, top .7s cubic-bezier(.5,0,.75,1.4); touch-action: none; }
 .fallenApple svg { width: 100%; height: 100%; display: block; }
 .feedGhost { position: fixed; width: 60px; height: 60px; z-index: 40000; pointer-events: none; filter: drop-shadow(0 6px 4px rgba(90,61,92,.3)); }
@@ -481,13 +489,15 @@ body.view-ranch #btnParent, body.view-ranch #btnSolo { display: none !important;
 .plot.grow svg { animation: hop .5s ease-out; }
 .plot.watering::after { content: '💧💧'; position: absolute; left: 50%; top: -10%; transform: translateX(-50%); font-size: 20px; animation: heartUp 1.2s ease-out forwards; }
 .plot .needWater, .plot .ready { animation: hop 1.2s ease-in-out infinite; transform-box: fill-box; }
-.seedPick { position: absolute; transform: translate(-50%, -100%); z-index: 50; display: flex; gap: 8px; background: #fff; border: 4px solid var(--ink); border-radius: 20px; padding: 8px; box-shadow: 0 6px 0 rgba(90,61,92,.25); }
+.seedPick { position: absolute; transform: translate(-50%, -100%); z-index: 2000; display: flex; gap: 8px; background: #fff; border: 4px solid var(--ink); border-radius: 20px; padding: 8px; box-shadow: 0 6px 0 rgba(90,61,92,.25); }
 .seedPick button { width: 74px; display: flex; flex-direction: column; align-items: center; font-weight: 900; font-size: 14px; border-radius: 14px; padding: 4px; background: #f4fbf6; }
 .seedPick svg { width: 44px; height: 44px; }
-/* riding: the horse is drawn under her, legs tucked in */
+/* riding: she sits on the saddle, hands out, one leg over the near side */
 .savatar .mount { position: absolute; pointer-events: none; }
-.savatar .mount svg { width: 100%; height: 100%; display: block; overflow: visible; }
-.savatar.riding > .inner { transform: translateY(calc(var(--lift) * -1)); clip-path: inset(0 0 33% 0); }
+.savatar .mount > svg.horsesvg { width: 100%; height: 100%; display: block; overflow: visible; }
+.savatar .mount .rideleg { position: absolute; pointer-events: none; overflow: visible; z-index: 2; }
+.savatar.riding > .inner { transform: translateY(calc(var(--lift) * -1)); }
+.savatar.riding > .inner .leg, .savatar.riding > .inner .foot, .savatar.riding > .inner .shadow { opacity: 0; }
 .savatar.riding .nametag { top: calc(-6px - var(--lift)); }
 .savatar.riding > .bubble { margin-bottom: var(--lift); }
 .savatar.riding.moving .mount .leg.a, .savatar.riding.mine.moving .mount .leg.a { animation: legA .22s ease-in-out infinite alternate; }

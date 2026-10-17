@@ -32,14 +32,14 @@ function hair(style: number, c: string, back: boolean) {
 
 export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants'> & { acc?: number }) {
   return `<svg viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="50" cy="156" rx="28" ry="4" fill="#000" opacity=".12"/>
+  <ellipse class="shadow" cx="50" cy="156" rx="28" ry="4" fill="#000" opacity=".12"/>
   ${hair(c.hairStyle, c.hair, true)}
-  <rect x="34" y="118" width="13" height="34" rx="6" fill="${c.pants}" ${s}/>
-  <rect x="53" y="118" width="13" height="34" rx="6" fill="${c.pants}" ${s}/>
-  <ellipse cx="40" cy="152" rx="10" ry="5" fill="${O}"/><ellipse cx="60" cy="152" rx="10" ry="5" fill="${O}"/>
-  <rect x="16" y="80" width="12" height="34" rx="6" fill="${c.skin}" ${s} transform="rotate(12 22 82)"/>
-  <rect x="72" y="80" width="12" height="34" rx="6" fill="${c.skin}" ${s} transform="rotate(-12 78 82)"/>
-  <path d="M28 82 Q28 74 40 74 H60 Q72 74 72 82 L74 126 H26 Z" fill="${c.shirt}" ${s}/>
+  <rect class="leg" x="34" y="118" width="13" height="34" rx="6" fill="${c.pants}" ${s}/>
+  <rect class="leg" x="53" y="118" width="13" height="34" rx="6" fill="${c.pants}" ${s}/>
+  <ellipse class="foot" cx="40" cy="152" rx="10" ry="5" fill="${O}"/><ellipse class="foot" cx="60" cy="152" rx="10" ry="5" fill="${O}"/>
+  <rect class="arm" x="16" y="80" width="12" height="34" rx="6" fill="${c.skin}" ${s} transform="rotate(12 22 82)"/>
+  <rect class="arm" x="72" y="80" width="12" height="34" rx="6" fill="${c.skin}" ${s} transform="rotate(-12 78 82)"/>
+  <path class="shirt" data-hem="126" d="M28 82 Q28 74 40 74 H60 Q72 74 72 82 L74 126 H26 Z" fill="${c.shirt}" ${s}/>
   <circle cx="50" cy="96" r="5" fill="#fff" opacity=".7"/>
   <rect x="44" y="64" width="12" height="12" fill="${c.skin}" ${s}/>
   <circle cx="50" cy="44" r="30" fill="${c.skin}" ${s}/>
@@ -49,6 +49,6 @@ export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 
   <ellipse cx="32" cy="58" rx="5" ry="3" fill="#ff8fab" opacity=".6"/><ellipse cx="68" cy="58" rx="5" ry="3" fill="#ff8fab" opacity=".6"/>
   <path d="M44 60 Q50 66 56 60" ${s} fill="none"/>
   ${accessory(c.acc ?? 0, c.shirt)}
-  <circle cx="${HANDS.left.x}" cy="${HANDS.left.y}" r="6" fill="${c.skin}" ${s}/><circle cx="${HANDS.right.x}" cy="${HANDS.right.y}" r="6" fill="${c.skin}" ${s}/>
+  <circle class="hand" cx="${HANDS.left.x}" cy="${HANDS.left.y}" r="6" fill="${c.skin}" ${s}/><circle class="hand" cx="${HANDS.right.x}" cy="${HANDS.right.y}" r="6" fill="${c.skin}" ${s}/>
 </svg>`;
 }

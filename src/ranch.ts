@@ -51,14 +51,20 @@ export function ranchSceneSVG() {
   <!-- the petting zoo moved into the barn: a sign by the barn door, sunflowers where the pen was -->
   ${Array.from({ length: 6 }, (_, i) => { const x = 1030 + i * 66, h = 70 + (i % 3) * 18; return `<g transform="translate(${x} 470)"><path d="M0 0 V-${h}" stroke="#40c057" stroke-width="6" stroke-linecap="round"/><ellipse cx="${i % 2 ? 9 : -9}" cy="-${h / 2}" rx="11" ry="5" fill="#69db7c" ${st(2.5)}/>${[0, 45, 90, 135, 180, 225, 270, 315].map(a => `<ellipse cx="${Math.cos(a * Math.PI / 180) * 14}" cy="${-h + Math.sin(a * Math.PI / 180) * 14}" rx="8" ry="5" transform="rotate(${a} ${Math.cos(a * Math.PI / 180) * 14} ${-h + Math.sin(a * Math.PI / 180) * 14})" fill="#ffd43b" ${st(2)}/>`).join('')}<circle cy="-${h}" r="10" fill="#a0522d" ${st(2.5)}/></g>`; }).join('')}
   <!-- pond -->
-  <ellipse cx="2265" cy="520" rx="110" ry="34" fill="#8ecae6" ${st()}/><ellipse cx="2250" cy="514" rx="70" ry="16" fill="#bde6f7"/>
-  <!-- paddock -->
-  ${fence(2400, 3080, 470)}
-  <rect x="2640" y="380" width="180" height="40" rx="12" fill="#fff6e6" ${st(3)}/><text x="2730" y="408" text-anchor="middle" font-size="21" font-weight="900" fill="${O}" font-family="Nunito, system-ui, sans-serif">HORSES</text>
+  <ellipse cx="${POND.x}" cy="${POND.y}" rx="${POND.rx}" ry="${POND.ry}" fill="#8ecae6" ${st()}/><ellipse cx="${POND.x - 15}" cy="${POND.y - 6}" rx="70" ry="16" fill="#bde6f7"/>
+  <!-- paddock fence + HORSES sign are their own depth layer (paddockFenceSVG) -->
   <!-- garden -->
   <rect x="3140" y="520" width="420" height="70" rx="20" fill="#b07d54" ${st()}/>
   <rect x="3260" y="430" width="160" height="40" rx="12" fill="#fff6e6" ${st(3)}/><text x="3340" y="458" text-anchor="middle" font-size="21" font-weight="900" fill="${O}" font-family="Nunito, system-ui, sans-serif">GARDEN</text>
   <path d="M3340 470 V500" ${st(5)}/>
+  </svg>`;
+}
+
+/** Paddock fence and the HORSES sign, drawn above the yard so they sort by foot y with the horses. */
+export function paddockFenceSVG() {
+  return `<svg class="fenceLayer" viewBox="0 0 ${RANCH_W} ${RANCH_H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  ${fence(2400, 3080, 470)}
+  <rect x="2640" y="380" width="180" height="40" rx="12" fill="#fff6e6" ${st(3)}/><text x="2730" y="408" text-anchor="middle" font-size="21" font-weight="900" fill="${O}" font-family="Nunito, system-ui, sans-serif">HORSES</text>
   </svg>`;
 }
 
@@ -94,6 +100,11 @@ export function animalSVG(i: number) {
 }
 
 // ---------- horses (viewBox 0 0 160 130, facing right; feet at the bottom) ----------
+/** Pond in ranch world units (the ellipse in the yard). Rides route around it. */
+export const POND = { x: 2265, y: 520, rx: 110, ry: 34 };
+/** Bottom of the paddock fence posts. Sprites sort by this foot y. */
+export const FENCE_FOOT = 476;
+
 export const HORSE_COATS = [
   { name: 'Chestnut', body: '#c97b45', mane: '#7a3f22', sock: '#fff6e6' },
   { name: 'Snowy', body: '#fdf8f3', mane: '#d9cdc4', sock: '#e9ddd2' },
@@ -103,14 +114,18 @@ export const HORSE_COATS = [
 ];
 export function horseSVG(coat: number, saddle = false) {
   const c = HORSE_COATS[coat] ?? HORSE_COATS[0], rb = c.mane === 'rainbow';
-  const mane = rb ? RAINBOW.map((col, i) => `<path d="M${104 - i * 3} ${22 + i * 6} q-10 4 -12 12" fill="none" stroke="${col}" stroke-width="7" stroke-linecap="round"/>`).join('')
+  // Rainbow strands stay on the crest, above the saddle (saddle peak is y=43). Longer strands used to paint across it.
+  const mane = rb ? RAINBOW.map((col, i) => {
+    const x = 124 - i * 1.6, y = 14 + i * 2.4;
+    return `<path d="M${x.toFixed(1)} ${y.toFixed(1)} q-6.5 2 -4.5 ${6 + i * 0.35}" fill="none" stroke="${col}" stroke-width="5.5" stroke-linecap="round"/>`;
+  }).join('')
     : `<path d="M106 20 q-14 6 -18 30 q8 -6 10 -2 q4 -12 14 -18 Z" fill="${c.mane}" ${st(3)}/>`;
   const tail = rb ? `<g class="tail">${RAINBOW.map((col, i) => `<path d="M30 58 q-18 ${8 + i * 3} -14 ${36 + i}" fill="none" stroke="${col}" stroke-width="6" stroke-linecap="round"/>`).join('')}</g>`
     : `<path class="tail" d="M30 56 q-20 10 -14 44 q10 -10 8 -20 q6 -10 10 -18 Z" fill="${c.mane}" ${st(3)}/>`;
   const leg = (x: number, cls: string) => `<g class="leg ${cls}"><rect x="${x}" y="78" width="12" height="44" rx="5" fill="${c.body}" ${st(3)}/><rect x="${x}" y="110" width="12" height="12" rx="4" fill="${c.sock}" ${st(3)}/></g>`;
   return `<svg viewBox="0 0 160 130" class="horsesvg">${tail}${leg(40, 'a')}${leg(56, 'b')}${leg(96, 'b')}${leg(112, 'a')}
     <ellipse cx="80" cy="68" rx="50" ry="24" fill="${c.body}" ${st()}/>
-    ${saddle || rb ? `<path d="M64 46 q16 -6 32 0 l-2 22 q-14 4 -28 0 Z" fill="${rb ? '#b197fc' : '#e8590c'}" ${st(3)}/>` : ''}
+    ${saddle || rb ? `<path class="saddle" data-top="43" d="M64 46 q16 -6 32 0 l-2 22 q-14 4 -28 0 Z" fill="${rb ? '#b197fc' : '#e8590c'}" ${st(3)}/>` : ''}
     <g class="head"><path d="M108 66 L114 30 Q118 16 132 18 L148 36 Q152 46 142 48 L130 46 L128 70 Z" fill="${c.body}" ${st()}/>
     <path d="M114 22 l2 -14 l8 12 Z" fill="${c.body}" ${st(3)}/>${mane}
     ${eye(130, 30, 3.4)}<circle cx="146" cy="42" r="2" fill="${O}"/>${blush(136, 40)}

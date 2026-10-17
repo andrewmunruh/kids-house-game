@@ -13,7 +13,7 @@ import { characterSVG, SKINS, HAIRS, CLOTHES, HAIR_STYLES, ACCESSORIES, SIZES, S
 import { sfx, setSound } from './sound';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
-import { barnSceneSVG, windmillSVG, ranchSceneSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H } from './ranch';
+import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
 
 // The renderer talks to `store`, which forwards to either the offline localStorage house
 // or a neighborhood house (server-authoritative) — same actions, same reducer.
@@ -322,7 +322,7 @@ store.subscribe((s, a) => {
     case 'room/switch': if (hood && inner !== local) moveMeToRoom(a.room); renderAll(); break;
     case 'game/reset': renderAll(); break;
     case 'room/wallpaper': case 'room/floor': case 'room/pattern': case 'room/wallTile': case 'room/floorTile': renderRoomBg(s); break;
-    case 'char/update': case 'char/move': renderChars(s); break;
+    case 'char/update': case 'char/move': renderChars(s); if (view === 'ranch') renderRanchAvatars(); else if (view === 'park') renderParkAvatars(); break;
     case 'char/add': case 'char/delete': case 'char/hold': case 'char/release': renderItems(s); renderChars(s); if (currentTab === '__people') renderDrawer(); break;
     case 'settings/sound': renderSoundBtn(s); break;
     default: renderItems(s);
@@ -1027,7 +1027,7 @@ $('mapWorld').addEventListener('click', e => {
 });
 function hideScenes() { $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('ranch').classList.add('hidden'); $('chatTray').classList.add('hidden'); $('sheet').classList.add('hidden'); }
 function goMap() {
-  fetchSt = null; walkTarget = null; inBarn = false;
+  fetchSt = null; walkQueue = []; inBarn = false;
   if (hood) setMyPres({ where: 'street', x: 600, y: 540, flip: false }); else soloPark = null;
   hideScenes(); view = 'street'; $('street').classList.remove('hidden');
   $('streetTitle').textContent = hood ? 'Our Neighborhood' : 'My Map';
@@ -1051,7 +1051,7 @@ function enterHouse(houseId: string, room: RoomId = 'living') {
   useStore(st); sceneIn($('stageWrap')); sfx.sparkle();
 }
 function goSolo() {
-  hood?.close(); hood = null; houseStores = new Map(); view = 'house'; currentHouseId = ''; soloPark = null; fetchSt = null; walkTarget = null; inBarn = false;
+  hood?.close(); hood = null; houseStores = new Map(); view = 'house'; currentHouseId = ''; soloPark = null; fetchSt = null; walkQueue = []; inBarn = false;
   hideScenes();
   useStore(local); renderHoodChrome();
 }
@@ -1304,7 +1304,7 @@ function renderParkAvatars() {
 function attachParkDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
     e.preventDefault(); e.stopPropagation(); const p0 = myParkPres(); if (!p0 || (p0.where !== 'park' && p0.where !== 'ranch' && p0.where !== 'barn')) return;
-    const R = p0.where !== 'park', where = p0.where; walkTarget = null;
+    const R = p0.where !== 'park', where = p0.where; walkQueue = [];
     const scroll = $(R ? 'ranchScroll' : 'parkScroll'); const sc = R ? ranchScale() : parkScale(), SWW = where === 'barn' ? BARN_W : R ? RANCH_W : PARK_W;
     const toW = (ev: PointerEvent) => { const r = $(R ? 'ranchWorld' : 'parkWorld').getBoundingClientRect(); return { x: (ev.clientX - r.left) / sc, y: (ev.clientY - r.top) / sc }; };
     const q0 = toW(e), off = { x: p0.x - q0.x, y: p0.y - q0.y }; let last = e, raf = 0, lastX = p0.x, moved = false;
@@ -1348,7 +1348,7 @@ function splashAt(x: number) {
   sfx.splash();
 }
 function goPark() {
-  hideScenes(); walkTarget = null; inBarn = false;
+  hideScenes(); walkQueue = []; inBarn = false;
   view = 'park'; $('park').classList.remove('hidden'); sceneIn($('park'));
   const p: Presence = { where: 'park', x: 290, y: 548, flip: false };
   if (hood) setMyPres(p); else soloPark = p;
@@ -1386,7 +1386,7 @@ function walkerPos(key: string): { x: number; y: number } | null {
 
 // ---------- dogs follow their walker everywhere (house, street, park) ----------
 interface DogRun { el: HTMLElement; box: HTMLElement; x: number; y: number; flip: boolean; pose: string; look: string; idle: number; trickUntil: number; sitTrick: boolean }
-interface DogOwner { key: string; dog: Dog; x: number; y: number; flip: boolean; box: HTMLElement; place: (el: HTMLElement, x: number, y: number, w: number, h: number) => void; z: (y: number) => string; scale: number }
+interface DogOwner { key: string; dog: Dog; x: number; y: number; flip: boolean; box: HTMLElement; place: (el: HTMLElement, x: number, y: number, w: number, h: number) => void; z: (y: number) => string; scale: number; riding?: boolean }
 const dogRuns = new Map<string, DogRun>();
 const pxPlace = (sc: number) => (el: HTMLElement, x: number, y: number, w: number, h: number) => { el.style.left = (x - w / 2) * sc + 'px'; el.style.top = (y - h) * sc + 'px'; el.style.width = w * sc + 'px'; el.style.height = h * sc + 'px'; };
 function dogOwners(): DogOwner[] {
@@ -1406,7 +1406,7 @@ function dogOwners(): DogOwner[] {
     for (const w of parkPeople()) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95 });
   } else if (view === 'ranch') {
     const box = document.getElementById('ravatars'); if (!box) return out; const sc = ranchScale();
-    for (const w of parkPeople(inBarn ? 'barn' : 'ranch')) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95 });
+    for (const w of parkPeople(inBarn ? 'barn' : 'ranch')) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95, riding: w.p.ride !== undefined });
   }
   return out;
 }
@@ -1416,13 +1416,17 @@ function tickDogs(now: number, dt: number) {
   for (const o of dogOwners()) {
     seen.add(o.key);
     let r = dogRuns.get(o.key);
-    const side = o.flip ? 1 : -1, homeX = o.x + side * 78, homeY = Math.min(595, o.y + 6);
+    const side = o.flip ? 1 : -1;
+    const behind = o.riding ? 200 : 78;
+    let homeX = o.x + side * behind;
+    if (o.riding) homeX = Math.max(50, Math.min(RANCH_W - 50, homeX));
+    const homeY = Math.min(595, o.y + (o.riding ? 28 : 6));
     if (!r || r.box !== o.box || !r.el.isConnected) {
       r?.el.remove();
       const el = document.createElement('div'); el.className = 'pet pet-dog'; el.dataset.dog = o.key; o.box.appendChild(el); attachDogTap(el, o.key);
       r = { el, box: o.box, x: homeX, y: homeY, flip: o.flip, pose: '', look: '', idle: 1, trickUntil: 0, sitTrick: false }; dogRuns.set(o.key, r);
     }
-    let tx = homeX, ty = homeY, speed = 320;
+    let tx = homeX, ty = homeY, speed = o.riding ? 980 : 320;
     if (fetchSt && now > fetchSt.until) { fetchSt = null; placeBall(); }
     if (fetchSt && view === 'park') {
       if (fetchSt.phase === 'chase') { tx = ballPos.x; ty = ballPos.y; speed = 950; if (Math.hypot(r.x - tx, r.y - ty) < 28) { fetchSt.phase = 'carry'; fetchSt.dog = o.key; sfx.woof(); } }
@@ -1574,7 +1578,92 @@ requestAnimationFrame(petTick);
 // Rainbow Ranch
 // =====================================================================================
 function ranchScale() { return $('ranch').clientHeight / RANCH_H; }
-let walkTarget: { x: number; y: number } | null = null;
+let walkQueue: { x: number; y: number }[] = [];
+/** Sprites in the yard share one depth order: bigger foot-y (closer to the camera) paints in front. */
+const depthZ = (foot: number) => String(100 + Math.round(foot));
+// The paddock horse is 150×122. Mounted, the horse grows and the kid shrinks so she looks like a rider.
+const RIDE_HORSE_W = 220;
+const RIDE_HORSE_H = RIDE_HORSE_W * 130 / 160;
+const RIDE_RIDER_SCALE = 0.6;
+const SHIRT_STROKE = 3.5, SADDLE_STROKE = 3;
+const POND_PAD = 10;
+const trotting = new Map<number, { x: number; y: number }>();
+const lastRideAt = new Map<number, { x: number; y: number }>();
+function inPond(x: number, y: number, pad = POND_PAD) {
+  const dx = (x - POND.x) / (POND.rx + pad), dy = (y - POND.y) / (POND.ry + pad);
+  return dx * dx + dy * dy < 1;
+}
+function segHitsPond(x0: number, y0: number, x1: number, y1: number) {
+  for (let i = 0; i <= 18; i++) {
+    const t = i / 18;
+    if (inPond(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)) return true;
+  }
+  return false;
+}
+function clampField(x: number, y: number) {
+  return { x: Math.max(70, Math.min(RW() - 70, x)), y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, y)) };
+}
+/** Straight gallop, or a path along the back or the front of the field when the line would splash through the pond. */
+function routeRide(from: { x: number; y: number }, to: { x: number; y: number }): { x: number; y: number }[] | null {
+  const dest = clampField(to.x, to.y);
+  if (inPond(dest.x, dest.y, 6)) return null;
+  if (!segHitsPond(from.x, from.y, dest.x, dest.y)) return [dest];
+  const left = POND.x - POND.rx - POND_PAD - 28, right = POND.x + POND.rx + POND_PAD + 28;
+  let best: { x: number; y: number }[] | null = null, bestLen = Infinity;
+  for (const lane of [RANCH_Y0 + 1, RANCH_Y1 - 2]) {
+    const pts: { x: number; y: number }[] = [];
+    let cx = from.x, cy = from.y;
+    const push = (x: number, y: number) => { const q = clampField(x, y); pts.push(q); cx = q.x; cy = q.y; };
+    if (segHitsPond(cx, cy, cx, lane)) push(cx < POND.x ? left : right, cy);
+    if (Math.abs(cy - lane) > 3) push(cx, lane);
+    if (Math.abs(cx - dest.x) > 3) push(dest.x, lane);
+    pts.push(dest);
+    let ok = true, x = from.x, y = from.y, len = 0;
+    for (const p of pts) {
+      if (segHitsPond(x, y, p.x, p.y) || inPond(p.x, p.y, 4)) { ok = false; break; }
+      len += Math.hypot(p.x - x, p.y - y); x = p.x; y = p.y;
+    }
+    if (ok && len < bestLen) { best = pts; bestLen = len; }
+  }
+  return best;
+}
+function goWalk(x: number, y: number) {
+  const me = myParkPres(); if (!me) return;
+  const dest = { x: Math.max(60, Math.min(RW() - 60, x)), y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, y)) };
+  if (me.ride !== undefined && me.where === 'ranch') {
+    const path = routeRide(me, dest);
+    if (!path) { toast('The horse won\'t splash through the pond!'); sfx.pop(); return; }
+    walkQueue = path;
+  } else walkQueue = [dest];
+}
+function rideLegHTML(skin: string) {
+  const ink = '#5a3d5c';
+  return `<svg class="rideleg" viewBox="0 0 44 86"><path d="M20 4 C34 18 32 34 24 46 C14 58 16 72 28 82" fill="none" stroke="${ink}" stroke-width="16" stroke-linecap="round"/><path d="M20 4 C34 18 32 34 24 46 C14 58 16 72 28 82" fill="none" stroke="${skin}" stroke-width="10" stroke-linecap="round"/><ellipse cx="32" cy="80" rx="10" ry="5.5" fill="${ink}"/></svg>`;
+}
+function placeHorseEl(el: HTMLElement, x: number, y: number) {
+  const sc = ranchScale();
+  el.style.left = (x - 75) * sc + 'px'; el.style.top = (y - 122) * sc + 'px'; el.style.zIndex = depthZ(y);
+}
+function beginTrot(h: number, x: number, y: number) {
+  if (trotting.has(h) || Math.hypot(x - HORSE_X[h], y - HORSE_Y) < 26) return;
+  trotting.set(h, { x, y });
+  const el = document.querySelector<HTMLElement>(`#ranchWorld .horse[data-horse="${h}"]`);
+  if (!el) return;
+  el.classList.add('trotting'); el.classList.remove('away');
+  el.classList.toggle('flipped', HORSE_X[h] < x);
+  placeHorseEl(el, x, y);
+}
+function dismountSpot(x: number, y: number, flip: boolean) {
+  const dir = flip ? -1 : 1;
+  for (const dx of [dir * 118, -dir * 118, dir * 160, -dir * 78]) {
+    for (const dy of [0, 30, -26, 48]) {
+      const p = clampField(x + dx, y + dy);
+      if (Math.hypot(p.x - x, p.y - y) < 50) continue;
+      if (!inPond(p.x, p.y, 8)) return p;
+    }
+  }
+  return clampField(x, y);
+}
 let lastEggLocal = 0, feedDragEnd = 0;
 const ranchNow = () => (hood ? hood.now() : Date.now());
 const ranchPlots = (): (Plot | null)[] => cleanPlots(hood ? hood.ranch.plots : local.get().garden);
@@ -1604,7 +1693,7 @@ function doRanch(o: RanchOp): boolean {
 function goRanch(barn = false) {
   const fromBarn = view === 'ranch' && inBarn && !barn;
   hideScenes(); $('ranch').classList.remove('hidden');
-  fetchSt = null; walkTarget = null; view = 'ranch'; inBarn = barn;
+  fetchSt = null; walkQueue = []; view = 'ranch'; inBarn = barn;
   const p: Presence = barn ? { where: 'barn', x: 170, y: 560, flip: false } : { where: 'ranch', x: fromBarn ? BARN_DOOR_X : 320, y: fromBarn ? 520 : 565, flip: false };
   if (hood) setMyPres(p); else soloPark = p;
   $('streetTitle').textContent = barn ? 'The Barn' : 'Rainbow Ranch'; renderHoodChrome(); renderRanch();
@@ -1615,7 +1704,7 @@ $('btnHopOff').addEventListener('click', () => hopOff());
 
 function renderRanch() {
   const sc = ranchScale(), w = $('ranchWorld'), px = (v: number) => v * sc + 'px';
-  const box = (x: number, bottom: number, wd: number, ht: number) => `left:${px(x - wd / 2)};top:${px(bottom - ht)};width:${px(wd)};height:${px(ht)}`;
+  const box = (x: number, bottom: number, wd: number, ht: number) => `left:${px(x - wd / 2)};top:${px(bottom - ht)};width:${px(wd)};height:${px(ht)};z-index:${depthZ(bottom)}`;
   w.style.width = RW() * sc + 'px'; w.style.height = RANCH_H * sc + 'px'; w.style.setProperty('--sc', String(sc));
   if (inBarn) {
     w.innerHTML = barnSceneSVG()
@@ -1626,6 +1715,7 @@ function renderRanch() {
     renderRanchAvatars(); return;
   }
   w.innerHTML = ranchSceneSVG()
+    + paddockFenceSVG().replace('<svg ', `<svg style="z-index:${depthZ(FENCE_FOOT)}" `)
     + `<button class="rprop barnDoor" data-r="barn" aria-label="Go into the barn" style="${box(BARN_DOOR_X, 472, 150, 150)}"><span class="doorHint">Petting zoo inside! 🐐</span></button>`
     + `<button class="rprop windmill" data-r="mill" aria-label="Windmill" style="${box(1540, 478, 150, 240)}">${windmillSVG}</button>`
     + `<button class="rprop henHouse" data-r="egg" aria-label="Hen house" style="${box(715, 482, 180, 170)}">${henHouseSVG}</button>`
@@ -1656,28 +1746,45 @@ function renderRanchAvatars() {
     if (!el) { el = document.createElement('div'); el.className = 'savatar ' + (w.mine ? 'mine' : 'other'); el.dataset.pid = w.key; box.appendChild(el); if (w.mine) attachParkDrag(el); }
     const key = JSON.stringify(w.look) + w.name;
     if (el.dataset.look !== key) { const b = el.querySelector('.bubble'); el.innerHTML = w.name ? avatarHTML(w.look, w.name) : `<div class="inner">${characterSVG(w.look)}</div>`; if (b) el.appendChild(b); el.dataset.look = key; el.dataset.ride = ''; }
-    const k = (SIZE_SCALE[w.look.size] ?? 1) * sc * 0.95, wd = CHAR_W * k, h = CHAR_H * k;
     const ride = w.p.ride;
+    const k = (SIZE_SCALE[w.look.size] ?? 1) * sc * 0.95 * (ride !== undefined ? RIDE_RIDER_SCALE : 1), wd = CHAR_W * k, h = CHAR_H * k;
     if (el.dataset.ride !== String(ride ?? '')) {
       el.querySelector('.mount')?.remove();
-      if (ride !== undefined) el.insertAdjacentHTML('afterbegin', `<div class="mount" data-mount="${ride}">${horseSVG(ride, true)}</div>`);
+      if (ride !== undefined) el.insertAdjacentHTML('afterbegin', `<div class="mount" data-mount="${ride}">${horseSVG(ride, true)}${rideLegHTML(w.look.skin)}</div>`);
       el.dataset.ride = String(ride ?? '');
     }
     el.classList.toggle('riding', ride !== undefined);
     if (ride !== undefined) {
       ridden.add(ride); if (w.mine) meRiding = true;
-      const mw = 150 * sc * 0.95, mh = 122 * sc * 0.95; const m = el.querySelector<HTMLElement>('.mount')!;
-      m.style.width = mw + 'px'; m.style.height = mh + 'px'; m.style.left = (wd - mw) / 2 + 'px'; m.style.top = h - mh + 'px';
-      el.style.setProperty('--lift', mh * 0.42 + 'px');
-    }
+      lastRideAt.set(ride, { x: w.p.x, y: w.p.y });
+      const mw = RIDE_HORSE_W * sc, mh = RIDE_HORSE_H * sc; const m = el.querySelector<HTMLElement>('.mount')!;
+      m.style.width = mw + 'px'; m.style.height = mh + 'px'; m.style.left = (wd - mw) / 2 + 'px'; m.style.top = (h - mh) + 'px';
+      const hemY = Number(el.querySelector('.shirt')?.getAttribute('data-hem') ?? 126);
+      const sadY = Number(m.querySelector('.saddle')?.getAttribute('data-top') ?? 43);
+      const hem = (hemY + SHIRT_STROKE / 2) / 160 * h;
+      const saddleTop = (h - mh) + (sadY - SADDLE_STROKE / 2) / 130 * mh;
+      el.style.setProperty('--lift', (hem - saddleTop) + 'px');
+      const leg = m.querySelector<SVGElement>('.rideleg');
+      if (leg) {
+        const legH = Math.max(34, h * 0.5), legW = legH * 0.48;
+        leg.style.width = legW + 'px'; leg.style.height = legH + 'px';
+        leg.style.left = ((72 / 160) * mw - legW * 0.1) + 'px';
+        leg.style.top = ((44 / 130) * mh - legH * 0.04) + 'px';
+      }
+    } else el.style.removeProperty('--lift');
     const lx = parseFloat(el.dataset.lx ?? 'NaN');
     if (Number.isFinite(lx) && Math.abs(lx - w.p.x) > 2) { el.classList.add('moving'); clearTimeout(+(el.dataset.mt ?? 0)); el.dataset.mt = String(window.setTimeout(() => el!.classList.remove('moving'), 260)); }
     el.dataset.lx = String(w.p.x);
     el.style.left = w.p.x * sc - wd / 2 + 'px'; el.style.top = w.p.y * sc - h + 'px'; el.style.width = wd + 'px'; el.style.height = h + 'px';
-    el.style.zIndex = String(100 + Math.round(w.p.y)); el.classList.toggle('flipped', w.p.flip);
+    el.style.zIndex = depthZ(w.p.y); el.classList.toggle('flipped', w.p.flip);
   }
   box.querySelectorAll<HTMLElement>('.savatar').forEach(el => { if (!keep.has(el.dataset.pid!)) el.remove(); });
-  document.querySelectorAll<HTMLElement>('#ranchWorld .horse').forEach(h => h.classList.toggle('away', ridden.has(+h.dataset.horse!)));
+  document.querySelectorAll<HTMLElement>('#ranchWorld .horse').forEach(h => {
+    const id = +h.dataset.horse!;
+    if (!ridden.has(id)) h.classList.remove('away');
+    else { h.classList.add('away'); trotting.delete(id); }
+  });
+  for (const [h, pos] of [...lastRideAt]) if (!ridden.has(h)) { beginTrot(h, pos.x, pos.y); lastRideAt.delete(h); }
   document.body.classList.toggle('riding', meRiding);
   updateNear();
 }
@@ -1685,14 +1792,25 @@ function mount(h: number) {
   const me = myParkPres(); if (!me || me.where !== 'ranch') return;
   const rider = ridersOf().get(h);
   if (rider && !rider.mine) { toast('Someone is riding!'); sfx.pop(); return; }
-  if (rider?.mine) { hopOff(); return; }
-  walkTarget = null;
+  if (me.ride !== undefined) {
+    if (rider?.mine || me.ride === h) { hopOff(); return; }
+    goWalk(HORSE_X[h], Math.min(RANCH_Y1, HORSE_Y + 8)); // already riding: gallop over, don't swap horses
+    return;
+  }
+  walkQueue = [];
+  trotting.delete(h);
   setParkPres({ where: 'ranch', x: HORSE_X[h], y: Math.min(RANCH_Y1, HORSE_Y + 8), flip: false, ride: h }); sfx.neigh();
   toast(`You're riding ${HORSE_COATS[h].name}! Tap the ground to gallop 🐴`);
 }
 function hopOff() {
   const me = myParkPres(); if (!me || me.ride === undefined) return;
-  const { ride: _r, ...q } = me; walkTarget = null; setParkPres({ ...q, x: Math.min(RANCH_W - 60, q.x + 70) }); sfx.drop();
+  const ride = me.ride;
+  const { ride: _r, ...q } = me;
+  walkQueue = [];
+  const land = dismountSpot(q.x, q.y, q.flip);
+  lastRideAt.set(ride, { x: q.x, y: q.y });
+  setParkPres({ ...q, x: land.x, y: land.y });
+  sfx.drop();
 }
 function reactAnimal(idx: number, food: number) {
   const el = idx < ANIMALS.length ? document.querySelector<HTMLElement>(`#ranchWorld .animal[data-animal="${idx}"]`)
@@ -1720,7 +1838,7 @@ function dropApple(v: number) {
   const fx = document.getElementById('rfx'); if (!fx || view !== 'ranch') return; const sc = ranchScale();
   const [ax, ay] = APPLE_SPOTS[v] ?? APPLE_SPOTS[0]; const x0 = 2085 - 120 + ax, y0 = 482 - 300 + ay, x1 = x0 + (v % 2 ? 26 : -22), y1 = 575 + v * 4;
   const el = document.createElement('button'); el.className = 'fallenApple'; el.dataset.feed = 'apple'; el.setAttribute('aria-label', 'Apple'); el.innerHTML = appleSVG;
-  const s = 32 * sc; Object.assign(el.style, { width: s + 'px', height: s + 'px', left: x0 * sc - s / 2 + 'px', top: y0 * sc - s / 2 + 'px' });
+  const s = 32 * sc; Object.assign(el.style, { width: s + 'px', height: s + 'px', left: x0 * sc - s / 2 + 'px', top: y0 * sc - s / 2 + 'px', zIndex: depthZ(y1) });
   fx.appendChild(el); requestAnimationFrame(() => { el.style.left = x1 * sc - s / 2 + 'px'; el.style.top = y1 * sc - s + 'px'; el.classList.add('fallen'); });
   const t = document.querySelector<HTMLElement>('#ranchWorld .appleTree'); t?.classList.remove('shake'); void t?.offsetWidth; t?.classList.add('shake');
   sfx.boing(); setTimeout(() => el.remove(), 12000);
@@ -1788,7 +1906,7 @@ $('ranchWorld').addEventListener('click', e => {
   const rect = $('ranchWorld').getBoundingClientRect(), sc = ranchScale();
   const x = (e.clientX - rect.left) / sc, y = (e.clientY - rect.top) / sc;
   if (y < 400) return;
-  walkTarget = { x: Math.max(60, Math.min(RW() - 60, x)), y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, y)) };
+  goWalk(x, y);
 });
 function tapPlot(i: number, el: HTMLElement) {
   const p = ranchPlots()[i] ?? null, stg = plotStage(p, ranchNow());
@@ -1817,16 +1935,32 @@ function tickRanch(now: number, dt: number) {
     el.classList.toggle('walking', Math.abs(Math.cos(ph)) > 0.35);
   });
   if (now - plotTick > 1000) { plotTick = now; renderPlots(); }
-  if (walkTarget) {
-    const me = myParkPres(); if (!me || me.where !== RWHERE()) { walkTarget = null; return; }
-    const speed = me.ride !== undefined ? 720 : 300;
-    const dx = walkTarget.x - me.x, dy = walkTarget.y - me.y, d = Math.hypot(dx, dy);
-    if (d < 4) { walkTarget = null; return; }
-    const step = Math.min(d, speed * dt);
-    const next: Presence = { ...me, x: me.x + dx / d * step, y: me.y + dy / d * step, flip: Math.abs(dx) > 2 ? dx < 0 : me.flip };
-    setParkPres(next);
-    const sc = ranchScale(), scroll = $('ranchScroll'), sx = next.x * sc - scroll.scrollLeft;
-    if (sx > -40 && sx < scroll.clientWidth + 40 && (sx < scroll.clientWidth * 0.2 || sx > scroll.clientWidth * 0.8)) scroll.scrollLeft = next.x * sc - scroll.clientWidth / 2;
+  if (walkQueue.length) {
+    const me = myParkPres();
+    if (!me || me.where !== RWHERE()) walkQueue = [];
+    else {
+      const target = walkQueue[0];
+      const speed = me.ride !== undefined ? 720 : 300;
+      const dx = target.x - me.x, dy = target.y - me.y, d = Math.hypot(dx, dy);
+      if (d < 6) walkQueue.shift();
+      else {
+        const step = Math.min(d, speed * dt);
+        const next: Presence = { ...me, x: me.x + dx / d * step, y: me.y + dy / d * step, flip: Math.abs(dx) > 2 ? dx < 0 : me.flip };
+        setParkPres(next);
+        const sc = ranchScale(), scroll = $('ranchScroll'), sx = next.x * sc - scroll.scrollLeft;
+        if (sx > -40 && sx < scroll.clientWidth + 40 && (sx < scroll.clientWidth * 0.2 || sx > scroll.clientWidth * 0.8)) scroll.scrollLeft = next.x * sc - scroll.clientWidth / 2;
+      }
+    }
+  }
+  for (const [h, tr] of trotting) {
+    const el = document.querySelector<HTMLElement>(`#ranchWorld .horse[data-horse="${h}"]`);
+    if (!el || el.classList.contains('away')) { trotting.delete(h); continue; }
+    const dx = HORSE_X[h] - tr.x, dy = HORSE_Y - tr.y, d = Math.hypot(dx, dy);
+    if (d < 8) { trotting.delete(h); el.classList.remove('trotting', 'flipped'); placeHorseEl(el, HORSE_X[h], HORSE_Y); continue; }
+    const step = Math.min(d, 460 * dt);
+    tr.x += dx / d * step; tr.y += dy / d * step;
+    el.classList.add('trotting'); el.classList.toggle('flipped', dx < 0);
+    placeHorseEl(el, tr.x, tr.y);
   }
 }
 
