@@ -8,7 +8,7 @@
 # Usage: migration_test.py   (needs: /tmp/prodtree = git worktree of main, builds in /tmp/prod-dist, /tmp/new-dist, /tmp/preview-dist)
 import asyncio, json, os, shutil, subprocess, time, sys, signal
 from playwright.async_api import async_playwright
-ROOT = '/workspace/kids-house-game'; M = '/tmp/migr'; WWW = M + '/www'; PORT_WEB = 4190; PORT_HOOD = 8795; PORT_PREV = 8796
+ROOT = os.path.dirname(os.path.abspath(__file__)); M = '/tmp/migr'; WWW = M + '/www'; PORT_WEB = 4190; PORT_HOOD = 8795; PORT_PREV = 8796
 BASE = f'http://localhost:{PORT_WEB}'; URL = f'{BASE}/kids-house-game/?hood=http://localhost:{PORT_HOOD}'
 res = {}
 def check(name, ok, extra=''):
@@ -26,6 +26,17 @@ def wait_port(port, t=30):
 def stop(pr):
     try: os.killpg(pr.pid, signal.SIGTERM)
     except Exception: pass
+    time.sleep(1)
+def free_ports(*ports):  # leftovers from an aborted run would answer instead of this run's servers
+    import re
+    out = subprocess.run(['ss', '-ltnp'], capture_output=True, text=True).stdout
+    for line in out.splitlines():
+        if any(re.search(rf':{p}\b', line) for p in ports):
+            for pid in re.findall(r'pid=(\d+)', line):
+                try: os.killpg(os.getpgid(int(pid)), signal.SIGTERM)
+                except Exception:
+                    try: os.kill(int(pid), signal.SIGTERM)
+                    except Exception: pass
     time.sleep(1)
 def serve_build(dist):  # "deploy": swap what the web server serves at /kids-house-game/
     link = WWW + '/kids-house-game'
@@ -53,12 +64,14 @@ def items_of(snap):
 async def main():
     shutil.rmtree(M, ignore_errors=True); os.makedirs(WWW); os.makedirs(M + '/data')
     os.symlink('/tmp/preview-dist', WWW + '/cozy-preview')
+    free_ports(PORT_WEB, PORT_HOOD, PORT_PREV)
     serve_build('/tmp/prod-dist')
     # static web server like GitHub Pages, but with no-cache so the "update" is picked up right away (Pages caches up to 10 min)
     code = ("import http.server, functools\n"
             "class H(http.server.SimpleHTTPRequestHandler):\n"
-            "    def end_headers(self): self.send_header('Cache-Control', 'no-cache'); super().end_headers()\n"
+            "    def end_headers(self): self.send_header('Cache-Control', 'no-store'); super().end_headers()\n"
             "    def log_message(self, *a): pass\n"
+            "    def send_head(self):\n        self.headers.replace_header('If-Modified-Since', '') if self.headers.get('If-Modified-Since') else None\n        return super().send_head()\n"
             f"http.server.ThreadingHTTPServer(('', {PORT_WEB}), functools.partial(H, directory='{WWW}')).serve_forever()")
     web = subprocess.Popen([sys.executable, '-c', code], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     prod = server('/tmp/prodtree', M + '/data', PORT_HOOD); wait_port(PORT_HOOD); wait_port(PORT_WEB)
@@ -68,6 +81,7 @@ async def main():
             ctxs = [await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=2, has_touch=True) for _ in range(3)]
             for c in ctxs: await c.add_init_script("localStorage.getItem('cozy-whatsnew') || localStorage.setItem('cozy-whatsnew', '3')")  # they've seen the ranch popup
             P, K2, K3 = [await c.new_page() for c in ctxs]
+            P.on("response", lambda r: print("NET", r.status, r.url[-60:], r.from_service_worker) if ("/api/" in r.url or r.request.resource_type == "document") else None); P.on("requestfailed", lambda r: print("NETFAIL", r.url, r.failure) if "/api/" in r.url else None); P.on("console", lambda m: print("CON", m.text[:200]) if m.type == "error" else None)
             errs = []
             for pg in (P, K2, K3): pg.on('pageerror', lambda e: errs.append(str(e))); await pg.goto(URL); await pg.wait_for_timeout(700)
             # ================= Phase A: production =================
@@ -125,8 +139,16 @@ async def main():
             stop(prod); time.sleep(1)
             shutil.copytree(M + '/data', M + '/data-new'); files_a = {f: open(f'{M}/data/{f}').read() for f in os.listdir(M + '/data')}
             new = server(ROOT, M + '/data-new', PORT_HOOD); serve_build('/tmp/new-dist'); wait_port(PORT_HOOD)
-            for pg in (P, K2, K3): await pg.goto(URL); await pg.wait_for_timeout(300)
-            for pg in (P, K2, K3): await pg.wait_for_selector('body.view-map #mapWorld .mapHouse', timeout=10000)
+            new_js = [f for f in os.listdir('/tmp/new-dist/assets') if f.startswith('index-') and f.endswith('.js')][0]
+            for i, pg in enumerate((P, K2, K3)):
+                for attempt in range(4):
+                    await pg.goto(URL); await pg.wait_for_timeout(300)
+                    if new_js in await pg.evaluate("[...document.scripts].map(s => s.src).join()"): break
+                    print('DBG iPad', i, 'still had the old page (offline fallback); reloading', attempt)
+            for i, pg in enumerate((P, K2, K3)):
+                try: await pg.wait_for_selector('body.view-map #mapWorld .mapHouse', timeout=10000)
+                except Exception:
+                    await pg.screenshot(path=f'/tmp/migB{i}.png'); print('DBG', i, await pg.evaluate("document.body.className"), await pg.evaluate("[...document.scripts].map(s=>s.src).join(',')"), await pg.evaluate("localStorage.getItem('cozy-hood')")); raise
             await P.wait_for_timeout(1500)
             check('updated iPads see the What\'s new popup once', all([await pg.locator('.whatsNew').count() == 1 for pg in (P, K2, K3)]))
             for pg in (P, K2, K3): await pg.wait_for_timeout(500); await pg.evaluate("document.querySelector('#wnGo')?.click()"); await pg.wait_for_timeout(300)
