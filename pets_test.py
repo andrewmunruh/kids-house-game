@@ -1,7 +1,8 @@
 # Pets + park: 3 simulated iPads (and one "old app" socket) against a neighborhood server.
 import asyncio, re, sys, json
 from playwright.async_api import async_playwright
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/'
+from testnav import PFX, SKIP_WN, K, to_map, go
+URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
 SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/pets/'
 res = {}
 def check(name, ok, extra=''):
@@ -15,7 +16,7 @@ async def join(pg, code, nth, bring):
     await pg.fill('#codeInput', code.lower()); await pg.click('#codeForm button')
     await pg.locator('.nicks button').nth(nth).click()
     if bring is not None: await pg.click('[data-m="bring"]' if bring else '[data-m="fresh"]')
-    await pg.wait_for_selector('body.view-street .house', timeout=8000)
+    await pg.wait_for_selector('body.view-map .mapHouse', timeout=8000)
 async def drag(pg, a, b, steps=14):
     await pg.mouse.move(*a); await pg.mouse.down(); await pg.mouse.move(*b, steps=steps); await pg.mouse.up(); await pg.wait_for_timeout(300)
 async def center(loc):
@@ -34,7 +35,7 @@ async def main():
         b = await p.chromium.launch()
         async def mk():
             c = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=2, has_touch=True)
-            await c.add_init_script("localStorage.getItem('cozy-whatsnew') || localStorage.setItem('cozy-whatsnew', '999')")  # skip the What's new popup
+            await c.add_init_script(SKIP_WN)  # skip the What's new popup
             return c
         P, K2, K3 = [await (await mk()).new_page() for _ in range(3)]
         errs = {}
@@ -62,15 +63,16 @@ async def main():
         check('cat purrs with hearts on tap', await P.locator('.pet.pet-cat .heart').count() > 0)
         await P.screenshot(path=SHOT + '02-solo-purr-and-trick.png')
         # ---------- solo park ----------
-        await P.click('#btnPark'); await P.wait_for_selector('body.view-park #parkWorld .parkScene'); await P.wait_for_timeout(900)
+        await go(P, 'park'); await P.wait_for_timeout(400)
         pp = await pets(P); check('solo park: walker + dog in the park', await P.locator('#pavatars .savatar').count() == 1 and 'solo' in pp['dogs'])
         await P.screenshot(path=SHOT + '03-solo-park-entrance.png')
         await P.evaluate("document.getElementById('parkScroll').scrollLeft = 200"); await P.wait_for_timeout(200)
         await P.click('[data-spot="0"]'); await P.wait_for_timeout(1200)
         check('solo park: swinging', await P.locator('#pavatars .savatar.pose-swing').count() == 1 and await P.locator('.swing.swinging').count() == 1)
         await P.screenshot(path=SHOT + '04-solo-swing.png')
-        await P.click('#btnLeavePark'); await P.wait_for_timeout(500)
-        check('solo: leaving park returns home with the save intact', await P.evaluate("!document.body.classList.contains('view-park') && __store.get().cat.name === 'Mochi'"))
+        await go(P, 'home')
+        check('solo: map -> home with the save intact', await P.evaluate("!document.body.classList.contains('view-park') && !document.body.classList.contains('view-street') && __store.get().cat.name === 'Mochi'"))
+        await to_map(P)
         # ---------- neighborhood ----------
         await P.click('#btnHood'); await P.click('[data-m="create"]'); await adult(P)
         await P.wait_for_selector('#newCode'); code = (await P.inner_text('#newCode')).strip(); await P.click('.hoodSheet [data-m="close"]')
@@ -81,14 +83,13 @@ async def main():
         check('hood: her dog came along', (await K2.evaluate(f"__hood().players.get('{await P.evaluate('__hood().pid')}').dog"))['name'] == 'Rocket')
         await adopt(K2, 'dog', 1, name='Coco'); await K2.wait_for_timeout(500)
         check('hood: K2 adopts a poodle, synced to others', (await P.evaluate(f"__hood().players.get('{await K2.evaluate('__hood().pid')}').dog"))['name'] == 'Coco')
-        check('street: dogs follow on the street', len((await pets(P))['dogs']) == 2, json.dumps((await pets(P))['dogs']))
+        check('map: everyone shows as a face on the map', await P.locator('#mapFaces .mapFace').count() == 3)
         await P.screenshot(path=SHOT + '05-street-with-dogs.png')
         # K2 cannot change someone else's cat (server validation)
         await K2.evaluate(f"__hood().dispatch('{p_house}', {{type:'cat/set', cat:{{name:'Stolen', coat:1, room:'living', x:900}}}})"); await K2.wait_for_timeout(700)
         check('server refuses cat changes by visitors', (await P.evaluate(f"__hood().view('{p_house}').cat"))['name'] == 'Mochi')
         # visitors see the cat in her house
-        await P.locator(f'.house[data-hid="{p_house}"]').click(); await P.wait_for_timeout(600)
-        await K2.locator(f'.house[data-hid="{p_house}"]').click(); await K2.wait_for_timeout(900)
+        await go(P, f'house:{p_house}'); await go(K2, f'house:{p_house}'); await K2.wait_for_timeout(400)
         check('visitor sees her cat', (await pets(K2))['cat'] is not None and (await pets(K2))['cat']['name'] == 'Mochi')
         mood_p, mood_k = (await pets(P))['cat']['mood'], (await pets(K2))['cat']['mood']
         check('cat behaves the same on both iPads', mood_p == mood_k, f'{mood_p}/{mood_k}')
@@ -99,13 +100,11 @@ async def main():
         await P.click('#btnPets'); await P.click('#callCat'); await P.wait_for_timeout(500)
         check('"Here, kitty!" moves the cat (synced)', (await K2.evaluate(f"__hood().view('{p_house}').cat.x")) == (await P.evaluate('__store.get().cat.x')))
         # ---------- park ----------
-        old = await K3.evaluate("""(async () => { const cfg = JSON.parse(localStorage.getItem('cozy-hood'));
+        old = await K3.evaluate("""(async () => { const cfg = JSON.parse(localStorage.getItem('""" + K('cozy-hood') + """'));
           const ws = new WebSocket(cfg.url.replace(/^http/,'ws') + '/ws/' + (cfg.id ?? cfg.code)); window.__oldMsgs = [];
           await new Promise(r => ws.onopen = r); ws.onmessage = e => window.__oldMsgs.push(JSON.parse(e.data));
           ws.send(JSON.stringify({t:'join', nickname:'Lucky Lamb', look:{}})); window.__oldWs = ws; return true; })()""")
-        await P.click('#btnStreet'); await P.wait_for_timeout(400)
-        await P.evaluate("document.getElementById('streetScroll').scrollLeft = 1e5"); await P.wait_for_timeout(300)
-        await P.click('.parkGate'); await K2.click('#btnPark'); await K3.click('#btnPark'); await P.wait_for_timeout(1200)
+        await go(P, 'park'); await go(K2, 'park'); await go(K3, 'park'); await P.wait_for_timeout(800)
         n = [await pg.locator('#pavatars .savatar').count() for pg in (P, K2, K3)]
         check('park: everyone sees all 3 kids live', n == [3, 3, 3], str(n))
         check('park: both dogs in the park', len((await pets(K3))['dogs']) == 2)
@@ -143,8 +142,8 @@ async def main():
         types = sorted(set(m.get('t') for m in msgs))
         check('old app never gets fx or cat actions', 'welcome' in types and not any(m.get('t') == 'fx' or (m.get('t') == 'act' and m['action']['type'].startswith('cat/')) for m in msgs), str(types))
         # leaving the park
-        await P.click('#btnLeavePark'); await P.wait_for_timeout(500)
-        check('leave park -> back on the street next to the gate', await P.evaluate("document.body.classList.contains('view-street') && !document.body.classList.contains('view-park')"))
+        await P.click('#btnMap'); await P.wait_for_timeout(600)
+        check('leave park -> back on the map', await P.evaluate("document.body.classList.contains('view-street') && !document.body.classList.contains('view-park')"))
         await K2.wait_for_timeout(300)
         check('others see her leave the park', await K2.locator('#pavatars .savatar').count() == 2)
         for k, v in errs.items():

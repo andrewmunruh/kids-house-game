@@ -1,4 +1,5 @@
 import './style.css';
+import { MAP_W, MAP_H, PARK, RANCH, SQUARE, mapBgSVG, mapTreesSVG, parkMiniSVG, ranchMiniSVG, mapIcon, faceSVG } from './map';
 import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
 import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, cleanPetName, CAT_NAMES, DOG_NAMES, PARK_W, PARK_SPOTS, SLIDE, DOG_AREA, type Presence, type Bubble, type Look, type Fx } from './shared/hood';
@@ -11,8 +12,8 @@ import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
 import { characterSVG, SKINS, HAIRS, CLOTHES, HAIR_STYLES, ACCESSORIES, SIZES, SIZE_SCALE, HANDS } from './character';
 import { sfx, setSound } from './sound';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
-import { RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
-import { ranchSceneSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H } from './ranch';
+import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
+import { barnSceneSVG, windmillSVG, ranchSceneSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H } from './ranch';
 
 // The renderer talks to `store`, which forwards to either the offline localStorage house
 // or a neighborhood house (server-authoritative) — same actions, same reducer.
@@ -74,22 +75,20 @@ app.innerHTML = `
 <div class="top">
   <div class="tabs" id="tabs"></div>
   <div class="minimap" id="minimap" aria-label="Room map"><div class="mmWall" id="mmWall"></div><div class="mmFloor" id="mmFloor"></div><div id="mmDots"></div><div class="mmView" id="mmView"></div></div>
-  <div class="streetTitle" id="streetTitle">Our Street</div>
+  <div class="streetTitle" id="streetTitle">Our Neighborhood</div>
   <div class="tools">
-    <button class="round hoodOnly" id="btnStreet" aria-label="Go outside">${ICONS.street}</button>
     <button class="round ownOnly" id="btnLock" aria-label="Lock house"></button>
     <button class="round hoodOnly" id="btnChat" aria-label="Talk">${ICONS.chat}</button>
     <button class="round soloOnly" id="btnHood" aria-label="Neighborhood">${ICONS.street}</button>
     <button class="round streetOnly" id="btnParent" aria-label="Grown-ups">${ICONS.shield}</button>
     <button class="round streetOnly" id="btnSolo" aria-label="Play in my own house">${ICONS.solo}</button>
-    <button class="round" id="btnPark" aria-label="Go to the park">${treeIcon}</button>
-    <button class="round" id="btnRanch" aria-label="Go to Rainbow Ranch">${rainbowIcon}</button>
-    <button class="round sceneOnly" id="btnLeavePark" aria-label="Leave">${gateIcon}</button>
+    <button class="round barnOnly" id="btnLeavePark" aria-label="Go outside">${gateIcon}</button>
     <button class="round rideOnly" id="btnHopOff" aria-label="Hop off the horse">${hopOffIcon}</button>
     <button class="round" id="btnPets" aria-label="Pets">${pawIcon}</button>
     <button class="round" id="btnPaint" aria-label="Colors">${ICON.paint}</button>
     <button class="round" id="btnDress" aria-label="Characters">${ICON.shirt}</button>
     <button class="round" id="btnSound" aria-label="Sound"></button>
+    <button class="round mapBtn" id="btnMap" aria-label="Map">${mapIcon}</button>
   </div>
 </div>
 <div class="stageWrap" id="stageWrap">
@@ -116,12 +115,14 @@ app.innerHTML = `
 <div class="street park ranch hidden" id="ranch"><div class="streetScroll" id="ranchScroll"><div class="parkWorld ranchWorld" id="ranchWorld"></div></div></div>
 <button class="basketChip hidden" id="basketChip" aria-label="My basket"></button>
 <div class="street park hidden" id="park"><div class="streetScroll" id="parkScroll"><div class="parkWorld" id="parkWorld"></div></div></div>
-<div class="street hidden" id="street"><div class="streetScroll" id="streetScroll"><div class="streetWorld" id="streetWorld"></div></div></div>
+<div class="street mapView hidden" id="street"><div class="mapWorld" id="mapWorld"></div></div>
 <div class="chatTray hidden" id="chatTray"></div>
 <div class="sheet hidden" id="sheet"><div class="card" id="card"></div></div>
 <div class="fx" id="fx"></div>`;
 
 const $ = (id: string) => document.getElementById(id)!;
+// preview builds (separate URL, separate server, prefixed saves) wear a little ribbon so nobody mixes them up
+if (import.meta.env.VITE_STORE_PREFIX) { document.body.classList.add('is-preview'); document.body.insertAdjacentHTML('beforeend', '<div class="previewRibbon">PREVIEW</div>'); }
 const stage = $('stage'), world = $('world'), layer = $('layer'), toolbar = $('toolbar'), bin = $('bin');
 let selected: string | null = null;          // selected room item (UI only)
 let activeChar: string | null = store.get().characters[0]?.id ?? null; // character being edited (UI only)
@@ -132,7 +133,8 @@ const newId = (p: string) => `${p}-${Date.now().toString(36)}${(++uid).toString(
 const ME = '__me';
 // ---------- neighborhood state (declared early: render functions consult it) ----------
 let hood: HoodClient | null = null;
-let view: 'house' | 'street' | 'park' | 'ranch' = 'house';
+let view: 'house' | 'street' | 'park' | 'ranch' = 'house'; // 'street' is the neighborhood map
+let inBarn = false; // inside Rainbow Ranch: the yard, or the barn (petting zoo)
 let currentHouseId = '';
 let houseStores = new Map<string, ReturnType<typeof houseStore>>();
 const avatarEls = new Map<string, HTMLElement>();
@@ -743,7 +745,7 @@ function lockedNudge(el: Element | null) {
 const myPres = () => hood?.myPresence() ?? null;
 const myLook = (): Look | null => (hood ? hood.players.get(hood.pid)?.look ?? null : null);
 function updateChar(id: string, patch: Partial<Character>) {
-  if (id === ME) { const l = myLook(); if (!l || !hood) return; hood.setLook(cleanLook({ ...l, ...patch })); renderAvatars(); if (view === 'street') renderStreetAvatars(); if (view === 'park') renderParkAvatars(); if (view === 'ranch') renderRanchAvatars(); return; }
+  if (id === ME) { const l = myLook(); if (!l || !hood) return; hood.setLook(cleanLook({ ...l, ...patch })); renderAvatars(); if (view === 'street') renderMapFaces(); if (view === 'park') renderParkAvatars(); if (view === 'ranch') renderRanchAvatars(); return; }
   store.dispatch({ type: 'char/update', id, patch });
 }
 function setMyPres(p: Presence) { hood?.setPresence(p); }
@@ -808,7 +810,7 @@ function attachMyAvatarDrag(el: HTMLElement) {
 // ---------- speech bubbles ----------
 function bubbleText(b: Bubble): string { if (b.kind === 'text') return b.v; return (b.kind === 'phrase' ? PHRASES : EMOTES)[b.v] ?? ''; }
 function showBubble(pid: string, b: Bubble) {
-  const el0 = view === 'street' ? document.querySelector<HTMLElement>(`#streetWorld .savatar[data-pid="${pid}"]`)
+  const el0 = view === 'street' ? document.querySelector<HTMLElement>(`#mapFaces .mapFace[data-pid="${pid}"]`)
     : view === 'park' ? document.querySelector<HTMLElement>(`#pavatars .savatar[data-pid="${pid}"]`)
     : view === 'ranch' ? document.querySelector<HTMLElement>(`#ravatars .savatar[data-pid="${pid}"]`) : avatarEls.get(pid);
   const targets = el0 ? [el0] : [];
@@ -860,7 +862,7 @@ function renderHoodChrome() {
   const inHouse = !!hood && inner !== local && view === 'house';
   const h = inHouse ? hood!.houses.get(currentHouseId) : undefined;
   const own = !!h && h.meta.ownerId === hood!.pid;
-  b.toggle('mode-hood', !!hood); b.toggle('view-street', view !== 'house'); b.toggle('view-park', view === 'park'); b.toggle('view-ranch', view === 'ranch'); renderBasketChip();
+  b.toggle('mode-hood', !!hood); b.toggle('view-street', view !== 'house'); b.toggle('view-park', view === 'park'); b.toggle('view-ranch', view === 'ranch'); b.toggle('view-map', view === 'street'); b.toggle('in-barn', view === 'ranch' && inBarn); renderBasketChip();
   b.toggle('own-house', own); b.toggle('locked', !!h && !canEdit()); b.toggle('has-hood', !!hoodServerUrl());
   if (h) {
     const owner = hood!.players.get(h.meta.ownerId)?.nickname ?? '';
@@ -875,110 +877,199 @@ $('btnLock').addEventListener('click', () => {
   hood!.lock(h.meta.id, !h.meta.locked); sfx.click(); toast(h.meta.locked ? 'Unlocked: friends can decorate!' : 'Locked: friends can look but not change things');
 });
 
-// ---------- street ----------
-const STREET_H = 600;
-function streetScale() { return $('street').clientHeight / STREET_H; }
-function renderStreet() {
-  if (!hood) return;
-  const houses = [...hood.houses.values()].map(h => h.meta).sort((a, b) => a.slot - b.slot);
-  const SW = streetWidth(houses.length) + RANCH_EXTRA, sc = streetScale();
-  const world = $('streetWorld');
-  world.style.width = SW * sc + 'px'; world.style.height = STREET_H * sc + 'px'; world.style.setProperty('--sc', String(sc));
-  const trees = Array.from({ length: Math.ceil(SW / 520) + 1 }, (_, i) => i * 520 + 250).filter(x => x < SW - 90).map(x => `<div class="tree" style="left:${x * sc}px"></div>`).join('');
-  world.innerHTML = `<div class="sky"></div><div class="hill h1"></div><div class="hill h2"></div><div class="lawn"></div><div class="sidewalk"></div><div class="road"><div class="dash"></div></div>${trees}` +
-    houses.map(h => {
-      const owner = hood!.players.get(h.ownerId);
-      const mine = h.ownerId === hood!.pid;
-      return `<button class="house ${mine ? 'mine' : ''}" data-hid="${h.id}" style="left:${(slotX(h.slot) - 160) * sc}px;top:${(400 - 300) * sc}px;width:${320 * sc}px;height:${300 * sc}px" aria-label="${esc(h.name)}">
-        ${houseSVG(h.style, { lit: !!owner?.online })}${h.locked ? '<span class="lockBadge">🔒</span>' : ''}${mine ? '<span class="homeBadge">★</span>' : ''}</button>
-        <div class="sign" style="left:${slotX(h.slot) * sc}px;top:${405 * sc}px">${esc(h.name)}</div>`;
-    }).join('') + `<button class="ranchGate" aria-label="Go to Rainbow Ranch" style="left:${(SW - RANCH_EXTRA + 10) * sc}px;top:${130 * sc}px;width:${240 * sc}px;height:${280 * sc}px">${streetRanchGateSVG}</button><button class="parkGate" aria-label="Go to the park" style="left:${(SW - RANCH_EXTRA - 250) * sc}px;top:${130 * sc}px;width:${220 * sc}px;height:${280 * sc}px">${streetGateSVG}</button><div class="savatars" id="savatars"></div>`;
-  renderStreetAvatars();
+// ---------- the neighborhood map (one tap takes you anywhere; side-scrolling only inside a scene) ----------
+type Place = { kind: 'house'; houseId: string; room?: RoomId } | { kind: 'home' } | { kind: 'park' } | { kind: 'ranch' } | { kind: 'barn' } | { kind: 'square' };
+const mapAnchors = new Map<string, { x: number; y: number }>(); // where face markers stand for each place (map units)
+let mapKey = '';
+let fakeHouses = 0; // test hook only: draw a pretend street with this many houses
+function mapScale() { const r = $('street'); return Math.min(r.clientWidth / MAP_W, r.clientHeight / MAP_H); }
+function mapHouses() { return hood ? [...hood.houses.values()].map(h => h.meta).sort((a, b) => a.slot - b.slot) : []; }
+function renderMap(force = false) {
+  if (view !== 'street') return;
+  const sc = mapScale(), w = $('mapWorld');
+  const houses = mapHouses();
+  const key = sc.toFixed(3) + JSON.stringify(houses) + (hood ? houses.map(h => (hood!.players.get(h.ownerId)?.online ? 1 : 0)).join('') + hood.pid : 'solo');
+  if (!force && key === mapKey && w.querySelector('#mapFaces')) { renderMapFaces(); return; }
+  mapKey = key;
+  w.style.width = MAP_W * sc + 'px'; w.style.height = MAP_H * sc + 'px'; w.style.setProperty('--sc', String(sc));
+  w.innerHTML = mapBgSVG();
+  const road = w.querySelector<SVGPathElement>('#mapRoad')!, L = road.getTotalLength();
+  const samples = Array.from({ length: 160 }, (_, i) => road.getPointAtLength(L * i / 159));
+  const onRoad = (x: number, y: number) => samples.some(p => Math.hypot(p.x - x, p.y - y) < 50);
+  const px = (v: number) => v * sc + 'px';
+  const taken = baseTaken();
+  mapAnchors.clear();
+  // houses along the road, alternating sides (whichever side has more room)
+  const list: ({ id: string; name: string; style: number; locked: boolean; mine: boolean; lit: boolean } | null)[] = hood
+    ? houses.map(h => ({ id: h.id, name: h.name, style: h.style, locked: h.locked, mine: h.ownerId === hood!.pid, lit: !!hood!.players.get(h.ownerId)?.online }))
+    : fakeHouses ? Array.from({ length: fakeHouses }, (_, i) => ({ id: 'fake' + i, name: ['Reagan', 'Quinn', 'Chloe', 'Sloane', 'Cada', 'Emma', 'Olivia', 'Charlotte', 'Amelia', 'Sophia', 'Isabella', 'Mia'][i % 12] + "'s House", style: i, locked: i === 3, mine: i === 0, lit: i % 3 !== 1 })) : [null];
+  const n = list.length, hw = n > 8 ? 80 : 94, hh = hw * 300 / 320;
+  let html = '';
+  const spotsXY = houseSpots(road, n, taken);
+  list.forEach((h, i) => {
+    const c = spotsXY[i];
+    const go = h ? `house:${h.id}` : 'home', name = h ? h.name : 'My House';
+    mapAnchors.set(h ? 'house:' + h.id : 'home', { x: c.x, y: c.y - hh / 2 - 4 });
+    html += `<button class="mapSpot mapHouse ${h?.mine || !h ? 'mine' : ''}" data-go="${go}" aria-label="${esc(name)}" style="left:${px(c.x - hw / 2)};top:${px(c.y - hh / 2)};width:${px(hw)};height:${px(hh)}">${houseSVG(h ? h.style : 0, { lit: h ? h.lit : true })}${h?.locked ? '<span class="lockBadge">🔒</span>' : ''}${h?.mine || !h ? '<span class="homeBadge">★</span>' : ''}</button>
+      <div class="mapSign ${h?.mine || !h ? 'mine' : ''}" style="left:${px(c.x)};top:${px(c.y + hh / 2 - 2)}">${esc(name)}</div>`;
+  });
+  html += `<button class="mapSpot mapPark" data-go="park" aria-label="The park" style="left:${px(PARK.x - 100)};top:${px(PARK.y - 85)};width:${px(200)};height:${px(170)}">${parkMiniSVG}</button><div class="mapSign place" style="left:${px(PARK.x)};top:${px(PARK.y + 70)}">Park</div>`;
+  html += `<button class="mapSpot mapRanch" data-go="ranch" aria-label="Rainbow Ranch" style="left:${px(RANCH.x - 110)};top:${px(RANCH.y - 90)};width:${px(220)};height:${px(180)}">${ranchMiniSVG}</button><div class="mapSign place" style="left:${px(RANCH.x)};top:${px(RANCH.y + 78)}">Rainbow Ranch</div>`;
+  mapAnchors.set('park', { x: PARK.x, y: PARK.y - 60 }); mapAnchors.set('ranch', { x: RANCH.x - 30, y: RANCH.y - 60 }); mapAnchors.set('barn', { x: RANCH.x + 10, y: RANCH.y + 10 });
+  w.insertAdjacentHTML('beforeend', mapTreesSVG(taken, onRoad) + html + '<div class="mapFaces" id="mapFaces"></div>');
+  renderMapFaces();
 }
-function renderStreetAvatars() {
-  if (!hood) return; const box = document.getElementById('savatars'); if (!box) return;
-  const sc = streetScale(); const keep = new Set<string>();
-  const entries: [string, Presence][] = [...hood.presence.entries()]; const mine = myPres(); if (mine) entries.push([hood.pid, mine]);
-  for (const [pid, p] of entries) {
-    const pl = hood.players.get(pid); if (!pl || p.where !== 'street') continue;
-    keep.add(pid);
-    let el = box.querySelector<HTMLElement>(`.savatar[data-pid="${pid}"]`);
-    if (!el) { el = document.createElement('div'); el.className = 'savatar ' + (pid === hood.pid ? 'mine' : 'other'); el.dataset.pid = pid; box.appendChild(el); if (pid === hood.pid) attachStreetDrag(el); }
-    const key = JSON.stringify(pl.look) + pl.nickname;
-    if (el.dataset.look !== key) { const b = el.querySelector('.bubble'); el.innerHTML = avatarHTML(pl.look, pl.nickname); if (b) el.appendChild(b); el.dataset.look = key; }
-    const k = (SIZE_SCALE[pl.look.size] ?? 1) * sc * 0.95, w = CHAR_W * k, h = CHAR_H * k;
-    el.style.left = p.x * sc - w / 2 + 'px'; el.style.top = p.y * sc - h + 'px'; el.style.width = w + 'px'; el.style.height = h + 'px';
-    el.style.zIndex = String(100 + Math.round(p.y)); el.classList.toggle('flipped', p.flip);
+const baseTaken = () => [{ x: PARK.x, y: PARK.y, r: 115 }, { x: RANCH.x, y: RANCH.y, r: 125 }, { x: SQUARE.x, y: SQUARE.y, r: 100 }];
+/** Where n houses go: evenly along the road, on whichever side has more room (never on the park, ranch or square). */
+function houseSpots(road: SVGPathElement, n: number, taken: { x: number; y: number; r: number }[]) {
+  const L = road.getTotalLength(), out: { x: number; y: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const t = n === 1 ? 0.2 : 0.05 + 0.75 * i / (n - 1);
+    const p = road.getPointAtLength(L * t), q = road.getPointAtLength(Math.min(L, L * t + 3));
+    let nx = -(q.y - p.y), ny = q.x - p.x; const d = Math.hypot(nx, ny) || 1; nx /= d; ny /= d;
+    const cand = [1, -1].map(side => ({ x: p.x + nx * 72 * side, y: p.y + ny * 72 * side }))
+      .map(c => ({ ...c, score: Math.min(...taken.map(o => Math.hypot(o.x - c.x, o.y - c.y) - o.r), c.x - 50, MAP_W - 50 - c.x, c.y - 60, MAP_H - 40 - c.y) }));
+    const prefer = i % 2 ? cand : [cand[1], cand[0]];
+    const c = prefer[0].score > 0 || prefer[0].score >= prefer[1].score ? prefer[0] : prefer[1];
+    c.x = Math.max(60, Math.min(MAP_W - 60, c.x)); c.y = Math.max(62, Math.min(MAP_H - 72, c.y)); // the house and its name sign stay on the map
+    taken.push({ x: c.x, y: c.y, r: 70 }); out.push({ x: c.x, y: c.y });
   }
-  box.querySelectorAll<HTMLElement>('.savatar').forEach(el => { if (!keep.has(el.dataset.pid!)) el.remove(); });
+  return out;
+}
+/** Test hook: lay out n houses on the current map and report the closest gaps (map units). */
+(window as any).__mapFake = (n: number) => { fakeHouses = n; renderMap(true); };
+(window as any).__mapLayout = (n: number) => {
+  const road = document.querySelector<SVGPathElement>('#mapRoad'); if (!road) return null;
+  const pts = houseSpots(road, n, baseTaken()); let minHouse = 1e9, minSpot = 1e9, inside = true;
+  pts.forEach((a, i) => { pts.forEach((b, j) => { if (j > i) minHouse = Math.min(minHouse, Math.hypot(a.x - b.x, a.y - b.y)); });
+    baseTaken().forEach(o => { minSpot = Math.min(minSpot, Math.hypot(a.x - o.x, a.y - o.y) - o.r); });
+    if (a.x < 55 || a.x > MAP_W - 55 || a.y < 60 || a.y > MAP_H - 70) inside = false; });
+  return { n, minHouse, minSpot, inside };
+};
+function placeOf(p: Presence): Place {
+  if (p.where === 'house' && p.houseId) return { kind: 'house', houseId: p.houseId, room: p.room };
+  if (p.where === 'park' || p.where === 'ranch' || p.where === 'barn') return { kind: p.where };
+  return { kind: 'square' };
+}
+const placeKey = (pl: Place) => (pl.kind === 'house' ? 'house:' + pl.houseId : pl.kind);
+function renderMapFaces() {
+  const box = document.getElementById('mapFaces'); if (!box || view !== 'street') return;
+  const sc = mapScale(), keep = new Set<string>();
+  const who: { key: string; look: Look; name: string; mine: boolean; place: Place }[] = [];
+  if (hood) {
+    const entries: [string, Presence][] = [...hood.presence.entries()]; const mine = myPres(); if (mine) entries.push([hood.pid, mine]);
+    for (const [pid, p] of entries) { const pl = hood.players.get(pid); if (pl) who.push({ key: pid, look: pl.look, name: pl.nickname, mine: pid === hood.pid, place: placeOf(p) }); }
+  } else { const c = local.get().characters[0]; if (c) who.push({ key: 'solo', look: cleanLook(c), name: 'You', mine: true, place: { kind: 'square' } }); }
+  const groups = new Map<string, typeof who>();
+  for (const x of who) { const k = placeKey(x.place); if (!groups.has(k)) groups.set(k, []); groups.get(k)!.push(x); }
+  for (const [k, g] of groups) {
+    g.sort((a, b) => (a.mine ? -1 : b.mine ? 1 : a.name.localeCompare(b.name)));
+    g.forEach((x, j) => {
+      let fx: number, fy: number;
+      if (k === 'square') { const a = -Math.PI / 2 + j * (Math.PI * 2 / Math.max(5, g.length)); fx = SQUARE.x + Math.cos(a) * 50; fy = SQUARE.y + Math.sin(a) * 50; }
+      else { const an = mapAnchors.get(k) ?? { x: SQUARE.x, y: SQUARE.y }; const per = 4, row = Math.floor(j / per), col = j % per, m = Math.min(per, g.length - row * per); fx = an.x + (col - (m - 1) / 2) * 40; fy = an.y - row * 40; }
+      keep.add(x.key);
+      let el = box.querySelector<HTMLElement>(`.mapFace[data-pid="${x.key}"]`);
+      if (!el) { el = document.createElement('button'); el.className = 'mapFace ' + (x.mine ? 'mine' : 'other'); el.dataset.pid = x.key; el.setAttribute('aria-label', x.mine ? 'You' : x.name); box.appendChild(el); }
+      const lk = JSON.stringify(x.look) + x.name;
+      if (el.dataset.look !== lk) { const b = el.querySelector('.bubble'); el.innerHTML = `<span class="face">${faceSVG(characterSVG(x.look))}</span><span class="fname">${esc(x.mine ? 'You' : x.name)}</span>`; if (b) el.appendChild(b); el.dataset.look = lk; }
+      el.dataset.place = k; const s = 46;
+      el.style.left = (fx - s / 2) * sc + 'px'; el.style.top = (fy - s / 2) * sc + 'px'; el.style.width = el.style.height = s * sc + 'px';
+    });
+  }
+  box.querySelectorAll<HTMLElement>('.mapFace').forEach(el => { if (!keep.has(el.dataset.pid!)) el.remove(); });
   updateNear();
 }
-function attachStreetDrag(el: HTMLElement) {
-  el.addEventListener('pointerdown', e => {
-    e.preventDefault(); e.stopPropagation(); const p0 = myPres(); if (!p0 || p0.where !== 'street' || !hood) return;
-    const scroll = $('streetScroll'); const sc = streetScale();
-    const toW = (ev: PointerEvent) => { const r = $('streetWorld').getBoundingClientRect(); return { x: (ev.clientX - r.left) / sc, y: (ev.clientY - r.top) / sc }; };
-    const q0 = toW(e), off = { x: p0.x - q0.x, y: p0.y - q0.y }; let last = e, raf = 0, lastX = p0.x;
-    const SW = streetWidth(hood.houses.size) + RANCH_EXTRA;
-    const apply = (ev: PointerEvent) => {
-      const q = toW(ev), cur = myPres(); if (!cur) return;
-      const x = Math.max(60, Math.min(SW - 60, q.x + off.x)), y = Math.max(470, Math.min(590, q.y + off.y));
-      const flip = Math.abs(x - lastX) > 3 ? x < lastX : cur.flip; if (Math.abs(x - lastX) > 3) lastX = x;
-      setMyPres({ where: 'street', x, y, flip }); renderStreetAvatars();
-    };
-    const tick = () => { const r = scroll.getBoundingClientRect(); const v = last.clientX < r.left + 70 ? -10 : last.clientX > r.right - 70 ? 10 : 0; if (v) { scroll.scrollLeft += v; apply(last); } raf = requestAnimationFrame(tick); };
-    raf = requestAnimationFrame(tick); el.classList.add('lifted'); sfx.pick();
-    const move = (ev: PointerEvent) => { if (ev.pointerId !== e.pointerId) return; last = ev; apply(ev); };
-    const up = (ev: PointerEvent) => { if (ev.pointerId !== e.pointerId) return; cancelAnimationFrame(raf); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); el.classList.remove('lifted'); sfx.drop(); };
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
-  });
+/** Zoom into the tapped spot, then go there (the new scene fades in). */
+function mapGo(target: Place, from?: HTMLElement) {
+  const w = $('mapWorld');
+  if (from && !w.classList.contains('zoomIn')) {
+    const r = from.getBoundingClientRect(), wr = w.getBoundingClientRect();
+    w.style.transformOrigin = `${r.left + r.width / 2 - wr.left}px ${r.top + r.height / 2 - wr.top}px`;
+    w.classList.remove('mapIn'); w.classList.add('zoomIn'); sfx.swish();
+    setTimeout(() => { w.classList.remove('zoomIn'); goPlace(target); }, 360);
+  } else goPlace(target);
 }
-$('streetWorld').addEventListener('click', e => {
-  if ((e.target as HTMLElement).closest('.ranchGate')) { goRanch(); return; }
-  if ((e.target as HTMLElement).closest('.parkGate')) { goPark(); return; }
-  const hb = (e.target as HTMLElement).closest<HTMLElement>('.house'); if (hb) enterHouse(hb.dataset.hid!);
+function sceneIn(el: HTMLElement) { el.classList.remove('sceneIn'); void el.offsetWidth; el.classList.add('sceneIn'); setTimeout(() => el.classList.remove('sceneIn'), 600); }
+function goPlace(t: Place) {
+  if (t.kind === 'house') enterHouse(t.houseId, t.room);
+  else if (t.kind === 'home') goHome();
+  else if (t.kind === 'park') goPark();
+  else if (t.kind === 'ranch') goRanch(false);
+  else if (t.kind === 'barn') goRanch(true);
+}
+/** Tap a friend's face: go to where she is and stand next to her. */
+function goToFriend(pid: string) {
+  const p = hood?.presence.get(pid); if (!hood || !p) return;
+  const pl = placeOf(p), name = hood.players.get(pid)?.nickname ?? 'your friend';
+  if (pl.kind === 'square') { toast(`${name} is on the map too! 👋`); return; }
+  const face = document.querySelector<HTMLElement>(`#mapFaces .mapFace[data-pid="${pid}"]`) ?? undefined;
+  mapGo(pl, face);
+  setTimeout(() => {
+    const me = myPres(); if (!me || !hood) return;
+    const x = p.x + (p.x > 300 ? -110 : 110);
+    if (pl.kind === 'house' && me.where === 'house') { setMyPres({ ...me, x, y: p.y }); renderAvatars(); glideTo(x - VIEW_W / 2); }
+    else if ((pl.kind === 'park' || pl.kind === 'ranch' || pl.kind === 'barn') && me.where === pl.kind) {
+      setParkPres({ ...me, x, y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, p.y)), flip: x > p.x } as Presence);
+      const sc = pl.kind === 'park' ? parkScale() : ranchScale(), scroll = $(pl.kind === 'park' ? 'parkScroll' : 'ranchScroll');
+      requestAnimationFrame(() => { scroll.scrollLeft = p.x * sc - scroll.clientWidth / 2; });
+    }
+    toast(`You found ${name}! 💕`);
+  }, 420);
+}
+$('mapWorld').addEventListener('click', e => {
+  const t = e.target as HTMLElement; if (view !== 'street') return;
+  const f = t.closest<HTMLElement>('.mapFace');
+  if (f) { if (f.classList.contains('mine')) { bounce(f); sfx.pop(); toast("That's you! Tap a place to go there"); } else goToFriend(f.dataset.pid!); return; }
+  const sp = t.closest<HTMLElement>('[data-go]'); if (!sp) return;
+  const g = sp.dataset.go!;
+  mapGo(g.startsWith('house:') ? { kind: 'house', houseId: g.slice(6) } : { kind: g as 'home' | 'park' | 'ranch' }, sp);
 });
-const RANCH_EXTRA = 280; // the street runs a little further, past the park, to Rainbow Ranch
-function goStreet(fromPark: boolean | 'ranch' = false) {
-  if (!hood) return;
-  const from = hood.houses.get(currentHouseId)?.meta ?? hood.houses.get(hood.myHouseId())?.meta;
-  const x = fromPark === 'ranch' ? streetWidth(hood.houses.size) + 130 : fromPark ? streetWidth(hood.houses.size) - 330 : from ? slotX(from.slot) + 205 : 600; // stand beside the door, clear of the name sign
-  setMyPres({ where: 'street', x, y: 540, flip: !!fromPark });
-  view = 'street'; $('street').classList.remove('hidden'); $('park').classList.add('hidden'); $('ranch').classList.add('hidden'); $('chatTray').classList.add('hidden'); $('streetTitle').textContent = 'Our Street';
-  renderHoodChrome(); renderStreet();
-  requestAnimationFrame(() => { const sc = streetScale(); $('streetScroll').scrollLeft = x * sc - $('streetScroll').clientWidth / 2; });
+function hideScenes() { $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('ranch').classList.add('hidden'); $('chatTray').classList.add('hidden'); $('sheet').classList.add('hidden'); }
+function goMap() {
+  fetchSt = null; walkTarget = null; inBarn = false;
+  if (hood) setMyPres({ where: 'street', x: 600, y: 540, flip: false }); else soloPark = null;
+  hideScenes(); view = 'street'; $('street').classList.remove('hidden');
+  $('streetTitle').textContent = hood ? 'Our Neighborhood' : 'My Map';
+  renderHoodChrome(); renderMap(true);
+  const w = $('mapWorld'); w.style.transformOrigin = '50% 50%'; w.classList.remove('zoomIn', 'mapIn'); void w.offsetWidth; w.classList.add('mapIn');
   sfx.swish();
 }
-function enterHouse(houseId: string) {
+/** Back to her own house (solo: the local house; neighborhood: her house on the street). */
+function goHome() {
+  if (hood) { const id = hood.myHouseId(); if (id && hood.houses.has(id)) enterHouse(id); return; }
+  hideScenes(); view = 'house'; soloPark = null; renderHoodChrome(); renderAll(); sceneIn($('stageWrap')); sfx.sparkle();
+}
+function enterHouse(houseId: string, room: RoomId = 'living') {
   if (!hood || !hood.houses.has(houseId)) return;
-  currentHouseId = houseId; view = 'house';
+  currentHouseId = houseId; view = 'house'; inBarn = false;
   let st = houseStores.get(houseId);
   if (!st) { st = houseStore(hood, houseId, { get: () => local.get().soundOn, set: on => local.dispatch({ type: 'settings/sound', on }) }); houseStores.set(houseId, st); }
-  st.dispatch({ type: 'room/switch', room: 'living' });
-  setMyPres({ where: 'house', houseId, room: 'living', x: 900 + Math.random() * 300, y: 540, flip: false });
-  $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('ranch').classList.add('hidden'); $('chatTray').classList.add('hidden');
-  useStore(st); sfx.sparkle();
+  st.dispatch({ type: 'room/switch', room });
+  setMyPres({ where: 'house', houseId, room, x: 900 + Math.random() * 300, y: 540, flip: false });
+  hideScenes();
+  useStore(st); sceneIn($('stageWrap')); sfx.sparkle();
 }
 function goSolo() {
-  hood?.close(); hood = null; houseStores = new Map(); view = 'house'; currentHouseId = ''; soloPark = null; fetchSt = null; walkTarget = null;
-  $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('ranch').classList.add('hidden'); $('chatTray').classList.add('hidden');
+  hood?.close(); hood = null; houseStores = new Map(); view = 'house'; currentHouseId = ''; soloPark = null; fetchSt = null; walkTarget = null; inBarn = false;
+  hideScenes();
   useStore(local); renderHoodChrome();
 }
-$('btnStreet').addEventListener('click', () => goStreet());
+$('btnMap').addEventListener('click', () => { if (view === 'street') { sfx.pop(); return; } goMap(); });
 $('btnSolo').addEventListener('click', () => { goSolo(); toast('Playing in your own house 🏠'); });
-window.addEventListener('resize', () => { if (view === 'street' && hood) renderStreet(); if (view === 'park') renderPark(); if (view === 'ranch') renderRanch(); });
+window.addEventListener('resize', () => { if (view === 'street') renderMap(true); if (view === 'park') renderPark(); if (view === 'ranch') renderRanch(); });
 
 // ---------- connecting ----------
 function enterNeighborhood(client: HoodClient) {
   hood = client; houseStores = new Map();
-  client.on('players', () => { if (hood !== client) return; if (view === 'street') renderStreet(); else if (view === 'park') renderParkAvatars(); else if (view === 'ranch') { renderRanchAvatars(); renderBasketChip(); } else { renderAvatars(); renderHoodChrome(); } if (sheetMode === 'dress') renderSheet(); });
+  client.on('players', () => { if (hood !== client) return; if (view === 'street') renderMap(); else if (view === 'park') renderParkAvatars(); else if (view === 'ranch') { renderRanchAvatars(); renderBasketChip(); } else { renderAvatars(); renderHoodChrome(); } if (sheetMode === 'dress') renderSheet(); });
   client.on('houses', () => {
     if (hood !== client) return;
-    if (view === 'street') renderStreet();
-    else if (!client.houses.has(currentHouseId)) { toast('That house is gone now'); goStreet(); }
+    if (view === 'street') renderMap();
+    else if (view === 'house' && !client.houses.has(currentHouseId)) { toast('That house is gone now'); goMap(); }
   });
   client.on('houseMeta', (id: string) => { if (hood !== client || id !== currentHouseId || view !== 'house') return; selected = null; renderHoodChrome(); renderItems(store.get()); renderDrawer(); if (!canEdit()) $('sheet').classList.add('hidden'); });
-  client.on('pres', () => { if (hood !== client) return; view === 'street' ? renderStreetAvatars() : view === 'park' ? renderParkAvatars() : view === 'ranch' ? renderRanchAvatars() : renderAvatars(); });
+  client.on('pres', () => { if (hood !== client) return; view === 'street' ? renderMapFaces() : view === 'park' ? renderParkAvatars() : view === 'ranch' ? renderRanchAvatars() : renderAvatars(); });
   client.on('ranch', () => { if (hood === client && view === 'ranch') renderPlots(true); });
   client.on('ranchFail', (r: string) => { if (hood === client) ranchFailToast(r); });
   client.on('noride', () => { if (hood !== client) return; const p = myPres(); if (p?.ride !== undefined) { const { ride: _r, ...q } = p; setMyPres(q); renderRanchAvatars(); } toast('Someone is riding that horse!'); });
@@ -988,8 +1079,8 @@ function enterNeighborhood(client: HoodClient) {
   client.on('settings', () => { if (!$('chatTray').classList.contains('hidden')) renderChatTray(); });
   client.on('removed', () => { toast('A grown-up took this iPad off the street'); const c = client.cfg; saveHoodConfig({ url: c.url, code: c.code, id: c.id, parentKey: c.parentKey }); goSolo(); });
   client.on('status', (st: string) => document.body.classList.toggle('reconnecting', hood === client && st !== 'online'));
-  client.on('welcome', () => { if (hood !== client) return; if (view === 'street') renderStreet(); else if (view === 'park' || view === 'ranch') { const p = myPres(); if (p) setMyPres(p); view === 'park' ? renderPark() : renderRanch(); } else if (client.houses.has(currentHouseId)) renderAll(); else goStreet(); });
-  goStreet();
+  client.on('welcome', () => { if (hood !== client) return; if (view === 'street') renderMap(true); else if (view === 'park' || view === 'ranch') { const p = myPres(); if (p) setMyPres(p); view === 'park' ? renderPark() : renderRanch(); } else if (client.houses.has(currentHouseId)) renderAll(); else goMap(); });
+  goMap();
 }
 async function initHood() {
   renderHoodChrome();
@@ -1159,7 +1250,7 @@ function parkScale() { return $('park').clientHeight / PARK_H; }
 const parkWalker = (): Character | undefined => { const s = local.get(); return s.characters.find(c => c.id === s.dog?.owner) ?? s.characters[0]; };
 const myParkPres = (): Presence | null => (hood ? myPres() : soloPark);
 function setParkPres(p: Presence) { if (hood) setMyPres(p); else soloPark = p; view === 'ranch' ? renderRanchAvatars() : renderParkAvatars(); }
-function parkPeople(where: 'park' | 'ranch' = 'park'): Walker[] {
+function parkPeople(where: 'park' | 'ranch' | 'barn' = 'park'): Walker[] {
   if (hood) {
     const out: Walker[] = []; const entries: [string, Presence][] = [...hood.presence.entries()]; const mine = myPres(); if (mine) entries.push([hood.pid, mine]);
     for (const [pid, p] of entries) { const pl = hood.players.get(pid); if (pl && p.where === where) out.push({ key: pid, look: pl.look, name: pl.nickname, p, mine: pid === hood.pid, dog: pl.dog ?? null }); }
@@ -1212,9 +1303,9 @@ function renderParkAvatars() {
 }
 function attachParkDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
-    e.preventDefault(); e.stopPropagation(); const p0 = myParkPres(); if (!p0 || (p0.where !== 'park' && p0.where !== 'ranch')) return;
-    const R = p0.where === 'ranch'; walkTarget = null;
-    const scroll = $(R ? 'ranchScroll' : 'parkScroll'); const sc = R ? ranchScale() : parkScale(), SWW = R ? RANCH_W : PARK_W;
+    e.preventDefault(); e.stopPropagation(); const p0 = myParkPres(); if (!p0 || (p0.where !== 'park' && p0.where !== 'ranch' && p0.where !== 'barn')) return;
+    const R = p0.where !== 'park', where = p0.where; walkTarget = null;
+    const scroll = $(R ? 'ranchScroll' : 'parkScroll'); const sc = R ? ranchScale() : parkScale(), SWW = where === 'barn' ? BARN_W : R ? RANCH_W : PARK_W;
     const toW = (ev: PointerEvent) => { const r = $(R ? 'ranchWorld' : 'parkWorld').getBoundingClientRect(); return { x: (ev.clientX - r.left) / sc, y: (ev.clientY - r.top) / sc }; };
     const q0 = toW(e), off = { x: p0.x - q0.x, y: p0.y - q0.y }; let last = e, raf = 0, lastX = p0.x, moved = false;
     const apply = (ev: PointerEvent) => {
@@ -1222,7 +1313,7 @@ function attachParkDrag(el: HTMLElement) {
       const x = Math.max(60, Math.min(SWW - 60, q.x + off.x)), y = Math.max(470, Math.min(590, q.y + off.y));
       if (!moved && Math.hypot(x - cur.x, y - cur.y) < 6) return; moved = true;
       const flip = Math.abs(x - lastX) > 3 ? x < lastX : cur.flip; if (Math.abs(x - lastX) > 3) lastX = x;
-      setParkPres(R ? { where: 'ranch', x, y, flip, ...(cur.ride !== undefined ? { ride: cur.ride } : {}) } : { where: 'park', x, y, flip });
+      setParkPres(where === 'barn' ? { where: 'barn', x, y, flip } : R ? { where: 'ranch', x, y, flip, ...(cur.ride !== undefined ? { ride: cur.ride } : {}) } : { where: 'park', x, y, flip });
     };
     const tick = () => { const r = scroll.getBoundingClientRect(); const v = last.clientX < r.left + 70 ? -10 : last.clientX > r.right - 70 ? 10 : 0; if (v && moved) { scroll.scrollLeft += v; apply(last); } raf = requestAnimationFrame(tick); };
     raf = requestAnimationFrame(tick); el.classList.add('lifted'); sfx.pick();
@@ -1257,21 +1348,16 @@ function splashAt(x: number) {
   sfx.splash();
 }
 function goPark() {
-  $('ranch').classList.add('hidden'); walkTarget = null;
-  view = 'park'; $('street').classList.add('hidden'); $('park').classList.remove('hidden'); $('chatTray').classList.add('hidden'); $('sheet').classList.add('hidden');
+  hideScenes(); walkTarget = null; inBarn = false;
+  view = 'park'; $('park').classList.remove('hidden'); sceneIn($('park'));
   const p: Presence = { where: 'park', x: 290, y: 548, flip: false };
   if (hood) setMyPres(p); else soloPark = p;
   $('streetTitle').textContent = 'The Park'; renderHoodChrome(); renderPark();
   requestAnimationFrame(() => { $('parkScroll').scrollLeft = 0; });
   sfx.sparkle();
 }
-function leavePark() {
-  const from = view; fetchSt = null; walkTarget = null; $('park').classList.add('hidden'); $('ranch').classList.add('hidden');
-  if (hood) { goStreet(from === 'ranch' ? 'ranch' : true); return; }
-  soloPark = null; view = 'house'; $('streetTitle').textContent = 'Our Street'; renderHoodChrome(); renderAll(); sfx.swish();
-}
-$('btnPark').addEventListener('click', () => goPark());
-$('btnLeavePark').addEventListener('click', () => leavePark());
+function leavePark() { goMap(); }
+$('btnLeavePark').addEventListener('click', () => { if (view === 'ranch' && inBarn) goRanch(false); else leavePark(); });
 
 // ---------- ball + fetch (each iPad animates the same throw) ----------
 let ballPos = { x: 2620, y: 565 };
@@ -1315,16 +1401,12 @@ function dogOwners(): DogOwner[] {
       const c = s.characters.find(c => c.id === s.dog!.owner) ?? s.characters[0];
       if (c && c.room === s.currentRoom) out.push({ key: 'solo', dog: s.dog, x: c.x, y: c.y, flip: c.flip, ...house });
     }
-  } else if (view === 'street' && hood) {
-    const box = document.getElementById('savatars'); if (!box) return out; const sc = streetScale();
-    const entries: [string, Presence][] = [...hood.presence.entries()]; const mine = myPres(); if (mine) entries.push([hood.pid, mine]);
-    for (const [pid, p] of entries) { const d = hood.players.get(pid)?.dog; if (d && p.where === 'street') out.push({ key: pid, dog: d, x: p.x, y: p.y, flip: p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95 }); }
   } else if (view === 'park') {
     const box = document.getElementById('pavatars'); if (!box) return out; const sc = parkScale();
     for (const w of parkPeople()) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95 });
   } else if (view === 'ranch') {
     const box = document.getElementById('ravatars'); if (!box) return out; const sc = ranchScale();
-    for (const w of parkPeople('ranch')) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95 });
+    for (const w of parkPeople(inBarn ? 'barn' : 'ranch')) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95 });
   }
   return out;
 }
@@ -1497,6 +1579,8 @@ let lastEggLocal = 0, feedDragEnd = 0;
 const ranchNow = () => (hood ? hood.now() : Date.now());
 const ranchPlots = (): (Plot | null)[] => cleanPlots(hood ? hood.ranch.plots : local.get().garden);
 const myBasket = (): Basket => cleanBasket(hood ? hood.players.get(hood.pid)?.basket : local.get().basket);
+const RW = () => (inBarn ? BARN_W : RANCH_W);
+const RWHERE = (): 'ranch' | 'barn' => (inBarn ? 'barn' : 'ranch');
 const ridersOf = () => { const m = new Map<number, Walker>(); for (const w of parkPeople('ranch')) if (w.p.ride !== undefined) m.set(w.p.ride, w); return m; };
 function ranchFailToast(r: string) {
   const msg: Record<string, string> = { taken: 'A friend just planted there!', wet: 'Already watered 💧', notReady: 'Still growing! 🌱', full: 'Your basket is full!', slow: 'The hen is laying… try again!', none: 'Your basket has none left', nohouse: 'Go home to put it in your room' };
@@ -1516,36 +1600,45 @@ function doRanch(o: RanchOp): boolean {
   local.dispatch({ type: 'ranch/op', op: o, now }); renderPlots(true); renderBasketChip(); return true;
 }
 
-function goRanch() {
-  $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('ranch').classList.remove('hidden'); $('chatTray').classList.add('hidden'); $('sheet').classList.add('hidden');
-  fetchSt = null; walkTarget = null; view = 'ranch';
-  const p: Presence = { where: 'ranch', x: 320, y: 565, flip: false };
+/** Rainbow Ranch: the yard (horses, hen house, garden) or, with barn=true, inside the barn (petting zoo). */
+function goRanch(barn = false) {
+  const fromBarn = view === 'ranch' && inBarn && !barn;
+  hideScenes(); $('ranch').classList.remove('hidden');
+  fetchSt = null; walkTarget = null; view = 'ranch'; inBarn = barn;
+  const p: Presence = barn ? { where: 'barn', x: 170, y: 560, flip: false } : { where: 'ranch', x: fromBarn ? BARN_DOOR_X : 320, y: fromBarn ? 520 : 565, flip: false };
   if (hood) setMyPres(p); else soloPark = p;
-  $('streetTitle').textContent = 'Rainbow Ranch'; renderHoodChrome(); renderRanch();
-  requestAnimationFrame(() => { $('ranchScroll').scrollLeft = 0; });
-  sfx.sparkle();
+  $('streetTitle').textContent = barn ? 'The Barn' : 'Rainbow Ranch'; renderHoodChrome(); renderRanch();
+  requestAnimationFrame(() => { $('ranchScroll').scrollLeft = fromBarn ? Math.max(0, BARN_DOOR_X * ranchScale() - $('ranchScroll').clientWidth / 2) : 0; });
+  sceneIn($('ranch')); barn ? sfx.swish() : sfx.sparkle();
 }
-$('btnRanch').addEventListener('click', () => goRanch());
 $('btnHopOff').addEventListener('click', () => hopOff());
 
 function renderRanch() {
   const sc = ranchScale(), w = $('ranchWorld'), px = (v: number) => v * sc + 'px';
   const box = (x: number, bottom: number, wd: number, ht: number) => `left:${px(x - wd / 2)};top:${px(bottom - ht)};width:${px(wd)};height:${px(ht)}`;
-  w.style.width = RANCH_W * sc + 'px'; w.style.height = RANCH_H * sc + 'px'; w.style.setProperty('--sc', String(sc));
+  w.style.width = RW() * sc + 'px'; w.style.height = RANCH_H * sc + 'px'; w.style.setProperty('--sc', String(sc));
+  if (inBarn) {
+    w.innerHTML = barnSceneSVG()
+      + `<button class="rprop barnExit" data-r="exit" aria-label="Go outside" style="${box(127, 444, 206, 244)}"><span class="exitHint">Outside ☀️</span></button>`
+      + ANIMALS.map((_, i) => `<button class="animal" data-animal="${i}" aria-label="${ANIMAL_INFO[i].name}" style="${box(BARN_ANIMAL_X[i], ANIMAL_Y + 30, 128, 107)}">${animalSVG(i)}</button>`).join('')
+      + [300, 1244].map(x0 => (['carrot', 'apple', 'hay'] as const).map((f, i) => `<button class="bucket" data-feed="${f}" aria-label="${f} bucket" style="${box(x0 + i * 56, 592, 54, 62)}">${bucketSVG(f)}</button>`).join('')).join('') // by the door + in the middle
+      + `<div class="rfx" id="rfx"></div><div class="savatars" id="ravatars"></div>`;
+    renderRanchAvatars(); return;
+  }
   w.innerHTML = ranchSceneSVG()
+    + `<button class="rprop barnDoor" data-r="barn" aria-label="Go into the barn" style="${box(BARN_DOOR_X, 472, 150, 150)}"><span class="doorHint">Petting zoo inside! 🐐</span></button>`
+    + `<button class="rprop windmill" data-r="mill" aria-label="Windmill" style="${box(1540, 478, 150, 240)}">${windmillSVG}</button>`
     + `<button class="rprop henHouse" data-r="egg" aria-label="Hen house" style="${box(715, 482, 180, 170)}">${henHouseSVG}</button>`
     + `<button class="rprop tractor" data-r="honk" aria-label="Tractor" style="${box(900, 580, 170, 130)}">${tractorSVG}</button>`
     + `<button class="rprop appleTree" data-r="apple" aria-label="Apple tree" style="${box(2085, 482, 240, 300)}">${appleTreeSVG}</button>`
-    + ANIMALS.map((_, i) => `<button class="animal" data-animal="${i}" aria-label="${ANIMAL_INFO[i].name}" style="${box(ANIMAL_X[i], ANIMAL_Y, 112, 94)}">${animalSVG(i)}</button>`).join('')
     + HORSES.map((_, i) => `<button class="horse" data-horse="${i}" aria-label="${HORSE_COATS[i].name} horse" style="${box(HORSE_X[i], HORSE_Y, 150, 122)}">${horseSVG(i)}</button>`).join('')
-    + (['carrot', 'apple', 'hay'] as const).map((f, i) => `<button class="bucket" data-feed="${f}" aria-label="${f} bucket" style="${box(1880 + i * 56, 592, 54, 62)}">${bucketSVG(f)}</button>`).join('')
     + Array.from({ length: PLOTS }, (_, i) => `<button class="plot" data-plot="${i}" aria-label="Garden plot" style="${box(PLOT_X(i), 594, 66, 86)}"></button>`).join('')
     + `<div class="rfx" id="rfx"></div><div class="savatars" id="ravatars"></div>`;
   renderPlots(true); renderRanchAvatars();
 }
 const plotKey: string[] = [];
 function renderPlots(force = false) {
-  if (view !== 'ranch') return;
+  if (view !== 'ranch' || inBarn) return;
   const plots = ranchPlots(), now = ranchNow();
   document.querySelectorAll<HTMLElement>('#ranchWorld .plot').forEach(el => {
     const i = +el.dataset.plot!, p = plots[i] ?? null, stg = plotStage(p, now), key = JSON.stringify(p) + stg;
@@ -1557,7 +1650,7 @@ function renderPlots(force = false) {
 function renderRanchAvatars() {
   const box = document.getElementById('ravatars'); if (!box || view !== 'ranch') return;
   const sc = ranchScale(); const keep = new Set<string>(); const ridden = new Set<number>(); let meRiding = false;
-  for (const w of parkPeople('ranch')) {
+  for (const w of parkPeople(RWHERE())) {
     keep.add(w.key);
     let el = box.querySelector<HTMLElement>(`.savatar[data-pid="${w.key}"]`);
     if (!el) { el = document.createElement('div'); el.className = 'savatar ' + (w.mine ? 'mine' : 'other'); el.dataset.pid = w.key; box.appendChild(el); if (w.mine) attachParkDrag(el); }
@@ -1654,11 +1747,15 @@ function startFeedDrag(e: PointerEvent, feed: 'carrot' | 'apple' | 'hay', src: '
   const place = (ev: PointerEvent) => { ghost.style.left = ev.clientX - 30 + 'px'; ghost.style.top = ev.clientY - 50 + 'px'; };
   place(e); sfx.pick(); let moved = 0; const x0 = e.clientX, y0 = e.clientY;
   if (src instanceof HTMLElement) src.style.visibility = 'hidden';
-  const move = (ev: PointerEvent) => { if (ev.pointerId !== e.pointerId) return; moved = Math.max(moved, Math.hypot(ev.clientX - x0, ev.clientY - y0)); place(ev);
+  // near the screen edge the scene scrolls, so food can reach animals that are further along
+  let lastX = e.clientX, raf = 0; const scroll = $('ranchScroll');
+  const edge = () => { const r = scroll.getBoundingClientRect(); const v = lastX < r.left + 60 ? -12 : lastX > r.right - 60 ? 12 : 0; if (v && moved > 12 && view === 'ranch') scroll.scrollLeft += v; raf = requestAnimationFrame(edge); };
+  raf = requestAnimationFrame(edge);
+  const move = (ev: PointerEvent) => { if (ev.pointerId !== e.pointerId) return; lastX = ev.clientX; moved = Math.max(moved, Math.hypot(ev.clientX - x0, ev.clientY - y0)); place(ev);
     document.querySelectorAll('.feedHover').forEach(x => x.classList.remove('feedHover'));
     const idx = feedTargetAt(ev.clientX, ev.clientY); if (idx !== null) (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement)?.closest('.animal, .horse, .savatar')?.classList.add('feedHover'); };
   const up = (ev: PointerEvent) => {
-    if (ev.pointerId !== e.pointerId) return; window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); ghost.remove(); feedDragEnd = Date.now(); // the click that follows a drag is not a tap on the ground
+    if (ev.pointerId !== e.pointerId) return; cancelAnimationFrame(raf); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); ghost.remove(); feedDragEnd = Date.now(); // the click that follows a drag is not a tap on the ground
     document.querySelectorAll('.feedHover').forEach(x => x.classList.remove('feedHover'));
     const idx = feedTargetAt(ev.clientX, ev.clientY);
     if (idx === null) { if (src instanceof HTMLElement) src.style.visibility = ''; if (moved < 12) toast('Drag the food onto an animal! 🥕'); else sfx.drop(); return; }
@@ -1682,13 +1779,16 @@ $('ranchWorld').addEventListener('click', e => {
   if (r === 'egg') { henBob(); if (doRanch({ op: 'egg' })) { eggPop(); sfx.pickup(); } return; }
   if (r === 'honk') { honk(); hood?.fx({ k: 'honk' }); return; }
   if (r === 'apple') { const v = Math.floor(Math.random() * 4); dropApple(v); hood?.fx({ k: 'apple', v }); return; }
+  if (r === 'barn') { goRanch(true); return; }
+  if (r === 'exit') { goRanch(false); return; }
+  if (r === 'mill') { const m = t.closest<HTMLElement>('.windmill'); m?.classList.remove('whirl'); void m?.offsetWidth; m?.classList.add('whirl'); sfx.swish(); return; }
   const pl = t.closest<HTMLElement>('[data-plot]'); if (pl) { tapPlot(+pl.dataset.plot!, pl); return; }
   if (t.closest('.bucket, .fallenApple, .savatar, .pet')) return;
   // tap the ground to walk (or gallop) there
   const rect = $('ranchWorld').getBoundingClientRect(), sc = ranchScale();
   const x = (e.clientX - rect.left) / sc, y = (e.clientY - rect.top) / sc;
   if (y < 400) return;
-  walkTarget = { x: Math.max(60, Math.min(RANCH_W - 60, x)), y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, y)) };
+  walkTarget = { x: Math.max(60, Math.min(RW() - 60, x)), y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, y)) };
 });
 function tapPlot(i: number, el: HTMLElement) {
   const p = ranchPlots()[i] ?? null, stg = plotStage(p, ranchNow());
@@ -1713,12 +1813,12 @@ function tickRanch(now: number, dt: number) {
   const t = Date.now();
   document.querySelectorAll<HTMLElement>('#ranchWorld .animal').forEach(el => {
     const i = +el.dataset.animal!, sc = ranchScale(), ph = t / 5200 + i * 1.7;
-    const x = ANIMAL_X[i] + Math.sin(ph) * 32; el.style.left = (x - 56) * sc + 'px'; el.classList.toggle('flipped', Math.cos(ph) < 0);
+    const x = (inBarn ? BARN_ANIMAL_X : ANIMAL_X)[i] + Math.sin(ph) * 32; el.style.left = (x - el.offsetWidth / sc / 2) * sc + 'px'; el.classList.toggle('flipped', Math.cos(ph) < 0);
     el.classList.toggle('walking', Math.abs(Math.cos(ph)) > 0.35);
   });
   if (now - plotTick > 1000) { plotTick = now; renderPlots(); }
   if (walkTarget) {
-    const me = myParkPres(); if (!me || me.where !== 'ranch') { walkTarget = null; return; }
+    const me = myParkPres(); if (!me || me.where !== RWHERE()) { walkTarget = null; return; }
     const speed = me.ride !== undefined ? 720 : 300;
     const dx = walkTarget.x - me.x, dy = walkTarget.y - me.y, d = Math.hypot(dx, dy);
     if (d < 4) { walkTarget = null; return; }
@@ -1757,7 +1857,7 @@ function openBasket() {
   m.root.querySelector('.card')!.innerHTML = `${X}<h2>My Basket</h2><p class="hint small">${home ? 'Tap one to put it in your room.' : 'Collect eggs, carrots and flowers at Rainbow Ranch, then take them home!'}</p>
     <div class="basketRows">${BASKET_KINDS.map(k => `<button class="bRow" data-take="${k}" ${b[k] ? '' : 'disabled'}>${names[k][1]}<b>${b[k]}</b><span>${names[k][0]}</span></button>`).join('')}</div>`;
 }
-(window as any).__ranch = () => ({ view, plots: ranchPlots().map(p => (p ? { seed: p.seed, stage: plotStage(p, ranchNow()), wet: !!p.wet } : null)), basket: myBasket(), me: myParkPres(), ridden: [...ridersOf().keys()] });
+(window as any).__ranch = () => ({ view, inBarn, plots: ranchPlots().map(p => (p ? { seed: p.seed, stage: plotStage(p, ranchNow()), wet: !!p.wet } : null)), basket: myBasket(), me: myParkPres(), ridden: [...ridersOf().keys()] });
 
 // ---------- "What's new!" (once per device per update) / welcome on a brand-new device ----------
 function showWhatsNew() {

@@ -1,3 +1,4 @@
+import { storeKey } from './shared/storekey';
 // Client side of the neighborhood. Server-ordered actions are applied to `confirmed`; this kid's own
 // not-yet-confirmed actions sit in `pending` and are re-applied on top (optimistic UI that never diverges).
 import type { Plot, RanchOp } from './shared/ranch';
@@ -7,7 +8,7 @@ import type { Dog } from './shared/state';
 
 /** `id` is the street's permanent id (sockets use it); `code` is the current invite code, shown to grown-ups. */
 export interface HoodConfig { url: string; code: string; id?: string; token?: string; pid?: string; parentKey?: string }
-const CFG_KEY = 'cozy-hood';
+const CFG_KEY = storeKey('cozy-hood');
 export const loadHoodConfig = (): HoodConfig | null => { try { return JSON.parse(localStorage.getItem(CFG_KEY) ?? 'null'); } catch { return null; } };
 export const saveHoodConfig = (c: HoodConfig | null) => { c ? localStorage.setItem(CFG_KEY, JSON.stringify(c)) : localStorage.removeItem(CFG_KEY); };
 

@@ -1,6 +1,6 @@
 // Rainbow Ranch art: one wide original SVG scene (3600 x 600 world units) plus live pieces
 // (animals, horses, hen house, tractor, apple tree, garden plots, feed buckets).
-import { RANCH_W, ANIMAL_X, PEN, HORSE_X, PLOT_X, type Plot } from './shared/ranch';
+import { RANCH_W, ANIMAL_X, HORSE_X, PLOT_X, BARN_W, BARN_ANIMAL_X, type Plot } from './shared/ranch';
 
 const O = '#5a3d5c';
 const st = (w = 4) => `stroke="${O}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
@@ -47,10 +47,9 @@ export function ranchSceneSVG() {
     <g transform="translate(165 300)">${RAINBOW.map((c, i) => `<rect x="${-120 + i * 40}" y="-16" width="40" height="30" fill="${c}"/>`).join('')}<rect x="-120" y="-16" width="240" height="30" fill="none" ${st(3)}/>
       <text x="0" y="6" text-anchor="middle" font-size="18" font-weight="900" fill="#fff" stroke="${O}" stroke-width="4" paint-order="stroke" font-family="Nunito, system-ui, sans-serif">RAINBOW RANCH</text></g>
   </g>
-  ${hay(640, 560, .8)}${hay(1950, 470, .7)}${hay(3115, 470, .7)}${hay(3115, 425, .55)}
-  <!-- petting zoo pen -->
-  ${fence(PEN.x0, PEN.x1, 470)}
-  <rect x="${PEN.x0 + 260}" y="380" width="200" height="40" rx="12" fill="#fff6e6" ${st(3)}/><text x="${PEN.x0 + 360}" y="408" text-anchor="middle" font-size="21" font-weight="900" fill="${O}" font-family="Nunito, system-ui, sans-serif">PETTING ZOO</text>
+  ${hay(640, 560, .8)}${hay(1950, 470, .7)}${hay(1880, 470, .55)}${hay(3115, 470, .7)}${hay(3115, 425, .55)}
+  <!-- the petting zoo moved into the barn: a sign by the barn door, sunflowers where the pen was -->
+  ${Array.from({ length: 6 }, (_, i) => { const x = 1030 + i * 66, h = 70 + (i % 3) * 18; return `<g transform="translate(${x} 470)"><path d="M0 0 V-${h}" stroke="#40c057" stroke-width="6" stroke-linecap="round"/><ellipse cx="${i % 2 ? 9 : -9}" cy="-${h / 2}" rx="11" ry="5" fill="#69db7c" ${st(2.5)}/>${[0, 45, 90, 135, 180, 225, 270, 315].map(a => `<ellipse cx="${Math.cos(a * Math.PI / 180) * 14}" cy="${-h + Math.sin(a * Math.PI / 180) * 14}" rx="8" ry="5" transform="rotate(${a} ${Math.cos(a * Math.PI / 180) * 14} ${-h + Math.sin(a * Math.PI / 180) * 14})" fill="#ffd43b" ${st(2)}/>`).join('')}<circle cy="-${h}" r="10" fill="#a0522d" ${st(2.5)}/></g>`; }).join('')}
   <!-- pond -->
   <ellipse cx="2265" cy="520" rx="110" ry="34" fill="#8ecae6" ${st()}/><ellipse cx="2250" cy="514" rx="70" ry="16" fill="#bde6f7"/>
   <!-- paddock -->
@@ -171,3 +170,50 @@ export const streetRanchGateSVG = `<svg viewBox="0 0 240 280"><rect x="38" y="11
   <path d="M60 270 V200 H180 V270" fill="none" stroke="#fff6e6" stroke-width="9"/><path d="M60 270 V200 H180 V270" fill="none" ${st(3)}/><path d="M60 226 H180" stroke="#fff6e6" stroke-width="9"/><path d="M60 226 H180" ${st(3)}/>
   <path d="M104 172 H140 M128 160 L142 172 L128 184" fill="none" stroke="${O}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 export { ANIMAL_X, HORSE_X, PLOT_X };
+
+/** A windmill for the yard (its sails spin; tap to make it spin faster). viewBox 0 0 200 320. */
+export const windmillSVG = `<svg viewBox="0 0 200 320"><path d="M70 310 L84 120 H116 L130 310 Z" fill="#fff6e6" ${st(4)}/><path d="M78 200 H122 M74 260 H126" ${st(3)}/><rect x="88" y="262" width="24" height="48" rx="10" fill="#b197fc" ${st(3)}/>
+  <path d="M78 124 L100 92 L122 124 Z" fill="#ff8fab" ${st(4)}/>
+  <g class="sails" style="transform-origin:100px 110px">${[0, 90, 180, 270].map(a => `<g transform="rotate(${a} 100 110)"><path d="M100 110 L104 30 L126 30 L118 104 Z" fill="${['#ffd43b', '#74c0fc', '#ff8fab', '#69db7c'][a / 90]}" ${st(3)}/><path d="M108 40 H122 M107 58 H121 M106 76 H120" ${st(2)}/></g>`).join('')}<circle cx="100" cy="110" r="10" fill="#ffa94d" ${st(3)}/></g></svg>`;
+
+// ---------- the barn interior (BARN_W x 600): wooden walls, hay loft, lanterns, rainbow banner, stalls ----------
+export const BARN_ANIMAL_NAMES = ['GOAT', 'SHEEP', 'PIGLET', 'CHICKS', 'BUNNY', 'COW'];
+const lantern = (x: number) => `<g class="lantern" style="transform-origin:${x}px 146px"><path d="M${x} 146 V178" ${st(3)}/><circle cx="${x}" cy="204" r="34" fill="#fff3b0" opacity=".45"/>
+  <path d="M${x - 14} 182 H${x + 14} L${x + 11} 226 H${x - 11} Z" fill="#ffe066" ${st(3)}/><rect x="${x - 17}" y="176" width="34" height="8" rx="3" fill="#495057" ${st(2.5)}/><rect x="${x - 15}" y="224" width="30" height="7" rx="3" fill="#495057" ${st(2.5)}/><ellipse cx="${x}" cy="205" rx="5" ry="9" fill="#ff922b"/></g>`;
+export function barnSceneSVG() {
+  const W = BARN_W;
+  const planks = Array.from({ length: Math.ceil(W / 64) }, (_, i) => `<path d="M${i * 64} 146 V440" stroke="#d4895f" stroke-width="3"/>`).join('');
+  const bunting = Array.from({ length: Math.ceil(W / 46) }, (_, i) => { const x = i * 46, y = 160 + Math.sin(i / 3.1) * 8; return `<path d="M${x} ${y} L${x + 40} ${y} L${x + 20} ${y + 30} Z" fill="${RAINBOW[i % 6]}" ${st(2.5)}/>`; }).join('');
+  const stalls = BARN_ANIMAL_X.map((x, i) => `<g><rect x="${x - 96}" y="318" width="192" height="122" rx="6" fill="#f0c49a" ${st(4)}/>
+    <path d="M${x - 96} 350 H${x + 96} M${x - 96} 384 H${x + 96} M${x - 96} 412 H${x + 96}" stroke="#d9a074" stroke-width="3"/><path d="M${x - 96} 318 L${x + 96} 440 M${x + 96} 318 L${x - 96} 440" stroke="#e0aa7e" stroke-width="7" opacity=".7"/>
+    <rect x="${x - 54}" y="284" width="108" height="30" rx="10" fill="#fff6e6" ${st(3)}/><text x="${x}" y="305" text-anchor="middle" font-size="17" font-weight="900" fill="${O}" font-family="Nunito, system-ui, sans-serif">${BARN_ANIMAL_NAMES[i]}</text></g>`).join('');
+  return `<svg class="parkScene ranchScene barnScene" viewBox="0 0 ${W} ${RANCH_H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="${W}" height="440" fill="#e8a87c"/>${planks}
+  <!-- hay loft -->
+  <rect width="${W}" height="128" fill="#c98a5e"/>${Array.from({ length: Math.ceil(W / 64) }, (_, i) => `<path d="M${i * 64 + 32} 0 V128" stroke="#b5764d" stroke-width="3"/>`).join('')}
+  ${[120, 260, 420, 980, 1130, 1290, 1640, 1790].map((x, i) => hay(x, 126, i % 3 === 1 ? .72 : .85)).join('')}${[190, 1060, 1720].map(x => hay(x, 82, .7)).join('')}
+  <rect x="0" y="126" width="${W}" height="24" fill="#a8653a" ${st(4)}/>
+  ${[0, 1, 2, 3, 4, 5, 6].map(i => `<path d="M${120 + i * 280} 150 L${180 + i * 280} 210" stroke="#a8653a" stroke-width="12" stroke-linecap="round"/><path d="M${120 + i * 280} 150 L${180 + i * 280} 210" ${st(2)}/>`).join('')}
+  <!-- ladder up to the loft -->
+  <g transform="translate(1840 0)"><path d="M-22 150 L-30 440 M22 150 L30 440" stroke="#c99366" stroke-width="10" stroke-linecap="round"/>${[190, 240, 290, 340, 390].map(y => `<path d="M${-22 - (y - 150) * .028} ${y} H${22 + (y - 150) * .028}" stroke="#c99366" stroke-width="8" stroke-linecap="round"/>`).join('')}</g>
+  <!-- rainbow bunting + big rainbow banner -->
+  <path d="M0 160 Q${W / 2} 176 ${W} 160" fill="none" ${st(2)}/>${bunting}
+  <g transform="translate(${W / 2 + 60} 236)">${RAINBOW.map((c, i) => `<rect x="${-180 + i * 60}" y="-26" width="60" height="44" fill="${c}"/>`).join('')}<rect x="-180" y="-26" width="360" height="44" rx="4" fill="none" ${st(4)}/>
+    <path d="M-180 -26 L-200 -4 L-180 18 M180 -26 L200 -4 L180 18" fill="#ff8fab" ${st(3)}/>
+    <text x="0" y="6" text-anchor="middle" font-size="26" font-weight="900" fill="#fff" stroke="${O}" stroke-width="5" paint-order="stroke" font-family="Nunito, system-ui, sans-serif">RAINBOW RANCH</text></g>
+  <!-- round windows with daylight -->
+  ${[440, 1720].map(x => `<circle cx="${x}" cy="236" r="34" fill="#c7e8ff" ${st(4)}/><path d="M${x - 34} 236 H${x + 34} M${x} 202 V270" ${st(3)}/>`).join('')}
+  ${stalls}
+  <!-- the big door (back outside) -->
+  <rect x="24" y="200" width="206" height="244" rx="10" fill="#b5703f" ${st(4)}/>
+  <rect x="38" y="214" width="178" height="230" fill="#c7e8ff"/><path d="M38 360 Q120 330 216 352 V444 H38 Z" fill="#a6e3a0"/><circle cx="180" cy="250" r="16" fill="#ffe066"/>
+  <path d="M38 214 H216 V444 M38 214 V444" fill="none" ${st(4)}/>
+  <!-- straw floor -->
+  <rect x="0" y="438" width="${W}" height="162" fill="#f2d58a"/><path d="M0 440 H${W}" ${st(4)}/>
+  ${Array.from({ length: 70 }, (_, i) => { const x = (i * 137) % W, y = 470 + (i * 53) % 120; return `<path d="M${x} ${y} l${14 + (i % 3) * 4} ${i % 2 ? -4 : 4}" stroke="#d9a93f" stroke-width="3" stroke-linecap="round"/>`; }).join('')}
+  <!-- feed station -->
+  <g transform="translate(356 0)"><rect x="-70" y="456" width="140" height="34" rx="12" fill="#fff6e6" ${st(3)}/><text x="0" y="480" text-anchor="middle" font-size="16" font-weight="900" fill="${O}" font-family="Nunito, system-ui, sans-serif">FOOD 🥕🍎🌾</text></g>
+  ${hay(1790, 590, .8)}${hay(1700, 600, .65)}
+  ${[290, 660, 1330, 1590].map(lantern).join('')}
+  </svg>`;
+}

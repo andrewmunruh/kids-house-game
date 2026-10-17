@@ -2,3 +2,5 @@ node_modules
 dist
 server/data/
 .wrangler/
+dist-preview
+__pycache__/

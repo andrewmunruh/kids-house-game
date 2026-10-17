@@ -1,3 +1,4 @@
+import { storeKey } from './shared/storekey';
 // Hidden surprises: one per name. Tap a small, innocent-looking detail a few times to reveal it.
 // Progress is saved only on this device. Nothing in the UI explains where they are.
 import type { ItemDef } from './items';
@@ -32,7 +33,7 @@ export const EGGS: Egg[] = [
 ];
 export const SECRET_ITEMS: ItemDef[] = EGGS.map(e => ({ ...e.item, rooms: ['any'], secret: e.name } as ItemDef & { secret: string }));
 
-const KEY = 'cozy-secrets';
+const KEY = storeKey('cozy-secrets');
 export const foundSet = (): Set<string> => { try { return new Set(JSON.parse(localStorage.getItem(KEY) ?? '[]')); } catch { return new Set(); } };
 const saveFound = (f: Set<string>) => localStorage.setItem(KEY, JSON.stringify([...f]));
 

@@ -4,7 +4,7 @@
 import { reduce, initialState, type GameState, type Dog } from '../src/shared/state';
 import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, cleanPresence, cleanHouseName,
-  filterChat, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, PROTOCOL, PROTO_PETS, PROTO_RANCH, RANCH_FX, normCode, validInvite, MAX_ROSTER, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble,
+  filterChat, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, fxAllowedAt, PROTOCOL, PROTO_PETS, PROTO_RANCH, RANCH_FX, normCode, validInvite, MAX_ROSTER, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble,
 } from '../src/shared/hood';
 import { cleanBasket, cleanPlots, cleanRanchOp, ranchApply, BASKET_ITEM, type Basket, type Plot } from '../src/shared/ranch';
 
@@ -197,7 +197,7 @@ export class Neighborhood {
       case 'fx': {
         // tricks, purrs, ball throws, splashes: relayed live to kids in the same place; nothing is stored
         const fx = cleanFx(m.fx); const mine = this.presence.get(me.pid); if (!fx || !mine) return;
-        if (RANCH_FX.has(fx.k) && mine.where !== 'ranch') return;
+        if (RANCH_FX.has(fx.k) && !fxAllowedAt(fx.k, mine.where)) return;
         const need = RANCH_FX.has(fx.k) ? PROTO_RANCH : PROTO_PETS;
         this.broadcast({ t: 'fx', pid: me.pid, fx }, x => !!x.pid && x !== c && (x.v ?? 1) >= need && (() => { const p = this.presence.get(x.pid!); return !!p && sameSpot(mine, p); })());
         return;

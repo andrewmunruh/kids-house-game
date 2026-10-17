@@ -1,9 +1,12 @@
+import { storeKey } from './shared/storekey';
 // "What's new!" popup, shown once per device after an update.
 // To announce a future update, add an entry to the TOP of CHANGELOG with the next version number.
 // Brand-new devices never see the changelog; they get a short welcome instead.
 import { catSVG, dogSVG } from './pets';
 import { treeIcon, pawIcon } from './park';
 import { animalSVG, horseSVG, eggSVG, plotSVG, rainbowIcon, RAINBOW } from './ranch';
+import { mapIcon, faceSVG } from './map';
+import { characterSVG } from './character';
 
 export interface ChangeLine { art: string; text: string }
 export interface ChangeEntry { v: number; title: string; lines: ChangeLine[] }
@@ -22,9 +25,15 @@ const ranchArt = `<svg viewBox="0 0 120 100">${RAINBOW.map((c, i) => `<path d="M
   <path d="M38 92 V62 L60 44 L82 62 V92 Z" fill="#ef5b5b" stroke="${O}" stroke-width="3.5" stroke-linejoin="round"/><rect x="52" y="70" width="16" height="22" fill="#fff6e6" stroke="${O}" stroke-width="3"/></svg>`;
 const basketEggs = `<svg viewBox="0 0 120 100"><g transform="translate(22 8) scale(1.9)">${eggSVG.replace('<svg viewBox="0 0 40 40">', '').replace('</svg>', '')}</g><g transform="translate(52 22) scale(1.4)">${eggSVG.replace('<svg viewBox="0 0 40 40">', '').replace('</svg>', '')}</g></svg>`;
 const inner = (svg: string, x: number, y: number, s: number) => `<g transform="translate(${x} ${y}) scale(${s})">${svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')}</g>`;
+const faceArt = `<svg viewBox="0 0 120 100"><circle cx="60" cy="50" r="40" fill="#fff" stroke="${O}" stroke-width="4"/>${inner(faceSVG(characterSVG({ skin: '#f1c27d', hair: '#5b3a29', hairStyle: 2, shirt: '#ff7aa8', pants: '#5aa9e6' })).replace('viewBox="14 2 72 74"', 'viewBox="0 0 100 160"'), 26, 12, 0.68)}<circle cx="60" cy="50" r="40" fill="none" stroke="#ff6b9a" stroke-width="5"/></svg>`;
 export const CHANGELOG: ChangeEntry[] = [
+  { v: 4, title: 'A map of our neighborhood!', lines: [
+    { art: wrap(mapIcon), text: 'Tap the <b>map</b> to go anywhere!' },
+    { art: wrap(faceArt), text: "Tap a friend's face to <b>find her</b>." },
+    { art: wrap(animalSVG(0)), text: 'The petting zoo is inside the <b>barn</b> now!' },
+  ] },
   { v: 3, title: 'Rainbow Ranch is open!', lines: [
-    { art: wrap(ranchArt), text: 'Visit <b>Rainbow Ranch</b>! Go past the park.' },
+    { art: wrap(ranchArt), text: 'Visit <b>Rainbow Ranch</b>!' },
     { art: wrap(animalSVG(1)), text: 'Pet and feed animals at the <b>petting zoo</b>.' },
     { art: wrap(`<svg viewBox="0 0 160 130">${inner(horseSVG(4), 0, 0, 1)}</svg>`), text: 'Ride <b>horses</b> and the <b>rainbow pony</b>!' },
     { art: wrap(basketEggs), text: 'Collect <b>eggs</b> from the hens.' },
@@ -43,14 +52,14 @@ export const WELCOME: ChangeEntry = { v: LATEST, title: 'Welcome to your cozy ho
   { art: wrap(catSVG(0, 'sit')), text: 'Tap the paw to adopt a pet!' },
 ] };
 
-const SEEN_KEY = 'cozy-whatsnew';
+const SEEN_KEY = storeKey('cozy-whatsnew');
 const BASELINE = 1; // everything before the changelog existed counts as version 1
 
 /** Call before the game store loads, so we can tell a brand-new device from an existing save. */
 export function whatsNewCheck(): { kind: 'welcome' | 'news' | 'none'; entries: ChangeEntry[] } {
   try {
     const seen = Number(localStorage.getItem(SEEN_KEY));
-    const had = ['cozy-house', 'cozy-house-v1', 'cozy-hood'].some(k => localStorage.getItem(k) !== null);
+    const had = ['cozy-house', 'cozy-house-v1', 'cozy-hood'].some(k => localStorage.getItem(storeKey(k)) !== null);
     if (!seen && !had) return { kind: 'welcome', entries: [WELCOME] };
     const since = seen || BASELINE;
     const entries = CHANGELOG.filter(e => e.v > since).slice(0, 3);
@@ -62,7 +71,7 @@ export function markSeen() { try { localStorage.setItem(SEEN_KEY, String(LATEST)
 export function whatsNewHTML(kind: 'welcome' | 'news', entries: ChangeEntry[]): string {
   const title = kind === 'welcome' ? WELCOME.title : entries[0].title;
   const lines = entries.flatMap(e => e.lines).slice(0, 5); // newest first, never a wall of text
-  return `<div class="wnBadge">${kind === 'welcome' ? pawIcon : entries[0].v >= 3 ? rainbowIcon : treeIcon}</div>
+  return `<div class="wnBadge">${kind === 'welcome' ? pawIcon : entries[0].v >= 4 ? mapIcon : entries[0].v >= 3 ? rainbowIcon : treeIcon}</div>
     <h2 class="wnTitle">${title}</h2>
     <div class="wnList ${lines.length > 3 ? 'many' : ''}">${lines.map((l, i) => `<div class="wnLine" style="animation-delay:${0.15 + i * 0.18}s">${l.art}<p>${l.text}</p></div>`).join('')}</div>
     <button class="wnGo" id="wnGo">Let's play!</button>`;

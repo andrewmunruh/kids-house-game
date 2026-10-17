@@ -1,6 +1,6 @@
 // Shared between client and server: protocol, presets, validation and the chat filter.
 // Nothing here touches the DOM or Node APIs, so it runs in browsers, Node and Cloudflare Workers.
-import { RANCH_W, RANCH_Y0, RANCH_Y1, HORSES, ANIMALS, FOODS, type Basket, type Plot, type RanchOp } from './ranch';
+import { RANCH_W, BARN_W, RANCH_Y0, RANCH_Y1, HORSES, ANIMALS, FOODS, type Basket, type Plot, type RanchOp } from './ranch';
 import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, ROOM_W, ROOM_H, MAX_CHARS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
 
 export const MAX_PLAYERS = 12;
@@ -193,9 +193,9 @@ export const PARK_SPOTS: ParkSpot[] = [
 ];
 export const SLIDE = { top: { x: 905, y: 330 }, bottom: { x: 1110, y: 545 }, ladder: 850 };
 export const DOG_AREA = { x0: 2440, x1: 2840, y0: 470, y1: 585 };
-export interface Presence { where: 'street' | 'house' | 'park' | 'ranch'; houseId?: string; room?: RoomId; x: number; y: number; flip: boolean; pose?: Pose; spot?: number; ride?: number }
+export interface Presence { where: 'street' | 'house' | 'park' | 'ranch' | 'barn'; houseId?: string; room?: RoomId; x: number; y: number; flip: boolean; pose?: Pose; spot?: number; ride?: number }
 export function cleanPresence(p: any, houseExists: (id: string) => boolean): Presence | null {
-  if (!p || (p.where !== 'street' && p.where !== 'house' && p.where !== 'park' && p.where !== 'ranch')) return null;
+  if (!p || (p.where !== 'street' && p.where !== 'house' && p.where !== 'park' && p.where !== 'ranch' && p.where !== 'barn')) return null;
   const x = num(p.x, 0, 20000), y = num(p.y, 0, ROOM_H); if (x === null || y === null) return null;
   if (p.where === 'street') return { where: 'street', x, y, flip: p.flip === true };
   if (p.where === 'ranch') {
@@ -203,6 +203,7 @@ export function cleanPresence(p: any, houseExists: (id: string) => boolean): Pre
     if (Number.isInteger(p.ride) && p.ride >= 0 && p.ride < HORSES.length) out.ride = p.ride; // horses never leave the ranch
     return out;
   }
+  if (p.where === 'barn') return { where: 'barn', x: Math.max(40, Math.min(x, BARN_W - 40)), y: Math.max(RANCH_Y0, Math.min(y, RANCH_Y1)), flip: p.flip === true }; // no horses inside
   if (p.where === 'park') {
     const out: Presence = { where: 'park', x: Math.min(x, PARK_W), y, flip: p.flip === true };
     if (p.pose === 'slide') out.pose = 'slide';
@@ -220,6 +221,8 @@ export const sameSpot = (a: Presence, b: Presence) => a.where === b.where && (a.
 export type Fx = { k: 'trick'; owner: string; v: number } | { k: 'purr' } | { k: 'ball'; x: number; y: number } | { k: 'splash'; x: number }
   | { k: 'zoo'; a: number; f: number } | { k: 'apple'; v: number } | { k: 'honk' } | { k: 'hen' };
 export const RANCH_FX = new Set(['zoo', 'apple', 'honk', 'hen']);
+/** Where a ranch effect may come from: the petting zoo is inside the barn (older clients still pet in the yard). */
+export const fxAllowedAt = (k: string, where: Presence['where']) => k === 'zoo' ? where === 'ranch' || where === 'barn' : where === 'ranch';
 export function cleanFx(f: any): Fx | null {
   if (!f || typeof f !== 'object') return null;
   if (f.k === 'trick') { const owner = str(f.owner, ID_RE), v = num(f.v, 0, 2); return owner && v !== null ? { k: 'trick', owner, v: Math.round(v) } : null; }

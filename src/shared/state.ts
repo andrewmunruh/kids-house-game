@@ -1,3 +1,4 @@
+import { storeKey } from './storekey';
 // All game state is plain serializable JSON. All changes go through `Action`s
 // so a future multiplayer server can validate/relay the same actions.
 import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plot, type RanchOp } from './ranch';
@@ -178,7 +179,7 @@ export function reduce(s: GameState, a: Action): GameState {
 }
 
 // ---- Store with auto-save. Later: swap `dispatch` to also send to a server. ----
-const KEY = 'cozy-house', V1_KEY = 'cozy-house-v1';
+const KEY = storeKey('cozy-house'), V1_KEY = storeKey('cozy-house-v1');
 
 /** Upgrade any older save to the current schema. Pure; safe to run on a server too. */
 export function migrate(raw: any): GameState {

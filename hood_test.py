@@ -1,7 +1,8 @@
 # Multi-client neighborhood test: 3 simulated iPads against the local server.
 import asyncio, re, sys, random
 from playwright.async_api import async_playwright
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/'
+from testnav import PFX, SKIP_WN, K, to_map, go
+URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
 SHOT = 'screens/hood/'
 res = {}
 def check(name, ok, extra=''):
@@ -16,7 +17,7 @@ async def join(pg, code, nick, bring):
     await pg.fill('#codeInput', code.lower()); await pg.click('#codeForm button')
     await pg.click(f'.nicks button:has-text("{nick}")')
     if bring is not None: await pg.click('[data-m="bring"]' if bring else '[data-m="fresh"]')
-    await pg.wait_for_selector('body.view-street .house', timeout=8000)
+    await pg.wait_for_selector('body.view-map .mapHouse', timeout=8000)
 async def drag(pg, a, b, steps=12):
     await pg.mouse.move(*a); await pg.mouse.down(); await pg.mouse.move(*b, steps=steps); await pg.mouse.up(); await pg.wait_for_timeout(300)
 async def center(loc):
@@ -28,7 +29,7 @@ async def main():
         b = await p.chromium.launch()
         async def mk():
             c = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=2, has_touch=True)
-            await c.add_init_script("localStorage.getItem('cozy-whatsnew') || localStorage.setItem('cozy-whatsnew', '999')")  # skip the What's new popup
+            await c.add_init_script(SKIP_WN)  # skip the What's new popup
             return c
         P, K2, K3 = [await (await mk()).new_page() for _ in range(3)]
         errs = {}
@@ -58,9 +59,9 @@ async def main():
         await join(K2, custom, 'Quinn', False)
         await join(K3, custom.title(), 'Chloe', True)
         await P.wait_for_timeout(800)
-        n_houses = await P.locator('#streetWorld .house').count(); check('3 houses on the street', n_houses == 3, str(n_houses))
+        n_houses = await P.locator('#mapWorld .mapHouse').count(); check('3 houses on the map', n_houses == 3, str(n_houses))
         await P.screenshot(path=SHOT + '02-street-three-houses.png')
-        check('house signs show first names', await P.locator('.sign:has-text("Quinn\'s House")').count() == 1)
+        check('house signs show first names', await P.locator('.mapSign:has-text("Quinn\'s House")').count() == 1)
         # a name already signed in on one iPad can't be picked on another; names not on the list can't join
         K4 = await (await mk()).new_page(); await K4.goto(URL); await K4.wait_for_timeout(400)
         await K4.click('#btnHood'); await K4.click('[data-m="join"]'); await K4.fill('#codeInput', code); await K4.click('#codeForm button')
@@ -71,11 +72,9 @@ async def main():
         await K4.context.close()
         # bad codes
         # ---- P goes home; K2 walks over and goes in ----
-        await P.click('#streetWorld .house.mine'); await P.wait_for_timeout(600)
+        await P.click('#mapWorld .mapHouse.mine'); await P.wait_for_timeout(800)
         pid_home = await P.evaluate("__hood().myHouseId()")
-        me_av = K2.locator('#streetWorld .savatar.mine'); a = await center(me_av)
-        await drag(K2, a, (a[0] + 250, a[1] + 10))
-        await K2.click(f'#streetWorld .house[data-hid="{pid_home}"]'); await K2.wait_for_timeout(800)
+        await K2.click(f'#mapWorld .mapHouse[data-go="house:{pid_home}"]'); await K2.wait_for_timeout(900)
         k2_ui = await K2.evaluate("__ui()"); check('K2 entered Sunny Bunny house', k2_ui['currentHouseId'] == pid_home and k2_ui['view'] == 'house')
         await P.wait_for_timeout(500)
         check('P sees K2 avatar inside', await P.locator('.char.avatar.other').count() == 1)
@@ -122,7 +121,7 @@ async def main():
         await P.click('#btnLock'); await K2.wait_for_timeout(500)
         check('unlock restores editing', not await K2.evaluate("document.body.classList.contains('locked')"))
         # ---- grown-up screen (on P) ----
-        await P.click('#btnStreet'); await P.wait_for_timeout(400); await P.click('#btnParent'); await adult(P)
+        await to_map(P); await P.click('#btnParent'); await adult(P)
         await P.wait_for_selector('#pCode'); check('parent screen shows code', (await P.inner_text('#pCode')).strip() == code)
         await P.click('#pFree'); await K2.wait_for_timeout(500)
         await K2.click('#btnChat'); await K2.wait_for_timeout(200)
@@ -137,7 +136,7 @@ async def main():
         check('re-sign-in keeps her house', await K2.evaluate("__hood().myHouseId()") == k2_house)
         k3_house = await K3.evaluate("__hood().myHouseId()")
         await P.fill(f'input[data-hid="{k3_house}"]', 'Koala Castle'); await P.click(f'[data-p="rename"][data-hid="{k3_house}"]'); await P.wait_for_timeout(500)
-        check('rename visible to K3', await K3.locator('.sign:has-text("Koala Castle")').count() == 1)
+        check('rename visible to K3', await K3.locator('.mapSign:has-text("Koala Castle")').count() == 1)
         await P.screenshot(path=SHOT + '08-parent-screen.png')
         k3_pid = await K3.evaluate("__hood().pid")
         rm = P.locator(f'[data-p="remove"][data-pid="{k3_pid}"]'); await rm.click(); await rm.click(); await K3.wait_for_timeout(800)
@@ -151,7 +150,7 @@ async def main():
         # reload: P reconnects to the street automatically
         await P.reload(); await P.wait_for_timeout(1500)
         check('reload reconnects automatically', (await P.evaluate("__ui()"))['view'] == 'street')
-        if (await K2.evaluate("__ui()"))['view'] != 'street': await K2.click('#btnStreet')
+        if (await K2.evaluate("__ui()"))['view'] != 'street': await to_map(K2)
         await K2.wait_for_timeout(600)
         await K2.screenshot(path=SHOT + '10-K2-street-after-changes.png')
         # brute force: wrong codes get throttled per IP (run last: it blocks this IP for a few minutes)

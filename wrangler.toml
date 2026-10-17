@@ -27,3 +27,28 @@ new_sqlite_classes = ["CodeRegistryDO"]
 
 [observability]
 enabled = false
+
+# ---------- PREVIEW server (separate Worker + separate Durable Objects: preview streets never mix with the kids' data) ----------
+# Deploy: npx wrangler deploy --env preview   ->  https://cozy-hood-preview.andrewmunruh.workers.dev
+[env.preview]
+name = "cozy-hood-preview"
+workers_dev = true
+
+[env.preview.vars]
+ALLOWED_ORIGIN = "https://andrewmunruh.github.io"
+
+[[env.preview.durable_objects.bindings]]
+name = "HOOD"
+class_name = "HoodDO"
+
+[[env.preview.durable_objects.bindings]]
+name = "CODES"
+class_name = "CodeRegistryDO"
+
+[[env.preview.migrations]]
+tag = "v1"
+new_sqlite_classes = ["HoodDO"]
+
+[[env.preview.migrations]]
+tag = "v2"
+new_sqlite_classes = ["CodeRegistryDO"]

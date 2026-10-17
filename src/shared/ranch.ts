@@ -6,6 +6,10 @@ export const ANIMALS = ['goat', 'sheep', 'piglet', 'chicks', 'bunny', 'cow'] as 
 export const ANIMAL_X = [1085, 1215, 1345, 1470, 1600, 1735];
 export const ANIMAL_Y = 520;
 export const PEN = { x0: 1000, x1: 1840 };
+/** The barn interior (its own scene): the petting zoo lives inside, with the feed buckets by the door. */
+export const BARN_W = 1900;
+export const BARN_ANIMAL_X = [600, 800, 1000, 1200, 1400, 1600];
+export const BARN_DOOR_X = 435; // where you come out in the yard (the barn's big door)
 export const HORSES = ['Chestnut', 'Snowy', 'Midnight', 'Sunny', 'Rainbow'] as const;
 export const HORSE_X = [2470, 2600, 2730, 2860, 2990];
 export const HORSE_Y = 540;
