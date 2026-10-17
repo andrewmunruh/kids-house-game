@@ -57,12 +57,27 @@ For local multiplayer testing, open the preview with `?hood=http://localhost:878
   houses and the park; tap for tricks (sit, spin, bark), seen by everyone nearby.
 - Old cached apps (protocol v1) never receive pet actions or effects; new fields are optional, so old saves load as-is.
 
+## Rainbow Ranch
+
+A big, pannable ranch past the park. Walk through the rainbow-arch gate at the end of the street, or tap the rainbow button in the top bar. It works in solo play too.
+
+- **Petting zoo:** goat, sheep, piglet, chicks, bunny and cow. Tap one to get a sound, a bubble and hearts. Drag a carrot, apple or hay from the buckets onto an animal and it munches. Friends see it live.
+- **Props:** tap the tractor to honk, tap the apple tree to drop apples (fallen apples work as food), plus a pond, a barn with rainbow trim, hay bales, the sun and clouds.
+- **Hen house:** tap it to collect eggs into your own basket (up to 20).
+- **Horses:** Chestnut, Snowy, Midnight, Sunny and the Rainbow Pony. Tap one to ride it; riding is faster. Hop off with the button in the top bar. Only one rider per horse ("Someone is riding!"), and horses stay at the ranch.
+- **Garden:** 6 shared plots. Plant carrot or flower seeds, water them, and about 80 seconds later pick carrots or bouquets. Carrots can feed horses and animals.
+- **Basket:** eggs, carrots and bouquets go in your basket. At home, tap the basket chip to put one in the room as a real holdable item.
+
+The server checks everything: you have to be at the ranch, one rider per horse, an egg cooldown, the basket limit, ripe plots, and taking items only into your own house. The garden uses server time, so it grows the same on every iPad. Ranch messages only go to new clients (protocol 3). Older clients keep working and simply don't see the ranch.
+
 ## What's new popup
 `src/whatsnew.ts` holds `CHANGELOG`. To announce an update, add an entry at the top with the next `v` (2 = park +
 pets) and 2-3 short lines with art. Each device shows unseen entries once (`localStorage['cozy-whatsnew']`). A
 brand-new device (no saved house) gets the short welcome instead.
 
 ### Tests
+
+`npm run test:ranch -- <url>` runs a multi-client ranch test: solo play, 3 iPads and an old v2 socket. It takes about 2 minutes because it waits for the garden to grow. `npm run test:whatsnew -- <url>` checks the popup.
 `npm run test:pets` (park/pets, 34 checks, 3 iPads + an old-app socket), `python whatsnew_test.py` (popup), and:
 `npm run server` (or `npm run worker:dev`), `npx vite preview`, then `npm run test:hood` (3 simulated iPads,
 25 checks; add `'http://localhost:4173/kids-house-game/?hood=http://localhost:8788'` to target the Worker),

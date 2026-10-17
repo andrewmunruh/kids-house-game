@@ -1,5 +1,6 @@
 // All game state is plain serializable JSON. All changes go through `Action`s
 // so a future multiplayer server can validate/relay the same actions.
+import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plot, type RanchOp } from './ranch';
 export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon';
 /** Room size in world units. v1 rooms were 1000 wide; v2 rooms are 2.4x wider. */
 export const ROOM_W = 2400, ROOM_H = 600, V1_ROOM_W = 1000;
@@ -44,6 +45,9 @@ export interface GameState {
   version: 3;
   cat?: Cat | null;          // optional: older saves simply have no pets
   dog?: Dog | null;
+  basket?: Basket;           // Rainbow Ranch (solo play): her basket, garden plots, last egg time
+  garden?: (Plot | null)[];
+  lastEgg?: number;
   houseId: string;           // future: one house per invited player
   currentRoom: RoomId;
   rooms: Record<RoomId, Room>;
@@ -74,7 +78,8 @@ export type Action =
   | { type: 'cat/move'; room: RoomId; x: number }
   | { type: 'dog/set'; dog: Dog | null }
   | { type: 'settings/sound'; on: boolean }
-  | { type: 'game/reset' };
+  | { type: 'game/reset' }
+  | { type: 'ranch/op'; op: RanchOp; now: number };
 
 const it = (kind: string, x: number, y: number, z: number, scale = 1): PlacedItem =>
   ({ id: kind + '-' + z, kind, x: x + V1_OFFSET, y, flip: false, z, scale });
@@ -160,6 +165,13 @@ export function reduce(s: GameState, a: Action): GameState {
     case 'cat/set': return { ...s, cat: a.cat };
     case 'cat/move': return s.cat && s.rooms[a.room] ? { ...s, cat: { ...s.cat, room: a.room, x: clamp(a.x, 100, ROOM_W - 100) } } : s;
     case 'dog/set': return { ...s, dog: a.dog };
+    case 'ranch/op': {
+      const r = ranchApply(cleanPlots(s.garden), cleanBasket(s.basket), a.op, a.now, s.lastEgg ?? 0);
+      if (typeof r === 'string') return s;
+      let next: GameState = { ...s, garden: r.plots, basket: r.basket, lastEgg: a.op.op === 'egg' ? a.now : s.lastEgg };
+      if (a.op.op === 'take' && next.rooms[a.op.room as RoomId]) { const op = a.op; next = mapItems(next, op.room as RoomId, rm => rm.items.length >= 80 ? rm : ({ ...rm, items: [...rm.items, { id: op.id, kind: BASKET_ITEM[op.kind], x: op.x, y: 560, flip: false, z: maxZ(rm) + 1, scale: 1 }] })); }
+      return next;
+    }
     case 'settings/sound': return { ...s, soundOn: a.on };
     case 'game/reset': return initialState();
   }

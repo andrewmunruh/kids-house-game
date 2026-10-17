@@ -3,6 +3,7 @@
 // Brand-new devices never see the changelog; they get a short welcome instead.
 import { catSVG, dogSVG } from './pets';
 import { treeIcon, pawIcon } from './park';
+import { animalSVG, horseSVG, eggSVG, plotSVG, rainbowIcon, RAINBOW } from './ranch';
 
 export interface ChangeLine { art: string; text: string }
 export interface ChangeEntry { v: number; title: string; lines: ChangeLine[] }
@@ -17,7 +18,18 @@ const houseArt = `<svg viewBox="0 0 120 100"><path d="M20 50 L60 16 L100 50" fil
 const shirtArt = `<svg viewBox="0 0 120 100"><path d="M40 18 L24 28 L14 46 L30 52 L34 44 V88 H86 V44 L90 52 L106 46 L96 28 L80 18 Q60 34 40 18 Z" fill="#8ecae6" stroke="${O}" stroke-width="4" stroke-linejoin="round"/><circle cx="60" cy="58" r="7" fill="#fff3b0" stroke="${O}" stroke-width="3"/></svg>`;
 const wrap = (svg: string) => `<div class="wnArt">${svg}</div>`;
 
+const ranchArt = `<svg viewBox="0 0 120 100">${RAINBOW.map((c, i) => `<path d="M${12 + i * 6} 84 A${48 - i * 6} ${48 - i * 6} 0 0 1 ${108 - i * 6} 84" fill="none" stroke="${c}" stroke-width="6"/>`).join('')}
+  <path d="M38 92 V62 L60 44 L82 62 V92 Z" fill="#ef5b5b" stroke="${O}" stroke-width="3.5" stroke-linejoin="round"/><rect x="52" y="70" width="16" height="22" fill="#fff6e6" stroke="${O}" stroke-width="3"/></svg>`;
+const basketEggs = `<svg viewBox="0 0 120 100"><g transform="translate(22 8) scale(1.9)">${eggSVG.replace('<svg viewBox="0 0 40 40">', '').replace('</svg>', '')}</g><g transform="translate(52 22) scale(1.4)">${eggSVG.replace('<svg viewBox="0 0 40 40">', '').replace('</svg>', '')}</g></svg>`;
+const inner = (svg: string, x: number, y: number, s: number) => `<g transform="translate(${x} ${y}) scale(${s})">${svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')}</g>`;
 export const CHANGELOG: ChangeEntry[] = [
+  { v: 3, title: 'Rainbow Ranch is open!', lines: [
+    { art: wrap(ranchArt), text: 'Visit <b>Rainbow Ranch</b>! Go past the park.' },
+    { art: wrap(animalSVG(1)), text: 'Pet and feed animals at the <b>petting zoo</b>.' },
+    { art: wrap(`<svg viewBox="0 0 160 130">${inner(horseSVG(4), 0, 0, 1)}</svg>`), text: 'Ride <b>horses</b> and the <b>rainbow pony</b>!' },
+    { art: wrap(basketEggs), text: 'Collect <b>eggs</b> from the hens.' },
+    { art: wrap(`<svg viewBox="0 0 70 90">${inner(plotSVG({ seed: 'carrot', at: 0, wet: 1 }, 3, 0), 0, 0, 1)}</svg>`), text: 'Grow carrots and flowers in the <b>garden</b>.' },
+  ] },
   { v: 2, title: "What's new!", lines: [
     { art: wrap(parkArt), text: 'A new <b>park</b>! Swing, slide and splash with friends.' },
     { art: wrap(catSVG(3, 'sit')), text: 'Adopt a <b>cat</b>! She lives in your house.' },
@@ -49,9 +61,9 @@ export function markSeen() { try { localStorage.setItem(SEEN_KEY, String(LATEST)
 
 export function whatsNewHTML(kind: 'welcome' | 'news', entries: ChangeEntry[]): string {
   const title = kind === 'welcome' ? WELCOME.title : entries[0].title;
-  const lines = entries.flatMap(e => e.lines);
-  return `<div class="wnBadge">${kind === 'welcome' ? pawIcon : treeIcon}</div>
+  const lines = entries.flatMap(e => e.lines).slice(0, 5); // newest first, never a wall of text
+  return `<div class="wnBadge">${kind === 'welcome' ? pawIcon : entries[0].v >= 3 ? rainbowIcon : treeIcon}</div>
     <h2 class="wnTitle">${title}</h2>
-    <div class="wnList">${lines.map((l, i) => `<div class="wnLine" style="animation-delay:${0.15 + i * 0.18}s">${l.art}<p>${l.text}</p></div>`).join('')}</div>
+    <div class="wnList ${lines.length > 3 ? 'many' : ''}">${lines.map((l, i) => `<div class="wnLine" style="animation-delay:${0.15 + i * 0.18}s">${l.art}<p>${l.text}</p></div>`).join('')}</div>
     <button class="wnGo" id="wnGo">Let's play!</button>`;
 }

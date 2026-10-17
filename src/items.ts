@@ -69,7 +69,13 @@ for (const i of ITEMS) i.rooms = BUILTIN_ROOMS[i.kind] ?? (['food'].includes(i.c
 const NOT_HOLDABLE = new Set(['rug', 'tv', 'tree']);
 for (const i of ITEMS) i.holdable ??= !i.wall && i.cat !== 'furniture' && i.w <= 150 && !NOT_HOLDABLE.has(i.kind);
 
-ITEMS.push(...PACK_ITEMS, ...SECRET_ITEMS);
+// Rainbow Ranch goods: never in the drawer (no 'ranch' tab); they arrive from her basket.
+const RANCH_ITEMS: ItemDef[] = [
+  { kind: 'ranch-egg', name: 'Fresh Egg', cat: 'ranch', w: 50, holdable: true, rooms: ['any'], svg: `${shadow}<path d="M50 30 C70 30 80 62 80 74 C80 90 66 96 50 96 C34 96 20 90 20 74 C20 62 30 30 50 30 Z" fill="#fff6e6" ${s}/><ellipse cx="40" cy="52" rx="6" ry="9" fill="#fff"/>` },
+  { kind: 'ranch-carrot', name: 'Garden Carrot', cat: 'ranch', w: 70, holdable: true, rooms: ['any'], svg: `${shadow}<path d="M30 40 L78 34 L40 96 Z" fill="#ff922b" ${s}/><path d="M44 50 l10 -2 M42 64 l8 -2 M44 78 l6 -1" ${s}/><path d="M72 36 Q80 14 92 14 M72 36 Q68 14 76 4 M72 36 Q90 30 96 36" fill="none" stroke="#40c057" stroke-width="7" stroke-linecap="round"/>` },
+  { kind: 'ranch-bouquet', name: 'Ranch Flowers', cat: 'ranch', w: 80, holdable: true, rooms: ['any'], svg: `${shadow}<path d="M50 94 L40 50 M50 94 L50 44 M50 94 L62 50" stroke="#40c057" stroke-width="5" stroke-linecap="round"/><path d="M36 78 L64 78 L56 96 L44 96 Z" fill="#c9a0dc" ${s}/>${[[38, 40, '#ff8fab'], [50, 30, '#ffd43b'], [64, 40, '#74c0fc'], [44, 52, '#ff922b'], [58, 52, '#c9a0dc']].map(([x, y, c]) => `<circle cx="${x}" cy="${y}" r="9" fill="${c}" ${s}/><circle cx="${x}" cy="${y}" r="3" fill="#fff3b0"/>`).join('')}` },
+];
+ITEMS.push(...PACK_ITEMS, ...SECRET_ITEMS, ...RANCH_ITEMS);
 export const ITEM_MAP: Record<string, ItemDef> = Object.fromEntries(ITEMS.map(i => [i.kind, i]));
 const esc = (t: string) => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 /** Height in room units (square unless the art says otherwise). */

@@ -361,9 +361,9 @@ body.mode-hood.view-park #btnChat { display: block !important; }
 @keyframes ripple { 0% { transform: scale(.2); opacity: .95; } 100% { transform: scale(1.1); opacity: 0; } }
 .drop { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #8ecae6; border: 2px solid #fff; animation: drop .8s ease-out forwards; }
 @keyframes drop { 0% { transform: translate(0, 0); } 45% { transform: translate(calc(var(--dx) * .6), -46px); } 100% { transform: translate(var(--dx), 6px); opacity: 0; } }
-.parkGate { position: absolute; z-index: 6; background: none; border: 0; padding: 0; box-shadow: none; }
-.parkGate svg { width: 100%; height: 100%; display: block; }
-.parkGate:active { transform: scale(.96); }
+.parkGate, .ranchGate { position: absolute; z-index: 6; background: none; border: 0; padding: 0; box-shadow: none; }
+.parkGate svg, .ranchGate svg { width: 100%; height: 100%; display: block; }
+.parkGate:active, .ranchGate:active { transform: scale(.96); }
 #pavatars .savatar.pose-sit .inner { transform: translateY(14%) scaleY(.9); transform-origin: 50% 100%; }
 #pavatars .savatar.pose-swing { animation: swingArc 2.4s ease-in-out infinite; transition: none; }
 #pavatars .savatar.pose-swing .inner { transform: translateY(6%) scaleY(.92); transform-origin: 50% 100%; }
@@ -438,3 +438,87 @@ body.view-park #btnParent, body.view-park #btnSolo { display: none !important; }
 .wnGo { margin-top: 18px; font-size: 30px; font-weight: 900; padding: 14px 48px; border-radius: 30px; background: #b9f6ca; border: 5px solid var(--ink); box-shadow: 0 6px 0 #5a3d5c55; animation: wnPulse 1.6s ease-in-out infinite; }
 .wnGo:active { transform: scale(.95); }
 @keyframes wnPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+/* ---------- Rainbow Ranch ---------- */
+.sceneOnly, .rideOnly { display: none !important; }
+body.view-park .sceneOnly, body.view-ranch .sceneOnly { display: block !important; }
+body.view-ranch.riding .rideOnly { display: block !important; }
+body.view-ranch #btnRanch, body.view-street:not(.mode-hood):not(.view-park) #btnRanch { display: none; }
+body.view-ranch #btnPark { display: block; }
+body.mode-hood.view-ranch #btnChat { display: block !important; }
+body.view-ranch #btnParent, body.view-ranch #btnSolo { display: none !important; }
+.ranch { background: #c7e8ff; }
+.ranchWorld .rprop, .ranchWorld .animal, .ranchWorld .horse, .ranchWorld .bucket, .ranchWorld .plot { position: absolute; background: none; border: 0; padding: 0; box-shadow: none; z-index: 4; }
+.ranchWorld .rprop svg, .ranchWorld .animal svg, .ranchWorld .horse svg, .ranchWorld .bucket svg, .ranchWorld .plot svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ranchWorld .animal, .ranchWorld .horse { z-index: 5; transition: left .1s linear; }
+.ranchWorld .animal.flipped svg, .savatar.flipped > .mount svg { transform: scaleX(-1); }
+.ranchWorld .animal .tail, .ranchWorld .horse .tail, .mount .tail { transform-box: fill-box; transform-origin: 100% 0; animation: sway 2.4s ease-in-out infinite; }
+.ranchWorld .animal .head, .ranchWorld .horse .head, .mount .head { transform-box: fill-box; transform-origin: 0% 100%; }
+.ranchWorld .horse .head { animation: nod 3.2s ease-in-out infinite; }
+@keyframes nod { 0%, 70%, 100% { transform: rotate(0); } 80% { transform: rotate(6deg); } 90% { transform: rotate(-2deg); } }
+.ranchWorld .animal .leg, .ranchWorld .horse .leg, .mount .leg { transform-box: fill-box; transform-origin: 50% 0; }
+.ranchWorld .animal.walking .leg.a { animation: legA .4s ease-in-out infinite alternate; }
+.ranchWorld .animal.walking .leg.b { animation: legA .4s ease-in-out infinite alternate-reverse; }
+.ranchWorld .animal.hop svg, .ranchWorld .horse.hop svg { animation: hop .4s ease-out 2; }
+.ranchWorld .munch .head, .mount.munch .head { animation: munch .25s ease-in-out 5 !important; }
+@keyframes munch { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(14deg) translateY(4%); } }
+.ranchWorld .horse.away { opacity: 0; pointer-events: none; transition: opacity .2s; }
+.ranchWorld .heart, .mount .heart { position: absolute; bottom: 60%; font-size: 26px; font-weight: 900; pointer-events: none; animation: heartUp 1.6s ease-out forwards; opacity: 0; z-index: 3; }
+.ranchWorld .abubble, .mount .abubble { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); white-space: nowrap; font-size: 17px; z-index: 6; }
+.feedHover { filter: drop-shadow(0 0 10px #ffd43b) drop-shadow(0 0 4px #fff); }
+.henHouse.lay .hen { animation: hop .3s ease-out 2; transform-box: fill-box; }
+.tractor.bounce svg { animation: tractorBounce .5s ease-in-out 2; }
+@keyframes tractorBounce { 0%, 100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-6%) rotate(-3deg); } 60% { transform: translateY(0) rotate(2deg); } }
+.appleTree.shake svg { animation: shake .45s ease-in-out; transform-origin: 50% 100%; }
+@keyframes shake { 25% { transform: rotate(-2.5deg); } 75% { transform: rotate(2.5deg); } }
+.rfx { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
+.fallenApple { position: absolute; pointer-events: auto; background: none; border: 0; padding: 0; box-shadow: none; transition: left .7s ease-out, top .7s cubic-bezier(.5,0,.75,1.4); touch-action: none; }
+.fallenApple svg { width: 100%; height: 100%; display: block; }
+.feedGhost { position: fixed; width: 60px; height: 60px; z-index: 40000; pointer-events: none; filter: drop-shadow(0 6px 4px rgba(90,61,92,.3)); }
+.feedGhost svg { width: 100%; height: 100%; }
+.bucket { cursor: grab; touch-action: none; }
+.bucket:active { transform: scale(1.08); }
+.plot.grow svg { animation: hop .5s ease-out; }
+.plot.watering::after { content: '💧💧'; position: absolute; left: 50%; top: -10%; transform: translateX(-50%); font-size: 20px; animation: heartUp 1.2s ease-out forwards; }
+.plot .needWater, .plot .ready { animation: hop 1.2s ease-in-out infinite; transform-box: fill-box; }
+.seedPick { position: absolute; transform: translate(-50%, -100%); z-index: 50; display: flex; gap: 8px; background: #fff; border: 4px solid var(--ink); border-radius: 20px; padding: 8px; box-shadow: 0 6px 0 rgba(90,61,92,.25); }
+.seedPick button { width: 74px; display: flex; flex-direction: column; align-items: center; font-weight: 900; font-size: 14px; border-radius: 14px; padding: 4px; background: #f4fbf6; }
+.seedPick svg { width: 44px; height: 44px; }
+/* riding: the horse is drawn under her, legs tucked in */
+.savatar .mount { position: absolute; pointer-events: none; }
+.savatar .mount svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.savatar.riding > .inner { transform: translateY(calc(var(--lift) * -1)); clip-path: inset(0 0 33% 0); }
+.savatar.riding .nametag { top: calc(-6px - var(--lift)); }
+.savatar.riding > .bubble { margin-bottom: var(--lift); }
+.savatar.riding.moving .mount .leg.a, .savatar.riding.mine.moving .mount .leg.a { animation: legA .22s ease-in-out infinite alternate; }
+.savatar.riding.moving .mount .leg.b { animation: legA .22s ease-in-out infinite alternate-reverse; }
+.savatar.riding.moving { animation: gallop .22s ease-in-out infinite alternate; }
+@keyframes gallop { to { margin-top: -6px; } }
+/* basket */
+.basketChip { position: fixed; left: 14px; bottom: 14px; z-index: 9000; display: flex; align-items: center; gap: 8px; background: #fff; border: 4px solid var(--ink); border-radius: 22px; padding: 6px 12px 6px 8px; box-shadow: 0 5px 0 rgba(90,61,92,.25); }
+.basketChip.hidden { display: none; }
+.basketChip .bIcon { width: 44px; height: 38px; } .basketChip .bIcon svg { width: 100%; height: 100%; }
+.basketChip .bcount { display: flex; align-items: center; gap: 2px; font-size: 19px; font-weight: 900; color: var(--ink); touch-action: none; }
+.basketChip .bcount svg { width: 28px; height: 28px; }
+.basketChip.bump { animation: hop .35s ease-out; }
+body.view-house:not(.mode-hood) .basketChip, .basketChip { }
+.stageWrap ~ .basketChip { }
+.flyEgg { position: fixed; width: 36px; height: 36px; z-index: 40000; transition: left .6s cubic-bezier(.3,.7,.4,1), top .6s cubic-bezier(.5,-0.6,.6,1), transform .6s; pointer-events: none; }
+.flyEgg svg { width: 100%; height: 100%; }
+.basketSheet .card { width: 520px; text-align: center; }
+.basketRows { display: flex; gap: 12px; justify-content: center; margin-top: 10px; }
+.bRow { width: 130px; display: flex; flex-direction: column; align-items: center; gap: 4px; border: 4px solid var(--ink); border-radius: 22px; padding: 10px; background: #fff8e1; font-weight: 900; }
+.bRow:disabled { opacity: .45; }
+.bRow svg { width: 64px; height: 64px; } .bRow b { font-size: 26px; }
+.wnLine:nth-child(4) { background: #eef4ff; } .wnLine:nth-child(5) { background: #f3ecff; }
+.whatsNew .wnList { gap: 8px; }
+body.view-ranch.view-street #btnPark { display: block; }
+body.view-ranch #btnHood, body.view-park #btnHood { display: none !important; }
+.basketChip.inHouse { left: 76px; bottom: auto; top: 98px; padding: 4px 10px 4px 6px; transform: scale(.9); transform-origin: 0 0; }
+.wnList.many { gap: 6px; }
+.wnList.many .wnLine { padding: 2px 14px 2px 6px; border-radius: 18px; }
+.wnList.many .wnArt { width: 74px; height: 58px; }
+.wnList.many .wnLine p { font-size: 19px; }
+.whatsNew .card:has(.wnList.many) { padding-top: 36px; padding-bottom: 16px; }
+.whatsNew .card:has(.wnList.many) .wnTitle { font-size: 30px !important; margin: 0 0 8px !important; }
+.whatsNew .card:has(.wnList.many) .wnGo { margin-top: 12px; padding: 10px 44px; font-size: 28px; }

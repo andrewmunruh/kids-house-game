@@ -4,16 +4,17 @@
 import { reduce, initialState, type GameState, type Dog } from '../src/shared/state';
 import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, cleanPresence, cleanHouseName,
-  filterChat, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, PROTOCOL, normCode, validInvite, MAX_ROSTER, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble,
+  filterChat, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, PROTOCOL, PROTO_PETS, PROTO_RANCH, RANCH_FX, normCode, validInvite, MAX_ROSTER, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble,
 } from '../src/shared/hood';
+import { cleanBasket, cleanPlots, cleanRanchOp, ranchApply, BASKET_ITEM, type Basket, type Plot } from '../src/shared/ranch';
 
 export interface KV { get<T>(k: string): Promise<T | undefined>; put(k: string, v: unknown): Promise<void>; delete(k: string): Promise<void> }
 /** Maps invite codes (case-insensitive, unique across streets) to permanent street ids. */
 export interface CodeRegistry { claim(code: string, id: string): Promise<boolean>; release(code: string, id: string): Promise<void> }
 export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number }
 
-interface Player { pid: string; nickname: string; houseId: string; tokenHash: string; look: Look; joinedAt: number; dog?: Dog | null }
-interface Meta { id?: string; code: string; roster?: string[]; createdAt: number; parentKeyHash: string; settings: { freeChat: boolean }; players: Record<string, Player>; houseOrder: string[]; nextStyle: number }
+interface Player { pid: string; nickname: string; houseId: string; tokenHash: string; look: Look; joinedAt: number; dog?: Dog | null; basket?: Basket }
+interface Meta { id?: string; code: string; roster?: string[]; createdAt: number; parentKeyHash: string; settings: { freeChat: boolean }; players: Record<string, Player>; houseOrder: string[]; nextStyle: number; ranch?: { plots: (Plot | null)[] } }
 
 const enc = new TextEncoder();
 export async function sha256(s: string) { const d = await crypto.subtle.digest('SHA-256', enc.encode(s)); return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join(''); }
@@ -29,6 +30,7 @@ export class Neighborhood {
   houses = new Map<string, HouseFull>();
   conns = new Set<Conn>();
   presence = new Map<string, Presence>();
+  private lastEgg = new Map<string, number>();
   private loaded: Promise<void> | null = null;
   private dirty = new Set<string>(); private flushT: ReturnType<typeof setTimeout> | null = null;
 
@@ -65,7 +67,7 @@ export class Neighborhood {
   }
 
   // ---------- helpers ----------
-  private pub(p: Player): PlayerPub { return { pid: p.pid, nickname: p.nickname, houseId: p.houseId, look: p.look, online: [...this.conns].some(c => c.pid === p.pid), dog: p.dog ?? null }; }
+  private pub(p: Player): PlayerPub { return { pid: p.pid, nickname: p.nickname, houseId: p.houseId, look: p.look, online: [...this.conns].some(c => c.pid === p.pid), dog: p.dog ?? null, basket: cleanBasket(p.basket) }; }
   private players() { return Object.values(this.meta!.players).sort((a, b) => a.joinedAt - b.joinedAt).map(p => this.pub(p)); }
   roster(): RosterEntry[] {
     const ps = Object.values(this.meta?.players ?? {});
@@ -76,7 +78,7 @@ export class Neighborhood {
   private broadcast(m: ServerMsg, filter: (c: Conn) => boolean = c => !!c.pid) { const s = JSON.stringify(m); for (const c of this.conns) if (filter(c)) try { c.send(s); } catch { } }
   private welcome(c: Conn) {
     const presence: Record<string, Presence> = {}; this.presence.forEach((p, k) => { presence[k] = p; });
-    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean), presence });
+    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean), presence, ranch: { plots: cleanPlots(this.meta!.ranch?.plots), now: Date.now() } });
   }
   private rateOk(c: Conn) {
     const now = Date.now(); c.budget ??= { t: now, n: 0 };
@@ -176,11 +178,14 @@ export class Neighborhood {
         if (JSON.stringify(next).length > MAX_HOUSE_JSON) return nack('toobig');
         h.state = next; this.save(h.id);
         // clients older than the pets update would not understand cat actions: they just don't see the cat until they reload
-        this.broadcast({ t: 'act', houseId: h.id, by: me.pid, cid, action: a }, x => !!x.pid && (!petAct || (x.v ?? 1) >= PROTOCOL || x === c));
+        this.broadcast({ t: 'act', houseId: h.id, by: me.pid, cid, action: a }, x => !!x.pid && (!petAct || (x.v ?? 1) >= PROTO_PETS || x === c));
         return;
       }
       case 'pres': {
         const p = cleanPresence(m.p, id => this.houses.has(id)); if (!p) return;
+        if (p.ride !== undefined && [...this.presence].some(([pid, q]) => pid !== me.pid && q.where === 'ranch' && q.ride === p.ride)) {
+          this.send(c, { t: 'noride', ride: p.ride }); delete p.ride; // one rider per horse
+        }
         this.presence.set(me.pid, p);
         this.broadcast({ t: 'pres', pid: me.pid, p }, x => !!x.pid && x.pid !== me.pid);
         return;
@@ -192,7 +197,36 @@ export class Neighborhood {
       case 'fx': {
         // tricks, purrs, ball throws, splashes: relayed live to kids in the same place; nothing is stored
         const fx = cleanFx(m.fx); const mine = this.presence.get(me.pid); if (!fx || !mine) return;
-        this.broadcast({ t: 'fx', pid: me.pid, fx }, x => !!x.pid && x !== c && (x.v ?? 1) >= PROTOCOL && (() => { const p = this.presence.get(x.pid!); return !!p && sameSpot(mine, p); })());
+        if (RANCH_FX.has(fx.k) && mine.where !== 'ranch') return;
+        const need = RANCH_FX.has(fx.k) ? PROTO_RANCH : PROTO_PETS;
+        this.broadcast({ t: 'fx', pid: me.pid, fx }, x => !!x.pid && x !== c && (x.v ?? 1) >= need && (() => { const p = this.presence.get(x.pid!); return !!p && sameSpot(mine, p); })());
+        return;
+      }
+      case 'ranch': {
+        // garden, hen house and basket: validated here so every kid sees the same ranch
+        const o = cleanRanchOp(m.o); if (!o || (c.v ?? 1) < PROTO_RANCH) return;
+        const mine = this.presence.get(me.pid);
+        const plots = cleanPlots(meta.ranch?.plots), now = Date.now();
+        const fail = (reason: string) => this.send(c, { t: 'ranchFail', reason, plots, now });
+        if (o.op !== 'take' && o.op !== 'use' && mine?.where !== 'ranch') return fail('away');
+        let house: HouseFull | undefined;
+        if (o.op === 'take') { // put a basket item in a room of her own house
+          house = this.houses.get(me.houseId);
+          if (!house || !house.state.rooms[o.room as keyof GameState['rooms']]) return fail('nohouse');
+          if (house.state.rooms[o.room as keyof GameState['rooms']].items.some(i => i.id === o.id)) return fail('dup');
+        }
+        const r = ranchApply(plots, cleanBasket(me.basket), o, now, this.lastEgg.get(me.pid) ?? 0);
+        if (typeof r === 'string') return fail(r);
+        if (o.op === 'egg') this.lastEgg.set(me.pid, now);
+        me.basket = r.basket; this.save('meta');
+        if (r.garden) { meta.ranch = { plots: r.plots }; this.broadcast({ t: 'ranch', plots: r.plots, now }, x => !!x.pid && (x.v ?? 1) >= PROTO_RANCH); }
+        this.broadcast({ t: 'players', players: this.players() });
+        if (o.op === 'egg' && mine) this.broadcast({ t: 'fx', pid: me.pid, fx: { k: 'hen' } }, x => !!x.pid && x !== c && (x.v ?? 1) >= PROTO_RANCH && (() => { const q = this.presence.get(x.pid!); return !!q && sameSpot(mine, q); })());
+        if (o.op === 'take' && house) {
+          const a = { type: 'item/add' as const, room: o.room as keyof GameState['rooms'], item: { id: o.id, kind: BASKET_ITEM[o.kind], x: o.x, y: 560, flip: false, z: 0, scale: 1 } };
+          const next = reduce(house.state, a);
+          if (next !== house.state) { house.state = next; this.save(house.id); this.broadcast({ t: 'act', houseId: house.id, by: me.pid, cid: -1, action: a }); }
+        }
         return;
       }
       case 'look': { me.look = cleanLook(m.look); this.save('meta'); this.broadcast({ t: 'players', players: this.players() }); return; }

@@ -14,7 +14,9 @@
     "worker:deploy": "npx -y node@22 node_modules/wrangler/bin/wrangler.js deploy",
     "test:hood": "/workspace/.pwvenv/bin/python hood_test.py",
     "test:pets": "/workspace/.pwvenv/bin/python pets_test.py",
-    "test:eggs": "/workspace/.pwvenv/bin/python eggs_test.py"
+    "test:eggs": "/workspace/.pwvenv/bin/python eggs_test.py",
+    "test:ranch": "/workspace/.pwvenv/bin/python ranch_test.py",
+    "test:whatsnew": "/workspace/.pwvenv/bin/python whatsnew_test.py"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261016.1",

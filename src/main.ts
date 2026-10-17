@@ -11,6 +11,8 @@ import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
 import { characterSVG, SKINS, HAIRS, CLOTHES, HAIR_STYLES, ACCESSORIES, SIZES, SIZE_SCALE, HANDS } from './character';
 import { sfx, setSound } from './sound';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
+import { RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
+import { ranchSceneSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H } from './ranch';
 
 // The renderer talks to `store`, which forwards to either the offline localStorage house
 // or a neighborhood house (server-authoritative) — same actions, same reducer.
@@ -81,7 +83,9 @@ app.innerHTML = `
     <button class="round streetOnly" id="btnParent" aria-label="Grown-ups">${ICONS.shield}</button>
     <button class="round streetOnly" id="btnSolo" aria-label="Play in my own house">${ICONS.solo}</button>
     <button class="round" id="btnPark" aria-label="Go to the park">${treeIcon}</button>
-    <button class="round parkOnly" id="btnLeavePark" aria-label="Leave the park">${gateIcon}</button>
+    <button class="round" id="btnRanch" aria-label="Go to Rainbow Ranch">${rainbowIcon}</button>
+    <button class="round sceneOnly" id="btnLeavePark" aria-label="Leave">${gateIcon}</button>
+    <button class="round rideOnly" id="btnHopOff" aria-label="Hop off the horse">${hopOffIcon}</button>
     <button class="round" id="btnPets" aria-label="Pets">${pawIcon}</button>
     <button class="round" id="btnPaint" aria-label="Colors">${ICON.paint}</button>
     <button class="round" id="btnDress" aria-label="Characters">${ICON.shirt}</button>
@@ -109,6 +113,8 @@ app.innerHTML = `
   <div class="cats" id="cats"></div>
   <div class="shelf" id="shelf"></div>
 </div>
+<div class="street park ranch hidden" id="ranch"><div class="streetScroll" id="ranchScroll"><div class="parkWorld ranchWorld" id="ranchWorld"></div></div></div>
+<button class="basketChip hidden" id="basketChip" aria-label="My basket"></button>
 <div class="street park hidden" id="park"><div class="streetScroll" id="parkScroll"><div class="parkWorld" id="parkWorld"></div></div></div>
 <div class="street hidden" id="street"><div class="streetScroll" id="streetScroll"><div class="streetWorld" id="streetWorld"></div></div></div>
 <div class="chatTray hidden" id="chatTray"></div>
@@ -126,7 +132,7 @@ const newId = (p: string) => `${p}-${Date.now().toString(36)}${(++uid).toString(
 const ME = '__me';
 // ---------- neighborhood state (declared early: render functions consult it) ----------
 let hood: HoodClient | null = null;
-let view: 'house' | 'street' | 'park' = 'house';
+let view: 'house' | 'street' | 'park' | 'ranch' = 'house';
 let currentHouseId = '';
 let houseStores = new Map<string, ReturnType<typeof houseStore>>();
 const avatarEls = new Map<string, HTMLElement>();
@@ -737,7 +743,7 @@ function lockedNudge(el: Element | null) {
 const myPres = () => hood?.myPresence() ?? null;
 const myLook = (): Look | null => (hood ? hood.players.get(hood.pid)?.look ?? null : null);
 function updateChar(id: string, patch: Partial<Character>) {
-  if (id === ME) { const l = myLook(); if (!l || !hood) return; hood.setLook(cleanLook({ ...l, ...patch })); renderAvatars(); if (view === 'street') renderStreetAvatars(); if (view === 'park') renderParkAvatars(); return; }
+  if (id === ME) { const l = myLook(); if (!l || !hood) return; hood.setLook(cleanLook({ ...l, ...patch })); renderAvatars(); if (view === 'street') renderStreetAvatars(); if (view === 'park') renderParkAvatars(); if (view === 'ranch') renderRanchAvatars(); return; }
   store.dispatch({ type: 'char/update', id, patch });
 }
 function setMyPres(p: Presence) { hood?.setPresence(p); }
@@ -803,7 +809,8 @@ function attachMyAvatarDrag(el: HTMLElement) {
 function bubbleText(b: Bubble): string { if (b.kind === 'text') return b.v; return (b.kind === 'phrase' ? PHRASES : EMOTES)[b.v] ?? ''; }
 function showBubble(pid: string, b: Bubble) {
   const el0 = view === 'street' ? document.querySelector<HTMLElement>(`#streetWorld .savatar[data-pid="${pid}"]`)
-    : view === 'park' ? document.querySelector<HTMLElement>(`#pavatars .savatar[data-pid="${pid}"]`) : avatarEls.get(pid);
+    : view === 'park' ? document.querySelector<HTMLElement>(`#pavatars .savatar[data-pid="${pid}"]`)
+    : view === 'ranch' ? document.querySelector<HTMLElement>(`#ravatars .savatar[data-pid="${pid}"]`) : avatarEls.get(pid);
   const targets = el0 ? [el0] : [];
   for (const el of targets) {
     el.querySelector('.bubble')?.remove();
@@ -853,7 +860,7 @@ function renderHoodChrome() {
   const inHouse = !!hood && inner !== local && view === 'house';
   const h = inHouse ? hood!.houses.get(currentHouseId) : undefined;
   const own = !!h && h.meta.ownerId === hood!.pid;
-  b.toggle('mode-hood', !!hood); b.toggle('view-street', view !== 'house'); b.toggle('view-park', view === 'park');
+  b.toggle('mode-hood', !!hood); b.toggle('view-street', view !== 'house'); b.toggle('view-park', view === 'park'); b.toggle('view-ranch', view === 'ranch'); renderBasketChip();
   b.toggle('own-house', own); b.toggle('locked', !!h && !canEdit()); b.toggle('has-hood', !!hoodServerUrl());
   if (h) {
     const owner = hood!.players.get(h.meta.ownerId)?.nickname ?? '';
@@ -874,10 +881,10 @@ function streetScale() { return $('street').clientHeight / STREET_H; }
 function renderStreet() {
   if (!hood) return;
   const houses = [...hood.houses.values()].map(h => h.meta).sort((a, b) => a.slot - b.slot);
-  const SW = streetWidth(houses.length), sc = streetScale();
+  const SW = streetWidth(houses.length) + RANCH_EXTRA, sc = streetScale();
   const world = $('streetWorld');
   world.style.width = SW * sc + 'px'; world.style.height = STREET_H * sc + 'px'; world.style.setProperty('--sc', String(sc));
-  const trees = Array.from({ length: Math.ceil(SW / 520) + 1 }, (_, i) => `<div class="tree" style="left:${(i * 520 + 250) * sc}px"></div>`).join('');
+  const trees = Array.from({ length: Math.ceil(SW / 520) + 1 }, (_, i) => i * 520 + 250).filter(x => x < SW - 90).map(x => `<div class="tree" style="left:${x * sc}px"></div>`).join('');
   world.innerHTML = `<div class="sky"></div><div class="hill h1"></div><div class="hill h2"></div><div class="lawn"></div><div class="sidewalk"></div><div class="road"><div class="dash"></div></div>${trees}` +
     houses.map(h => {
       const owner = hood!.players.get(h.ownerId);
@@ -885,7 +892,7 @@ function renderStreet() {
       return `<button class="house ${mine ? 'mine' : ''}" data-hid="${h.id}" style="left:${(slotX(h.slot) - 160) * sc}px;top:${(400 - 300) * sc}px;width:${320 * sc}px;height:${300 * sc}px" aria-label="${esc(h.name)}">
         ${houseSVG(h.style, { lit: !!owner?.online })}${h.locked ? '<span class="lockBadge">🔒</span>' : ''}${mine ? '<span class="homeBadge">★</span>' : ''}</button>
         <div class="sign" style="left:${slotX(h.slot) * sc}px;top:${405 * sc}px">${esc(h.name)}</div>`;
-    }).join('') + `<button class="parkGate" aria-label="Go to the park" style="left:${(SW - 250) * sc}px;top:${130 * sc}px;width:${220 * sc}px;height:${280 * sc}px">${streetGateSVG}</button><div class="savatars" id="savatars"></div>`;
+    }).join('') + `<button class="ranchGate" aria-label="Go to Rainbow Ranch" style="left:${(SW - RANCH_EXTRA + 10) * sc}px;top:${130 * sc}px;width:${240 * sc}px;height:${280 * sc}px">${streetRanchGateSVG}</button><button class="parkGate" aria-label="Go to the park" style="left:${(SW - RANCH_EXTRA - 250) * sc}px;top:${130 * sc}px;width:${220 * sc}px;height:${280 * sc}px">${streetGateSVG}</button><div class="savatars" id="savatars"></div>`;
   renderStreetAvatars();
 }
 function renderStreetAvatars() {
@@ -912,7 +919,7 @@ function attachStreetDrag(el: HTMLElement) {
     const scroll = $('streetScroll'); const sc = streetScale();
     const toW = (ev: PointerEvent) => { const r = $('streetWorld').getBoundingClientRect(); return { x: (ev.clientX - r.left) / sc, y: (ev.clientY - r.top) / sc }; };
     const q0 = toW(e), off = { x: p0.x - q0.x, y: p0.y - q0.y }; let last = e, raf = 0, lastX = p0.x;
-    const SW = streetWidth(hood.houses.size);
+    const SW = streetWidth(hood.houses.size) + RANCH_EXTRA;
     const apply = (ev: PointerEvent) => {
       const q = toW(ev), cur = myPres(); if (!cur) return;
       const x = Math.max(60, Math.min(SW - 60, q.x + off.x)), y = Math.max(470, Math.min(590, q.y + off.y));
@@ -927,15 +934,17 @@ function attachStreetDrag(el: HTMLElement) {
   });
 }
 $('streetWorld').addEventListener('click', e => {
+  if ((e.target as HTMLElement).closest('.ranchGate')) { goRanch(); return; }
   if ((e.target as HTMLElement).closest('.parkGate')) { goPark(); return; }
   const hb = (e.target as HTMLElement).closest<HTMLElement>('.house'); if (hb) enterHouse(hb.dataset.hid!);
 });
-function goStreet(fromPark = false) {
+const RANCH_EXTRA = 280; // the street runs a little further, past the park, to Rainbow Ranch
+function goStreet(fromPark: boolean | 'ranch' = false) {
   if (!hood) return;
   const from = hood.houses.get(currentHouseId)?.meta ?? hood.houses.get(hood.myHouseId())?.meta;
-  const x = fromPark ? streetWidth(hood.houses.size) - 330 : from ? slotX(from.slot) + 205 : 600; // stand beside the door, clear of the name sign
-  setMyPres({ where: 'street', x, y: 540, flip: fromPark });
-  view = 'street'; $('street').classList.remove('hidden'); $('park').classList.add('hidden'); $('chatTray').classList.add('hidden'); $('streetTitle').textContent = 'Our Street';
+  const x = fromPark === 'ranch' ? streetWidth(hood.houses.size) + 130 : fromPark ? streetWidth(hood.houses.size) - 330 : from ? slotX(from.slot) + 205 : 600; // stand beside the door, clear of the name sign
+  setMyPres({ where: 'street', x, y: 540, flip: !!fromPark });
+  view = 'street'; $('street').classList.remove('hidden'); $('park').classList.add('hidden'); $('ranch').classList.add('hidden'); $('chatTray').classList.add('hidden'); $('streetTitle').textContent = 'Our Street';
   renderHoodChrome(); renderStreet();
   requestAnimationFrame(() => { const sc = streetScale(); $('streetScroll').scrollLeft = x * sc - $('streetScroll').clientWidth / 2; });
   sfx.swish();
@@ -947,36 +956,39 @@ function enterHouse(houseId: string) {
   if (!st) { st = houseStore(hood, houseId, { get: () => local.get().soundOn, set: on => local.dispatch({ type: 'settings/sound', on }) }); houseStores.set(houseId, st); }
   st.dispatch({ type: 'room/switch', room: 'living' });
   setMyPres({ where: 'house', houseId, room: 'living', x: 900 + Math.random() * 300, y: 540, flip: false });
-  $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('chatTray').classList.add('hidden');
+  $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('ranch').classList.add('hidden'); $('chatTray').classList.add('hidden');
   useStore(st); sfx.sparkle();
 }
 function goSolo() {
-  hood?.close(); hood = null; houseStores = new Map(); view = 'house'; currentHouseId = ''; soloPark = null; fetchSt = null;
-  $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('chatTray').classList.add('hidden');
+  hood?.close(); hood = null; houseStores = new Map(); view = 'house'; currentHouseId = ''; soloPark = null; fetchSt = null; walkTarget = null;
+  $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('ranch').classList.add('hidden'); $('chatTray').classList.add('hidden');
   useStore(local); renderHoodChrome();
 }
 $('btnStreet').addEventListener('click', () => goStreet());
 $('btnSolo').addEventListener('click', () => { goSolo(); toast('Playing in your own house 🏠'); });
-window.addEventListener('resize', () => { if (view === 'street' && hood) renderStreet(); if (view === 'park') renderPark(); });
+window.addEventListener('resize', () => { if (view === 'street' && hood) renderStreet(); if (view === 'park') renderPark(); if (view === 'ranch') renderRanch(); });
 
 // ---------- connecting ----------
 function enterNeighborhood(client: HoodClient) {
   hood = client; houseStores = new Map();
-  client.on('players', () => { if (hood !== client) return; if (view === 'street') renderStreet(); else if (view === 'park') renderParkAvatars(); else { renderAvatars(); renderHoodChrome(); } if (sheetMode === 'dress') renderSheet(); });
+  client.on('players', () => { if (hood !== client) return; if (view === 'street') renderStreet(); else if (view === 'park') renderParkAvatars(); else if (view === 'ranch') { renderRanchAvatars(); renderBasketChip(); } else { renderAvatars(); renderHoodChrome(); } if (sheetMode === 'dress') renderSheet(); });
   client.on('houses', () => {
     if (hood !== client) return;
     if (view === 'street') renderStreet();
     else if (!client.houses.has(currentHouseId)) { toast('That house is gone now'); goStreet(); }
   });
   client.on('houseMeta', (id: string) => { if (hood !== client || id !== currentHouseId || view !== 'house') return; selected = null; renderHoodChrome(); renderItems(store.get()); renderDrawer(); if (!canEdit()) $('sheet').classList.add('hidden'); });
-  client.on('pres', () => { if (hood !== client) return; view === 'street' ? renderStreetAvatars() : view === 'park' ? renderParkAvatars() : renderAvatars(); });
+  client.on('pres', () => { if (hood !== client) return; view === 'street' ? renderStreetAvatars() : view === 'park' ? renderParkAvatars() : view === 'ranch' ? renderRanchAvatars() : renderAvatars(); });
+  client.on('ranch', () => { if (hood === client && view === 'ranch') renderPlots(true); });
+  client.on('ranchFail', (r: string) => { if (hood === client) ranchFailToast(r); });
+  client.on('noride', () => { if (hood !== client) return; const p = myPres(); if (p?.ride !== undefined) { const { ride: _r, ...q } = p; setMyPres(q); renderRanchAvatars(); } toast('Someone is riding that horse!'); });
   client.on('fx', (pid: string, fx: Fx) => { if (hood === client) onFx(pid, fx); });
   client.on('bubble', (pid: string, b: Bubble) => { if (hood === client) showBubble(pid, b); });
   client.on('sayFail', (r: string) => toast(r === 'presetsOnly' ? 'Typing is turned off: pick a bubble!' : FILTER_MSG[r] || "Couldn't send that"));
   client.on('settings', () => { if (!$('chatTray').classList.contains('hidden')) renderChatTray(); });
   client.on('removed', () => { toast('A grown-up took this iPad off the street'); const c = client.cfg; saveHoodConfig({ url: c.url, code: c.code, id: c.id, parentKey: c.parentKey }); goSolo(); });
   client.on('status', (st: string) => document.body.classList.toggle('reconnecting', hood === client && st !== 'online'));
-  client.on('welcome', () => { if (hood !== client) return; if (view === 'street') renderStreet(); else if (view === 'park') { const p = myPres(); if (p) setMyPres(p); renderPark(); } else if (client.houses.has(currentHouseId)) renderAll(); else goStreet(); });
+  client.on('welcome', () => { if (hood !== client) return; if (view === 'street') renderStreet(); else if (view === 'park' || view === 'ranch') { const p = myPres(); if (p) setMyPres(p); view === 'park' ? renderPark() : renderRanch(); } else if (client.houses.has(currentHouseId)) renderAll(); else goStreet(); });
   goStreet();
 }
 async function initHood() {
@@ -1146,15 +1158,15 @@ type Walker = { key: string; look: Look; name: string; p: Presence; mine: boolea
 function parkScale() { return $('park').clientHeight / PARK_H; }
 const parkWalker = (): Character | undefined => { const s = local.get(); return s.characters.find(c => c.id === s.dog?.owner) ?? s.characters[0]; };
 const myParkPres = (): Presence | null => (hood ? myPres() : soloPark);
-function setParkPres(p: Presence) { if (hood) setMyPres(p); else soloPark = p; renderParkAvatars(); }
-function parkPeople(): Walker[] {
+function setParkPres(p: Presence) { if (hood) setMyPres(p); else soloPark = p; view === 'ranch' ? renderRanchAvatars() : renderParkAvatars(); }
+function parkPeople(where: 'park' | 'ranch' = 'park'): Walker[] {
   if (hood) {
     const out: Walker[] = []; const entries: [string, Presence][] = [...hood.presence.entries()]; const mine = myPres(); if (mine) entries.push([hood.pid, mine]);
-    for (const [pid, p] of entries) { const pl = hood.players.get(pid); if (pl && p.where === 'park') out.push({ key: pid, look: pl.look, name: pl.nickname, p, mine: pid === hood.pid, dog: pl.dog ?? null }); }
+    for (const [pid, p] of entries) { const pl = hood.players.get(pid); if (pl && p.where === where) out.push({ key: pid, look: pl.look, name: pl.nickname, p, mine: pid === hood.pid, dog: pl.dog ?? null }); }
     return out;
   }
   const w = parkWalker();
-  return soloPark ? [{ key: 'solo', look: cleanLook(w ?? {}), name: '', p: soloPark, mine: true, dog: local.get().dog ?? null }] : [];
+  return soloPark && soloPark.where === where ? [{ key: 'solo', look: cleanLook(w ?? {}), name: '', p: soloPark, mine: true, dog: local.get().dog ?? null }] : [];
 }
 function renderPark() {
   const sc = parkScale(), w = $('parkWorld'), px = (v: number) => v * sc + 'px';
@@ -1200,16 +1212,17 @@ function renderParkAvatars() {
 }
 function attachParkDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
-    e.preventDefault(); e.stopPropagation(); const p0 = myParkPres(); if (!p0 || p0.where !== 'park') return;
-    const scroll = $('parkScroll'); const sc = parkScale();
-    const toW = (ev: PointerEvent) => { const r = $('parkWorld').getBoundingClientRect(); return { x: (ev.clientX - r.left) / sc, y: (ev.clientY - r.top) / sc }; };
+    e.preventDefault(); e.stopPropagation(); const p0 = myParkPres(); if (!p0 || (p0.where !== 'park' && p0.where !== 'ranch')) return;
+    const R = p0.where === 'ranch'; walkTarget = null;
+    const scroll = $(R ? 'ranchScroll' : 'parkScroll'); const sc = R ? ranchScale() : parkScale(), SWW = R ? RANCH_W : PARK_W;
+    const toW = (ev: PointerEvent) => { const r = $(R ? 'ranchWorld' : 'parkWorld').getBoundingClientRect(); return { x: (ev.clientX - r.left) / sc, y: (ev.clientY - r.top) / sc }; };
     const q0 = toW(e), off = { x: p0.x - q0.x, y: p0.y - q0.y }; let last = e, raf = 0, lastX = p0.x, moved = false;
     const apply = (ev: PointerEvent) => {
       const q = toW(ev), cur = myParkPres(); if (!cur) return;
-      const x = Math.max(60, Math.min(PARK_W - 60, q.x + off.x)), y = Math.max(470, Math.min(590, q.y + off.y));
+      const x = Math.max(60, Math.min(SWW - 60, q.x + off.x)), y = Math.max(470, Math.min(590, q.y + off.y));
       if (!moved && Math.hypot(x - cur.x, y - cur.y) < 6) return; moved = true;
       const flip = Math.abs(x - lastX) > 3 ? x < lastX : cur.flip; if (Math.abs(x - lastX) > 3) lastX = x;
-      setParkPres({ where: 'park', x, y, flip });
+      setParkPres(R ? { where: 'ranch', x, y, flip, ...(cur.ride !== undefined ? { ride: cur.ride } : {}) } : { where: 'park', x, y, flip });
     };
     const tick = () => { const r = scroll.getBoundingClientRect(); const v = last.clientX < r.left + 70 ? -10 : last.clientX > r.right - 70 ? 10 : 0; if (v && moved) { scroll.scrollLeft += v; apply(last); } raf = requestAnimationFrame(tick); };
     raf = requestAnimationFrame(tick); el.classList.add('lifted'); sfx.pick();
@@ -1244,6 +1257,7 @@ function splashAt(x: number) {
   sfx.splash();
 }
 function goPark() {
+  $('ranch').classList.add('hidden'); walkTarget = null;
   view = 'park'; $('street').classList.add('hidden'); $('park').classList.remove('hidden'); $('chatTray').classList.add('hidden'); $('sheet').classList.add('hidden');
   const p: Presence = { where: 'park', x: 290, y: 548, flip: false };
   if (hood) setMyPres(p); else soloPark = p;
@@ -1252,8 +1266,8 @@ function goPark() {
   sfx.sparkle();
 }
 function leavePark() {
-  fetchSt = null; $('park').classList.add('hidden');
-  if (hood) { goStreet(true); return; }
+  const from = view; fetchSt = null; walkTarget = null; $('park').classList.add('hidden'); $('ranch').classList.add('hidden');
+  if (hood) { goStreet(from === 'ranch' ? 'ranch' : true); return; }
   soloPark = null; view = 'house'; $('streetTitle').textContent = 'Our Street'; renderHoodChrome(); renderAll(); sfx.swish();
 }
 $('btnPark').addEventListener('click', () => goPark());
@@ -1308,6 +1322,9 @@ function dogOwners(): DogOwner[] {
   } else if (view === 'park') {
     const box = document.getElementById('pavatars'); if (!box) return out; const sc = parkScale();
     for (const w of parkPeople()) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95 });
+  } else if (view === 'ranch') {
+    const box = document.getElementById('ravatars'); if (!box) return out; const sc = ranchScale();
+    for (const w of parkPeople('ranch')) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95 });
   }
   return out;
 }
@@ -1396,6 +1413,7 @@ function purr() {
   for (let i = 0; i < 5; i++) { const h = document.createElement('div'); h.className = 'heart'; h.textContent = '♥'; h.style.left = 20 + Math.random() * 60 + '%'; h.style.animationDelay = i * 0.12 + 's'; h.style.color = ['#ff6b9a', '#ff8fab', '#e879c6'][i % 3]; catEl.appendChild(h); setTimeout(() => h.remove(), 1800); }
 }
 function onFx(pid: string, fx: Fx) {
+  if (fx.k === 'zoo' || fx.k === 'apple' || fx.k === 'honk' || fx.k === 'hen') { onRanchFx(fx); return; }
   if (fx.k === 'trick') doTrick(fx.owner, fx.v);
   else if (fx.k === 'purr') { if (view === 'house') purr(); }
   else if (fx.k === 'ball') startFetch(pid, fx.x, fx.y);
@@ -1403,7 +1421,7 @@ function onFx(pid: string, fx: Fx) {
 }
 function petTick(now: number) {
   const dt = Math.min(0.05, Math.max(0, (now - lastTick) / 1000)); lastTick = now;
-  try { tickDogs(now, dt); tickCat(); } catch { /* never let an animation frame break the game */ }
+  try { tickDogs(now, dt); tickCat(); tickRanch(now, dt); } catch { /* never let an animation frame break the game */ }
   requestAnimationFrame(petTick);
 }
 
@@ -1469,6 +1487,277 @@ function openPets(tab: 'cat' | 'dog' = 'cat') {
 $('btnPets').addEventListener('click', () => openPets(view === 'house' ? 'cat' : 'dog'));
 requestAnimationFrame(petTick);
 (window as any).__pets = () => ({ dogs: [...dogRuns.keys()], dogPos: Object.fromEntries([...dogRuns].map(([k, r]) => [k, { x: Math.round(r.x), y: Math.round(r.y) }])), cat: catEl ? { mood: catEl.dataset.mood, name: catEl.dataset.name } : null, fetch: fetchSt?.phase ?? null, ball: ballPos, view });
+
+// =====================================================================================
+// Rainbow Ranch
+// =====================================================================================
+function ranchScale() { return $('ranch').clientHeight / RANCH_H; }
+let walkTarget: { x: number; y: number } | null = null;
+let lastEggLocal = 0, feedDragEnd = 0;
+const ranchNow = () => (hood ? hood.now() : Date.now());
+const ranchPlots = (): (Plot | null)[] => cleanPlots(hood ? hood.ranch.plots : local.get().garden);
+const myBasket = (): Basket => cleanBasket(hood ? hood.players.get(hood.pid)?.basket : local.get().basket);
+const ridersOf = () => { const m = new Map<number, Walker>(); for (const w of parkPeople('ranch')) if (w.p.ride !== undefined) m.set(w.p.ride, w); return m; };
+function ranchFailToast(r: string) {
+  const msg: Record<string, string> = { taken: 'A friend just planted there!', wet: 'Already watered 💧', notReady: 'Still growing! 🌱', full: 'Your basket is full!', slow: 'The hen is laying… try again!', none: 'Your basket has none left', nohouse: 'Go home to put it in your room' };
+  if (msg[r]) { toast(msg[r]); sfx.pop(); }
+}
+/** Every ranch interaction goes through the same rules as the server (instant feedback here, the server decides). */
+function doRanch(o: RanchOp): boolean {
+  if (hood) {
+    const r = ranchApply(ranchPlots(), myBasket(), o, ranchNow(), o.op === 'egg' ? lastEggLocal : 0);
+    if (typeof r === 'string') { ranchFailToast(r); return false; }
+    if (o.op === 'egg') lastEggLocal = Date.now();
+    hood.ranchOp(o); return true;
+  }
+  const s = local.get(), now = Date.now();
+  const r = ranchApply(cleanPlots(s.garden), cleanBasket(s.basket), o, now, s.lastEgg ?? 0);
+  if (typeof r === 'string') { ranchFailToast(r); return false; }
+  local.dispatch({ type: 'ranch/op', op: o, now }); renderPlots(true); renderBasketChip(); return true;
+}
+
+function goRanch() {
+  $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('ranch').classList.remove('hidden'); $('chatTray').classList.add('hidden'); $('sheet').classList.add('hidden');
+  fetchSt = null; walkTarget = null; view = 'ranch';
+  const p: Presence = { where: 'ranch', x: 320, y: 565, flip: false };
+  if (hood) setMyPres(p); else soloPark = p;
+  $('streetTitle').textContent = 'Rainbow Ranch'; renderHoodChrome(); renderRanch();
+  requestAnimationFrame(() => { $('ranchScroll').scrollLeft = 0; });
+  sfx.sparkle();
+}
+$('btnRanch').addEventListener('click', () => goRanch());
+$('btnHopOff').addEventListener('click', () => hopOff());
+
+function renderRanch() {
+  const sc = ranchScale(), w = $('ranchWorld'), px = (v: number) => v * sc + 'px';
+  const box = (x: number, bottom: number, wd: number, ht: number) => `left:${px(x - wd / 2)};top:${px(bottom - ht)};width:${px(wd)};height:${px(ht)}`;
+  w.style.width = RANCH_W * sc + 'px'; w.style.height = RANCH_H * sc + 'px'; w.style.setProperty('--sc', String(sc));
+  w.innerHTML = ranchSceneSVG()
+    + `<button class="rprop henHouse" data-r="egg" aria-label="Hen house" style="${box(715, 482, 180, 170)}">${henHouseSVG}</button>`
+    + `<button class="rprop tractor" data-r="honk" aria-label="Tractor" style="${box(900, 580, 170, 130)}">${tractorSVG}</button>`
+    + `<button class="rprop appleTree" data-r="apple" aria-label="Apple tree" style="${box(2085, 482, 240, 300)}">${appleTreeSVG}</button>`
+    + ANIMALS.map((_, i) => `<button class="animal" data-animal="${i}" aria-label="${ANIMAL_INFO[i].name}" style="${box(ANIMAL_X[i], ANIMAL_Y, 112, 94)}">${animalSVG(i)}</button>`).join('')
+    + HORSES.map((_, i) => `<button class="horse" data-horse="${i}" aria-label="${HORSE_COATS[i].name} horse" style="${box(HORSE_X[i], HORSE_Y, 150, 122)}">${horseSVG(i)}</button>`).join('')
+    + (['carrot', 'apple', 'hay'] as const).map((f, i) => `<button class="bucket" data-feed="${f}" aria-label="${f} bucket" style="${box(1880 + i * 56, 592, 54, 62)}">${bucketSVG(f)}</button>`).join('')
+    + Array.from({ length: PLOTS }, (_, i) => `<button class="plot" data-plot="${i}" aria-label="Garden plot" style="${box(PLOT_X(i), 594, 66, 86)}"></button>`).join('')
+    + `<div class="rfx" id="rfx"></div><div class="savatars" id="ravatars"></div>`;
+  renderPlots(true); renderRanchAvatars();
+}
+const plotKey: string[] = [];
+function renderPlots(force = false) {
+  if (view !== 'ranch') return;
+  const plots = ranchPlots(), now = ranchNow();
+  document.querySelectorAll<HTMLElement>('#ranchWorld .plot').forEach(el => {
+    const i = +el.dataset.plot!, p = plots[i] ?? null, stg = plotStage(p, now), key = JSON.stringify(p) + stg;
+    if (!force && plotKey[i] === key) return;
+    if (plotKey[i] !== undefined && plotKey[i] !== key && stg > 0) { el.classList.remove('grow'); void el.offsetWidth; el.classList.add('grow'); }
+    plotKey[i] = key; el.innerHTML = plotSVG(p, stg, i); el.dataset.stage = p ? String(stg) : 'empty';
+  });
+}
+function renderRanchAvatars() {
+  const box = document.getElementById('ravatars'); if (!box || view !== 'ranch') return;
+  const sc = ranchScale(); const keep = new Set<string>(); const ridden = new Set<number>(); let meRiding = false;
+  for (const w of parkPeople('ranch')) {
+    keep.add(w.key);
+    let el = box.querySelector<HTMLElement>(`.savatar[data-pid="${w.key}"]`);
+    if (!el) { el = document.createElement('div'); el.className = 'savatar ' + (w.mine ? 'mine' : 'other'); el.dataset.pid = w.key; box.appendChild(el); if (w.mine) attachParkDrag(el); }
+    const key = JSON.stringify(w.look) + w.name;
+    if (el.dataset.look !== key) { const b = el.querySelector('.bubble'); el.innerHTML = w.name ? avatarHTML(w.look, w.name) : `<div class="inner">${characterSVG(w.look)}</div>`; if (b) el.appendChild(b); el.dataset.look = key; el.dataset.ride = ''; }
+    const k = (SIZE_SCALE[w.look.size] ?? 1) * sc * 0.95, wd = CHAR_W * k, h = CHAR_H * k;
+    const ride = w.p.ride;
+    if (el.dataset.ride !== String(ride ?? '')) {
+      el.querySelector('.mount')?.remove();
+      if (ride !== undefined) el.insertAdjacentHTML('afterbegin', `<div class="mount" data-mount="${ride}">${horseSVG(ride, true)}</div>`);
+      el.dataset.ride = String(ride ?? '');
+    }
+    el.classList.toggle('riding', ride !== undefined);
+    if (ride !== undefined) {
+      ridden.add(ride); if (w.mine) meRiding = true;
+      const mw = 150 * sc * 0.95, mh = 122 * sc * 0.95; const m = el.querySelector<HTMLElement>('.mount')!;
+      m.style.width = mw + 'px'; m.style.height = mh + 'px'; m.style.left = (wd - mw) / 2 + 'px'; m.style.top = h - mh + 'px';
+      el.style.setProperty('--lift', mh * 0.42 + 'px');
+    }
+    const lx = parseFloat(el.dataset.lx ?? 'NaN');
+    if (Number.isFinite(lx) && Math.abs(lx - w.p.x) > 2) { el.classList.add('moving'); clearTimeout(+(el.dataset.mt ?? 0)); el.dataset.mt = String(window.setTimeout(() => el!.classList.remove('moving'), 260)); }
+    el.dataset.lx = String(w.p.x);
+    el.style.left = w.p.x * sc - wd / 2 + 'px'; el.style.top = w.p.y * sc - h + 'px'; el.style.width = wd + 'px'; el.style.height = h + 'px';
+    el.style.zIndex = String(100 + Math.round(w.p.y)); el.classList.toggle('flipped', w.p.flip);
+  }
+  box.querySelectorAll<HTMLElement>('.savatar').forEach(el => { if (!keep.has(el.dataset.pid!)) el.remove(); });
+  document.querySelectorAll<HTMLElement>('#ranchWorld .horse').forEach(h => h.classList.toggle('away', ridden.has(+h.dataset.horse!)));
+  document.body.classList.toggle('riding', meRiding);
+  updateNear();
+}
+function mount(h: number) {
+  const me = myParkPres(); if (!me || me.where !== 'ranch') return;
+  const rider = ridersOf().get(h);
+  if (rider && !rider.mine) { toast('Someone is riding!'); sfx.pop(); return; }
+  if (rider?.mine) { hopOff(); return; }
+  walkTarget = null;
+  setParkPres({ where: 'ranch', x: HORSE_X[h], y: Math.min(RANCH_Y1, HORSE_Y + 8), flip: false, ride: h }); sfx.neigh();
+  toast(`You're riding ${HORSE_COATS[h].name}! Tap the ground to gallop 🐴`);
+}
+function hopOff() {
+  const me = myParkPres(); if (!me || me.ride === undefined) return;
+  const { ride: _r, ...q } = me; walkTarget = null; setParkPres({ ...q, x: Math.min(RANCH_W - 60, q.x + 70) }); sfx.drop();
+}
+function reactAnimal(idx: number, food: number) {
+  const el = idx < ANIMALS.length ? document.querySelector<HTMLElement>(`#ranchWorld .animal[data-animal="${idx}"]`)
+    : (document.querySelector<HTMLElement>(`#ranchWorld .horse[data-horse="${idx - ANIMALS.length}"]:not(.away)`) ?? document.querySelector<HTMLElement>(`#ravatars .mount[data-mount="${idx - ANIMALS.length}"]`));
+  if (!el || view !== 'ranch') return;
+  const horse = idx >= ANIMALS.length, info = horse ? { say: 'Neigh! ♥', snd: 'neigh' } : ANIMAL_INFO[idx];
+  el.classList.remove('hop', 'munch'); void el.offsetWidth; el.classList.add(food ? 'munch' : 'hop');
+  setTimeout(() => el.classList.remove('hop', 'munch'), 1400);
+  el.querySelector('.abubble')?.remove();
+  const b = document.createElement('div'); b.className = 'bubble petBubble abubble'; b.textContent = food ? `Yum! Munch munch ${food === 1 ? '🥕' : food === 2 ? '🍎' : '🌾'}` : info.say; el.appendChild(b);
+  setTimeout(() => b.classList.add('out'), 1400); setTimeout(() => b.remove(), 1800);
+  for (let i = 0; i < (food ? 6 : 4); i++) { const h = document.createElement('div'); h.className = 'heart'; h.textContent = '♥'; h.style.left = 15 + Math.random() * 70 + '%'; h.style.animationDelay = i * 0.12 + 's'; h.style.color = ['#ff6b9a', '#ff8fab', '#e879c6', '#b197fc'][i % 4]; el.appendChild(h); setTimeout(() => h.remove(), 1900); }
+  (sfx as any)[info.snd]?.(); if (food) setTimeout(() => sfx.munch(), 250);
+}
+function henBob() { const h = document.querySelector<HTMLElement>('#ranchWorld .henHouse'); if (!h) return; h.classList.remove('lay'); void h.offsetWidth; h.classList.add('lay'); sfx.cluck(); }
+function eggPop() {
+  const hh = document.querySelector<HTMLElement>('#ranchWorld .henHouse'), chip = $('basketChip'); if (!hh) return;
+  const a = hh.getBoundingClientRect(), b = chip.getBoundingClientRect();
+  const e = document.createElement('div'); e.className = 'flyEgg'; e.innerHTML = eggSVG; document.body.appendChild(e);
+  Object.assign(e.style, { left: a.left + a.width / 2 - 18 + 'px', top: a.top + a.height * 0.6 + 'px' });
+  requestAnimationFrame(() => { e.style.left = b.left + b.width / 2 - 18 + 'px'; e.style.top = b.top + 'px'; e.style.transform = 'scale(.6) rotate(200deg)'; });
+  setTimeout(() => { e.remove(); chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump'); }, 650);
+}
+function dropApple(v: number) {
+  const fx = document.getElementById('rfx'); if (!fx || view !== 'ranch') return; const sc = ranchScale();
+  const [ax, ay] = APPLE_SPOTS[v] ?? APPLE_SPOTS[0]; const x0 = 2085 - 120 + ax, y0 = 482 - 300 + ay, x1 = x0 + (v % 2 ? 26 : -22), y1 = 575 + v * 4;
+  const el = document.createElement('button'); el.className = 'fallenApple'; el.dataset.feed = 'apple'; el.setAttribute('aria-label', 'Apple'); el.innerHTML = appleSVG;
+  const s = 32 * sc; Object.assign(el.style, { width: s + 'px', height: s + 'px', left: x0 * sc - s / 2 + 'px', top: y0 * sc - s / 2 + 'px' });
+  fx.appendChild(el); requestAnimationFrame(() => { el.style.left = x1 * sc - s / 2 + 'px'; el.style.top = y1 * sc - s + 'px'; el.classList.add('fallen'); });
+  const t = document.querySelector<HTMLElement>('#ranchWorld .appleTree'); t?.classList.remove('shake'); void t?.offsetWidth; t?.classList.add('shake');
+  sfx.boing(); setTimeout(() => el.remove(), 12000);
+}
+function honk() { const t = document.querySelector<HTMLElement>('#ranchWorld .tractor'); t?.classList.remove('bounce'); void t?.offsetWidth; t?.classList.add('bounce'); sfx.honk(); }
+function onRanchFx(fx: Fx) {
+  if (fx.k === 'zoo') reactAnimal(fx.a, fx.f);
+  else if (fx.k === 'apple') dropApple(fx.v);
+  else if (fx.k === 'honk') honk();
+  else if (fx.k === 'hen') henBob();
+}
+
+// ---------- feeding: drag food from a bucket (or a fallen apple / a garden carrot) onto an animal ----------
+function feedTargetAt(x: number, y: number): number | null {
+  const t = document.elementFromPoint(x, y) as HTMLElement | null; if (!t) return null;
+  const a = t.closest<HTMLElement>('[data-animal]'); if (a) return +a.dataset.animal!;
+  const h = t.closest<HTMLElement>('.horse:not(.away)'); if (h) return ANIMALS.length + +h.dataset.horse!;
+  const r = t.closest<HTMLElement>('.savatar.riding'); if (r?.dataset.ride) return ANIMALS.length + +r.dataset.ride;
+  return null;
+}
+function startFeedDrag(e: PointerEvent, feed: 'carrot' | 'apple' | 'hay', src: 'bucket' | 'basket' | HTMLElement) {
+  e.preventDefault(); e.stopPropagation();
+  const ghost = document.createElement('div'); ghost.className = 'feedGhost'; ghost.innerHTML = FEED_SVG[feed]; document.body.appendChild(ghost);
+  const place = (ev: PointerEvent) => { ghost.style.left = ev.clientX - 30 + 'px'; ghost.style.top = ev.clientY - 50 + 'px'; };
+  place(e); sfx.pick(); let moved = 0; const x0 = e.clientX, y0 = e.clientY;
+  if (src instanceof HTMLElement) src.style.visibility = 'hidden';
+  const move = (ev: PointerEvent) => { if (ev.pointerId !== e.pointerId) return; moved = Math.max(moved, Math.hypot(ev.clientX - x0, ev.clientY - y0)); place(ev);
+    document.querySelectorAll('.feedHover').forEach(x => x.classList.remove('feedHover'));
+    const idx = feedTargetAt(ev.clientX, ev.clientY); if (idx !== null) (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement)?.closest('.animal, .horse, .savatar')?.classList.add('feedHover'); };
+  const up = (ev: PointerEvent) => {
+    if (ev.pointerId !== e.pointerId) return; window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); ghost.remove(); feedDragEnd = Date.now(); // the click that follows a drag is not a tap on the ground
+    document.querySelectorAll('.feedHover').forEach(x => x.classList.remove('feedHover'));
+    const idx = feedTargetAt(ev.clientX, ev.clientY);
+    if (idx === null) { if (src instanceof HTMLElement) src.style.visibility = ''; if (moved < 12) toast('Drag the food onto an animal! 🥕'); else sfx.drop(); return; }
+    if (src === 'basket' && !doRanch({ op: 'use', kind: 'carrot' })) return;
+    if (src instanceof HTMLElement) src.remove();
+    const f = FOODS.indexOf(feed); reactAnimal(idx, f); hood?.fx({ k: 'zoo', a: idx, f });
+  };
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+}
+$('ranchWorld').addEventListener('pointerdown', e => {
+  const t = e.target as HTMLElement;
+  const b = t.closest<HTMLElement>('.bucket'); if (b) return startFeedDrag(e, b.dataset.feed as 'carrot', 'bucket');
+  const ap = t.closest<HTMLElement>('.fallenApple'); if (ap) return startFeedDrag(e, 'apple', ap);
+  if (t.closest('.rprop, .animal, .horse, .plot, .pet')) e.stopPropagation();
+});
+$('ranchWorld').addEventListener('click', e => {
+  const t = e.target as HTMLElement; const me = myParkPres(); if (!me || view !== 'ranch' || Date.now() - feedDragEnd < 400) return;
+  const a = t.closest<HTMLElement>('[data-animal]'); if (a) { const i = +a.dataset.animal!; reactAnimal(i, 0); hood?.fx({ k: 'zoo', a: i, f: 0 }); return; }
+  const h = t.closest<HTMLElement>('[data-horse]'); if (h) { mount(+h.dataset.horse!); return; }
+  const r = t.closest<HTMLElement>('[data-r]')?.dataset.r;
+  if (r === 'egg') { henBob(); if (doRanch({ op: 'egg' })) { eggPop(); sfx.pickup(); } return; }
+  if (r === 'honk') { honk(); hood?.fx({ k: 'honk' }); return; }
+  if (r === 'apple') { const v = Math.floor(Math.random() * 4); dropApple(v); hood?.fx({ k: 'apple', v }); return; }
+  const pl = t.closest<HTMLElement>('[data-plot]'); if (pl) { tapPlot(+pl.dataset.plot!, pl); return; }
+  if (t.closest('.bucket, .fallenApple, .savatar, .pet')) return;
+  // tap the ground to walk (or gallop) there
+  const rect = $('ranchWorld').getBoundingClientRect(), sc = ranchScale();
+  const x = (e.clientX - rect.left) / sc, y = (e.clientY - rect.top) / sc;
+  if (y < 400) return;
+  walkTarget = { x: Math.max(60, Math.min(RANCH_W - 60, x)), y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, y)) };
+});
+function tapPlot(i: number, el: HTMLElement) {
+  const p = ranchPlots()[i] ?? null, stg = plotStage(p, ranchNow());
+  document.querySelector('.seedPick')?.remove();
+  if (!p) {
+    const pick = document.createElement('div'); pick.className = 'seedPick';
+    pick.innerHTML = `<button data-seed="carrot">${carrotSVG}<span>Carrot</span></button><button data-seed="flower">${flowerSVG()}<span>Flower</span></button>`;
+    el.parentElement!.appendChild(pick); pick.style.left = el.offsetLeft + el.offsetWidth / 2 + 'px'; pick.style.top = el.offsetTop - 8 + 'px';
+    pick.addEventListener('pointerdown', ev => ev.stopPropagation());
+    pick.addEventListener('click', ev => { ev.stopPropagation(); const s = (ev.target as HTMLElement).closest<HTMLElement>('[data-seed]')?.dataset.seed as 'carrot' | 'flower' | undefined; pick.remove();
+      if (s && doRanch({ op: 'plant', i, seed: s })) { sfx.plant(); toast('Planted! Now tap it to water 💧'); } });
+    setTimeout(() => pick.remove(), 6000);
+    return;
+  }
+  if (!p.wet) { if (doRanch({ op: 'water', i })) { sfx.water(); el.classList.remove('watering'); void el.offsetWidth; el.classList.add('watering'); } return; }
+  if (stg < 3) { toast('Still growing! 🌱'); sfx.pop(); return; }
+  if (doRanch({ op: 'pick', i })) { sfx.pickup(); toast(p.seed === 'carrot' ? 'A carrot for your basket! 🥕' : 'Pretty flowers for your basket! 🌸'); }
+}
+let plotTick = 0;
+function tickRanch(now: number, dt: number) {
+  if (view !== 'ranch') return;
+  const t = Date.now();
+  document.querySelectorAll<HTMLElement>('#ranchWorld .animal').forEach(el => {
+    const i = +el.dataset.animal!, sc = ranchScale(), ph = t / 5200 + i * 1.7;
+    const x = ANIMAL_X[i] + Math.sin(ph) * 32; el.style.left = (x - 56) * sc + 'px'; el.classList.toggle('flipped', Math.cos(ph) < 0);
+    el.classList.toggle('walking', Math.abs(Math.cos(ph)) > 0.35);
+  });
+  if (now - plotTick > 1000) { plotTick = now; renderPlots(); }
+  if (walkTarget) {
+    const me = myParkPres(); if (!me || me.where !== 'ranch') { walkTarget = null; return; }
+    const speed = me.ride !== undefined ? 720 : 300;
+    const dx = walkTarget.x - me.x, dy = walkTarget.y - me.y, d = Math.hypot(dx, dy);
+    if (d < 4) { walkTarget = null; return; }
+    const step = Math.min(d, speed * dt);
+    const next: Presence = { ...me, x: me.x + dx / d * step, y: me.y + dy / d * step, flip: Math.abs(dx) > 2 ? dx < 0 : me.flip };
+    setParkPres(next);
+    const sc = ranchScale(), scroll = $('ranchScroll'), sx = next.x * sc - scroll.scrollLeft;
+    if (sx > -40 && sx < scroll.clientWidth + 40 && (sx < scroll.clientWidth * 0.2 || sx > scroll.clientWidth * 0.8)) scroll.scrollLeft = next.x * sc - scroll.clientWidth / 2;
+  }
+}
+
+// ---------- her basket (eggs, garden carrots, flowers) ----------
+function renderBasketChip() {
+  const chip = document.getElementById('basketChip'); if (!chip) return;
+  const show = view === 'ranch' || (view === 'house' && (!hood || inner === local || currentHouseId === hood.myHouseId()));
+  const b = myBasket(), any = b.egg + b.carrot + b.flower > 0;
+  chip.classList.toggle('hidden', !show || (view === 'house' && !any)); chip.classList.toggle('inHouse', view === 'house'); if (!show) return;
+  chip.innerHTML = `<span class="bIcon">${basketSVG}</span><span class="bcount" data-kind="egg">${eggSVG}<b>${b.egg}</b></span><span class="bcount" data-kind="carrot">${carrotSVG}<b>${b.carrot}</b></span><span class="bcount" data-kind="flower">${flowerSVG()}<b>${b.flower}</b></span>`;
+}
+$('basketChip').addEventListener('pointerdown', e => {
+  const c = (e.target as HTMLElement).closest<HTMLElement>('.bcount[data-kind="carrot"]');
+  if (c && view === 'ranch' && myBasket().carrot > 0) startFeedDrag(e, 'carrot', 'basket');
+});
+$('basketChip').addEventListener('click', () => openBasket());
+function openBasket() {
+  const home = view === 'house' && (!hood || inner === local || currentHouseId === hood.myHouseId());
+  const names: Record<BasketKind, [string, string]> = { egg: ['Eggs', eggSVG], carrot: ['Carrots', carrotSVG], flower: ['Flowers', flowerSVG()] };
+  const m = modal('', (t, close) => {
+    const k = t.closest<HTMLElement>('[data-take]')?.dataset.take as BasketKind | undefined; if (!k) return;
+    if (!home) { toast('Take it home to put it in your room! 🏠'); return; }
+    const id = 'r' + Math.random().toString(36).slice(2, 10);
+    const x = Math.max(120, Math.min(W - 120, camX + VIEW_W / 2 + (Math.random() - 0.5) * 300));
+    if (doRanch({ op: 'take', kind: k, id, room: store.get().currentRoom, x })) { sfx.drop(); close(); toast('It\'s in your room! Drag it to a hand to carry it ✋'); }
+  }, 'basketSheet');
+  const b = myBasket();
+  m.root.querySelector('.card')!.innerHTML = `${X}<h2>My Basket</h2><p class="hint small">${home ? 'Tap one to put it in your room.' : 'Collect eggs, carrots and flowers at Rainbow Ranch, then take them home!'}</p>
+    <div class="basketRows">${BASKET_KINDS.map(k => `<button class="bRow" data-take="${k}" ${b[k] ? '' : 'disabled'}>${names[k][1]}<b>${b[k]}</b><span>${names[k][0]}</span></button>`).join('')}</div>`;
+}
+(window as any).__ranch = () => ({ view, plots: ranchPlots().map(p => (p ? { seed: p.seed, stage: plotStage(p, ranchNow()), wet: !!p.wet } : null)), basket: myBasket(), me: myParkPres(), ridden: [...ridersOf().keys()] });
 
 // ---------- "What's new!" (once per device per update) / welcome on a brand-new device ----------
 function showWhatsNew() {
