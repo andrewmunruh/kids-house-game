@@ -143,7 +143,7 @@ async def main():
         k3ui = await K3.evaluate("__ui()"); check('removed player K3 is back in solo mode', k3ui['mode'] == 'solo', str(k3ui))
         check('K2 street now has 2 houses', await K2.evaluate("__hood().houses.size") == 2)
         # offline still works for K3
-        await K3.screenshot(path='/tmp/k3-removed.png'); n0 = len(await items(K3)); await K3.click('.cat[data-cat="food"]'); await drag(K3, await center(K3.locator('.shelf .thing').first), (250, 560))
+        await K3.screenshot(path='/tmp/k3-removed.png'); n0 = len(await items(K3)); await K3.click('#roomFilter [data-rf="all"]'); await K3.click('.cat[data-cat="food"]'); await drag(K3, await center(K3.locator('.shelf .thing').first), (250, 560))
         check('solo play still works after removal', len(await items(K3)) == n0 + 1, f'{n0} -> {len(await items(K3))} ' + str(await K3.evaluate("document.body.className")))
         await K3.screenshot(path=SHOT + '09-K3-removed-back-to-solo.png')
         await P.click('.hoodSheet [data-m="close"]')
