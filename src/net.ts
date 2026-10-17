@@ -52,20 +52,53 @@ export class HoodClient {
   tables = new Map<number, TablePub>();
   private handlers = new Map<string, Handler[]>();
   private cid = 1; private flushT = 0; private presT = 0; private lastPres: Presence | null = null; private presDirty = false;
-  private closedByUs = false; private retry = 0;
+  private closedByUs = false; private retry = 0; private retryT = 0; private epoch = 0;
+  /** One-shots (chat, lock, grown-up actions) sent while the socket is down. Capped; flushed after welcome, after presence. */
+  private outbox: ClientMsg[] = [];
 
   constructor(public cfg: HoodConfig) {}
   on(ev: string, fn: Handler) { (this.handlers.get(ev) ?? this.handlers.set(ev, []).get(ev)!).push(fn); }
   private emit(ev: string, ...a: any[]) { this.handlers.get(ev)?.forEach(f => f(...a)); }
-  private send(m: ClientMsg) { if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(m)); }
+  private send(m: ClientMsg): boolean {
+    if (this.ws?.readyState !== WebSocket.OPEN) return false;
+    this.ws.send(JSON.stringify(m)); return true;
+  }
+  /** Hold a message until the next welcome when the socket isn't open. Latest lock/look/dog replaces an older one. */
+  private reliable(m: ClientMsg) {
+    if (this.send(m)) return;
+    if (m.t === 'lock') this.outbox = this.outbox.filter(x => !(x.t === 'lock' && x.houseId === m.houseId));
+    else if (m.t === 'look' || m.t === 'dog') this.outbox = this.outbox.filter(x => x.t !== m.t);
+    this.outbox.push(m);
+    if (this.outbox.length > 8) this.outbox.splice(0, this.outbox.length - 8);
+  }
+  private flushOutbox() {
+    if (this.ws?.readyState !== WebSocket.OPEN || !this.outbox.length) return;
+    const q = this.outbox; this.outbox = [];
+    for (const m of q) if (!this.send(m)) this.outbox.push(m);
+  }
+  /** One timer. 400ms, 800ms, 1.6s … capped at 15s. Cancelled by close() so a left street stays disconnected. */
+  private scheduleRetry() {
+    if (this.closedByUs || !this.cfg.token || this.retryT) return;
+    const epoch = this.epoch;
+    const delay = Math.min(15000, 400 * 2 ** Math.min(this.retry, 6));
+    this.retry++;
+    this.retryT = window.setTimeout(() => {
+      this.retryT = 0;
+      if (epoch !== this.epoch || this.closedByUs || !this.cfg.token) return;
+      void this.connect();
+    }, delay);
+  }
 
   /** Open the socket. Resolves on welcome (or with an error code). Reconnects automatically afterwards. */
   connect(join?: { nickname: string; look: Look; house?: unknown; dog?: Dog | null }): Promise<'ok' | string> {
+    if (this.retryT) { clearTimeout(this.retryT); this.retryT = 0; }
     this.closedByUs = false; this.status = 'connecting'; this.emit('status', this.status);
+    const prev = this.ws;
     return new Promise(resolve => {
       let settled = false; const done = (r: string) => { if (!settled) { settled = true; resolve(r); } };
       const ws = new WebSocket(this.cfg.url.replace(/^http/, 'ws') + '/ws/' + encodeURIComponent(this.cfg.id ?? this.cfg.code));
       this.ws = ws;
+      if (prev && prev !== ws) { try { prev.close(); } catch { /* already closed */ } }
       ws.onopen = () => {
         if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL });
         else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL });
@@ -74,13 +107,19 @@ export class HoodClient {
       ws.onmessage = e => { const m: ServerMsg = JSON.parse(e.data); this.handle(m); if (m.t === 'welcome') { this.retry = 0; done('ok'); } if (m.t === 'error') done(m.code + (m.msg ? ':' + m.msg : '')); if (m.t === 'removed') done('removed'); };
       ws.onclose = () => {
         if (this.ws !== ws) return;
-        this.status = 'offline'; this.emit('status', this.status); done('closed');
-        if (!this.closedByUs && this.cfg.token) setTimeout(() => this.connect(), Math.min(15000, 800 * 2 ** this.retry++));
+        this.ws = null; this.status = 'offline'; this.emit('status', this.status); done('closed');
+        this.scheduleRetry();
       };
       ws.onerror = () => {};
     });
   }
-  close() { this.closedByUs = true; this.ws?.close(); this.ws = null; this.status = 'offline'; clearInterval(this.flushT); }
+  close() {
+    this.closedByUs = true; this.epoch++; this.outbox = [];
+    if (this.retryT) { clearTimeout(this.retryT); this.retryT = 0; }
+    if (this.presT) { clearTimeout(this.presT); this.presT = 0; }
+    try { this.ws?.close(); } catch { /* already closed */ }
+    this.ws = null; this.status = 'offline'; clearInterval(this.flushT);
+  }
 
   private handle(m: ServerMsg) {
     switch (m.t) {
@@ -96,8 +135,11 @@ export class HoodClient {
         if (m.ranch) this.ranch = { plots: m.ranch.plots, skew: m.ranch.now - Date.now() };
         this.tables = new Map((m.tables ?? []).map(t => [t.tb, t]));
         clearInterval(this.flushT); this.flushT = window.setInterval(() => this.flush(), 60);
+        // Presence first, then anything said or locked during the gap, then listeners (they may move her again).
+        if (this.lastPres) this.presDirty = true;
+        this.flushPres();
+        this.flushOutbox();
         this.emit('welcome'); this.emit('status', this.status);
-        if (this.lastPres) { this.presDirty = true; this.flushPres(); }
         break;
       case 'act': {
         const h = this.houses.get(m.houseId); if (!h) return;
@@ -148,26 +190,32 @@ export class HoodClient {
     h.view = null;
   }
   private flush() {
-    for (const [houseId, h] of this.houses) for (const p of h.pending) if (!p.sent && this.ws?.readyState === WebSocket.OPEN) { this.send({ t: 'act', houseId, cid: p.cid, action: p.action }); p.sent = true; }
+    for (const [houseId, h] of this.houses) for (const p of h.pending) if (!p.sent && this.send({ t: 'act', houseId, cid: p.cid, action: p.action })) p.sent = true;
     this.flushPres();
   }
 
   // ---------- presence / chat / misc ----------
   setPresence(p: Presence) { this.lastPres = p; this.presDirty = true; if (!this.presT) this.flushPres(); }
   private flushPres() {
-    if (!this.presDirty || !this.lastPres) return; this.presDirty = false; this.send({ t: 'pres', p: this.lastPres });
+    if (!this.presDirty || !this.lastPres) return;
+    if (!this.send({ t: 'pres', p: this.lastPres })) {
+      if (!this.closedByUs && !this.presT) this.presT = window.setTimeout(() => { this.presT = 0; this.flushPres(); }, 90);
+      return; // stay dirty so the next welcome or reopen still announces where she is
+    }
+    this.presDirty = false;
+    if (this.presT) clearTimeout(this.presT);
     this.presT = window.setTimeout(() => { this.presT = 0; this.flushPres(); }, 90);
   }
   myPresence() { return this.lastPres; }
-  say(b: Bubble) { this.send({ t: 'say', b }); }
-  lock(houseId: string, locked: boolean) { this.send({ t: 'lock', houseId, locked }); }
-  setLook(look: Look) { this.send({ t: 'look', look }); const me = this.players.get(this.pid); if (me) me.look = look; }
-  setDog(dog: Dog | null) { this.send({ t: 'dog', dog }); const me = this.players.get(this.pid); if (me) me.dog = dog; }
-  fx(fx: Fx) { this.send({ t: 'fx', fx }); }
-  ranchOp(o: RanchOp) { this.send({ t: 'ranch', o }); }
-  tbl(op: TableOp) { this.send({ t: 'tbl', ...op }); }
+  say(b: Bubble) { this.reliable({ t: 'say', b }); }
+  lock(houseId: string, locked: boolean) { this.reliable({ t: 'lock', houseId, locked }); }
+  setLook(look: Look) { this.reliable({ t: 'look', look }); const me = this.players.get(this.pid); if (me) me.look = look; }
+  setDog(dog: Dog | null) { this.reliable({ t: 'dog', dog }); const me = this.players.get(this.pid); if (me) me.dog = dog; }
+  fx(fx: Fx) { this.reliable({ t: 'fx', fx }); }
+  ranchOp(o: RanchOp) { this.reliable({ t: 'ranch', o }); }
+  tbl(op: TableOp) { this.reliable({ t: 'tbl', ...op }); }
   now() { return Date.now() + this.ranch.skew; }
-  parent(op: any) { if (this.cfg.parentKey) this.send({ t: 'parent', key: this.cfg.parentKey, ...op }); }
+  parent(op: any) { if (this.cfg.parentKey) this.reliable({ t: 'parent', key: this.cfg.parentKey, ...op }); }
 }
 
 /** A Store-compatible view of one house, for the existing renderer. Room choice + sound stay local to this device. */

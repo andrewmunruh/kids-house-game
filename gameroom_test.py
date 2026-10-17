@@ -1,12 +1,18 @@
 # Game Room: 3 simulated iPads play Slay to the end, then Four in a Row, against the local server.
 # Legal moves are chosen by reading each kid's own `view`. Moves themselves go through the table UI.
 import asyncio, os, shutil, sys, traceback
+from urllib.parse import urlparse
 from playwright.async_api import async_playwright
 from testnav import SKIP_WN, to_map, go
 
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
 SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/gameroom/'
 ART = '/opt/cursor/artifacts/screenshots'
+# The page itself is andrewmunruh.github.io. Only the production Worker host counts.
+PROD_WORKER = 'cozy-hood.andrewmunruh.workers.dev'
+def hits_prod(url):
+    try: return (urlparse(url).hostname or '') == PROD_WORKER
+    except Exception: return False
 os.makedirs(SHOT, exist_ok=True)
 res = {}
 def check(name, ok, extra=''):
@@ -205,7 +211,7 @@ async def main():
             pg.set_default_timeout(8000)
             pg.on('pageerror', lambda e, n=name: errs[n].append(str(e)))
             pg.on('console', lambda m, n=name: m.type == 'error' and 'favicon' not in m.text and errs[n].append(m.text))
-            pg.on('request', lambda r: prod.append(r.url) if ('workers.dev' in r.url or 'andrewmunruh' in r.url) else None)
+            pg.on('request', lambda r: prod.append(r.url) if hits_prod(r.url) else None)
             await pg.goto(URL)
             await pg.wait_for_timeout(500)
         try:
@@ -317,7 +323,7 @@ async def main():
             K2.set_default_timeout(8000)
             K2.on('pageerror', lambda e: errs['K2b'].append(str(e)))
             K2.on('console', lambda m: m.type == 'error' and 'favicon' not in m.text and errs['K2b'].append(m.text))
-            K2.on('request', lambda r: prod.append(r.url) if ('workers.dev' in r.url or 'andrewmunruh' in r.url) else None)
+            K2.on('request', lambda r: prod.append(r.url) if hits_prod(r.url) else None)
             await K2.goto(URL)
             for _ in range(80):
                 online = await K2.evaluate("""() => { try { const h = __hood(); const t = h && h.tables && h.tables.get(0); return !!(h && h.status === 'online' && t && t.phase === 'play' && t.view && t.view.hand); } catch (e) { return false; } }""")
@@ -446,10 +452,13 @@ async def main():
             except Exception:
                 pass
         finally:
-            os.makedirs(ART, exist_ok=True)
-            for fn in os.listdir(SHOT):
-                if fn.endswith('.png'):
-                    shutil.copy(os.path.join(SHOT, fn), os.path.join(ART, 'glam-' + fn))
+            try:
+                os.makedirs(ART, exist_ok=True)
+                for fn in os.listdir(SHOT):
+                    if fn.endswith('.png'):
+                        shutil.copy(os.path.join(SHOT, fn), os.path.join(ART, 'glam-' + fn))
+            except OSError as e:
+                print('artifact copy skipped:', e, flush=True)
             print(f"\n{sum(res.values())}/{len(res)} checks passed", flush=True)
             await b.close()
     if not all(res.values()):

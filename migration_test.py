@@ -89,7 +89,10 @@ async def main():
             errs = []
             for pg in (P, K2, K3): pg.on('pageerror', lambda e: errs.append(str(e))); await pg.goto(URL); await pg.wait_for_timeout(700)
             # ================= Phase A: production =================
-            if OLD_HAS_MAP: check('phase A runs the production build (map era: map button, no home button yet)', await P.locator('#btnMap').count() == 1 and await P.locator('#btnHome').count() == ('id="btnHome"' in OLD_MAIN))
+            if OLD_HAS_MAP:
+                old_home = 'id="btnHome"' in OLD_MAIN
+                home_note = 'home button in the old tree' if old_home else 'no home button in the old tree'
+                check('phase A runs the production build (map era: map button, ' + home_note + ')', await P.locator('#btnMap').count() == 1 and await P.locator('#btnHome').count() == (1 if old_home else 0))
             else: check('phase A runs the production build (street, no map)', await P.locator('#btnMap').count() == 0 and await P.locator('#btnPark').count() == 1)
             # a rich solo save on the family iPad: 3 characters, items in 3 rooms (one held), paint, cat, dog, ranch basket + garden
             await P.evaluate("""(() => { const s = __store; const now = Date.now();

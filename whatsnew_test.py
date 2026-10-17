@@ -1,8 +1,10 @@
 # What's new popup: welcome on brand-new device, changelog once after an update, then never again.
-import asyncio, sys, json
+import asyncio, os, sys, json
 from playwright.async_api import async_playwright
 from testnav import PFX, SKIP_WN, K
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
+WN_DIR = os.environ.get('WHATSNEW_SHOTS', os.path.join('screens', 'pets'))
+os.makedirs(WN_DIR, exist_ok=True)
 res = {}
 def check(n, ok, x=''): res[n] = ok; print(('PASS ' if ok else 'FAIL ') + n, x)
 async def main():
@@ -13,7 +15,7 @@ async def main():
         c = await mk(); pg = await c.new_page(); errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
         await pg.goto(URL); await pg.wait_for_selector('.whatsNew', timeout=5000); await pg.wait_for_timeout(1200)
         check('new device: short welcome (not the changelog)', 'Welcome' in await pg.inner_text('.whatsNew .wnTitle') and await pg.locator('.whatsNew.welcome').count() == 1)
-        await pg.screenshot(path='screens/pets/10-welcome-new-device.png')
+        await pg.screenshot(path=os.path.join(WN_DIR, '10-welcome-new-device.png'))
         await pg.click('#wnGo', force=True); await pg.wait_for_timeout(300)
         check('Let\'s play! closes it', await pg.locator('.whatsNew').count() == 0)
         await pg.reload(); await pg.wait_for_timeout(1200)
@@ -28,7 +30,7 @@ async def main():
         tl = t.lower()
         check('updated device: clubhouse news first, then the cozy polish (capped at 5 lines)', 'clubhouse is open' in tl and 'slay' in tl and 'real patterns' in tl and 'big and cozy' in tl and 'find her' not in tl and 'barn' not in tl and await pg2.locator('.wnLine').count() == 5)
         check('big Let\'s play! button', await pg2.locator('#wnGo:has-text("Let\'s play!")').count() == 1)
-        await pg2.screenshot(path='screens/pets/11-whats-new.png')
+        await pg2.screenshot(path=os.path.join(WN_DIR, '11-whats-new.png'))
         await pg2.click('#wnGo', force=True); await pg2.reload(); await pg2.wait_for_timeout(1200)
         check('updated device: only once', await pg2.locator('.whatsNew').count() == 0)
         check('save still intact', await pg2.evaluate("localStorage.getItem('" + K('cozy-house') + "') !== null && __store.get().characters.length > 0"))
