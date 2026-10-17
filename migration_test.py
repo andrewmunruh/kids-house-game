@@ -31,6 +31,7 @@ def serve_build(dist):  # "deploy": swap what the web server serves at /kids-hou
     link = WWW + '/kids-house-game'
     if os.path.islink(link): os.unlink(link)
     os.symlink(dist, link)
+WN_LATEST = __import__('re').search(r'CHANGELOG: ChangeEntry\[\] = \[\s*\{\s*v:\s*(\d+)', open(__import__('os').path.dirname(__import__('os').path.abspath(__file__)) + '/src/whatsnew.ts').read()).group(1)
 async def adult(pg):
     await pg.wait_for_selector('.adultCard .q'); q = int(await pg.get_attribute('.adultCard .q', 'data-q'))
     for d in str(q): await pg.click(f'.adultCard [data-k="{d}"]')
@@ -144,7 +145,9 @@ async def main():
                 if ka.keys() != kb.keys(): return False
                 return all((json.loads(ka[k]) == json.loads(kb[k])) if k == 'cozy-house' else ka[k] == kb[k] for k in ka)
             check('every iPad\'s saved data unchanged (solo house, sign-in, secrets)', all(same_ls(a, b) for a, b in zip(ls_a, ls_b)), json.dumps([sorted(x.keys()) for x in ls_b]))
-            check('the new build announces the update once (What\'s new v4)', all(x.get('cozy-whatsnew') == '4' for x in ls_b))
+            check('the new build announces the update once (What\'s new, latest version)', all(x.get('cozy-whatsnew') == WN_LATEST for x in ls_b))
+            signs = sorted(await P.locator('#mapWorld .mapSign:not(.place)').all_inner_texts())
+            check("map signs show each house's name from the roster (e.g. Quinn's House; a renamed house keeps its new name)", signs == sorted(["Reagan's House", "Quinn's House", 'Koala Castle']) and signs == sorted(h['meta']['name'] for h in snap_b['houses'].values()), json.dumps(signs))
             # play on the new build: houses render with their items; the parent screen still knows the roster
             await P.click('#mapWorld .mapHouse.mine'); await P.wait_for_timeout(900)
             p_items = await P.evaluate("Object.values(__store.get().rooms).reduce((n, r) => n + r.items.length, 0)")
