@@ -66,9 +66,10 @@ export function renderGameRoom() {
   html += `<button class="grDoor" data-gr="map" aria-label="Back to the map" style="left:${px(78)};top:${px(268)};width:${px(86)};height:${px(170)}"></button>`;
   TABLES.forEach((t, tb) => {
     const tw = t.seats >= 6 ? 360 : t.seats >= 4 ? 280 : 210;
-    html += `<button class="grTable" data-tb="${tb}" aria-label="${GAMES[t.game].name} table" style="left:${px(t.x - tw / 2)};top:${px(468)};width:${px(tw)};height:${px(72)}"></button>`;
+    html += `<button class="grTable" data-tb="${tb}" aria-label="${GAMES[t.game].name} table" style="left:${px(t.x - tw / 2)};top:${px(456)};width:${px(tw)};height:${px(70)}"></button>`;
     seatLayout(tb).forEach((c, seat) => {
-      html += `<button class="grChair" data-tb="${tb}" data-seat="${seat}" aria-label="Empty chair" style="left:${px(c.x - 40)};top:${px(c.y - 78)};width:${px(80)};height:${px(86)}"></button>`;
+      // In front of the felt, so a tap on the tabletop still opens the game and a tap on the chair sits.
+      html += `<button class="grChair" data-tb="${tb}" data-seat="${seat}" aria-label="Empty chair" style="left:${px(c.x - 38)};top:${px(c.y - 16)};width:${px(76)};height:${px(72)}"></button>`;
     });
   });
   html += '<div class="savatars" id="gavatars"></div>';

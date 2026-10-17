@@ -924,7 +924,7 @@ function renderMap(force = false) {
   w.insertAdjacentHTML('beforeend', mapTreesSVG(taken, onRoad) + html + '<div class="mapFaces" id="mapFaces"></div>');
   renderMapFaces();
 }
-const baseTaken = () => [{ x: PARK.x, y: PARK.y, r: 115 }, { x: RANCH.x, y: RANCH.y, r: 125 }, { x: SQUARE.x, y: SQUARE.y, r: 100 }, { x: CLUB.x, y: CLUB.y, r: 100 }];
+const baseTaken = () => [{ x: PARK.x, y: PARK.y, r: 115 }, { x: RANCH.x, y: RANCH.y, r: 125 }, { x: SQUARE.x, y: SQUARE.y, r: 100 }, { x: CLUB.x, y: CLUB.y, r: 90 }];
 /** Where n houses go: evenly along the road, on whichever side has more room (never on the park, ranch or square). */
 function houseSpots(road: SVGPathElement, n: number, taken: { x: number; y: number; r: number }[]) {
   const L = road.getTotalLength(), out: { x: number; y: number }[] = [];

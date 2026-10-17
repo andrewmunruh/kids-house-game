@@ -8,7 +8,7 @@ export const MAP_W = 1000, MAP_H = 700;
 export const ROAD_D = 'M 30 660 C 150 640, 200 540, 330 545 S 540 650, 690 600 S 925 470, 850 375 S 640 330, 520 355 S 270 385, 250 285 S 330 145, 480 150 S 700 200, 790 150';
 export const PARK = { x: 115, y: 170 }, RANCH = { x: 880, y: 120 }, SQUARE = { x: 600, y: 480 };
 /** Glam clubhouse, in the open grass inside the S-curve. */
-export const CLUB = { x: 430, y: 262 };
+export const CLUB = { x: 400, y: 260 };
 export const BARN_PIN = { x: 905, y: 92 };
 
 const tree = (x: number, y: number, s = 1, c = '#5cc985') => `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cx="0" cy="22" rx="20" ry="6" fill="#000" opacity=".1"/><rect x="-5" y="2" width="10" height="20" rx="4" fill="#c99366" ${st(3)}/><circle cx="0" cy="-10" r="20" fill="${c}" ${st(3)}/><circle cx="-12" cy="-2" r="12" fill="${c}" ${st(3)}/><circle cx="12" cy="-3" r="13" fill="${c}" ${st(3)}/><circle cx="-5" cy="-16" r="5" fill="#fff" opacity=".35"/></g>`;
