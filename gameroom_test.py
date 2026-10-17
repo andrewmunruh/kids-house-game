@@ -13,6 +13,13 @@ def check(name, ok, extra=''):
     res[name] = bool(ok)
     print(('PASS ' if ok else 'FAIL ') + name, extra, flush=True)
 
+async def also_portrait(pg, name):
+    await pg.set_viewport_size({'width': 820, 'height': 1180})
+    await pg.wait_for_timeout(280)
+    await pg.screenshot(path=SHOT + name)
+    await pg.set_viewport_size({'width': 1024, 'height': 768})
+    await pg.wait_for_timeout(180)
+
 async def adult(pg):
     await pg.wait_for_selector('.adultCard .q')
     q = int(await pg.get_attribute('.adultCard .q', 'data-q'))
@@ -84,6 +91,7 @@ async def play_card(pg, card, hand, shots):
         if not shots['crown']:
             await pg.wait_for_timeout(200)
             await pg.screenshot(path=SHOT + '05-crown-picker.png')
+            await also_portrait(pg, '05b-crown-portrait.png')
             shots['crown'] = True
         await pg.locator(f'#crownPick [data-color="{best_color(hand)}"]').click()
 
@@ -137,11 +145,11 @@ async def hidden_hands(pages, label):
           const mine = new Set(t.view.hand.map(c => String(c.id)));
           const shown = [...document.querySelectorAll('[data-card]')].map(e => e.getAttribute('data-card'));
           const leaked = shown.filter(id => !mine.has(id));
-          const oppSvg = [...document.querySelectorAll('.slayOpp')].some(e => e.querySelector('svg, [data-card]'));
+          const oppCards = [...document.querySelectorAll('.slayOpp')].some(e => e.querySelector('[data-card], [data-c], [data-v]'));
           const html = document.body.innerHTML;
-          return { leaked, oppSvg, nHand: mine.size, nShown: shown.length, htmlHasBackdoor: [...mine].some(id => html.split('data-card="' + id + '"').length > 2) };
+          return { leaked, oppCards, nHand: mine.size, nShown: shown.length, htmlHasBackdoor: [...mine].some(id => html.split('data-card="' + id + '"').length > 2) };
         }""")
-        if r.get('skip') or r['leaked'] or r['oppSvg'] or r['nShown'] != r['nHand']:
+        if r.get('skip') or r['leaked'] or r['oppCards'] or r['nShown'] != r['nHand']:
             bad.append(f'p{i}:{r}')
     check(label, not bad, ' '.join(bad)[:300])
 
@@ -210,6 +218,7 @@ async def main():
             check('map layout 1..12 still clears the clubhouse', all(l['inside'] and l['minSpot'] > -5 and (l['n'] == 1 or l['minHouse'] > 88) for l in lay),
                   str([(l['n'], round(l['minHouse']), round(l['minSpot'])) for l in lay]))
             await P.screenshot(path=SHOT + '01-map-clubhouse.png')
+            await also_portrait(P, '01b-map-portrait.png')
             await go(P, 'gameroom')
             solo_txt = (await P.inner_text('#grSolo')).strip()
             solo_cls = await P.get_attribute('#grSolo', 'class') or ''
@@ -258,6 +267,7 @@ async def main():
             lobby = await P.inner_text('#tableOverlay')
             check('lobby lists the three kids and Start for the host', all(n in lobby for n in names) and 'Start' in lobby and await K2.locator('#tblStart').count() == 0, lobby[:180])
             await P.screenshot(path=SHOT + '03b-slay-lobby.png')
+            await also_portrait(P, '03c-lobby-portrait.png')
             await P.click('#tblBack')
             await P.evaluate("""() => { const sc = document.getElementById('gameroom').clientHeight / 600; document.getElementById('grScroll').scrollLeft = Math.max(0, 650 * sc - innerWidth / 2); }""")
             await P.wait_for_timeout(250)
@@ -360,6 +370,7 @@ async def main():
             if winner_pg:
                 await winner_pg.wait_for_timeout(400)
                 await winner_pg.screenshot(path=SHOT + '06-you-slayed.png')
+                await also_portrait(winner_pg, '06b-slayed-portrait.png')
             await hidden_hands(pages, 'finished game still hides other hands')
 
             # ---------- Four in a Row ----------
@@ -389,6 +400,7 @@ async def main():
                 if not shot_four and any(board[c] for c in range(7)) and fmoves >= 1:
                     await pg.wait_for_timeout(150)
                     await pg.screenshot(path=SHOT + '08-four-midgame.png')
+                    await also_portrait(pg, '08b-four-portrait.png')
                     shot_four = True
                 col = four_col(board, who['you'])
                 prev = who['seq']
@@ -416,6 +428,7 @@ async def main():
                     endp = pg
                     break
             await endp.screenshot(path=SHOT + '09-four-done.png')
+            await also_portrait(endp, '09b-four-done-portrait.png')
 
             check('tests never called the production Worker', not prod, str(prod[:3]))
             flat = [f'{n}: {e}' for n, es in errs.items() for e in es]
@@ -431,7 +444,7 @@ async def main():
             os.makedirs(ART, exist_ok=True)
             for fn in os.listdir(SHOT):
                 if fn.endswith('.png'):
-                    shutil.copy(os.path.join(SHOT, fn), os.path.join(ART, 'gameroom-' + fn))
+                    shutil.copy(os.path.join(SHOT, fn), os.path.join(ART, 'glam-' + fn))
             print(f"\n{sum(res.values())}/{len(res)} checks passed", flush=True)
             await b.close()
     if not all(res.values()):

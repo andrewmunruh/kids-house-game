@@ -1,5 +1,7 @@
 // Table overlay. Lobby, "play for her", and the winner banner live here.
 // Each game fills #tblStage through a plug-in (src/games/*-ui.ts).
+import { characterSVG } from '../character';
+import { faceSVG } from '../map';
 import type { HoodClient } from '../net';
 import { GAMES, NUDGE_MS, type TablePub } from '../shared/games/index';
 import { slayUI } from './slay-ui';
@@ -9,6 +11,8 @@ export interface PlayCtx {
   table: TablePub;
   me: string;
   name: (pid: string) => string;
+  /** Cropped face for a player chip. Empty if we don't know her look. */
+  face: (pid: string) => string;
   move: (m: unknown) => void;
   toast: (s: string) => void;
   sfx: { click(): void; sparkle(): void; pop(): void; swish(): void };
@@ -69,6 +73,7 @@ export function createTableUI(deps: TableDeps): TableApi {
     return {
       table, me: h.pid,
       name: pid => h.players.get(pid)?.nickname ?? 'friend',
+      face: pid => { const look = h.players.get(pid)?.look; return look ? faceSVG(characterSVG(look)) : ''; },
       move: m => h.tbl({ op: 'move', tb: table.tb, m }),
       toast: deps.toast, sfx: deps.sfx,
     };
@@ -115,7 +120,7 @@ export function createTableUI(deps: TableDeps): TableApi {
     root.dataset.you = table.you === null ? '' : String(table.you);
     root.innerHTML = `<div class="tblCard ${yourTurn ? 'yourTurn' : ''} game-${table.game}">
       <div class="tblTop"><h2>${esc(game.name)}</h2><div class="seatDots">${table.seats.map(pid => `<i class="${pid ? 'on' : ''} ${pid === me ? 'me' : ''}"></i>`).join('')}</div></div>
-      ${win ? `<div class="winBanner" id="winBanner">${win}</div>` : ''}
+      ${win ? `<div class="winWrap"><div class="winBanner" id="winBanner">${win}</div></div>` : ''}
       <div id="tblStage"></div>
       <div class="tblBar">
         ${canStart ? '<button type="button" id="tblStart">Start</button>' : ''}

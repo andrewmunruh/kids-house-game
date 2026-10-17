@@ -3,8 +3,8 @@ import type { GamePlugin, PlayCtx } from './ui';
 
 const O = '#5a3d5c';
 const esc = (t: string) => t.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-const heart = `<svg viewBox="0 0 48 48"><path d="M24 40 C10 30 4 22 8 14 C12 8 20 10 24 16 C28 10 36 8 40 14 C44 22 38 30 24 40 Z" fill="#ff4d94" stroke="${O}" stroke-width="3" stroke-linejoin="round"/></svg>`;
-const star = `<svg viewBox="0 0 48 48"><path d="M24 4 L29 18 H44 L32 27 L36 42 L24 33 L12 42 L16 27 L4 18 H19 Z" fill="#66d9e8" stroke="${O}" stroke-width="3" stroke-linejoin="round"/></svg>`;
+const heart = `<svg viewBox="0 0 48 48"><path d="M24 42 C8 30 2 22 7 13 C11 6 20 8 24 16 C28 8 37 6 41 13 C46 22 40 30 24 42 Z" fill="#ff4d94" stroke="${O}" stroke-width="3" stroke-linejoin="round"/><path d="M16 16 Q20 12 22 18" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".8"/></svg>`;
+const star = `<svg viewBox="0 0 48 48"><path d="M24 3 L29 17 H44 L32 26 L37 42 L24 33 L11 42 L16 26 L4 17 H19 Z" fill="#66d9e8" stroke="${O}" stroke-width="3" stroke-linejoin="round"/><path d="M24 12 L26 18 H22 Z" fill="#fff" opacity=".8"/></svg>`;
 
 export const fourUI: GamePlugin = {
   id: 'four',
@@ -33,8 +33,10 @@ export const fourUI: GamePlugin = {
     const turnPid = v.turn >= 0 ? table.players[v.turn] : '';
     const turnLine = v.turn < 0 ? (v.draw ? "It's a tie!" : '') : yours ? 'Your turn!' : `${esc(ctx.name(turnPid))}'s turn`;
     const legend = you === 0 ? 'You are <b>pink hearts</b>' : you === 1 ? 'You are <b>aqua stars</b>' : 'Pink hearts and aqua stars';
+    const chips = table.players.map((pid, i) => `<div class="playerChip ${v.turn === i ? 'isTurn' : ''}"><span class="chipFace">${ctx.face(pid)}</span><b>${i === 0 ? 'Hearts' : 'Stars'}</b></div>`).join('');
     host.innerHTML = `<div class="fourPlay">
       <div class="whose ${yours ? 'yours' : ''}" id="whoseTurn">${turnLine}</div>
+      <div class="fourChips">${chips}</div>
       <p class="fourLegend">${legend}</p>
       <div class="fourBoard" id="fourBoard">${cols}</div>
     </div>`;

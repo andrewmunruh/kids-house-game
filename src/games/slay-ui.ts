@@ -13,30 +13,63 @@ const O = '#5a3d5c';
 const esc = (t: string) => t.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 const rank = (f: Face) => typeof f === 'number' ? f : ({ skip: 10, rev: 11, d2: 12, wild: 13, w4: 14 } as Record<string, number>)[f] ?? 0;
 
-const crown = `<g transform="translate(16 30)"><path d="M2 24 L7 8 L14 16 L20 2 L26 16 L33 8 L38 24 Z" fill="#ffd43b" stroke="${O}" stroke-width="2" stroke-linejoin="round"/><rect x="2" y="24" width="36" height="7" rx="2" fill="#ffd43b" stroke="${O}" stroke-width="2"/><circle cx="7" cy="8" r="2.2" fill="#ff7eb3"/><circle cx="20" cy="3" r="2.2" fill="#66d9e8"/><circle cx="33" cy="8" r="2.2" fill="#d0bfff"/></g>`;
-const heart = (x: number, y: number) => `<path d="M${x} ${y + 4} C${x - 4} ${y - 2} ${x - 8} ${y} ${x - 6} ${y + 5} C${x - 4} ${y + 8} ${x} ${y + 11} ${x} ${y + 11} C${x} ${y + 11} ${x + 4} ${y + 8} ${x + 6} ${y + 5} C${x + 8} ${y} ${x + 4} ${y - 2} ${x} ${y + 4} Z" fill="#ff4d94" stroke="${O}" stroke-width="1"/>`;
-const faceIcon = (card: Card, ink: string) => {
-  if (card.v === 'wild' || card.v === 'w4') return crown + (card.v === 'w4' ? `<text x="35" y="78" text-anchor="middle" font-size="16" font-weight="900" fill="${ink}">+4</text>` : '');
-  if (card.v === 'd2') return `<g transform="translate(17 32)"><circle cx="18" cy="16" r="16" fill="#ffe0ef" stroke="${O}" stroke-width="2"/>${heart(12, 8)}${heart(24, 8)}<path d="M10 24 Q18 30 26 24" fill="none" stroke="${O}" stroke-width="2" stroke-linecap="round"/></g>`;
-  if (card.v === 'rev') return `<g fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"><path d="M18 36 C40 22 50 48 34 54 C20 60 16 44 28 40"/><path d="M16 34 L22 28 L24 38"/></g><circle cx="48" cy="30" r="3" fill="#ffd43b" stroke="${O}" stroke-width="1"/><circle cx="22" cy="58" r="2.4" fill="#ff7eb3"/><circle cx="50" cy="52" r="2.2" fill="#66d9e8"/>`;
-  if (card.v === 'skip') return `<g transform="translate(14 32)"><circle cx="21" cy="16" r="16" fill="#fff6d8" stroke="${O}" stroke-width="2"/><rect x="8" y="12" width="12" height="8" rx="3" fill="#2b1430"/><rect x="22" y="12" width="12" height="8" rx="3" fill="#2b1430"/><path d="M20 16 H22 M6 14 H4 M38 14 H40" stroke="${O}" stroke-width="2" stroke-linecap="round"/><path d="M12 24 Q21 28 30 24" fill="none" stroke="${O}" stroke-width="2" stroke-linecap="round"/></g>`;
-  return `<text x="35" y="64" text-anchor="middle" font-size="40" font-weight="900" fill="${ink}" font-family="Nunito, ui-rounded, system-ui, sans-serif">${card.v}</text>`;
-};
+const pip = (card: Card) => typeof card.v === 'number' ? String(card.v) : card.v === 'skip' ? '✕' : card.v === 'rev' ? '↻' : card.v === 'd2' ? '+2' : card.v === 'w4' ? '+4' : '♛';
 const faceWord = (card: Card) => card.v === 'skip' ? 'Nope' : card.v === 'rev' ? 'Flip' : card.v === 'd2' ? '+2' : card.v === 'wild' ? 'Crown' : card.v === 'w4' ? 'Crown' : '';
-const corner = (card: Card) => typeof card.v === 'number' ? String(card.v) : card.v === 'skip' ? '✕' : card.v === 'rev' ? '↻' : card.v === 'd2' ? '+2' : card.v === 'w4' ? '+4' : '♛';
+const spark = (x: number, y: number, s = 1, fill = '#ffd43b') => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 -6 L1.4 -1.4 L6 -1 L1.6 1.4 L3 6 L0 3 L-3 6 L-1.6 1.4 L-6 -1 L-1.4 -1.4 Z" fill="${fill}" stroke="${O}" stroke-width="1" stroke-linejoin="round"/>`;
+const heartBit = (x: number, y: number, s = 1) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 1.2 C-2.2 -1.6 -5.2 -0.6 -3.6 2.2 C-2.4 4 0 5.2 0 5.2 C0 5.2 2.4 4 3.6 2.2 C5.2 -0.6 2.2 -1.6 0 1.2 Z" fill="#ff4d94" stroke="${O}" stroke-width="1"/>`;
+
+/** Big illustrated icon for an action card. Number cards use a bubbly numeral instead. */
+function actionIcon(card: Card): string {
+  if (card.v === 'wild' || card.v === 'w4') return `<g transform="translate(14 28)">
+      <path d="M4 26 L10 8 L18 16 L24 2 L30 16 L38 8 L44 26 Z" fill="#ffd43b" stroke="${O}" stroke-width="2.2" stroke-linejoin="round"/>
+      <rect x="4" y="26" width="40" height="8" rx="2" fill="#ffd43b" stroke="${O}" stroke-width="2.2"/>
+      <circle cx="10" cy="8" r="2.4" fill="#ff7eb3"/><circle cx="24" cy="3" r="2.4" fill="#66d9e8"/><circle cx="38" cy="8" r="2.4" fill="#d0bfff"/>
+      ${spark(-2, 0, 0.7)}${spark(46, 4, 0.65, '#fff')}${spark(22, -4, 0.55, '#ff7eb3')}
+    </g>${card.v === 'w4' ? `<text x="35" y="78" text-anchor="middle" font-size="16" font-weight="900" fill="${O}" font-family="Nunito, ui-rounded, system-ui, sans-serif">+4</text>` : ''}`;
+  if (card.v === 'd2') return `<g transform="translate(12 30)">
+      <circle cx="23" cy="18" r="18" fill="#fff" stroke="${O}" stroke-width="2.4"/>
+      ${heartBit(14, 8, 1.35)}${heartBit(32, 8, 1.35)}
+      <path d="M12 26 Q23 34 34 26" fill="none" stroke="${O}" stroke-width="2.4" stroke-linecap="round"/>
+      ${heartBit(40, 22, 0.8)}
+    </g>`;
+  if (card.v === 'rev') return `<g fill="none" stroke="${O}" stroke-width="3.2" stroke-linecap="round">
+      <path d="M16 40 C42 22 54 52 34 60 C16 68 12 46 30 40"/>
+      <path d="M14 38 L22 30 L24 42" stroke-linejoin="round"/>
+    </g>${spark(48, 28, 0.85)}${spark(20, 62, 0.6, '#ff7eb3')}${spark(50, 58, 0.55, '#66d9e8')}`;
+  if (card.v === 'skip') return `<g transform="translate(12 30)">
+      <circle cx="23" cy="18" r="18" fill="#fff6d8" stroke="${O}" stroke-width="2.4"/>
+      <rect x="8" y="12" width="14" height="9" rx="3" fill="#2b1430"/><rect x="24" y="12" width="14" height="9" rx="3" fill="#2b1430"/>
+      <path d="M22 16.5 H24 M5 14 H2 M41 14 H44" stroke="${O}" stroke-width="2" stroke-linecap="round"/>
+      <path d="M12 27 Q23 32 34 27" fill="none" stroke="${O}" stroke-width="2.2" stroke-linecap="round"/>
+    </g>`;
+  return '';
+}
 
 export function cardSVG(card: Card): string {
   const wild = card.c === 4;
-  const pal = wild ? { fill: '#fff', ink: O } : PAL[card.c] ?? PAL[0];
+  const pal = wild ? { fill: '#fff8ee', ink: O } : PAL[card.c] ?? PAL[0];
+  const num = typeof card.v === 'number';
+  const label = faceWord(card);
   const frame = wild
-    ? `<rect x="3" y="3" width="64" height="94" rx="14" fill="#fff6fb" stroke="#ff7eb3" stroke-width="4"/><rect x="6" y="6" width="58" height="88" rx="12" fill="none" stroke="#d0bfff" stroke-width="2"/><rect x="8" y="8" width="54" height="84" rx="10" fill="none" stroke="#66d9e8" stroke-width="2"/><rect x="10" y="10" width="50" height="80" rx="8" fill="none" stroke="#ffd43b" stroke-width="2"/>`
-    : `<rect x="3" y="3" width="64" height="94" rx="14" fill="${pal.fill}" stroke="${O}" stroke-width="3"/>`;
-  return `<svg viewBox="0 0 70 100">${frame}<rect x="9" y="9" width="52" height="82" rx="10" fill="#fff" opacity=".93"/>
-    <text x="14" y="22" font-size="11" font-weight="900" fill="${pal.ink}" font-family="Nunito, ui-rounded, system-ui, sans-serif">${corner(card)}</text>
-    ${faceIcon(card, pal.ink)}
-    <text x="35" y="88" text-anchor="middle" font-size="11" font-weight="900" fill="${pal.ink}" font-family="Nunito, ui-rounded, system-ui, sans-serif">${faceWord(card)}</text></svg>`;
+    ? `<rect x="2" y="2" width="66" height="96" rx="13" fill="#fff8ee" stroke="#ff7eb3" stroke-width="4"/><rect x="5" y="5" width="60" height="90" rx="11" fill="none" stroke="#d0bfff" stroke-width="2"/><rect x="7.5" y="7.5" width="55" height="85" rx="9" fill="none" stroke="#66d9e8" stroke-width="1.6"/><rect x="9.5" y="9.5" width="51" height="81" rx="8" fill="none" stroke="#ffd43b" stroke-width="1.6"/>`
+    : `<rect x="2" y="2" width="66" height="96" rx="13" fill="${pal.fill}" stroke="${O}" stroke-width="3"/><rect x="6" y="6" width="58" height="88" rx="10" fill="none" stroke="#fff" stroke-width="2" opacity=".7"/>`;
+  const shine = `<ellipse cx="24" cy="20" rx="16" ry="8" fill="#fff" opacity=".38"/>`;
+  const inkText = `fill="${pal.ink}" stroke="#fff" stroke-width="3" paint-order="stroke" font-family="Nunito, ui-rounded, system-ui, sans-serif"`;
+  const corners = `<text x="8" y="16" font-size="13" font-weight="900" ${inkText}>${pip(card)}</text>`
+    + (num ? `<text x="62" y="94" font-size="13" font-weight="900" text-anchor="end" ${inkText}>${pip(card)}</text>` : '');
+  const center = num
+    ? `<text x="35" y="68" text-anchor="middle" font-size="48" font-weight="900" fill="${pal.ink}" stroke="#fff" stroke-width="6" paint-order="stroke" font-family="Nunito, ui-rounded, system-ui, sans-serif">${card.v}</text>`
+    : `${actionIcon(card)}${label ? `<text x="35" y="92" text-anchor="middle" font-size="12" font-weight="900" ${inkText}>${label}</text>` : ''}`;
+  return `<svg viewBox="0 0 70 100">${frame}${shine}${corners}${center}</svg>`;
 }
-const backSVG = `<svg viewBox="0 0 70 100"><rect x="3" y="3" width="64" height="94" rx="14" fill="#ff7eb3" stroke="${O}" stroke-width="3"/><rect x="10" y="10" width="50" height="80" rx="10" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4 3"/>${heart(35, 40)}</svg>`;
+const backHearts = [[18, 28], [40, 28], [29, 46], [18, 64], [40, 64], [29, 78]].map(([x, y]) => heartBit(x, y, 0.9)).join('');
+const backSVG = `<svg viewBox="0 0 70 100"><rect x="2" y="2" width="66" height="96" rx="13" fill="#ff4d94" stroke="${O}" stroke-width="3"/>
+  <rect x="7" y="7" width="56" height="86" rx="10" fill="none" stroke="#ffd43b" stroke-width="3"/>
+  <rect x="11" y="11" width="48" height="78" rx="8" fill="#ff7eb3"/>
+  ${backHearts}
+  <circle cx="35" cy="50" r="14" fill="#fff6fb" stroke="${O}" stroke-width="2.4"/>
+  ${spark(35, 50, 1.15, '#ffd43b')}
+</svg>`;
 
 const playable = (card: Card, v: any) => {
   if (v.turn < 0) return false;
@@ -76,7 +109,7 @@ function render(host: HTMLElement, ctx: PlayCtx) {
   const pal = PAL[v.color] ?? PAL[0];
   host.innerHTML = `<div class="slayFelt">
     <div class="whose ${yours ? 'yours' : ''}" id="whoseTurn">${turnLine}<span class="slayDir" aria-hidden="true">${v.dir === 1 ? '→' : '←'}</span></div>
-    <div class="slayOpps">${table.players.map((pid, i) => i === you ? '' : `<div class="slayOpp ${v.turn === i ? 'isTurn' : ''}" data-p="${i}" data-count="${v.counts?.[i] ?? 0}"><b>${esc(ctx.name(pid))}</b><span class="cnt">${v.counts?.[i] ?? 0}</span>${v.slay?.[i] ? '<em>SLAY!</em>' : ''}</div>`).join('')}</div>
+    <div class="slayOpps">${table.players.map((pid, i) => i === you ? '' : `<div class="slayOpp ${v.turn === i ? 'isTurn' : ''}" data-p="${i}" data-count="${v.counts?.[i] ?? 0}"><span class="chipFace">${ctx.face(pid)}</span><b>${esc(ctx.name(pid))}</b><span class="cnt">${v.counts?.[i] ?? 0}</span>${v.slay?.[i] ? '<em>SLAY!</em>' : ''}</div>`).join('')}</div>
     <div class="slayPile">
       <button type="button" id="slayDeck" class="slayDeck" ${drawOk ? '' : 'disabled'} aria-label="Draw a card">${backSVG}<span>${v.deck ?? 0}</span></button>
       <div id="slayDiscard" class="slayDiscard" data-top="${v.top.id}">${cardSVG(v.top)}</div>

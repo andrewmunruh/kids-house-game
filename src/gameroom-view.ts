@@ -65,7 +65,7 @@ export function renderGameRoom() {
   let html = gameRoomSVG();
   html += `<button class="grDoor" data-gr="map" aria-label="Back to the map" style="left:${px(78)};top:${px(268)};width:${px(86)};height:${px(170)}"></button>`;
   TABLES.forEach((t, tb) => {
-    const tw = t.seats >= 6 ? 360 : t.seats >= 4 ? 280 : 210;
+    const tw = t.seats >= 6 ? 560 : t.seats >= 4 ? 440 : 340;
     html += `<button class="grTable" data-tb="${tb}" aria-label="${GAMES[t.game].name} table" style="left:${px(t.x - tw / 2)};top:${px(456)};width:${px(tw)};height:${px(70)}"></button>`;
     seatLayout(tb).forEach((c, seat) => {
       // In front of the felt, so a tap on the tabletop still opens the game and a tap on the chair sits.
@@ -95,7 +95,8 @@ export function renderGamePeople() {
       if (b) el.appendChild(b); el.dataset.look = lk;
     }
     const k = (SIZE_SCALE[w.look.size] ?? 1) * sc * 0.95, wd = CHAR_W * k, h = CHAR_H * k;
-    el.style.left = w.x * sc - wd / 2 + 'px'; el.style.top = w.y * sc - h + 'px';
+    const feet = w.seated ? w.y - 8 : w.y;
+    el.style.left = w.x * sc - wd / 2 + 'px'; el.style.top = feet * sc - h + 'px';
     el.style.width = wd + 'px'; el.style.height = h + 'px';
     el.style.zIndex = String(100 + Math.round(w.y));
     el.classList.toggle('flipped', w.flip); el.classList.toggle('away', w.away); el.classList.toggle('seated', w.seated);
