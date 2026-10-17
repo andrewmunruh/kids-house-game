@@ -1,6 +1,6 @@
 // Shared between client and server: protocol, presets, validation and the chat filter.
 // Nothing here touches the DOM or Node APIs, so it runs in browsers, Node and Cloudflare Workers.
-import { initialState, migrate, newCharacter, ROOM_W, ROOM_H, MAX_CHARS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
+import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, ROOM_W, ROOM_H, MAX_CHARS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
 
 export const MAX_PLAYERS = 12;
 export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L
@@ -114,6 +114,29 @@ function cleanCharacter(c: any): Character | null {
     held: { left: c.held?.left ? cleanItem(c.held.left) : null, right: c.held?.right ? cleanItem(c.held.right) : null } });
 }
 
+// ---------- pets ----------
+export const PROTOCOL = 2; // 2 = pets, park, fx. Older clients never receive messages they can't apply.
+export const CAT_NAMES = ['Mittens', 'Luna', 'Biscuit', 'Pumpkin', 'Whiskers', 'Mochi', 'Pepper', 'Noodle', 'Ginger', 'Socks'];
+export const DOG_NAMES = ['Buddy', 'Coco', 'Max', 'Daisy', 'Peanut', 'Rocket', 'Bella', 'Waffles', 'Scout', 'Honey'];
+export function cleanPetName(raw: unknown): string | null {
+  const t = String(raw ?? '').normalize('NFC').replace(/\s+/g, ' ').trim();
+  if (!/^[\p{L}\p{N}][\p{L}\p{N}' -]{0,13}$/u.test(t)) return null;
+  if ((t.match(/\d/g) ?? []).length > 2) return null;
+  const f = filterChat(t); return f.ok ? t : null;
+}
+export function cleanCat(c: any): Cat | null {
+  if (!c || typeof c !== 'object') return null;
+  const name = cleanPetName(c.name), coat = num(c.coat, 0, CAT_COATS - 1), x = num(c.x, 100, ROOM_W - 100) ?? ROOM_W / 2;
+  return name && coat !== null && isRoom(c.room) ? { name, coat: Math.round(coat), room: c.room, x } : null;
+}
+export function cleanDog(d: any): Dog | null {
+  if (!d || typeof d !== 'object') return null;
+  const name = cleanPetName(d.name), breed = num(d.breed, 0, DOG_BREEDS - 1);
+  if (!name || breed === null) return null;
+  const owner = d.owner == null ? undefined : str(d.owner, ID_RE) ?? undefined;
+  return { name, breed: Math.round(breed), ...(owner ? { owner } : {}) };
+}
+
 /** Turn an untrusted action into a safe one, or null to reject. UI-only actions are never accepted over the network. */
 export function cleanAction(a: any): Action | null {
   if (!a || typeof a !== 'object' || typeof a.type !== 'string') return null;
@@ -131,7 +154,9 @@ export function cleanAction(a: any): Action | null {
     case 'char/delete': { const id = str(a.id, ID_RE); return id ? { type: a.type, id } : null; }
     case 'char/hold': { const id = str(a.id, ID_RE), itemId = str(a.itemId, ID_RE); return id && itemId && isRoom(room) && (a.hand === 'left' || a.hand === 'right') ? { type: a.type, id, hand: a.hand, room, itemId } : null; }
     case 'char/release': { const id = str(a.id, ID_RE), x = num(a.x, 0, ROOM_W), y = num(a.y, 0, ROOM_H); return id && x !== null && y !== null && (a.hand === 'left' || a.hand === 'right') ? { type: a.type, id, hand: a.hand, x, y } : null; }
-    default: return null; // room/switch, settings/sound, game/reset are local-only
+    case 'cat/set': { if (a.cat === null) return { type: a.type, cat: null }; const cat = cleanCat(a.cat); return cat ? { type: a.type, cat } : null; }
+    case 'cat/move': { const x = num(a.x, 100, ROOM_W - 100); return isRoom(room) && x !== null ? { type: a.type, room, x } : null; }
+    default: return null; // room/switch, settings/sound, game/reset, dog/set (dogs live on the player) are local-only
   }
 }
 
@@ -150,30 +175,63 @@ export function cleanHouseState(raw: any): GameState {
     };
   }
   const characters = (Array.isArray(s.characters) ? s.characters : []).slice(0, MAX_CHARS).map(cleanCharacter).filter(Boolean) as Character[];
-  return { ...base, rooms, characters, currentRoom: 'living', soundOn: true };
+  const cat = (s as any).cat ? cleanCat((s as any).cat) : null;
+  return { ...base, rooms, characters, currentRoom: 'living', soundOn: true, cat, dog: null };
 }
 
 // ---------- presence ----------
-export interface Presence { where: 'street' | 'house'; houseId?: string; room?: RoomId; x: number; y: number; flip: boolean }
+// The park: a fixed, shared scene at the end of the street (and in solo play).
+export const PARK_W = 2900;
+export type Pose = 'sit' | 'swing' | 'slide';
+export interface ParkSpot { kind: 'swing' | 'bench' | 'blanket'; x: number; y: number }
+export const PARK_SPOTS: ParkSpot[] = [
+  { kind: 'swing', x: 430, y: 500 }, { kind: 'swing', x: 570, y: 500 },
+  { kind: 'blanket', x: 1730, y: 548 }, { kind: 'blanket', x: 1850, y: 548 },
+  { kind: 'bench', x: 2025, y: 512 }, { kind: 'bench', x: 2105, y: 512 }, { kind: 'bench', x: 2225, y: 512 }, { kind: 'bench', x: 2305, y: 512 },
+];
+export const SLIDE = { top: { x: 905, y: 330 }, bottom: { x: 1110, y: 545 }, ladder: 850 };
+export const DOG_AREA = { x0: 2440, x1: 2840, y0: 470, y1: 585 };
+export interface Presence { where: 'street' | 'house' | 'park'; houseId?: string; room?: RoomId; x: number; y: number; flip: boolean; pose?: Pose; spot?: number }
 export function cleanPresence(p: any, houseExists: (id: string) => boolean): Presence | null {
-  if (!p || (p.where !== 'street' && p.where !== 'house')) return null;
+  if (!p || (p.where !== 'street' && p.where !== 'house' && p.where !== 'park')) return null;
   const x = num(p.x, 0, 20000), y = num(p.y, 0, ROOM_H); if (x === null || y === null) return null;
   if (p.where === 'street') return { where: 'street', x, y, flip: p.flip === true };
+  if (p.where === 'park') {
+    const out: Presence = { where: 'park', x: Math.min(x, PARK_W), y, flip: p.flip === true };
+    if (p.pose === 'slide') out.pose = 'slide';
+    else if ((p.pose === 'sit' || p.pose === 'swing') && Number.isInteger(p.spot) && PARK_SPOTS[p.spot]) {
+      const sp = PARK_SPOTS[p.spot]; out.pose = sp.kind === 'swing' ? 'swing' : 'sit'; out.spot = p.spot; out.x = sp.x; out.y = sp.y;
+    }
+    return out;
+  }
   const houseId = str(p.houseId, ID_RE); if (!houseId || !houseExists(houseId) || !isRoom(p.room)) return null;
   return { where: 'house', houseId, room: p.room, x: Math.min(x, ROOM_W), y, flip: p.flip === true };
 }
-export const sameSpot = (a: Presence, b: Presence) => a.where === b.where && (a.where === 'street' || (a.houseId === b.houseId && a.room === b.room));
+export const sameSpot = (a: Presence, b: Presence) => a.where === b.where && (a.where !== 'house' || (a.houseId === b.houseId && a.room === b.room));
+
+// ---------- fx: short-lived effects relayed to kids in the same place (never stored) ----------
+export type Fx = { k: 'trick'; owner: string; v: number } | { k: 'purr' } | { k: 'ball'; x: number; y: number } | { k: 'splash'; x: number };
+export function cleanFx(f: any): Fx | null {
+  if (!f || typeof f !== 'object') return null;
+  if (f.k === 'trick') { const owner = str(f.owner, ID_RE), v = num(f.v, 0, 2); return owner && v !== null ? { k: 'trick', owner, v: Math.round(v) } : null; }
+  if (f.k === 'purr') return { k: 'purr' };
+  if (f.k === 'ball') { const x = num(f.x, DOG_AREA.x0, DOG_AREA.x1), y = num(f.y, DOG_AREA.y0, DOG_AREA.y1); return x !== null && y !== null ? { k: 'ball', x, y } : null; }
+  if (f.k === 'splash') { const x = num(f.x, 0, PARK_W); return x !== null ? { k: 'splash', x } : null; }
+  return null;
+}
 export const isNear = (a: Presence, b: Presence) => sameSpot(a, b) && Math.abs(a.x - b.x) <= NEAR_X && Math.abs(a.y - b.y) <= NEAR_Y;
 
 // ---------- protocol ----------
-export interface PlayerPub { pid: string; nickname: string; houseId: string; look: Look; online: boolean }
+export interface PlayerPub { pid: string; nickname: string; houseId: string; look: Look; online: boolean; dog?: Dog | null }
 export interface HouseMeta { id: string; ownerId: string; name: string; locked: boolean; style: number; slot: number }
 export interface HouseFull extends HouseMeta { state: GameState }
 export type Bubble = { kind: 'phrase' | 'emote'; v: number } | { kind: 'text'; v: string };
 
 export type ClientMsg =
-  | { t: 'hello'; token: string }
-  | { t: 'join'; nickname: string; look: Look; house?: unknown }
+  | { t: 'hello'; token: string; v?: number }
+  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number }
+  | { t: 'dog'; dog: Dog | null }
+  | { t: 'fx'; fx: Fx }
   | { t: 'act'; houseId: string; cid: number; action: Action }
   | { t: 'pres'; p: Presence }
   | { t: 'look'; look: Look }
@@ -193,6 +251,7 @@ export type ServerMsg =
   | { t: 'house'; house: HouseFull } | { t: 'houseMeta'; meta: HouseMeta } | { t: 'houseGone'; houseId: string }
   | { t: 'settings'; settings: { freeChat: boolean } }
   | { t: 'bubble'; pid: string; b: Bubble }
+  | { t: 'fx'; pid: string; fx: Fx }
   | { t: 'sayFail'; reason: string }
   | { t: 'parentInfo'; code: string; settings: { freeChat: boolean }; players: PlayerPub[]; houses: HouseMeta[]; roster: RosterEntry[]; note?: string }
   | { t: 'error'; code: 'nohood' | 'badtoken' | 'nickname' | 'full' | 'badkey' | 'bad'; msg?: string }

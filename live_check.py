@@ -3,7 +3,7 @@ from playwright.async_api import async_playwright
 URL = 'https://andrewmunruh.github.io/kids-house-game/'
 async def main():
     async with async_playwright() as p:
-        b = await p.chromium.launch(); ctx = await b.new_context(viewport={'width':1024,'height':768}, device_scale_factor=2, has_touch=True)
+        b = await p.chromium.launch(); ctx = await b.new_context(viewport={'width':1024,'height':768}, device_scale_factor=2, has_touch=True); await ctx.add_init_script("localStorage.getItem('cozy-whatsnew') || localStorage.setItem('cozy-whatsnew', '999')")  # skip the What's new popup
         pg = await ctx.new_page(); errs=[]; pg.on('pageerror', lambda e: errs.append(str(e))); pg.on('console', lambda m: m.type=='error' and errs.append(m.text))
         bad=[]; pg.on('response', lambda r: r.status >= 400 and bad.append((r.status, r.url)))
         r = await pg.goto(URL); await pg.wait_for_timeout(1500)

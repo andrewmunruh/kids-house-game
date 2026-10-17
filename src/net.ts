@@ -1,7 +1,8 @@
 // Client side of the neighborhood. Server-ordered actions are applied to `confirmed`; this kid's own
 // not-yet-confirmed actions sit in `pending` and are re-applied on top (optimistic UI that never diverges).
 import { reduce, type Action, type GameState, type RoomId } from './shared/state';
-import type { ClientMsg, ServerMsg, PlayerPub, HouseMeta, Presence, Bubble, Look, RosterEntry } from './shared/hood';
+import { PROTOCOL, type ClientMsg, type ServerMsg, type PlayerPub, type HouseMeta, type Presence, type Bubble, type Look, type RosterEntry, type Fx } from './shared/hood';
+import type { Dog } from './shared/state';
 
 /** `id` is the street's permanent id (sockets use it); `code` is the current invite code, shown to grown-ups. */
 export interface HoodConfig { url: string; code: string; id?: string; token?: string; pid?: string; parentKey?: string }
@@ -52,15 +53,15 @@ export class HoodClient {
   private send(m: ClientMsg) { if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(m)); }
 
   /** Open the socket. Resolves on welcome (or with an error code). Reconnects automatically afterwards. */
-  connect(join?: { nickname: string; look: Look; house?: unknown }): Promise<'ok' | string> {
+  connect(join?: { nickname: string; look: Look; house?: unknown; dog?: Dog | null }): Promise<'ok' | string> {
     this.closedByUs = false; this.status = 'connecting'; this.emit('status', this.status);
     return new Promise(resolve => {
       let settled = false; const done = (r: string) => { if (!settled) { settled = true; resolve(r); } };
       const ws = new WebSocket(this.cfg.url.replace(/^http/, 'ws') + '/ws/' + encodeURIComponent(this.cfg.id ?? this.cfg.code));
       this.ws = ws;
       ws.onopen = () => {
-        if (join && !this.cfg.token) this.send({ t: 'join', ...join });
-        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token });
+        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL });
+        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL });
         else done('notoken');
       };
       ws.onmessage = e => { const m: ServerMsg = JSON.parse(e.data); this.handle(m); if (m.t === 'welcome') { this.retry = 0; done('ok'); } if (m.t === 'error') done(m.code + (m.msg ? ':' + m.msg : '')); if (m.t === 'removed') done('removed'); };
@@ -110,6 +111,7 @@ export class HoodClient {
       case 'houseGone': this.houses.delete(m.houseId); this.emit('houses'); this.emit('houseGone', m.houseId); break;
       case 'settings': this.settings = m.settings; this.emit('settings'); break;
       case 'bubble': this.emit('bubble', m.pid, m.b); break;
+      case 'fx': this.emit('fx', m.pid, m.fx); break;
       case 'sayFail': this.emit('sayFail', m.reason); break;
       case 'parentInfo': this.emit('parentInfo', m); break;
       case 'error': this.emit('error', m.code); if (m.code === 'badtoken') { this.cfg.token = undefined; this.cfg.pid = undefined; saveHoodConfig(this.cfg); } break;
@@ -146,6 +148,8 @@ export class HoodClient {
   say(b: Bubble) { this.send({ t: 'say', b }); }
   lock(houseId: string, locked: boolean) { this.send({ t: 'lock', houseId, locked }); }
   setLook(look: Look) { this.send({ t: 'look', look }); const me = this.players.get(this.pid); if (me) me.look = look; }
+  setDog(dog: Dog | null) { this.send({ t: 'dog', dog }); const me = this.players.get(this.pid); if (me) me.dog = dog; }
+  fx(fx: Fx) { this.send({ t: 'fx', fx }); }
   parent(op: any) { if (this.cfg.parentKey) this.send({ t: 'parent', key: this.cfg.parentKey, ...op }); }
 }
 

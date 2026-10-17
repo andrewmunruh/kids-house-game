@@ -1,18 +1,18 @@
 // Platform-agnostic, server-authoritative neighborhood. One instance per invite code.
 // Adapters (server/node.ts, server/worker.ts) provide storage + sockets.
 // Privacy: no emails, names, IPs or chat are stored; chat is relayed to nearby players only and never logged.
-import { reduce, initialState, type GameState } from '../src/shared/state';
+import { reduce, initialState, type GameState, type Dog } from '../src/shared/state';
 import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, cleanPresence, cleanHouseName,
-  filterChat, isNear, cleanFirstName, normCode, validInvite, MAX_ROSTER, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble,
+  filterChat, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, PROTOCOL, normCode, validInvite, MAX_ROSTER, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble,
 } from '../src/shared/hood';
 
 export interface KV { get<T>(k: string): Promise<T | undefined>; put(k: string, v: unknown): Promise<void>; delete(k: string): Promise<void> }
 /** Maps invite codes (case-insensitive, unique across streets) to permanent street ids. */
 export interface CodeRegistry { claim(code: string, id: string): Promise<boolean>; release(code: string, id: string): Promise<void> }
-export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number } }
+export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number }
 
-interface Player { pid: string; nickname: string; houseId: string; tokenHash: string; look: Look; joinedAt: number }
+interface Player { pid: string; nickname: string; houseId: string; tokenHash: string; look: Look; joinedAt: number; dog?: Dog | null }
 interface Meta { id?: string; code: string; roster?: string[]; createdAt: number; parentKeyHash: string; settings: { freeChat: boolean }; players: Record<string, Player>; houseOrder: string[]; nextStyle: number }
 
 const enc = new TextEncoder();
@@ -65,7 +65,7 @@ export class Neighborhood {
   }
 
   // ---------- helpers ----------
-  private pub(p: Player): PlayerPub { return { pid: p.pid, nickname: p.nickname, houseId: p.houseId, look: p.look, online: [...this.conns].some(c => c.pid === p.pid) }; }
+  private pub(p: Player): PlayerPub { return { pid: p.pid, nickname: p.nickname, houseId: p.houseId, look: p.look, online: [...this.conns].some(c => c.pid === p.pid), dog: p.dog ?? null }; }
   private players() { return Object.values(this.meta!.players).sort((a, b) => a.joinedAt - b.joinedAt).map(p => this.pub(p)); }
   roster(): RosterEntry[] {
     const ps = Object.values(this.meta?.players ?? {});
@@ -114,6 +114,7 @@ export class Neighborhood {
     const meta = this.meta;
     switch (m.t) {
       case 'hello': {
+        c.v = typeof m.v === 'number' ? m.v : 1;
         const h = typeof m.token === 'string' ? await sha256(m.token) : '';
         const p = h ? Object.values(meta.players).find(p => p.tokenHash === h) : undefined;
         if (!p) { this.send(c, { t: 'error', code: 'badtoken' }); return; }
@@ -122,6 +123,7 @@ export class Neighborhood {
       }
       case 'join': {
         if (c.pid) return;
+        c.v = typeof m.v === 'number' ? m.v : 1;
         const roster = meta.roster ?? [];
         let nickname: string;
         if (roster.length) {
@@ -146,7 +148,7 @@ export class Neighborhood {
         const state = m.house ? cleanHouseState(m.house) : initialState();
         const slot = meta.houseOrder.length;
         const house: HouseFull = { id: houseId, ownerId: pid, name: `${nickname}'s House`, locked: false, style: (meta.nextStyle + slot) % HOUSE_STYLES, slot, state };
-        meta.players[pid] = { pid, nickname, houseId, tokenHash: await sha256(token), look: cleanLook(m.look), joinedAt: Date.now() };
+        meta.players[pid] = { dog: cleanDog(m.dog), pid, nickname, houseId, tokenHash: await sha256(token), look: cleanLook(m.look), joinedAt: Date.now() };
         meta.houseOrder.push(houseId); this.houses.set(houseId, house);
         this.save('meta'); this.save(houseId);
         c.pid = pid;
@@ -167,17 +169,30 @@ export class Neighborhood {
         if (!h) return nack('nohouse', false);
         if (h.locked && h.ownerId !== me.pid) return nack('locked');
         const a = cleanAction(m.action); if (!a) return nack('invalid');
+        const petAct = a.type.startsWith('cat/');
+        if (petAct && h.ownerId !== me.pid) return nack('notyours'); // only she can adopt / move her own cat
         const next: GameState = reduce(h.state, a);
         if (next === h.state) return nack('noop');
         if (JSON.stringify(next).length > MAX_HOUSE_JSON) return nack('toobig');
         h.state = next; this.save(h.id);
-        this.broadcast({ t: 'act', houseId: h.id, by: me.pid, cid, action: a });
+        // clients older than the pets update would not understand cat actions: they just don't see the cat until they reload
+        this.broadcast({ t: 'act', houseId: h.id, by: me.pid, cid, action: a }, x => !!x.pid && (!petAct || (x.v ?? 1) >= PROTOCOL || x === c));
         return;
       }
       case 'pres': {
         const p = cleanPresence(m.p, id => this.houses.has(id)); if (!p) return;
         this.presence.set(me.pid, p);
         this.broadcast({ t: 'pres', pid: me.pid, p }, x => !!x.pid && x.pid !== me.pid);
+        return;
+      }
+      case 'dog': {
+        const d = m.dog === null ? null : cleanDog(m.dog); if (m.dog !== null && !d) return;
+        me.dog = d; this.save('meta'); this.broadcast({ t: 'players', players: this.players() }); return;
+      }
+      case 'fx': {
+        // tricks, purrs, ball throws, splashes: relayed live to kids in the same place; nothing is stored
+        const fx = cleanFx(m.fx); const mine = this.presence.get(me.pid); if (!fx || !mine) return;
+        this.broadcast({ t: 'fx', pid: me.pid, fx }, x => !!x.pid && x !== c && (x.v ?? 1) >= PROTOCOL && (() => { const p = this.presence.get(x.pid!); return !!p && sameSpot(mine, p); })());
         return;
       }
       case 'look': { me.look = cleanLook(m.look); this.save('meta'); this.broadcast({ t: 'players', players: this.players() }); return; }

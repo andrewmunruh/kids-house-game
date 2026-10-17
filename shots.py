@@ -20,7 +20,7 @@ async def hand(pg, cid, h):
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
-        ctx = await b.new_context(viewport={'width':1024,'height':768}, device_scale_factor=2, has_touch=True)
+        ctx = await b.new_context(viewport={'width':1024,'height':768}, device_scale_factor=2, has_touch=True); await ctx.add_init_script("localStorage.getItem('cozy-whatsnew') || localStorage.setItem('cozy-whatsnew', '999')")  # skip the What's new popup
         pg = await ctx.new_page(); errs = []; pg.on('pageerror', lambda e: errs.append(str(e))); pg.on('console', lambda m: m.type=='error' and errs.append(m.text))
         # --- migrate a v1 save (single character, 1000-wide room) ---
         await pg.goto(URL); await pg.evaluate(f"localStorage.clear(); localStorage.setItem('cozy-house-v1', {json.dumps(json.dumps(V1))})")

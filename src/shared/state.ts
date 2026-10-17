@@ -34,8 +34,16 @@ export interface Character {
 }
 export const MAX_CHARS = 8;
 
+/** A house cat lives in one room of its house and wanders around its home spot `x` on its own. */
+export interface Cat { name: string; coat: number; room: RoomId; x: number }
+/** A dog follows its walker (solo: a character id; neighborhood: the player, stored on the server instead). */
+export interface Dog { name: string; breed: number; owner?: string }
+export const CAT_COATS = 4, DOG_BREEDS = 5;
+
 export interface GameState {
   version: 3;
+  cat?: Cat | null;          // optional: older saves simply have no pets
+  dog?: Dog | null;
   houseId: string;           // future: one house per invited player
   currentRoom: RoomId;
   rooms: Record<RoomId, Room>;
@@ -62,6 +70,9 @@ export type Action =
   | { type: 'char/delete'; id: string }
   | { type: 'char/hold'; id: string; hand: Hand; room: RoomId; itemId: string }
   | { type: 'char/release'; id: string; hand: Hand; x: number; y: number }
+  | { type: 'cat/set'; cat: Cat | null }
+  | { type: 'cat/move'; room: RoomId; x: number }
+  | { type: 'dog/set'; dog: Dog | null }
   | { type: 'settings/sound'; on: boolean }
   | { type: 'game/reset' };
 
@@ -146,6 +157,9 @@ export function reduce(s: GameState, a: Action): GameState {
       const next = mapChar(s, a.id, ch => ({ ...ch, held: { ...ch.held, [a.hand]: null } }));
       return mapItems(next, c.room, r => ({ ...r, items: [...r.items, { ...it, x: clamp(a.x, 0, ROOM_W), y: clamp(a.y, 40, ROOM_H), z: maxZ(r) + 1 }] }));
     }
+    case 'cat/set': return { ...s, cat: a.cat };
+    case 'cat/move': return s.cat && s.rooms[a.room] ? { ...s, cat: { ...s.cat, room: a.room, x: clamp(a.x, 100, ROOM_W - 100) } } : s;
+    case 'dog/set': return { ...s, dog: a.dog };
     case 'settings/sound': return { ...s, soundOn: a.on };
     case 'game/reset': return initialState();
   }

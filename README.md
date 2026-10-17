@@ -45,7 +45,25 @@ For local multiplayer testing, open the preview with `?hood=http://localhost:878
 - Code lookups are throttled per IP (20 per 10 min, at most 8 wrong codes per 10 min). A stranger with the code still
   can only pick an unclaimed name from the list.
 
+## Park and pets
+- **Park**: tree button (or the PARK gate at the end of the street). Wide pannable scene with swings, slide, pond,
+  picnic blanket, benches and a fenced dog area. In a neighborhood everyone in the park sees each other live and
+  proximity chat works; in solo play it's just her. Tap a swing/bench/blanket to sit (tap again to hop off), tap the
+  slide, splash the pond, throw the ball in the dog area for fetch.
+- **Cat** (paw button > Cat): 4 coats, preset or typed name (filtered). Lives in her house (part of the house state,
+  only the owner can change it, the server checks), wanders and naps on a clock-based schedule so every iPad shows the
+  same thing. Tap for purr hearts. "Here, kitty!" calls her to the current room.
+- **Dog** (paw button > Dog): 5 breeds + name. Heels behind her character in the house, on the street, in friends'
+  houses and the park; tap for tricks (sit, spin, bark), seen by everyone nearby.
+- Old cached apps (protocol v1) never receive pet actions or effects; new fields are optional, so old saves load as-is.
+
+## What's new popup
+`src/whatsnew.ts` holds `CHANGELOG`. To announce an update, add an entry at the top with the next `v` (2 = park +
+pets) and 2-3 short lines with art. Each device shows unseen entries once (`localStorage['cozy-whatsnew']`). A
+brand-new device (no saved house) gets the short welcome instead.
+
 ### Tests
+`npm run test:pets` (park/pets, 34 checks, 3 iPads + an old-app socket), `python whatsnew_test.py` (popup), and:
 `npm run server` (or `npm run worker:dev`), `npx vite preview`, then `npm run test:hood` (3 simulated iPads,
 25 checks; add `'http://localhost:4173/kids-house-game/?hood=http://localhost:8788'` to target the Worker),
 `PORT=8788 node server/smoke.mjs` for the raw protocol, and `npm run test:eggs`.

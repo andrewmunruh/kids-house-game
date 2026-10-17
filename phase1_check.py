@@ -3,7 +3,7 @@ from playwright.async_api import async_playwright
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/'
 async def main():
     async with async_playwright() as p:
-        b = await p.chromium.launch(); ctx = await b.new_context(viewport={'width':1024,'height':768}, device_scale_factor=2, has_touch=True)
+        b = await p.chromium.launch(); ctx = await b.new_context(viewport={'width':1024,'height':768}, device_scale_factor=2, has_touch=True); await ctx.add_init_script("localStorage.getItem('cozy-whatsnew') || localStorage.setItem('cozy-whatsnew', '999')")  # skip the What's new popup
         pg = await ctx.new_page(); logs=[]; bad=[]
         pg.on('console', lambda m: m.type in ('warning','error') and logs.append(m.type+': '+m.text)); pg.on('pageerror', lambda e: logs.append('ERR '+str(e)))
         pg.on('response', lambda r: r.status >= 400 and bad.append((r.status, r.url)))

@@ -1,17 +1,21 @@
 import './style.css';
-import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action } from './shared/state';
+import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
-import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, type Presence, type Bubble, type Look } from './shared/hood';
+import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, cleanPetName, CAT_NAMES, DOG_NAMES, PARK_W, PARK_SPOTS, SLIDE, DOG_AREA, type Presence, type Bubble, type Look, type Fx } from './shared/hood';
+import { catSVG, dogSVG, catAt, CAT_COATS, DOG_BREEDS } from './pets';
+import { parkSceneSVG, swingSVG, ballSVG, treeIcon, pawIcon, gateIcon, streetGateSVG, PARK_H, SWING_BAR } from './park';
 import { houseSVG, ICONS, toast, adultCheck } from './hood-ui';
 import { initEggs, foundSet, EGGS } from './eggs';
 import { ITEMS, ITEM_MAP, svgOf, hOf, type Category, type ItemDef } from './items';
 import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
 import { characterSVG, SKINS, HAIRS, CLOTHES, HAIR_STYLES, ACCESSORIES, SIZES, SIZE_SCALE, HANDS } from './character';
 import { sfx, setSound } from './sound';
+import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 
 // The renderer talks to `store`, which forwards to either the offline localStorage house
 // or a neighborhood house (server-authoritative) — same actions, same reducer.
 type AnyStore = { get(): GameState; dispatch(a: Action): void; subscribe(l: (s: GameState, a: Action) => void): void };
+const firstRun = whatsNewCheck(); // must run before the store loads/saves
 const local = createStore();
 let inner: AnyStore = local;
 const storeListeners: ((s: GameState, a: Action) => void)[] = [];
@@ -76,6 +80,9 @@ app.innerHTML = `
     <button class="round soloOnly" id="btnHood" aria-label="Neighborhood">${ICONS.street}</button>
     <button class="round streetOnly" id="btnParent" aria-label="Grown-ups">${ICONS.shield}</button>
     <button class="round streetOnly" id="btnSolo" aria-label="Play in my own house">${ICONS.solo}</button>
+    <button class="round" id="btnPark" aria-label="Go to the park">${treeIcon}</button>
+    <button class="round parkOnly" id="btnLeavePark" aria-label="Leave the park">${gateIcon}</button>
+    <button class="round" id="btnPets" aria-label="Pets">${pawIcon}</button>
     <button class="round" id="btnPaint" aria-label="Colors">${ICON.paint}</button>
     <button class="round" id="btnDress" aria-label="Characters">${ICON.shirt}</button>
     <button class="round" id="btnSound" aria-label="Sound"></button>
@@ -102,6 +109,7 @@ app.innerHTML = `
   <div class="cats" id="cats"></div>
   <div class="shelf" id="shelf"></div>
 </div>
+<div class="street park hidden" id="park"><div class="streetScroll" id="parkScroll"><div class="parkWorld" id="parkWorld"></div></div></div>
 <div class="street hidden" id="street"><div class="streetScroll" id="streetScroll"><div class="streetWorld" id="streetWorld"></div></div></div>
 <div class="chatTray hidden" id="chatTray"></div>
 <div class="sheet hidden" id="sheet"><div class="card" id="card"></div></div>
@@ -118,7 +126,7 @@ const newId = (p: string) => `${p}-${Date.now().toString(36)}${(++uid).toString(
 const ME = '__me';
 // ---------- neighborhood state (declared early: render functions consult it) ----------
 let hood: HoodClient | null = null;
-let view: 'house' | 'street' = 'house';
+let view: 'house' | 'street' | 'park' = 'house';
 let currentHouseId = '';
 let houseStores = new Map<string, ReturnType<typeof houseStore>>();
 const avatarEls = new Map<string, HTMLElement>();
@@ -729,7 +737,7 @@ function lockedNudge(el: Element | null) {
 const myPres = () => hood?.myPresence() ?? null;
 const myLook = (): Look | null => (hood ? hood.players.get(hood.pid)?.look ?? null : null);
 function updateChar(id: string, patch: Partial<Character>) {
-  if (id === ME) { const l = myLook(); if (!l || !hood) return; hood.setLook(cleanLook({ ...l, ...patch })); renderAvatars(); if (view === 'street') renderStreetAvatars(); return; }
+  if (id === ME) { const l = myLook(); if (!l || !hood) return; hood.setLook(cleanLook({ ...l, ...patch })); renderAvatars(); if (view === 'street') renderStreetAvatars(); if (view === 'park') renderParkAvatars(); return; }
   store.dispatch({ type: 'char/update', id, patch });
 }
 function setMyPres(p: Presence) { hood?.setPresence(p); }
@@ -794,7 +802,8 @@ function attachMyAvatarDrag(el: HTMLElement) {
 // ---------- speech bubbles ----------
 function bubbleText(b: Bubble): string { if (b.kind === 'text') return b.v; return (b.kind === 'phrase' ? PHRASES : EMOTES)[b.v] ?? ''; }
 function showBubble(pid: string, b: Bubble) {
-  const el0 = view === 'street' ? document.querySelector<HTMLElement>(`#streetWorld .savatar[data-pid="${pid}"]`) : avatarEls.get(pid);
+  const el0 = view === 'street' ? document.querySelector<HTMLElement>(`#streetWorld .savatar[data-pid="${pid}"]`)
+    : view === 'park' ? document.querySelector<HTMLElement>(`#pavatars .savatar[data-pid="${pid}"]`) : avatarEls.get(pid);
   const targets = el0 ? [el0] : [];
   for (const el of targets) {
     el.querySelector('.bubble')?.remove();
@@ -844,7 +853,7 @@ function renderHoodChrome() {
   const inHouse = !!hood && inner !== local && view === 'house';
   const h = inHouse ? hood!.houses.get(currentHouseId) : undefined;
   const own = !!h && h.meta.ownerId === hood!.pid;
-  b.toggle('mode-hood', !!hood); b.toggle('view-street', !!hood && view === 'street');
+  b.toggle('mode-hood', !!hood); b.toggle('view-street', view !== 'house'); b.toggle('view-park', view === 'park');
   b.toggle('own-house', own); b.toggle('locked', !!h && !canEdit()); b.toggle('has-hood', !!hoodServerUrl());
   if (h) {
     const owner = hood!.players.get(h.meta.ownerId)?.nickname ?? '';
@@ -876,7 +885,7 @@ function renderStreet() {
       return `<button class="house ${mine ? 'mine' : ''}" data-hid="${h.id}" style="left:${(slotX(h.slot) - 160) * sc}px;top:${(400 - 300) * sc}px;width:${320 * sc}px;height:${300 * sc}px" aria-label="${esc(h.name)}">
         ${houseSVG(h.style, { lit: !!owner?.online })}${h.locked ? '<span class="lockBadge">🔒</span>' : ''}${mine ? '<span class="homeBadge">★</span>' : ''}</button>
         <div class="sign" style="left:${slotX(h.slot) * sc}px;top:${405 * sc}px">${esc(h.name)}</div>`;
-    }).join('') + `<div class="savatars" id="savatars"></div>`;
+    }).join('') + `<button class="parkGate" aria-label="Go to the park" style="left:${(SW - 250) * sc}px;top:${130 * sc}px;width:${220 * sc}px;height:${280 * sc}px">${streetGateSVG}</button><div class="savatars" id="savatars"></div>`;
   renderStreetAvatars();
 }
 function renderStreetAvatars() {
@@ -918,14 +927,15 @@ function attachStreetDrag(el: HTMLElement) {
   });
 }
 $('streetWorld').addEventListener('click', e => {
+  if ((e.target as HTMLElement).closest('.parkGate')) { goPark(); return; }
   const hb = (e.target as HTMLElement).closest<HTMLElement>('.house'); if (hb) enterHouse(hb.dataset.hid!);
 });
-function goStreet() {
+function goStreet(fromPark = false) {
   if (!hood) return;
   const from = hood.houses.get(currentHouseId)?.meta ?? hood.houses.get(hood.myHouseId())?.meta;
-  const x = from ? slotX(from.slot) + 205 : 600; // stand beside the door, clear of the name sign
-  setMyPres({ where: 'street', x, y: 540, flip: false });
-  view = 'street'; $('street').classList.remove('hidden'); $('chatTray').classList.add('hidden');
+  const x = fromPark ? streetWidth(hood.houses.size) - 330 : from ? slotX(from.slot) + 205 : 600; // stand beside the door, clear of the name sign
+  setMyPres({ where: 'street', x, y: 540, flip: fromPark });
+  view = 'street'; $('street').classList.remove('hidden'); $('park').classList.add('hidden'); $('chatTray').classList.add('hidden'); $('streetTitle').textContent = 'Our Street';
   renderHoodChrome(); renderStreet();
   requestAnimationFrame(() => { const sc = streetScale(); $('streetScroll').scrollLeft = x * sc - $('streetScroll').clientWidth / 2; });
   sfx.swish();
@@ -937,35 +947,36 @@ function enterHouse(houseId: string) {
   if (!st) { st = houseStore(hood, houseId, { get: () => local.get().soundOn, set: on => local.dispatch({ type: 'settings/sound', on }) }); houseStores.set(houseId, st); }
   st.dispatch({ type: 'room/switch', room: 'living' });
   setMyPres({ where: 'house', houseId, room: 'living', x: 900 + Math.random() * 300, y: 540, flip: false });
-  $('street').classList.add('hidden'); $('chatTray').classList.add('hidden');
+  $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('chatTray').classList.add('hidden');
   useStore(st); sfx.sparkle();
 }
 function goSolo() {
-  hood?.close(); hood = null; houseStores = new Map(); view = 'house'; currentHouseId = '';
-  $('street').classList.add('hidden'); $('chatTray').classList.add('hidden');
+  hood?.close(); hood = null; houseStores = new Map(); view = 'house'; currentHouseId = ''; soloPark = null; fetchSt = null;
+  $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('chatTray').classList.add('hidden');
   useStore(local); renderHoodChrome();
 }
 $('btnStreet').addEventListener('click', () => goStreet());
 $('btnSolo').addEventListener('click', () => { goSolo(); toast('Playing in your own house 🏠'); });
-window.addEventListener('resize', () => { if (view === 'street' && hood) renderStreet(); });
+window.addEventListener('resize', () => { if (view === 'street' && hood) renderStreet(); if (view === 'park') renderPark(); });
 
 // ---------- connecting ----------
 function enterNeighborhood(client: HoodClient) {
   hood = client; houseStores = new Map();
-  client.on('players', () => { if (hood !== client) return; if (view === 'street') renderStreet(); else { renderAvatars(); renderHoodChrome(); } if (sheetMode === 'dress') renderSheet(); });
+  client.on('players', () => { if (hood !== client) return; if (view === 'street') renderStreet(); else if (view === 'park') renderParkAvatars(); else { renderAvatars(); renderHoodChrome(); } if (sheetMode === 'dress') renderSheet(); });
   client.on('houses', () => {
     if (hood !== client) return;
     if (view === 'street') renderStreet();
     else if (!client.houses.has(currentHouseId)) { toast('That house is gone now'); goStreet(); }
   });
   client.on('houseMeta', (id: string) => { if (hood !== client || id !== currentHouseId || view !== 'house') return; selected = null; renderHoodChrome(); renderItems(store.get()); renderDrawer(); if (!canEdit()) $('sheet').classList.add('hidden'); });
-  client.on('pres', () => { if (hood !== client) return; view === 'street' ? renderStreetAvatars() : renderAvatars(); });
+  client.on('pres', () => { if (hood !== client) return; view === 'street' ? renderStreetAvatars() : view === 'park' ? renderParkAvatars() : renderAvatars(); });
+  client.on('fx', (pid: string, fx: Fx) => { if (hood === client) onFx(pid, fx); });
   client.on('bubble', (pid: string, b: Bubble) => { if (hood === client) showBubble(pid, b); });
   client.on('sayFail', (r: string) => toast(r === 'presetsOnly' ? 'Typing is turned off: pick a bubble!' : FILTER_MSG[r] || "Couldn't send that"));
   client.on('settings', () => { if (!$('chatTray').classList.contains('hidden')) renderChatTray(); });
   client.on('removed', () => { toast('A grown-up took this iPad off the street'); const c = client.cfg; saveHoodConfig({ url: c.url, code: c.code, id: c.id, parentKey: c.parentKey }); goSolo(); });
   client.on('status', (st: string) => document.body.classList.toggle('reconnecting', hood === client && st !== 'online'));
-  client.on('welcome', () => { if (hood !== client) return; if (view === 'street') renderStreet(); else if (client.houses.has(currentHouseId)) renderAll(); else goStreet(); });
+  client.on('welcome', () => { if (hood !== client) return; if (view === 'street') renderStreet(); else if (view === 'park') { const p = myPres(); if (p) setMyPres(p); renderPark(); } else if (client.houses.has(currentHouseId)) renderAll(); else goStreet(); });
   goStreet();
 }
 async function initHood() {
@@ -1062,7 +1073,8 @@ async function connectJoin(url: string, code: string, id: string, nickname: stri
   if (bring) { house = s; if (meChar) { const { reduce } = await import('./shared/state'); house = reduce(s, { type: 'char/delete', id: meChar.id }); } }
   const prev = loadHoodConfig();
   const cfg: HoodConfig = { url, code, id, parentKey: prev?.id === id || prev?.code === code ? prev.parentKey : undefined };
-  const c = new HoodClient(cfg); const r = await c.connect({ nickname, look, house });
+  const dog = s.dog ? { name: s.dog.name, breed: s.dog.breed } : null; // her solo dog comes along
+  const c = new HoodClient(cfg); const r = await c.connect({ nickname, look, house, dog });
   if (r === 'ok') { saveHoodConfig(c.cfg); enterNeighborhood(c); toast(`Welcome to the street, ${nickname}!`); return; }
   c.close();
   if (r.startsWith('nickname')) joinWithCode(url, code, r.endsWith('notOnList') ? 'That name is not on the list anymore.' : 'That name is already signed in on another iPad. Ask a grown-up!');
@@ -1126,6 +1138,347 @@ async function parentScreen() {
   c.on('error', (code: string) => { if (code === 'badkey') { toast("That grown-up key didn't work"); cfg.parentKey = undefined; saveHoodConfig(cfg); m.close(); } });
   c.parent({ op: 'info' });
 }
+// =====================================================================================
+// Park + pets
+// =====================================================================================
+let soloPark: Presence | null = null;
+type Walker = { key: string; look: Look; name: string; p: Presence; mine: boolean; dog: Dog | null };
+function parkScale() { return $('park').clientHeight / PARK_H; }
+const parkWalker = (): Character | undefined => { const s = local.get(); return s.characters.find(c => c.id === s.dog?.owner) ?? s.characters[0]; };
+const myParkPres = (): Presence | null => (hood ? myPres() : soloPark);
+function setParkPres(p: Presence) { if (hood) setMyPres(p); else soloPark = p; renderParkAvatars(); }
+function parkPeople(): Walker[] {
+  if (hood) {
+    const out: Walker[] = []; const entries: [string, Presence][] = [...hood.presence.entries()]; const mine = myPres(); if (mine) entries.push([hood.pid, mine]);
+    for (const [pid, p] of entries) { const pl = hood.players.get(pid); if (pl && p.where === 'park') out.push({ key: pid, look: pl.look, name: pl.nickname, p, mine: pid === hood.pid, dog: pl.dog ?? null }); }
+    return out;
+  }
+  const w = parkWalker();
+  return soloPark ? [{ key: 'solo', look: cleanLook(w ?? {}), name: '', p: soloPark, mine: true, dog: local.get().dog ?? null }] : [];
+}
+function renderPark() {
+  const sc = parkScale(), w = $('parkWorld'), px = (v: number) => v * sc + 'px';
+  w.style.width = PARK_W * sc + 'px'; w.style.height = PARK_H * sc + 'px'; w.style.setProperty('--sc', String(sc));
+  w.innerHTML = parkSceneSVG()
+    + PARK_SPOTS.map((sp, i) => sp.kind === 'swing' ? `<div class="swing" data-swing="${i}" style="left:${px(sp.x - 30)};top:${px(SWING_BAR)};width:${px(60)};height:${px(240)}">${swingSVG}</div>` : '').join('')
+    + PARK_SPOTS.map((sp, i) => `<button class="pspot k-${sp.kind}" data-spot="${i}" aria-label="${sp.kind}" style="left:${px(sp.x - 50)};top:${px(sp.y - (sp.kind === 'swing' ? 70 : 55))};width:${px(100)};height:${px(sp.kind === 'swing' ? 90 : 65)}"></button>`).join('')
+    + `<button class="pspot slide" data-act="slide" aria-label="Slide" style="left:${px(SLIDE.ladder - 45)};top:${px(SLIDE.top.y - 30)};width:${px(130)};height:${px(560 - SLIDE.top.y + 30)}"></button>`
+    + `<button class="pspot pond" data-act="splash" aria-label="Pond" style="left:${px(1235)};top:${px(462)};width:${px(370)};height:${px(105)}"></button>`
+    + `<button class="pspot gate" data-act="exit" aria-label="Back to the street" style="left:${px(25)};top:${px(240)};width:${px(180)};height:${px(260)}"></button>`
+    + `<div class="ripples" id="ripples"></div><button class="ball" id="ball" aria-label="Ball">${ballSVG}</button><div class="savatars" id="pavatars"></div>`;
+  placeBall(); renderParkAvatars();
+}
+const SWING_MS = 2400;
+function renderParkAvatars() {
+  const box = document.getElementById('pavatars'); if (!box || view !== 'park') return;
+  const sc = parkScale(); const keep = new Set<string>(); const busy = new Set<number>();
+  for (const w of parkPeople()) {
+    keep.add(w.key);
+    let el = box.querySelector<HTMLElement>(`.savatar[data-pid="${w.key}"]`);
+    if (!el) { el = document.createElement('div'); el.className = 'savatar ' + (w.mine ? 'mine' : 'other'); el.dataset.pid = w.key; box.appendChild(el); if (w.mine) attachParkDrag(el); }
+    const key = JSON.stringify(w.look) + w.name;
+    if (el.dataset.look !== key) { const b = el.querySelector('.bubble'); el.innerHTML = w.name ? avatarHTML(w.look, w.name) : `<div class="inner">${characterSVG(w.look)}</div>`; if (b) el.appendChild(b); el.dataset.look = key; }
+    const k = (SIZE_SCALE[w.look.size] ?? 1) * sc * 0.95, wd = CHAR_W * k, h = CHAR_H * k;
+    el.style.left = w.p.x * sc - wd / 2 + 'px'; el.style.top = w.p.y * sc - h + 'px'; el.style.width = wd + 'px'; el.style.height = h + 'px';
+    el.style.zIndex = String(100 + Math.round(w.p.y)); el.classList.toggle('flipped', w.p.flip);
+    const pose = w.p.pose ?? '';
+    if (el.dataset.pose !== pose) {
+      el.classList.remove('pose-sit', 'pose-swing', 'pose-slide'); void el.offsetWidth;
+      if (pose === 'slide') { el.style.setProperty('--sx', (SLIDE.top.x - SLIDE.bottom.x) * sc + 'px'); el.style.setProperty('--sy', (SLIDE.top.y - SLIDE.bottom.y) * sc + 'px'); }
+      if (pose) el.classList.add('pose-' + pose);
+      el.dataset.pose = pose;
+    }
+    if (pose === 'swing') { el.style.transformOrigin = `50% ${(SWING_BAR - w.p.y) * sc + h}px`; el.style.animationDelay = -(Date.now() % SWING_MS) / 1000 + 's'; busy.add(w.p.spot ?? -1); }
+    else { el.style.transformOrigin = ''; el.style.animationDelay = ''; }
+  }
+  box.querySelectorAll<HTMLElement>('.savatar').forEach(el => { if (!keep.has(el.dataset.pid!)) el.remove(); });
+  document.querySelectorAll<HTMLElement>('#parkWorld .swing').forEach(s => {
+    const on = busy.has(+s.dataset.swing!); if (on && !s.classList.contains('swinging')) s.style.animationDelay = -(Date.now() % SWING_MS) / 1000 + 's';
+    s.classList.toggle('swinging', on);
+  });
+  updateNear();
+}
+function attachParkDrag(el: HTMLElement) {
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation(); const p0 = myParkPres(); if (!p0 || p0.where !== 'park') return;
+    const scroll = $('parkScroll'); const sc = parkScale();
+    const toW = (ev: PointerEvent) => { const r = $('parkWorld').getBoundingClientRect(); return { x: (ev.clientX - r.left) / sc, y: (ev.clientY - r.top) / sc }; };
+    const q0 = toW(e), off = { x: p0.x - q0.x, y: p0.y - q0.y }; let last = e, raf = 0, lastX = p0.x, moved = false;
+    const apply = (ev: PointerEvent) => {
+      const q = toW(ev), cur = myParkPres(); if (!cur) return;
+      const x = Math.max(60, Math.min(PARK_W - 60, q.x + off.x)), y = Math.max(470, Math.min(590, q.y + off.y));
+      if (!moved && Math.hypot(x - cur.x, y - cur.y) < 6) return; moved = true;
+      const flip = Math.abs(x - lastX) > 3 ? x < lastX : cur.flip; if (Math.abs(x - lastX) > 3) lastX = x;
+      setParkPres({ where: 'park', x, y, flip });
+    };
+    const tick = () => { const r = scroll.getBoundingClientRect(); const v = last.clientX < r.left + 70 ? -10 : last.clientX > r.right - 70 ? 10 : 0; if (v && moved) { scroll.scrollLeft += v; apply(last); } raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick); el.classList.add('lifted'); sfx.pick();
+    const move = (ev: PointerEvent) => { if (ev.pointerId !== e.pointerId) return; last = ev; apply(ev); };
+    const up = (ev: PointerEvent) => { if (ev.pointerId !== e.pointerId) return; cancelAnimationFrame(raf); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); el.classList.remove('lifted'); sfx.drop(); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  });
+}
+$('parkWorld').addEventListener('pointerdown', e => { if ((e.target as HTMLElement).closest('.pspot, .ball, .pet')) e.stopPropagation(); });
+$('parkWorld').addEventListener('click', e => {
+  const t = e.target as HTMLElement; const me = myParkPres(); if (!me) return;
+  if (t.closest('#ball')) { throwBall(); return; }
+  const sp = t.closest<HTMLElement>('[data-spot]');
+  if (sp) {
+    const i = +sp.dataset.spot!, s = PARK_SPOTS[i];
+    if (me.spot === i && me.pose) { setParkPres({ where: 'park', x: s.x, y: Math.min(590, s.y + 40), flip: me.flip }); return; } // tap again to hop off
+    if (parkPeople().some(w => !w.mine && w.p.spot === i && w.p.pose)) { toast('Someone is already there!'); return; }
+    setParkPres({ where: 'park', x: s.x, y: s.y, flip: me.flip, pose: s.kind === 'swing' ? 'swing' : 'sit', spot: i }); s.kind === 'swing' ? sfx.boing() : sfx.drop(); return;
+  }
+  const act = t.closest<HTMLElement>('[data-act]')?.dataset.act;
+  if (act === 'slide') {
+    setParkPres({ where: 'park', x: SLIDE.bottom.x, y: SLIDE.bottom.y, flip: false, pose: 'slide' }); sfx.swish();
+    setTimeout(() => { const c = myParkPres(); if (c?.pose === 'slide') setParkPres({ where: 'park', x: c.x, y: c.y, flip: c.flip }); }, 1500);
+  }
+  if (act === 'splash') { const r = $('parkWorld').getBoundingClientRect(); const x = (e.clientX - r.left) / parkScale(); splashAt(x); hood?.fx({ k: 'splash', x }); }
+  if (act === 'exit') leavePark();
+});
+function splashAt(x: number) {
+  const box = document.getElementById('ripples'); if (!box || view !== 'park') return; const sc = parkScale();
+  for (let i = 0; i < 2; i++) { const r = document.createElement('div'); r.className = 'ripple'; const w = (120 + i * 70) * sc; Object.assign(r.style, { left: x * sc - w / 2 + 'px', top: 512 * sc - w * 0.18 + 'px', width: w + 'px', height: w * 0.36 + 'px', animationDelay: i * 0.15 + 's' }); box.appendChild(r); setTimeout(() => r.remove(), 1400); }
+  for (let i = 0; i < 6; i++) { const d = document.createElement('div'); d.className = 'drop'; Object.assign(d.style, { left: x * sc + 'px', top: 505 * sc + 'px' }); d.style.setProperty('--dx', (i - 2.5) * 14 + 'px'); box.appendChild(d); setTimeout(() => d.remove(), 900); }
+  sfx.splash();
+}
+function goPark() {
+  view = 'park'; $('street').classList.add('hidden'); $('park').classList.remove('hidden'); $('chatTray').classList.add('hidden'); $('sheet').classList.add('hidden');
+  const p: Presence = { where: 'park', x: 290, y: 548, flip: false };
+  if (hood) setMyPres(p); else soloPark = p;
+  $('streetTitle').textContent = 'The Park'; renderHoodChrome(); renderPark();
+  requestAnimationFrame(() => { $('parkScroll').scrollLeft = 0; });
+  sfx.sparkle();
+}
+function leavePark() {
+  fetchSt = null; $('park').classList.add('hidden');
+  if (hood) { goStreet(true); return; }
+  soloPark = null; view = 'house'; $('streetTitle').textContent = 'Our Street'; renderHoodChrome(); renderAll(); sfx.swish();
+}
+$('btnPark').addEventListener('click', () => goPark());
+$('btnLeavePark').addEventListener('click', () => leavePark());
+
+// ---------- ball + fetch (each iPad animates the same throw) ----------
+let ballPos = { x: 2620, y: 565 };
+let fetchSt: { thrower: string; phase: 'fly' | 'chase' | 'carry'; dog: string | null; until: number } | null = null;
+function placeBall(anim = false) {
+  const el = document.getElementById('ball'); if (!el) return; const sc = parkScale(), s = 34 * sc;
+  if (!anim) el.classList.remove('flying');
+  el.style.left = ballPos.x * sc - s / 2 + 'px'; el.style.top = ballPos.y * sc - s + 'px'; el.style.width = el.style.height = s + 'px';
+}
+function throwBall() {
+  if (fetchSt) return;
+  const x = DOG_AREA.x0 + 40 + Math.random() * (DOG_AREA.x1 - DOG_AREA.x0 - 80), y = DOG_AREA.y0 + 25 + Math.random() * (DOG_AREA.y1 - DOG_AREA.y0 - 35);
+  startFetch(hood ? hood.pid : 'solo', x, y); hood?.fx({ k: 'ball', x, y });
+}
+function startFetch(thrower: string, x: number, y: number) {
+  if (view !== 'park') return;
+  const el = document.getElementById('ball'); ballPos = { x, y }; fetchSt = { thrower, phase: 'fly', dog: null, until: performance.now() + 12000 };
+  if (el) { el.classList.remove('flying'); void el.offsetWidth; el.classList.add('flying'); placeBall(true); }
+  sfx.boing();
+  setTimeout(() => { if (fetchSt?.phase === 'fly') { fetchSt.phase = 'chase'; document.getElementById('ball')?.classList.remove('flying'); if (!dogRuns.size) fetchSt = null; } }, 650);
+}
+function walkerPos(key: string): { x: number; y: number } | null {
+  if (!hood) return soloPark;
+  const p = key === hood.pid ? myPres() : hood.presence.get(key); return p && p.where === 'park' ? p : null;
+}
+
+// ---------- dogs follow their walker everywhere (house, street, park) ----------
+interface DogRun { el: HTMLElement; box: HTMLElement; x: number; y: number; flip: boolean; pose: string; look: string; idle: number; trickUntil: number; sitTrick: boolean }
+interface DogOwner { key: string; dog: Dog; x: number; y: number; flip: boolean; box: HTMLElement; place: (el: HTMLElement, x: number, y: number, w: number, h: number) => void; z: (y: number) => string; scale: number }
+const dogRuns = new Map<string, DogRun>();
+const pxPlace = (sc: number) => (el: HTMLElement, x: number, y: number, w: number, h: number) => { el.style.left = (x - w / 2) * sc + 'px'; el.style.top = (y - h) * sc + 'px'; el.style.width = w * sc + 'px'; el.style.height = h * sc + 'px'; };
+function dogOwners(): DogOwner[] {
+  const out: DogOwner[] = [];
+  if (view === 'house') {
+    const s = store.get();
+    const house = { box: layer, place: placeEl, z: (y: number) => String(5000 + Math.round(y)), scale: 1 };
+    if (hood && inner !== local) {
+      const entries: [string, Presence][] = [...hood.presence.entries()]; const mine = myPres(); if (mine) entries.push([hood.pid, mine]);
+      for (const [pid, p] of entries) { const d = hood.players.get(pid)?.dog; if (d && p.where === 'house' && p.houseId === currentHouseId && p.room === s.currentRoom) out.push({ key: pid, dog: d, x: p.x, y: p.y, flip: p.flip, ...house }); }
+    } else if (s.dog) {
+      const c = s.characters.find(c => c.id === s.dog!.owner) ?? s.characters[0];
+      if (c && c.room === s.currentRoom) out.push({ key: 'solo', dog: s.dog, x: c.x, y: c.y, flip: c.flip, ...house });
+    }
+  } else if (view === 'street' && hood) {
+    const box = document.getElementById('savatars'); if (!box) return out; const sc = streetScale();
+    const entries: [string, Presence][] = [...hood.presence.entries()]; const mine = myPres(); if (mine) entries.push([hood.pid, mine]);
+    for (const [pid, p] of entries) { const d = hood.players.get(pid)?.dog; if (d && p.where === 'street') out.push({ key: pid, dog: d, x: p.x, y: p.y, flip: p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95 }); }
+  } else if (view === 'park') {
+    const box = document.getElementById('pavatars'); if (!box) return out; const sc = parkScale();
+    for (const w of parkPeople()) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95 });
+  }
+  return out;
+}
+let lastTick = performance.now();
+function tickDogs(now: number, dt: number) {
+  const seen = new Set<string>();
+  for (const o of dogOwners()) {
+    seen.add(o.key);
+    let r = dogRuns.get(o.key);
+    const side = o.flip ? 1 : -1, homeX = o.x + side * 78, homeY = Math.min(595, o.y + 6);
+    if (!r || r.box !== o.box || !r.el.isConnected) {
+      r?.el.remove();
+      const el = document.createElement('div'); el.className = 'pet pet-dog'; el.dataset.dog = o.key; o.box.appendChild(el); attachDogTap(el, o.key);
+      r = { el, box: o.box, x: homeX, y: homeY, flip: o.flip, pose: '', look: '', idle: 1, trickUntil: 0, sitTrick: false }; dogRuns.set(o.key, r);
+    }
+    let tx = homeX, ty = homeY, speed = 320;
+    if (fetchSt && now > fetchSt.until) { fetchSt = null; placeBall(); }
+    if (fetchSt && view === 'park') {
+      if (fetchSt.phase === 'chase') { tx = ballPos.x; ty = ballPos.y; speed = 950; if (Math.hypot(r.x - tx, r.y - ty) < 28) { fetchSt.phase = 'carry'; fetchSt.dog = o.key; sfx.woof(); } }
+      else if (fetchSt.phase === 'carry' && fetchSt.dog === o.key) {
+        const tp = walkerPos(fetchSt.thrower) ?? { x: (DOG_AREA.x0 + DOG_AREA.x1) / 2, y: 540 }; tx = tp.x + 60; ty = Math.min(590, tp.y + 6); speed = 750;
+        ballPos = { x: r.x + (r.flip ? -40 : 40), y: r.y - 30 * o.scale };
+        if (Math.hypot(r.x - tx, r.y - ty) < 26) { ballPos = { x: tp.x + 70, y: Math.min(590, tp.y + 12) }; fetchSt = null; dogBubble(r, '♥'); sfx.sparkle(); }
+        placeBall();
+      }
+    }
+    const tricking = now < r.trickUntil;
+    const dx = tx - r.x, dy = ty - r.y, d = Math.hypot(dx, dy); let moving = false;
+    if (d > (fetchSt ? 4 : 10) && !tricking) { const step = Math.min(d, speed * dt); r.x += dx / d * step; r.y += dy / d * step; moving = true; if (Math.abs(dx) > 1.5) r.flip = dx < 0; r.idle = 0; }
+    else { r.idle += dt; if (!tricking && r.idle > 0.3 && Math.abs(o.x - r.x) > 4) r.flip = o.x < r.x; }
+    const pose = tricking && r.sitTrick ? 'sit' : moving ? 'stand' : r.idle > 0.9 ? 'sit' : 'stand';
+    const look = pose + o.dog.breed;
+    if (r.pose + r.look !== pose + look) { const b = r.el.querySelector('.bubble'); r.el.innerHTML = `<div class="inner">${dogSVG(o.dog.breed, pose as 'stand' | 'sit')}</div>`; if (b) r.el.appendChild(b); r.pose = pose; r.look = look; }
+    r.el.dataset.name = o.dog.name;
+    r.el.classList.toggle('walking', moving); r.el.classList.toggle('flipped', r.flip);
+    o.place(r.el, r.x, r.y, 92 * o.scale, 71 * o.scale); r.el.style.zIndex = o.z(r.y + 1);
+  }
+  for (const [k, r] of dogRuns) if (!seen.has(k)) { r.el.remove(); dogRuns.delete(k); }
+}
+function dogBubble(r: DogRun, text: string) {
+  r.el.querySelector('.bubble')?.remove(); const b = document.createElement('div'); b.className = 'bubble petBubble'; b.textContent = text; r.el.appendChild(b);
+  setTimeout(() => b.classList.add('out'), 1300); setTimeout(() => b.remove(), 1700);
+}
+const trickCount = new Map<string, number>();
+function doTrick(key: string, v: number) {
+  const r = dogRuns.get(key); if (!r) return;
+  const name = r.el.dataset.name ?? '';
+  r.trickUntil = performance.now() + 1400; r.sitTrick = v === 0;
+  r.el.classList.remove('spin', 'hop'); void r.el.offsetWidth;
+  if (v === 0) { dogBubble(r, `${name} sits! 🐾`); sfx.pop(); }
+  if (v === 1) { r.el.classList.add('spin'); dogBubble(r, 'Wheee! ✨'); sfx.spin(); }
+  if (v === 2) { r.el.classList.add('hop'); dogBubble(r, 'Woof! Woof!'); sfx.woof(); }
+}
+function attachDogTap(el: HTMLElement, key: string) {
+  el.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); });
+  el.addEventListener('click', e => {
+    e.stopPropagation(); const v = (trickCount.get(key) ?? 0) % 3; trickCount.set(key, v + 1);
+    doTrick(key, v); if (hood) hood.fx({ k: 'trick', owner: key, v });
+  });
+}
+
+// ---------- the house cat (wanders + naps on its own; same on every iPad) ----------
+let catEl: HTMLElement | null = null, catKey = '';
+const CAT_Y = 562;
+function tickCat() {
+  const s = store.get(); const cat = view === 'house' ? s.cat : null;
+  if (!cat || cat.room !== s.currentRoom) { if (catEl) { catEl.remove(); catEl = null; } return; }
+  if (!catEl || !catEl.isConnected) {
+    catEl = document.createElement('div'); catEl.className = 'pet pet-cat'; layer.appendChild(catEl); catKey = '';
+    catEl.addEventListener('pointerdown', ev => { ev.stopPropagation(); ev.preventDefault(); });
+    catEl.addEventListener('click', ev => { ev.stopPropagation(); purr(); if (hood) hood.fx({ k: 'purr' }); });
+  }
+  const b = catAt(cat, Date.now());
+  const pose = b.mood === 'walk' ? 'stand' : b.mood === 'nap' ? 'nap' : 'sit';
+  const key = pose + cat.coat;
+  if (key !== catKey) { const keepB = catEl.querySelector('.bubble'); catEl.innerHTML = `<div class="inner">${catSVG(cat.coat, pose)}</div>${pose === 'nap' ? '<div class="zzz"><i>z</i><i>z</i><i>z</i></div>' : ''}`; if (keepB) catEl.appendChild(keepB); catKey = key; }
+  catEl.dataset.name = cat.name; catEl.dataset.mood = b.mood;
+  catEl.classList.toggle('walking', b.mood === 'walk'); catEl.classList.toggle('groom', b.mood === 'groom'); catEl.classList.toggle('flipped', b.flip);
+  placeEl(catEl, b.x, CAT_Y, 100, 83); catEl.style.zIndex = String(5000 + CAT_Y);
+}
+function purr() {
+  if (!catEl) return; sfx.purr(); setTimeout(() => sfx.meow(), 250);
+  catEl.querySelector('.bubble')?.remove(); const b = document.createElement('div'); b.className = 'bubble petBubble'; b.textContent = `${catEl.dataset.name} purrs ♥`; catEl.appendChild(b);
+  setTimeout(() => b.classList.add('out'), 1500); setTimeout(() => b.remove(), 1900);
+  catEl.classList.remove('happy'); void catEl.offsetWidth; catEl.classList.add('happy');
+  for (let i = 0; i < 5; i++) { const h = document.createElement('div'); h.className = 'heart'; h.textContent = '♥'; h.style.left = 20 + Math.random() * 60 + '%'; h.style.animationDelay = i * 0.12 + 's'; h.style.color = ['#ff6b9a', '#ff8fab', '#e879c6'][i % 3]; catEl.appendChild(h); setTimeout(() => h.remove(), 1800); }
+}
+function onFx(pid: string, fx: Fx) {
+  if (fx.k === 'trick') doTrick(fx.owner, fx.v);
+  else if (fx.k === 'purr') { if (view === 'house') purr(); }
+  else if (fx.k === 'ball') startFetch(pid, fx.x, fx.y);
+  else if (fx.k === 'splash') splashAt(fx.x);
+}
+function petTick(now: number) {
+  const dt = Math.min(0.05, Math.max(0, (now - lastTick) / 1000)); lastTick = now;
+  try { tickDogs(now, dt); tickCat(); } catch { /* never let an animation frame break the game */ }
+  requestAnimationFrame(petTick);
+}
+
+// ---------- adopting ----------
+function myCat(): Cat | null { if (hood) return hood.view(hood.myHouseId())?.cat ?? null; return local.get().cat ?? null; }
+function myDog(): Dog | null { if (hood) return hood.players.get(hood.pid)?.dog ?? null; return local.get().dog ?? null; }
+function catDispatch(a: Action) { if (hood) { const id = hood.myHouseId(); if (id) hood.dispatch(id, a); } else local.dispatch(a); }
+const inMyHouse = () => view === 'house' && (!hood || inner === local || currentHouseId === hood.myHouseId());
+function openPets(tab: 'cat' | 'dog' = 'cat') {
+  const cat0 = myCat(), dog0 = myDog(), chars = local.get().characters;
+  const d = { tab, coat: cat0?.coat ?? 0, catName: cat0?.name ?? '', breed: dog0?.breed ?? 0, dogName: dog0?.name ?? '', owner: dog0?.owner ?? chars[0]?.id, err: '', bye: false };
+  const m = modal('', (t, close) => {
+    const g = (a: string) => t.closest<HTMLElement>(`[${a}]`)?.getAttribute(a);
+    if (g('data-pt')) { d.tab = g('data-pt') as 'cat' | 'dog'; d.err = ''; d.bye = false; render(); return; }
+    if (g('data-coat') != null) { d.coat = +g('data-coat')!; sfx.click(); render(); return; }
+    if (g('data-breed') != null) { d.breed = +g('data-breed')!; sfx.click(); render(); return; }
+    if (g('data-cname')) { d.catName = g('data-cname')!; sfx.click(); render(); return; }
+    if (g('data-dname')) { d.dogName = g('data-dname')!; sfx.click(); render(); return; }
+    if (g('data-owner')) { d.owner = g('data-owner')!; sfx.click(); render(); return; }
+    const act = g('data-pa'); if (!act) return;
+    const typed = (m.root.querySelector<HTMLInputElement>('#petName')?.value ?? '').trim();
+    if (act === 'adoptCat' || act === 'adoptDog') {
+      const raw = typed || (act === 'adoptCat' ? d.catName : d.dogName);
+      const name = cleanPetName(raw); if (!name) { d.err = raw ? 'Hmm, try a different name!' : 'Pick a name first!'; sfx.pop(); render(); return; }
+      if (act === 'adoptCat') {
+        const here = inMyHouse();
+        const cat: Cat = { name, coat: d.coat, room: here ? store.get().currentRoom : cat0?.room ?? 'living', x: here ? Math.max(200, Math.min(W - 200, camX + VIEW_W / 2)) : cat0?.x ?? 1200 };
+        catDispatch({ type: 'cat/set', cat }); sfx.meow(); close();
+        toast(cat0 ? `${name} looks great! 🐱` : here ? `${name} moved in! 🐱` : `${name} is waiting at your house! 🐱`);
+      } else {
+        const dog: Dog = hood ? { name, breed: d.breed } : { name, breed: d.breed, owner: d.owner };
+        if (hood) { hood.setDog(dog); if (view === 'park') renderParkAvatars(); } else local.dispatch({ type: 'dog/set', dog });
+        sfx.woof(); close(); toast(dog0 ? `${name} looks great! 🐶` : `${name} is your new best friend! 🐶`);
+      }
+      return;
+    }
+    if (act === 'callCat') { catDispatch({ type: 'cat/move', room: store.get().currentRoom, x: Math.max(200, Math.min(W - 200, camX + VIEW_W / 2)) }); sfx.meow(); close(); return; }
+    if (act === 'bye') { if (!d.bye) { d.bye = true; render(); return; }
+      if (d.tab === 'cat') catDispatch({ type: 'cat/set', cat: null }); else if (hood) hood.setDog(null); else local.dispatch({ type: 'dog/set', dog: null });
+      close(); toast('They went to live with a kind friend 💛'); return; }
+  }, 'wide pets');
+  const card = m.root.querySelector('.card')!;
+  function render() {
+    const isCat = d.tab === 'cat', have = isCat ? cat0 : dog0;
+    const names = isCat ? CAT_NAMES : DOG_NAMES, cur = isCat ? d.catName : d.dogName;
+    const prev = (m.root.querySelector<HTMLInputElement>('#petName')?.value ?? '');
+    card.innerHTML = `${X}<h2>Pets</h2>
+      <div class="petTabs"><button data-pt="cat" class="${isCat ? 'on' : ''}">🐱 Cat</button><button data-pt="dog" class="${isCat ? '' : 'on'}">🐶 Dog</button></div>
+      <p class="hint small">${isCat ? (hood ? 'Your cat lives in your house. Friends can see it when they visit!' : 'Your cat lives in your house and does cat things.') : (hood ? 'Your dog follows you everywhere: the street, friends\' houses and the park!' : 'Your dog follows its walker around the house and to the park.')}</p>
+      <div class="petRow"><div class="petPreview">${isCat ? catSVG(d.coat, 'sit') : dogSVG(d.breed, 'stand')}</div>
+        <div class="swatches">${(isCat ? CAT_COATS : DOG_BREEDS).map((c, i) => `<button ${isCat ? 'data-coat' : 'data-breed'}="${i}" class="${i === (isCat ? d.coat : d.breed) ? 'on' : ''}"><div>${isCat ? catSVG(i, 'sit') : dogSVG(i, 'stand')}</div><span>${c.name}</span></button>`).join('')}</div></div>
+      <div class="label">Name</div>
+      <div class="nameChips">${names.map(n => `<button ${isCat ? 'data-cname' : 'data-dname'}="${n}" class="${n === cur ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <input id="petName" class="petName" maxlength="14" autocomplete="off" placeholder="…or type a name" value="${esc(prev)}"/>
+      ${d.err ? `<p class="err" id="petErr">${esc(d.err)}</p>` : ''}
+      ${!isCat && !hood && chars.length > 1 ? `<div class="label">Who walks the dog?</div><div class="walkers">${chars.map(c => `<button data-owner="${c.id}" class="${c.id === d.owner ? 'on' : ''}">${characterSVG(c)}</button>`).join('')}</div>` : ''}
+      <div class="petBtns"><button class="go" data-pa="${isCat ? 'adoptCat' : 'adoptDog'}" id="adoptBtn">${have ? 'Save' : 'Adopt! 💛'}</button>
+        ${isCat && cat0 && inMyHouse() ? '<button data-pa="callCat" id="callCat">Here, kitty!</button>' : ''}
+        ${have ? `<button class="danger" data-pa="bye">${d.bye ? 'Tap again to say goodbye' : 'Find a new home'}</button>` : ''}</div>`;
+  }
+  render();
+}
+$('btnPets').addEventListener('click', () => openPets(view === 'house' ? 'cat' : 'dog'));
+requestAnimationFrame(petTick);
+(window as any).__pets = () => ({ dogs: [...dogRuns.keys()], dogPos: Object.fromEntries([...dogRuns].map(([k, r]) => [k, { x: Math.round(r.x), y: Math.round(r.y) }])), cat: catEl ? { mood: catEl.dataset.mood, name: catEl.dataset.name } : null, fetch: fetchSt?.phase ?? null, ball: ballPos, view });
+
+// ---------- "What's new!" (once per device per update) / welcome on a brand-new device ----------
+function showWhatsNew() {
+  if (firstRun.kind === 'none') return;
+  markSeen();
+  const m = modal(whatsNewHTML(firstRun.kind, firstRun.entries), (t, close) => { if (t.closest('#wnGo')) { sfx.sparkle(); close(); } }, 'whatsNew ' + firstRun.kind);
+  m.root.querySelector('.card')!.insertAdjacentHTML('afterbegin', X);
+}
+setTimeout(showWhatsNew, 500);
+(window as any).__whatsnew = firstRun;
 (window as any).__hood = () => hood;
 (window as any).__hood_url = () => hoodServerUrl();
 (window as any).__ui = () => ({ view, currentHouseId, mode: hood ? 'hood' : 'solo' });

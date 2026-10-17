@@ -4,7 +4,7 @@ URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-ga
 EGGS = [('Cada','Living Room',3,'L'),('Sloane','Living Room',3,'R'),('Chloe','Bedroom',5,'R'),('Quinn','Kitchen',4,'L'),('Reagan','Salon',5,'R')]
 async def main():
     async with async_playwright() as p:
-        b = await p.chromium.launch(); ctx = await b.new_context(viewport={'width':1024,'height':768}, device_scale_factor=2, has_touch=True)
+        b = await p.chromium.launch(); ctx = await b.new_context(viewport={'width':1024,'height':768}, device_scale_factor=2, has_touch=True); await ctx.add_init_script("localStorage.getItem('cozy-whatsnew') || localStorage.setItem('cozy-whatsnew', '999')")  # skip the What's new popup
         pg = await ctx.new_page(); errs=[]; pg.on('pageerror', lambda e: errs.append(str(e)))
         await pg.goto(URL); await pg.wait_for_timeout(800)
         print('tracker:', await pg.inner_text('#secrets'), '| secrets tab visible:', await pg.locator('[data-cat="secrets"]').count())

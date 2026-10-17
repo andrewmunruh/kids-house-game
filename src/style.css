@@ -336,3 +336,105 @@ body.view-street .secrets { display: none; }
 .pAdd button { border-radius: 14px; padding: 0 14px; background: #ff8fab; color: #fff; font-weight: 900; border: 3px solid var(--ink); }
 .sugg { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
 .sugg button { border-radius: 12px; padding: 4px 10px; background: #fff; border: 2px dashed #c9a0dc; font-weight: 800; }
+
+/* ---------- park + pets ---------- */
+.parkOnly { display: none !important; }
+body.view-park .parkOnly { display: block !important; }
+body.view-park #btnPark, body.view-street:not(.mode-hood) #btnPark { display: none; }
+body:not(.mode-hood) .streetOnly, body.view-street .soloOnly { display: none !important; }
+body.mode-hood.view-park #btnChat { display: block !important; }
+.park { background: #bfe6ff; }
+.parkWorld { position: relative; }
+.parkWorld > svg.parkScene { position: absolute; inset: 0; width: 100%; height: 100%; }
+.parkWorld .swing { position: absolute; z-index: 3; pointer-events: none; transform-origin: 50% 0; }
+.parkWorld .swing svg { width: 100%; height: 100%; display: block; }
+.parkWorld .swing.swinging { animation: swingArc 2.4s ease-in-out infinite; }
+@keyframes swingArc { 0%, 100% { transform: rotate(-24deg); } 50% { transform: rotate(24deg); } }
+.pspot { position: absolute; z-index: 4; background: transparent; border: 0; padding: 0; border-radius: 24px; cursor: pointer; box-shadow: none; }
+.pspot:active { background: rgba(255,255,255,.25); }
+.ball { position: absolute; z-index: 700; background: none; border: 0; padding: 0; box-shadow: none; transition: left .65s cubic-bezier(.3,.1,.5,1), top .65s; }
+.ball svg { width: 100%; height: 100%; display: block; }
+.ball.flying svg { animation: ballArc .65s ease-out; }
+@keyframes ballArc { 0% { transform: translateY(0) rotate(0); } 45% { transform: translateY(-120px) rotate(300deg); } 100% { transform: translateY(0) rotate(720deg); } }
+.ripples { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.ripple { position: absolute; border: 4px solid #fff; border-radius: 50%; opacity: 0; animation: ripple 1.2s ease-out forwards; }
+@keyframes ripple { 0% { transform: scale(.2); opacity: .95; } 100% { transform: scale(1.1); opacity: 0; } }
+.drop { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #8ecae6; border: 2px solid #fff; animation: drop .8s ease-out forwards; }
+@keyframes drop { 0% { transform: translate(0, 0); } 45% { transform: translate(calc(var(--dx) * .6), -46px); } 100% { transform: translate(var(--dx), 6px); opacity: 0; } }
+.parkGate { position: absolute; z-index: 6; background: none; border: 0; padding: 0; box-shadow: none; }
+.parkGate svg { width: 100%; height: 100%; display: block; }
+.parkGate:active { transform: scale(.96); }
+#pavatars .savatar.pose-sit .inner { transform: translateY(14%) scaleY(.9); transform-origin: 50% 100%; }
+#pavatars .savatar.pose-swing { animation: swingArc 2.4s ease-in-out infinite; transition: none; }
+#pavatars .savatar.pose-swing .inner { transform: translateY(6%) scaleY(.92); transform-origin: 50% 100%; }
+#pavatars .savatar.pose-slide { animation: slideDown 1.1s ease-in forwards; transition: none; }
+@keyframes slideDown { 0% { transform: translate(var(--sx), var(--sy)) rotate(-8deg); } 85% { transform: translate(0, 0) rotate(-8deg); } 100% { transform: translate(0, 0); } }
+
+.pet { position: absolute; pointer-events: auto; cursor: pointer; touch-action: none; }
+.pet .inner { width: 100%; height: 100%; transform-origin: 50% 100%; }
+.pet .inner svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.pet.flipped .inner svg { transform: scaleX(-1); }
+.savatars .pet { transition: none; }
+.pet .tail { transform-box: fill-box; transform-origin: 0% 100%; animation: sway 2.6s ease-in-out infinite; }
+.pet.pet-dog .tail { transform-origin: 0% 100%; animation: wag .35s ease-in-out infinite alternate; }
+.pet .leg { transform-box: fill-box; transform-origin: 50% 0; }
+.pet.walking .leg.a { animation: legA .32s ease-in-out infinite alternate; }
+.pet.walking .leg.b { animation: legA .32s ease-in-out infinite alternate-reverse; }
+.pet.walking .inner { animation: bob .32s ease-in-out infinite alternate; }
+.pet .breathe { transform-box: fill-box; transform-origin: 50% 100%; animation: breathe 2.4s ease-in-out infinite; }
+.pet.pet-cat.groom .inner { animation: groom 1.1s ease-in-out infinite; }
+.pet.spin .inner { animation: spin .8s ease-in-out; }
+.pet.hop .inner { animation: hop .35s ease-out 3; }
+.pet.happy .inner { animation: hop .4s ease-out 2; }
+@keyframes sway { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(10deg); } }
+@keyframes wag { from { transform: rotate(-16deg); } to { transform: rotate(18deg); } }
+@keyframes legA { from { transform: rotate(-22deg); } to { transform: rotate(22deg); } }
+@keyframes bob { from { transform: translateY(0); } to { transform: translateY(-4%); } }
+@keyframes breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.06); } }
+@keyframes groom { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-5deg) translateY(2%); } }
+@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes hop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-22%); } }
+.pet .heart { position: absolute; bottom: 60%; font-size: 26px; font-weight: 900; pointer-events: none; animation: heartUp 1.6s ease-out forwards; opacity: 0; }
+@keyframes heartUp { 0% { transform: translateY(0) scale(.5); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-110px) scale(1.2); opacity: 0; } }
+.pet .zzz { position: absolute; right: 8%; top: -10%; pointer-events: none; font-weight: 900; color: var(--ink); }
+.pet.flipped .zzz { right: auto; left: 8%; }
+.pet .zzz i { position: absolute; font-style: normal; font-size: 20px; opacity: 0; animation: zzz 3s ease-in-out infinite; }
+.pet .zzz i:nth-child(2) { animation-delay: 1s; } .pet .zzz i:nth-child(3) { animation-delay: 2s; }
+@keyframes zzz { 0% { transform: translate(0, 0) scale(.6); opacity: 0; } 30% { opacity: .9; } 100% { transform: translate(20px, -50px) scale(1.2); opacity: 0; } }
+.pet .petBubble { white-space: nowrap; font-size: 18px; }
+
+.pets .card { width: 760px; text-align: left; }
+.petTabs { display: flex; gap: 10px; margin: 4px 0 6px; }
+.petTabs button { font-size: 20px; padding: 8px 20px; border-radius: 18px; }
+.petTabs button.on, .swatches button.on, .nameChips button.on, .walkers button.on { background: #fff3b0; box-shadow: 0 0 0 4px #ffd166; }
+.petRow { display: flex; gap: 16px; align-items: center; }
+.petPreview { width: 170px; height: 140px; flex: none; background: #f4fbf6; border: 3px solid var(--ink); border-radius: 24px; display: grid; place-items: center; }
+.petPreview svg { width: 150px; height: 120px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.swatches button { width: 100px; padding: 4px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; font-size: 13px; font-weight: 800; }
+.swatches button div { width: 84px; height: 62px; } .swatches button svg { width: 100%; height: 100%; }
+.nameChips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.nameChips button { padding: 6px 12px; font-size: 16px; border-radius: 14px; }
+.petName { font: inherit; font-size: 18px; padding: 8px 12px; border: 3px solid var(--ink); border-radius: 14px; width: 260px; }
+.pets .label { font-weight: 900; margin-top: 8px; }
+.walkers { display: flex; gap: 8px; } .walkers button { width: 64px; height: 90px; padding: 2px; border-radius: 14px; } .walkers svg { width: 100%; height: 100%; }
+.petBtns { display: flex; gap: 10px; margin-top: 14px; align-items: center; }
+.petBtns .go { font-size: 22px; padding: 10px 26px; background: #b9f6ca; }
+.pets .err { color: #d0425b; font-weight: 800; margin: 4px 0; }
+body.view-park #btnParent, body.view-park #btnSolo { display: none !important; }
+/* What's new / welcome */
+.whatsNew .card { width: 600px; text-align: center; background: linear-gradient(#fff, #fff7fb); padding-top: 42px; overflow: visible; }
+.wnBadge { position: absolute; left: 50%; top: -44px; transform: translateX(-50%); width: 84px; height: 84px; padding: 12px; background: #fff3b0; border: 5px solid var(--ink); border-radius: 50%; animation: wnBounce 1.4s ease-in-out infinite; }
+@keyframes wnBounce { 0%, 100% { transform: translateX(-50%) translateY(0) rotate(-4deg); } 50% { transform: translateX(-50%) translateY(-6px) rotate(4deg); } }
+.wnTitle { font-size: 34px !important; margin: 4px 0 12px !important; }
+.wnList { display: flex; flex-direction: column; gap: 10px; }
+.wnLine { display: flex; align-items: center; gap: 16px; background: #fff; border: 3px solid var(--ink); border-radius: 22px; padding: 6px 16px 6px 8px; text-align: left; opacity: 0; animation: wnIn .45s cubic-bezier(.3,1.5,.6,1) forwards; }
+.wnLine:nth-child(1) { background: #e9f9ee; } .wnLine:nth-child(2) { background: #fff1f6; } .wnLine:nth-child(3) { background: #fff8e1; }
+@keyframes wnIn { from { opacity: 0; transform: translateY(16px) scale(.94); } to { opacity: 1; transform: none; } }
+.wnArt { width: 96px; height: 80px; flex: none; }
+.wnArt svg { width: 100%; height: 100%; }
+.wnLine p { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.25; color: var(--ink); }
+.wnLine b { color: #e0558a; }
+.wnGo { margin-top: 18px; font-size: 30px; font-weight: 900; padding: 14px 48px; border-radius: 30px; background: #b9f6ca; border: 5px solid var(--ink); box-shadow: 0 6px 0 #5a3d5c55; animation: wnPulse 1.6s ease-in-out infinite; }
+.wnGo:active { transform: scale(.95); }
+@keyframes wnPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }

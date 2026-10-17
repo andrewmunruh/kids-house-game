@@ -26,7 +26,10 @@ items = lambda pg: pg.evaluate("__store.get().rooms.living.items.map(i => i.id)"
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
-        mk = lambda: b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=2, has_touch=True)
+        async def mk():
+            c = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=2, has_touch=True)
+            await c.add_init_script("localStorage.getItem('cozy-whatsnew') || localStorage.setItem('cozy-whatsnew', '999')")  # skip the What's new popup
+            return c
         P, K2, K3 = [await (await mk()).new_page() for _ in range(3)]
         errs = {}
         for name, pg in (('P', P), ('K2', K2), ('K3', K3)):
