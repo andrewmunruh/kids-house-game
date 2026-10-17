@@ -1,7 +1,8 @@
 import { PACK_ITEMS } from './packs';
+import { SECRET_ITEMS } from './eggs';
 // Original rounded SVG art. Each item: viewBox 0 0 100 100, anchored bottom-center.
 export type Category = string; // built-ins: furniture | decor | plants | food | pets (packs may add more)
-export interface ItemDef { kind: string; name: string; cat: Category; w: number; h?: number; svg: string; wall?: boolean; img?: string; rooms?: string[]; pack?: string; holdable?: boolean }
+export interface ItemDef { kind: string; name: string; cat: Category; w: number; h?: number; svg: string; wall?: boolean; img?: string; rooms?: string[]; pack?: string; holdable?: boolean; secret?: string }
 
 const O = '#5a3d5c'; // soft plum outline
 const s = `stroke="${O}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"`;
@@ -68,7 +69,7 @@ for (const i of ITEMS) i.rooms = BUILTIN_ROOMS[i.kind] ?? (['food'].includes(i.c
 const NOT_HOLDABLE = new Set(['rug', 'tv', 'tree']);
 for (const i of ITEMS) i.holdable ??= !i.wall && i.cat !== 'furniture' && i.w <= 150 && !NOT_HOLDABLE.has(i.kind);
 
-ITEMS.push(...PACK_ITEMS);
+ITEMS.push(...PACK_ITEMS, ...SECRET_ITEMS);
 export const ITEM_MAP: Record<string, ItemDef> = Object.fromEntries(ITEMS.map(i => [i.kind, i]));
 const esc = (t: string) => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 /** Height in room units (square unless the art says otherwise). */

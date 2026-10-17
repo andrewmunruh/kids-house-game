@@ -1,4 +1,4 @@
-import type { Character } from './state';
+import type { Character } from './shared/state';
 const O = '#5a3d5c';
 const s = `stroke="${O}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"`;
 

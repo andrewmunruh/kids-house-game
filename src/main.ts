@@ -1,11 +1,24 @@
 import './style.css';
-import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand } from './state';
+import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action } from './shared/state';
+import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, neighborhoodExists, type HoodConfig } from './net';
+import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_LEN, CODE_ALPHABET, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, type Presence, type Bubble, type Look } from './shared/hood';
+import { houseSVG, ICONS, toast, adultCheck } from './hood-ui';
+import { initEggs, foundSet, EGGS } from './eggs';
 import { ITEMS, ITEM_MAP, svgOf, hOf, type Category, type ItemDef } from './items';
 import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
 import { characterSVG, SKINS, HAIRS, CLOTHES, HAIR_STYLES, ACCESSORIES, SIZES, SIZE_SCALE, HANDS } from './character';
 import { sfx, setSound } from './sound';
 
-const store = createStore();
+// The renderer talks to `store`, which forwards to either the offline localStorage house
+// or a neighborhood house (server-authoritative) — same actions, same reducer.
+type AnyStore = { get(): GameState; dispatch(a: Action): void; subscribe(l: (s: GameState, a: Action) => void): void };
+const local = createStore();
+let inner: AnyStore = local;
+const storeListeners: ((s: GameState, a: Action) => void)[] = [];
+const hooked = new WeakSet<AnyStore>();
+function hookStore(st: AnyStore) { if (hooked.has(st)) return; hooked.add(st); st.subscribe((s, a) => { if (inner === st) storeListeners.forEach(l => l(s, a)); }); }
+hookStore(local);
+const store: AnyStore = { get: () => inner.get(), dispatch: a => inner.dispatch(a), subscribe: l => { storeListeners.push(l); } };
 // World is ROOM_W x ROOM_H; the stage shows a VIEW_W-wide window onto it (fits the iPad).
 const W = ROOM_W, H = ROOM_H, VIEW_W = 1000, FLOOR_Y = 390;
 const MAX_CAM = W - VIEW_W;
@@ -26,12 +39,13 @@ const TABS: Tab[] = [
   { id: '__people', name: 'People', icon: '', kind: 'people' },
   ...(['furniture', 'decor', 'plants', 'food', 'pets'] as Category[]).map((c, i) => ({ id: c, name: c, icon: ['armchair', 'balloon', 'flowers', 'donut', 'cat'][i], kind: 'cat' as const })),
 ];
+TABS.push({ id: 'secrets', name: 'Secrets', icon: 'egg:chloe-starlamp', kind: 'cat' });
 for (const it of ITEMS) if (!TABS.some(t => t.kind === 'cat' && t.id === it.cat)) TABS.push({ id: it.cat, name: it.cat, icon: it.kind, kind: 'cat' });
 for (const it of ITEMS) if (it.pack && !TABS.some(t => t.id === 'pack:' + it.pack)) TABS.push({ id: 'pack:' + it.pack, name: packLabel(it.pack), icon: it.kind, kind: 'pack' });
 const ROOM_FILTERS: { id: string; name: string }[] = [{ id: 'all', name: 'All' }, { id: 'living', name: 'Living' }, { id: 'bedroom', name: 'Bed' }, { id: 'kitchen', name: 'Kitchen' }, { id: 'salon', name: 'Salon' }];
 for (const it of ITEMS) for (const r of it.rooms ?? []) if (r !== 'any' && !ROOM_FILTERS.some(f => f.id === r)) ROOM_FILTERS.push({ id: r, name: r[0].toUpperCase() + r.slice(1) });
 const matchesRoom = (rooms: string[] | undefined, f: string) => f === 'all' || !rooms || rooms.includes('any') || rooms.includes(f);
-const tabItems = (tab: string, rf: string) => ITEMS.filter(i => (tab.startsWith('pack:') ? i.pack === tab.slice(5) : i.cat === tab) && matchesRoom(i.rooms, rf));
+const tabItems = (tab: string, rf: string) => ITEMS.filter(i => (!i.secret || foundSet().has(i.secret)) && (tab.startsWith('pack:') ? i.pack === tab.slice(5) : i.cat === tab) && matchesRoom(i.rooms, rf));
 
 const WALLS = ['#ffd6e0', '#d9ccff', '#cdf3dc', '#cfe8ff', '#fff1b8', '#ffe0c7', '#ffffff', '#f6c1ff'];
 const FLOORS = ['#e8b98a', '#f2d0a4', '#c99366', '#ffe7a8', '#bfe3d0', '#d6d6f5', '#ffc8dd', '#9fb4c7'];
@@ -54,7 +68,14 @@ app.innerHTML = `
 <div class="top">
   <div class="tabs" id="tabs"></div>
   <div class="minimap" id="minimap" aria-label="Room map"><div class="mmWall" id="mmWall"></div><div class="mmFloor" id="mmFloor"></div><div id="mmDots"></div><div class="mmView" id="mmView"></div></div>
+  <div class="streetTitle" id="streetTitle">Our Street</div>
   <div class="tools">
+    <button class="round hoodOnly" id="btnStreet" aria-label="Go outside">${ICONS.street}</button>
+    <button class="round ownOnly" id="btnLock" aria-label="Lock house"></button>
+    <button class="round hoodOnly" id="btnChat" aria-label="Talk">${ICONS.chat}</button>
+    <button class="round soloOnly" id="btnHood" aria-label="Neighborhood">${ICONS.street}</button>
+    <button class="round streetOnly" id="btnParent" aria-label="Grown-ups">${ICONS.shield}</button>
+    <button class="round streetOnly" id="btnSolo" aria-label="Play in my own house">${ICONS.solo}</button>
     <button class="round" id="btnPaint" aria-label="Colors">${ICON.paint}</button>
     <button class="round" id="btnDress" aria-label="Characters">${ICON.shirt}</button>
     <button class="round" id="btnSound" aria-label="Sound"></button>
@@ -73,12 +94,16 @@ app.innerHTML = `
     <button class="nudge right" id="nudgeR" aria-label="Look right"><svg viewBox="0 0 40 40"><path d="M16 10 L26 20 L16 30" fill="none" stroke="#5a3d5c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
   <div class="bin" id="bin">${ICON.trash}</div>
+  <div class="houseTag hoodOnly" id="houseTag"></div>
+  <div class="secrets" id="secrets"></div>
 </div>
 <div class="drawer">
   <div class="rooms" id="roomFilter"></div>
   <div class="cats" id="cats"></div>
   <div class="shelf" id="shelf"></div>
 </div>
+<div class="street hidden" id="street"><div class="streetScroll" id="streetScroll"><div class="streetWorld" id="streetWorld"></div></div></div>
+<div class="chatTray hidden" id="chatTray"></div>
 <div class="sheet hidden" id="sheet"><div class="card" id="card"></div></div>
 <div class="fx" id="fx"></div>`;
 
@@ -89,7 +114,14 @@ let activeChar: string | null = store.get().characters[0]?.id ?? null; // charac
 let currentTab = 'furniture';
 let roomFilter = 'all';
 let uid = Date.now() % 100000;
-const newId = (p: string) => `${p}-${Date.now().toString(36)}${(++uid).toString(36)}`;
+const newId = (p: string) => `${p}-${Date.now().toString(36)}${(++uid).toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+const ME = '__me';
+// ---------- neighborhood state (declared early: render functions consult it) ----------
+let hood: HoodClient | null = null;
+let view: 'house' | 'street' = 'house';
+let currentHouseId = '';
+let houseStores = new Map<string, ReturnType<typeof houseStore>>();
+const avatarEls = new Map<string, HTMLElement>();
 
 // ---------- camera (view-only, not part of game state) ----------
 const cams: Record<string, number> = {};
@@ -263,12 +295,16 @@ function renderAll() {
   layer.innerHTML = ''; charEls.clear();
   renderTabs(s); renderRoomBg(s); renderItems(s); renderChars(s); renderSoundBtn(s);
   const first = s.characters.find(c => c.room === s.currentRoom);
-  stopGlide(); setCam(cams[s.currentRoom] ?? clampCam(first ? first.x - VIEW_W / 2 : V1_OFFSET));
+  const me = hood && myPres();
+  const focusX = me && me.where === 'house' ? me.x : first?.x;
+  stopGlide(); setCam(cams[s.currentRoom] ?? clampCam(focusX !== undefined ? focusX - VIEW_W / 2 : V1_OFFSET));
+  renderAvatars(); renderHoodChrome();
 }
 
 store.subscribe((s, a) => {
   switch (a.type) {
-    case 'room/switch': case 'game/reset': renderAll(); break;
+    case 'room/switch': if (hood && inner !== local) moveMeToRoom(a.room); renderAll(); break;
+    case 'game/reset': renderAll(); break;
     case 'room/wallpaper': case 'room/floor': case 'room/pattern': case 'room/wallTile': case 'room/floorTile': renderRoomBg(s); break;
     case 'char/update': case 'char/move': renderChars(s); break;
     case 'char/add': case 'char/delete': case 'char/hold': case 'char/release': renderItems(s); renderChars(s); if (currentTab === '__people') renderDrawer(); break;
@@ -345,6 +381,7 @@ function startDrag(e: PointerEvent, ctx: DragCtx) {
 function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
   e.preventDefault(); e.stopPropagation();
   if (twoFinger) return;
+  if (!canEdit()) { lockedNudge(el); return; }
   const s = store.get(); const room = s.currentRoom;
   const id = el.dataset.id!; const it = s.rooms[room].items.find(i => i.id === id); if (!it) return;
   const def = ITEM_MAP[it.kind];
@@ -388,9 +425,10 @@ function beginHeldDrag(charEl: HTMLElement, heldEl: HTMLElement, e: PointerEvent
 function attachCharDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
     const heldEl = (e.target as HTMLElement).closest<HTMLElement>('.held');
-    if (heldEl) return beginHeldDrag(el, heldEl, e);
+    if (heldEl) { if (!canEdit()) { e.stopPropagation(); lockedNudge(el); return; } return beginHeldDrag(el, heldEl, e); }
     e.preventDefault(); e.stopPropagation();
     if (twoFinger) return;
+    if (!canEdit()) { lockedNudge(el); return; }
     selected = null; renderItems(store.get());
     const id = el.dataset.cid!; activeChar = id;
     const s = store.get(); const c = s.characters.find(c => c.id === id); if (!c) return;
@@ -427,6 +465,7 @@ function attachCharDrag(el: HTMLElement) {
 function attachShelfDrag(btn: HTMLElement, def: ItemDef) {
   btn.addEventListener('pointerdown', e => {
     e.preventDefault();
+    if (!canEdit()) { lockedNudge(btn); return; }
     const ghost = document.createElement('div'); ghost.className = 'ghost'; ghost.innerHTML = svgOf(def);
     document.body.appendChild(ghost);
     const k = Math.max(1, 60 / (Math.max(def.w, hOf(def)) * stageScale()));
@@ -463,6 +502,7 @@ function attachShelfDrag(btn: HTMLElement, def: ItemDef) {
 function attachPersonCard(btn: HTMLElement, id: string) {
   btn.addEventListener('pointerdown', e => {
     e.preventDefault();
+    if (!canEdit()) { lockedNudge(btn); return; }
     const c = store.get().characters.find(c => c.id === id); if (!c) return;
     const sc = charScale(c), gw = CHAR_W * sc * stageScale(), gh = CHAR_H * sc * stageScale();
     const ghost = document.createElement('div'); ghost.className = 'ghost'; ghost.innerHTML = characterSVG(c);
@@ -487,6 +527,7 @@ function attachPersonCard(btn: HTMLElement, id: string) {
 
 const pick = <T,>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)];
 function addCharacter(): string | null {
+  if (!canEdit()) { lockedNudge(null); return null; }
   const s = store.get(); if (s.characters.length >= MAX_CHARS) return null;
   const id = newId('c');
   store.dispatch({ type: 'char/add', char: newCharacter({ id, skin: pick(SKINS), hair: pick(HAIRS), hairStyle: Math.floor(Math.random() * HAIR_STYLES), shirt: pick(CLOTHES), pants: pick(CLOTHES), room: s.currentRoom, x: camX + 300 + Math.random() * 400, y: 520 + Math.random() * 40 }) });
@@ -496,13 +537,23 @@ function addCharacter(): string | null {
 }
 
 function renderDrawer() {
-  $('roomFilter').innerHTML = ROOM_FILTERS.map(f => `<button class="rf ${f.id === roomFilter ? 'on' : ''}" data-rf="${f.id}">${f.name}</button>`).join('');
-  const visible = TABS.filter(t => t.kind === 'people' || tabItems(t.id, roomFilter).length);
-  if (!visible.some(t => t.id === currentTab)) currentTab = visible[1]?.id ?? '__people';
+  // the secrets tab lives in the spare slot of the room column so the pack tabs keep their room
+  const hasSecrets = tabItems('secrets', 'all').length > 0;
+  $('roomFilter').innerHTML = ROOM_FILTERS.map(f => `<button class="rf ${f.id === roomFilter ? 'on' : ''}" data-rf="${f.id}">${f.name}</button>`).join('')
+    + (hasSecrets ? `<button class="rf secretTab ${currentTab === 'secrets' ? 'on' : ''}" data-cat="secrets" aria-label="Secrets" title="Secrets">🎁</button>` : '');
+  const visible = TABS.filter(t => t.id !== 'secrets' && (t.kind === 'people' || tabItems(t.id, roomFilter).length));
+  if (!(currentTab === 'secrets' && hasSecrets) && !visible.some(t => t.id === currentTab)) currentTab = visible[1]?.id ?? '__people';
   $('cats').innerHTML = visible.map(t => `<button class="cat ${t.kind} ${t.id === currentTab ? 'on' : ''}" data-cat="${t.id}" aria-label="${t.name}" title="${t.name}">${t.kind === 'people' ? PEOPLE_ICON : t.kind === 'pack' ? `<span class="packicon">${svgOf(ITEM_MAP[t.icon])}</span><span class="packname">${t.name}</span>` : svgOf(ITEM_MAP[t.icon])}</button>`).join('');
   const shelf = $('shelf'); shelf.innerHTML = '';
+  if (!canEdit()) { shelf.innerHTML = `<div class="empty locked">🔒 This house is look-only right now</div>`; return; }
   if (currentTab === '__people') {
     const s = store.get();
+    const meLook = myLook();
+    if (meLook) {
+      const b = document.createElement('button'); b.className = 'thing person me'; b.setAttribute('aria-label', 'Me');
+      b.innerHTML = `<div class="face">${characterSVG(meLook)}</div><span class="meStar">★</span>`;
+      b.addEventListener('click', () => { sfx.click(); activeChar = ME; openSheet('dress'); }); shelf.appendChild(b);
+    }
     for (const c of s.characters) {
       const b = document.createElement('button'); b.className = 'thing person'; b.setAttribute('aria-label', 'Character');
       b.innerHTML = `<div class="face">${characterSVG(c)}</div><span class="where" style="background:${roomColor(c.room)}"></span>`;
@@ -543,13 +594,15 @@ function renderSheet() {
       <h3>Floor</h3>${swatches(FLOORS, r.floor, 'floor')}
       ${floorTiles.length ? `<h3>Floor style</h3><div class="sw"><button class="dot pat ${!r.floorTile ? 'on' : ''}" data-act="ftile" data-v="" style="background-color:${r.floor};background-image:${FLOOR_BOARDS}"></button>${floorTiles.map(p => tile(p, r.floorTile, 'ftile', r.floor)).join('')}</div>` : ''}`;
   } else if (sheetMode === 'dress') {
-    let c = s.characters.find(x => x.id === activeChar) ?? s.characters[0];
-    const picker = `<div class="picker">${s.characters.map(x => `<button class="pk ${x.id === c?.id ? 'on' : ''}" data-act="pickc" data-v="${x.id}"><div class="face">${characterSVG(x)}</div><span class="where" style="background:${roomColor(x.room)}"></span></button>`).join('')}${s.characters.length < MAX_CHARS ? `<button class="pk add" data-act="newc">${PLUS}</button>` : ''}</div>`;
+    const meLook = myLook();
+    const meChar = meLook ? newCharacter({ id: ME, ...meLook }) : null;
+    let c = activeChar === ME && meChar ? meChar : s.characters.find(x => x.id === activeChar) ?? meChar ?? s.characters[0];
+    const picker = `<div class="picker">${meChar ? `<button class="pk me ${c?.id === ME ? 'on' : ''}" data-act="pickc" data-v="${ME}"><div class="face">${characterSVG(meChar)}</div><span class="meStar">★</span></button>` : ''}${s.characters.map(x => `<button class="pk ${x.id === c?.id ? 'on' : ''}" data-act="pickc" data-v="${x.id}"><div class="face">${characterSVG(x)}</div><span class="where" style="background:${roomColor(x.room)}"></span></button>`).join('')}${s.characters.length < MAX_CHARS ? `<button class="pk add" data-act="newc">${PLUS}</button>` : ''}</div>`;
     if (!c) { card.innerHTML = `<button class="close" data-act="close">✕</button><h2>Characters</h2>${picker}<p class="hint">Tap + to make someone new!</p>`; return; }
     activeChar = c.id;
     const thumb = (patch: Partial<Character>) => characterSVG({ ...c, ...patch }).replace('<svg ', '<svg preserveAspectRatio="xMidYMin slice" ');
     card.innerHTML = `<button class="close" data-act="close">✕</button>${picker}<div class="dress"><div class="previewCol"><div class="preview"><div style="height:${SIZE_SCALE[c.size] * 78}%">${characterSVG(c)}</div></div>
-        <button class="del ${confirmDelete ? 'sure' : ''}" data-act="delc">${ICON.trash}<span>${confirmDelete ? 'Tap again' : ''}</span></button></div><div class="opts">
+        ${c.id === ME ? `<div class="meNote">This is you!</div>` : `<button class="del ${confirmDelete ? 'sure' : ''}" data-act="delc">`}${c.id === ME ? '' : `${ICON.trash}<span>${confirmDelete ? 'Tap again' : ''}</span></button>`}</div><div class="opts">
       <div class="row2"><div><h3>Size</h3><div class="sw">${SIZES.map(z => `<button class="dot sz ${z === c.size ? 'on' : ''}" data-act="size" data-v="${z}"><div style="height:${SIZE_SCALE[z] * 70}%">${characterSVG(c)}</div></button>`).join('')}</div></div>
       <div><h3>Extras</h3><div class="sw">${Array.from({ length: ACCESSORIES }, (_, i) => `<button class="dot hs ${i === c.acc ? 'on' : ''}" data-act="acc" data-v="${i}">${thumb({ acc: i })}</button>`).join('')}</div></div></div>
       <h3>Skin</h3>${swatches(SKINS, c.skin, 'skin')}
@@ -573,13 +626,14 @@ $('sheet').addEventListener('click', e => {
     case 'pat': store.dispatch({ type: 'room/pattern', room, pattern: +v }); break;
     case 'wtile': store.dispatch({ type: 'room/wallTile', room, tile: v }); break;
     case 'ftile': store.dispatch({ type: 'room/floorTile', room, tile: v || null }); break;
-    case 'skin': case 'hair': case 'shirt': case 'pants': store.dispatch({ type: 'char/update', id, patch: { [act]: v } }); break;
-    case 'hs': store.dispatch({ type: 'char/update', id, patch: { hairStyle: +v } }); break;
-    case 'acc': store.dispatch({ type: 'char/update', id, patch: { acc: +v } }); break;
-    case 'size': store.dispatch({ type: 'char/update', id, patch: { size: v as Character['size'] } }); renderChars(store.get()); break;
+    case 'skin': case 'hair': case 'shirt': case 'pants': updateChar(id, { [act]: v }); break;
+    case 'hs': updateChar(id, { hairStyle: +v }); break;
+    case 'acc': updateChar(id, { acc: +v }); break;
+    case 'size': updateChar(id, { size: v as Character['size'] }); renderChars(store.get()); break;
     case 'pickc': activeChar = v; renderChars(store.get()); sfx.click(); renderSheet(); return;
-    case 'newc': addCharacter(); break;
+    case 'newc': if (!addCharacter()) return; break;
     case 'delc':
+      if (id === ME || !canEdit()) return;
       if (!confirmDelete) { confirmDelete = true; sfx.click(); renderSheet(); return; }
       confirmDelete = false;
       { const el = charEls.get(id); const r = el?.getBoundingClientRect(); store.dispatch({ type: 'char/delete', id }); if (r) poof(r.left + r.width / 2, r.top + r.height / 2); else sfx.pop(); }
@@ -601,12 +655,14 @@ $('cats').addEventListener('click', e => {
   currentTab = b.dataset.cat!; sfx.click(); renderDrawer();
 });
 $('roomFilter').addEventListener('click', e => {
+  const sec = (e.target as HTMLElement).closest<HTMLElement>('[data-cat]'); if (sec) { currentTab = sec.dataset.cat!; sfx.click(); renderDrawer(); return; }
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-rf]'); if (!b) return;
   roomFilter = b.dataset.rf!; sfx.click(); renderDrawer();
 });
 toolbar.addEventListener('pointerdown', e => e.stopPropagation());
 toolbar.addEventListener('click', e => {
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-a]'); if (!b || !selected) return;
+  if (!canEdit()) { lockedNudge(null); return; }
   const room = store.get().currentRoom, id = selected, el = layer.querySelector(`.item[data-id="${id}"]`);
   switch (b.dataset.a) {
     case 'flip': store.dispatch({ type: 'item/flip', room, id }); sfx.swish(); bounce(el); break;
@@ -647,14 +703,398 @@ mm.addEventListener('pointerdown', e => {
   jump(e); sfx.click();
   startDrag(e, { edgeScroll: false, onMove: jump, onUp() {} });
 });
-$('btnPaint').addEventListener('click', () => openSheet('paint'));
+$('btnPaint').addEventListener('click', () => { if (!canEdit()) return lockedNudge(null); openSheet('paint'); });
 $('btnDress').addEventListener('click', () => openSheet('dress'));
 $('btnSound').addEventListener('click', () => { store.dispatch({ type: 'settings/sound', on: !store.get().soundOn }); sfx.click(); });
 document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('contextmenu', e => e.preventDefault());
 
-renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
+
 if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js');
 (window as any).__store = store; // handy for debugging / tests
 (window as any).__items = Object.fromEntries(ITEMS.filter(i => i.img).map(i => [i.kind, { w: i.w, h: hOf(i), cat: i.cat, holdable: i.holdable, svg: i.img!.includes('.svg') }]));
 (window as any).__cam = { get: () => camX, set: setCam };
+
+
+// =====================================================================================
+// Neighborhood (multiplayer). Offline play above keeps working when `hood` is null.
+// =====================================================================================
+const esc = (t: string) => t.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+function canEdit() { return !hood || inner === local || hood.canEdit(currentHouseId); }
+function lockedNudge(el: Element | null) {
+  sfx.pop(); const tag = $('houseTag'); tag.classList.remove('wiggle'); void tag.offsetWidth; tag.classList.add('wiggle');
+  if (el) { el.classList.remove('nope'); void (el as HTMLElement).offsetWidth; el.classList.add('nope'); }
+  toast('🔒 Look-only house: ask the owner to unlock it!', 1800);
+}
+const myPres = () => hood?.myPresence() ?? null;
+const myLook = (): Look | null => (hood ? hood.players.get(hood.pid)?.look ?? null : null);
+function updateChar(id: string, patch: Partial<Character>) {
+  if (id === ME) { const l = myLook(); if (!l || !hood) return; hood.setLook(cleanLook({ ...l, ...patch })); renderAvatars(); if (view === 'street') renderStreetAvatars(); return; }
+  store.dispatch({ type: 'char/update', id, patch });
+}
+function setMyPres(p: Presence) { hood?.setPresence(p); }
+function moveMeToRoom(room: RoomId) { const p = myPres(); if (p && p.where === 'house') setMyPres({ ...p, room }); }
+
+function useStore(next: AnyStore) {
+  inner = next; hookStore(next); selected = null; setTimeout(() => eggs.update());
+  for (const k of Object.keys(cams)) delete cams[k];
+  activeChar = next === local ? next.get().characters[0]?.id ?? null : ME;
+  renderAll(); renderDrawer();
+}
+
+// ---------- avatars (other kids, and me) inside a house ----------
+function avatarHTML(look: Look, name: string) {
+  return `<div class="inner">${characterSVG(look)}</div><div class="nametag">${esc(name)}</div>`;
+}
+function renderAvatars() {
+  const keep = new Set<string>();
+  if (hood && inner !== local && view === 'house') {
+    const room = store.get().currentRoom;
+    const entries: [string, Presence][] = [...hood.presence.entries()];
+    const mine = myPres(); if (mine) entries.push([hood.pid, mine]);
+    for (const [pid, p] of entries) {
+      const pl = hood.players.get(pid);
+      if (!pl || p.where !== 'house' || p.houseId !== currentHouseId || p.room !== room) continue;
+      keep.add(pid);
+      let el = avatarEls.get(pid);
+      if (!el || !el.isConnected) {
+        el = document.createElement('div'); el.className = 'char avatar ' + (pid === hood.pid ? 'mine' : 'other'); el.dataset.pid = pid;
+        layer.appendChild(el); avatarEls.set(pid, el);
+        if (pid === hood.pid) attachMyAvatarDrag(el);
+      }
+      const look = pl.look, key = JSON.stringify(look) + pl.nickname;
+      if (el.dataset.look !== key) { const b = el.querySelector('.bubble'); el.innerHTML = avatarHTML(look, pl.nickname); if (b) el.appendChild(b); el.dataset.look = key; }
+      const sc = SIZE_SCALE[look.size] ?? 1;
+      placeEl(el, p.x, p.y, CHAR_W * sc, CHAR_H * sc);
+      el.style.zIndex = String(5000 + Math.round(p.y));
+      el.classList.toggle('flipped', p.flip);
+    }
+  }
+  for (const [pid, el] of avatarEls) if (!keep.has(pid) || !el.isConnected) { if (!keep.has(pid)) el.remove(); avatarEls.delete(pid); }
+  updateNear();
+}
+function attachMyAvatarDrag(el: HTMLElement) {
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation(); if (twoFinger || !hood) return;
+    const p0 = myPres(); if (!p0 || p0.where !== 'house') return;
+    const q0 = toRoom(e.clientX, e.clientY), off = { x: p0.x - q0.x, y: p0.y - q0.y };
+    let lastX = p0.x; el.classList.add('lifted'); sfx.pick();
+    startDrag(e, {
+      onMove(ev) {
+        const q = toRoom(ev.clientX, ev.clientY), cur = myPres(); if (!cur || cur.where !== 'house') return;
+        const x = Math.max(40, Math.min(W - 40, q.x + off.x)), y = Math.max(FLOOR_Y + 40, Math.min(H, q.y + off.y));
+        const flip = Math.abs(x - lastX) > 3 ? x < lastX : cur.flip; if (Math.abs(x - lastX) > 3) lastX = x;
+        setMyPres({ ...cur, x, y, flip }); renderAvatars(); renderMinimap(store.get());
+      },
+      onUp() { el.classList.remove('lifted'); sfx.drop(); bounce(el); },
+    });
+  });
+}
+
+// ---------- speech bubbles ----------
+function bubbleText(b: Bubble): string { if (b.kind === 'text') return b.v; return (b.kind === 'phrase' ? PHRASES : EMOTES)[b.v] ?? ''; }
+function showBubble(pid: string, b: Bubble) {
+  const el0 = view === 'street' ? document.querySelector<HTMLElement>(`#streetWorld .savatar[data-pid="${pid}"]`) : avatarEls.get(pid);
+  const targets = el0 ? [el0] : [];
+  for (const el of targets) {
+    el.querySelector('.bubble')?.remove();
+    const d = document.createElement('div'); d.className = 'bubble' + (b.kind === 'emote' ? ' emote' : '');
+    d.textContent = bubbleText(b); el.appendChild(d);
+    setTimeout(() => d.classList.add('out'), 4600); setTimeout(() => d.remove(), 5000);
+  }
+  if (pid !== hood?.pid) sfx.click();
+}
+function nearbyCount() {
+  const me = myPres(); if (!hood || !me) return 0;
+  let n = 0; hood.presence.forEach(p => { if (isNear(me, p)) n++; }); return n;
+}
+function updateNear() {
+  const n = nearbyCount(); $('btnChat').classList.toggle('glow', n > 0);
+  const st = document.getElementById('chatNear'); if (st) { st.textContent = n ? `${n} friend${n > 1 ? 's' : ''} nearby can hear you` : 'Walk closer to a friend to talk!'; $('chatTray').classList.toggle('nobody', !n); }
+}
+function renderChatTray() {
+  const tray = $('chatTray'); if (!hood) return;
+  tray.innerHTML = `<div class="chatHead"><span id="chatNear"></span><button class="close" data-chat="close">✕</button></div>
+    <div class="emotes">${EMOTES.map((e, i) => `<button data-emote="${i}">${e}</button>`).join('')}</div>
+    <div class="phrases">${PHRASES.map((p, i) => `<button data-phrase="${i}">${esc(p)}</button>`).join('')}</div>
+    ${hood.settings.freeChat ? `<form class="typed" id="chatForm"><input id="chatInput" maxlength="${MAX_CHAT}" autocomplete="off" autocorrect="on" enterkeyhint="send" placeholder="Type a message…"/><button type="submit">Send</button></form><div class="chatWarn" id="chatWarn"></div>` : `<div class="presetsOnly">Picking from the bubbles above 💬</div>`}`;
+  updateNear();
+  const form = document.getElementById('chatForm') as HTMLFormElement | null;
+  form?.addEventListener('submit', e => {
+    e.preventDefault(); const inp = $('chatInput') as HTMLInputElement;
+    const f = filterChat(inp.value);
+    if (!f.ok) { $('chatWarn').textContent = FILTER_MSG[f.reason] ?? ''; sfx.pop(); return; }
+    if (!nearbyCount()) { toast('Walk closer to a friend to talk!'); return; }
+    hood!.say({ kind: 'text', v: f.text }); inp.value = ''; $('chatWarn').textContent = ''; inp.blur();
+  });
+}
+$('chatTray').addEventListener('click', e => {
+  const t = e.target as HTMLElement; if (!hood) return;
+  if (t.closest('[data-chat="close"]')) { $('chatTray').classList.add('hidden'); return; }
+  const em = t.closest<HTMLElement>('[data-emote]'), ph = t.closest<HTMLElement>('[data-phrase]');
+  if (!em && !ph) return;
+  if (!nearbyCount()) { toast('Walk closer to a friend to talk!'); return; }
+  hood.say(em ? { kind: 'emote', v: +em.dataset.emote! } : { kind: 'phrase', v: +ph!.dataset.phrase! }); sfx.click();
+});
+$('btnChat').addEventListener('click', () => { const t = $('chatTray'); if (t.classList.toggle('hidden')) return; renderChatTray(); sfx.swish(); });
+
+// ---------- chrome: buttons, house tag ----------
+function renderHoodChrome() {
+  const b = document.body.classList;
+  const inHouse = !!hood && inner !== local && view === 'house';
+  const h = inHouse ? hood!.houses.get(currentHouseId) : undefined;
+  const own = !!h && h.meta.ownerId === hood!.pid;
+  b.toggle('mode-hood', !!hood); b.toggle('view-street', !!hood && view === 'street');
+  b.toggle('own-house', own); b.toggle('locked', !!h && !canEdit()); b.toggle('has-hood', !!hoodServerUrl());
+  if (h) {
+    const owner = hood!.players.get(h.meta.ownerId)?.nickname ?? '';
+    $('houseTag').innerHTML = `${h.meta.locked ? '🔒 ' : ''}<b>${esc(h.meta.name)}</b>${own ? ' · yours' : owner ? ' · ' + esc(owner) : ''}`;
+    $('btnLock').innerHTML = h.meta.locked ? ICONS.lockOn : ICONS.lockOff;
+    $('btnLock').setAttribute('aria-label', h.meta.locked ? 'Unlock house' : 'Lock house');
+  }
+  updateNear();
+}
+$('btnLock').addEventListener('click', () => {
+  const h = hood?.houses.get(currentHouseId); if (!h || h.meta.ownerId !== hood!.pid) return;
+  hood!.lock(h.meta.id, !h.meta.locked); sfx.click(); toast(h.meta.locked ? 'Unlocked: friends can decorate!' : 'Locked: friends can look but not change things');
+});
+
+// ---------- street ----------
+const STREET_H = 600;
+function streetScale() { return $('street').clientHeight / STREET_H; }
+function renderStreet() {
+  if (!hood) return;
+  const houses = [...hood.houses.values()].map(h => h.meta).sort((a, b) => a.slot - b.slot);
+  const SW = streetWidth(houses.length), sc = streetScale();
+  const world = $('streetWorld');
+  world.style.width = SW * sc + 'px'; world.style.height = STREET_H * sc + 'px'; world.style.setProperty('--sc', String(sc));
+  const trees = Array.from({ length: Math.ceil(SW / 520) + 1 }, (_, i) => `<div class="tree" style="left:${(i * 520 + 250) * sc}px"></div>`).join('');
+  world.innerHTML = `<div class="sky"></div><div class="hill h1"></div><div class="hill h2"></div><div class="lawn"></div><div class="sidewalk"></div><div class="road"><div class="dash"></div></div>${trees}` +
+    houses.map(h => {
+      const owner = hood!.players.get(h.ownerId);
+      const mine = h.ownerId === hood!.pid;
+      return `<button class="house ${mine ? 'mine' : ''}" data-hid="${h.id}" style="left:${(slotX(h.slot) - 160) * sc}px;top:${(400 - 300) * sc}px;width:${320 * sc}px;height:${300 * sc}px" aria-label="${esc(h.name)}">
+        ${houseSVG(h.style, { lit: !!owner?.online })}${h.locked ? '<span class="lockBadge">🔒</span>' : ''}${mine ? '<span class="homeBadge">★</span>' : ''}</button>
+        <div class="sign" style="left:${slotX(h.slot) * sc}px;top:${405 * sc}px">${esc(h.name)}</div>`;
+    }).join('') + `<div class="savatars" id="savatars"></div>`;
+  renderStreetAvatars();
+}
+function renderStreetAvatars() {
+  if (!hood) return; const box = document.getElementById('savatars'); if (!box) return;
+  const sc = streetScale(); const keep = new Set<string>();
+  const entries: [string, Presence][] = [...hood.presence.entries()]; const mine = myPres(); if (mine) entries.push([hood.pid, mine]);
+  for (const [pid, p] of entries) {
+    const pl = hood.players.get(pid); if (!pl || p.where !== 'street') continue;
+    keep.add(pid);
+    let el = box.querySelector<HTMLElement>(`.savatar[data-pid="${pid}"]`);
+    if (!el) { el = document.createElement('div'); el.className = 'savatar ' + (pid === hood.pid ? 'mine' : 'other'); el.dataset.pid = pid; box.appendChild(el); if (pid === hood.pid) attachStreetDrag(el); }
+    const key = JSON.stringify(pl.look) + pl.nickname;
+    if (el.dataset.look !== key) { const b = el.querySelector('.bubble'); el.innerHTML = avatarHTML(pl.look, pl.nickname); if (b) el.appendChild(b); el.dataset.look = key; }
+    const k = (SIZE_SCALE[pl.look.size] ?? 1) * sc * 0.95, w = CHAR_W * k, h = CHAR_H * k;
+    el.style.left = p.x * sc - w / 2 + 'px'; el.style.top = p.y * sc - h + 'px'; el.style.width = w + 'px'; el.style.height = h + 'px';
+    el.style.zIndex = String(100 + Math.round(p.y)); el.classList.toggle('flipped', p.flip);
+  }
+  box.querySelectorAll<HTMLElement>('.savatar').forEach(el => { if (!keep.has(el.dataset.pid!)) el.remove(); });
+  updateNear();
+}
+function attachStreetDrag(el: HTMLElement) {
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation(); const p0 = myPres(); if (!p0 || p0.where !== 'street' || !hood) return;
+    const scroll = $('streetScroll'); const sc = streetScale();
+    const toW = (ev: PointerEvent) => { const r = $('streetWorld').getBoundingClientRect(); return { x: (ev.clientX - r.left) / sc, y: (ev.clientY - r.top) / sc }; };
+    const q0 = toW(e), off = { x: p0.x - q0.x, y: p0.y - q0.y }; let last = e, raf = 0, lastX = p0.x;
+    const SW = streetWidth(hood.houses.size);
+    const apply = (ev: PointerEvent) => {
+      const q = toW(ev), cur = myPres(); if (!cur) return;
+      const x = Math.max(60, Math.min(SW - 60, q.x + off.x)), y = Math.max(470, Math.min(590, q.y + off.y));
+      const flip = Math.abs(x - lastX) > 3 ? x < lastX : cur.flip; if (Math.abs(x - lastX) > 3) lastX = x;
+      setMyPres({ where: 'street', x, y, flip }); renderStreetAvatars();
+    };
+    const tick = () => { const r = scroll.getBoundingClientRect(); const v = last.clientX < r.left + 70 ? -10 : last.clientX > r.right - 70 ? 10 : 0; if (v) { scroll.scrollLeft += v; apply(last); } raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick); el.classList.add('lifted'); sfx.pick();
+    const move = (ev: PointerEvent) => { if (ev.pointerId !== e.pointerId) return; last = ev; apply(ev); };
+    const up = (ev: PointerEvent) => { if (ev.pointerId !== e.pointerId) return; cancelAnimationFrame(raf); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); el.classList.remove('lifted'); sfx.drop(); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  });
+}
+$('streetWorld').addEventListener('click', e => {
+  const hb = (e.target as HTMLElement).closest<HTMLElement>('.house'); if (hb) enterHouse(hb.dataset.hid!);
+});
+function goStreet() {
+  if (!hood) return;
+  const from = hood.houses.get(currentHouseId)?.meta ?? hood.houses.get(hood.myHouseId())?.meta;
+  const x = from ? slotX(from.slot) + 40 : 600;
+  setMyPres({ where: 'street', x, y: 540, flip: false });
+  view = 'street'; $('street').classList.remove('hidden'); $('chatTray').classList.add('hidden');
+  renderHoodChrome(); renderStreet();
+  requestAnimationFrame(() => { const sc = streetScale(); $('streetScroll').scrollLeft = x * sc - $('streetScroll').clientWidth / 2; });
+  sfx.swish();
+}
+function enterHouse(houseId: string) {
+  if (!hood || !hood.houses.has(houseId)) return;
+  currentHouseId = houseId; view = 'house';
+  let st = houseStores.get(houseId);
+  if (!st) { st = houseStore(hood, houseId, { get: () => local.get().soundOn, set: on => local.dispatch({ type: 'settings/sound', on }) }); houseStores.set(houseId, st); }
+  st.dispatch({ type: 'room/switch', room: 'living' });
+  setMyPres({ where: 'house', houseId, room: 'living', x: 900 + Math.random() * 300, y: 540, flip: false });
+  $('street').classList.add('hidden'); $('chatTray').classList.add('hidden');
+  useStore(st); sfx.sparkle();
+}
+function goSolo() {
+  hood?.close(); hood = null; houseStores = new Map(); view = 'house'; currentHouseId = '';
+  $('street').classList.add('hidden'); $('chatTray').classList.add('hidden');
+  useStore(local); renderHoodChrome();
+}
+$('btnStreet').addEventListener('click', () => goStreet());
+$('btnSolo').addEventListener('click', () => { goSolo(); toast('Playing in your own house 🏠'); });
+window.addEventListener('resize', () => { if (view === 'street' && hood) renderStreet(); });
+
+// ---------- connecting ----------
+function enterNeighborhood(client: HoodClient) {
+  hood = client; houseStores = new Map();
+  client.on('players', () => { if (hood !== client) return; if (view === 'street') renderStreet(); else { renderAvatars(); renderHoodChrome(); } if (sheetMode === 'dress') renderSheet(); });
+  client.on('houses', () => {
+    if (hood !== client) return;
+    if (view === 'street') renderStreet();
+    else if (!client.houses.has(currentHouseId)) { toast('That house is gone now'); goStreet(); }
+  });
+  client.on('houseMeta', (id: string) => { if (hood !== client || id !== currentHouseId || view !== 'house') return; selected = null; renderHoodChrome(); renderItems(store.get()); renderDrawer(); if (!canEdit()) $('sheet').classList.add('hidden'); });
+  client.on('pres', () => { if (hood !== client) return; view === 'street' ? renderStreetAvatars() : renderAvatars(); });
+  client.on('bubble', (pid: string, b: Bubble) => { if (hood === client) showBubble(pid, b); });
+  client.on('sayFail', (r: string) => toast(r === 'presetsOnly' ? 'Typing is turned off: pick a bubble!' : FILTER_MSG[r] || "Couldn't send that"));
+  client.on('settings', () => { if (!$('chatTray').classList.contains('hidden')) renderChatTray(); });
+  client.on('removed', () => { toast('A grown-up took this iPad off the street'); const c = client.cfg; saveHoodConfig({ url: c.url, code: c.code, parentKey: c.parentKey }); goSolo(); });
+  client.on('status', (st: string) => document.body.classList.toggle('reconnecting', hood === client && st !== 'online'));
+  client.on('welcome', () => { if (hood !== client) return; if (view === 'street') renderStreet(); else if (client.houses.has(currentHouseId)) renderAll(); else goStreet(); });
+  goStreet();
+}
+async function initHood() {
+  renderHoodChrome();
+  const url = hoodServerUrl(), cfg = loadHoodConfig();
+  if (!url || !cfg?.token || cfg.url !== url) return;
+  const c = new HoodClient(cfg); const r = await c.connect();
+  if (r === 'ok') enterNeighborhood(c); else { c.close(); if (r !== 'closed') toast("Couldn't reach the street. Playing at home!"); }
+}
+
+// ---------- menus: join / create / parent ----------
+function modal(html: string, onClick: (t: HTMLElement, close: () => void, root: HTMLElement) => void, cls = '') {
+  const wrap = document.createElement('div'); wrap.className = 'sheet hoodSheet ' + cls; wrap.innerHTML = `<div class="card">${html}</div>`;
+  document.body.appendChild(wrap); sfx.swish();
+  const close = () => wrap.remove();
+  wrap.addEventListener('click', e => { const t = e.target as HTMLElement; if (t === wrap || t.closest('[data-m="close"]')) return close(); onClick(t, close, wrap); });
+  return { root: wrap, close };
+}
+const X = `<button class="close" data-m="close">✕</button>`;
+$('btnHood').addEventListener('click', () => openHoodMenu());
+function openHoodMenu() {
+  const url = hoodServerUrl();
+  if (!url) { modal(`${X}<h2>Neighborhood</h2><p class="hint">The street isn't open yet. Ask a grown-up to set it up!</p>`, () => {}); return; }
+  const cfg = loadHoodConfig()?.url === url ? loadHoodConfig() : null;
+  modal(`${X}<h2>Neighborhood</h2><div class="bigBtns">
+      ${cfg?.token ? `<button class="big go" data-m="go">${ICONS.street}<span>Go to my street</span></button>` : `<button class="big go" data-m="join">${ICONS.street}<span>Join a friend's street</span></button>`}
+      <button class="big grown" data-m="create">${ICONS.shield}<span>${cfg?.parentKey ? 'Grown-ups' : 'Grown-ups: start a street'}</span></button></div>`,
+    async (t, close) => {
+      const m = t.closest<HTMLElement>('[data-m]')?.dataset.m;
+      if (m === 'go') { close(); const c = new HoodClient(cfg!); const r = await c.connect(); if (r === 'ok') enterNeighborhood(c); else { c.close(); toast(r.startsWith('badtoken') ? 'Please join again' : "Couldn't reach the street"); } }
+      if (m === 'join') { close(); askCode(url); }
+      if (m === 'create') { close(); if (await adultCheck()) cfg?.parentKey ? parentScreen() : createFlow(url); }
+    });
+}
+async function createFlow(url: string) {
+  let res: { code: string; parentKey: string };
+  try { res = await createNeighborhood(url); } catch { toast("Couldn't create a street right now"); return; }
+  saveHoodConfig({ url, code: res.code, parentKey: res.parentKey });
+  modal(`${X}<h2>Your street is ready!</h2><p class="hint">Kids join with this code:</p><div class="code" id="newCode">${res.code}</div>
+    <p class="hint small">Grown-up key (keep it private; it opens the grown-up screen on another device):<br><b class="key" id="parentKey">${res.parentKey}</b></p>
+    <div class="bigBtns"><button class="big go" data-m="joinhere">${ICONS.street}<span>Join on this iPad</span></button></div>`,
+    (t, close) => { if (t.closest('[data-m="joinhere"]')) { close(); pickNickname(url, res.code); } });
+}
+function askCode(url: string, err = '') {
+  const m = modal(`${X}<h2>Join a street</h2><p class="hint">Type the code a grown-up gave you</p>
+    <form id="codeForm" class="codeForm"><input id="codeInput" maxlength="${CODE_LEN}" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABC234"/><button type="submit" class="go">Next</button></form>
+    <p class="err">${esc(err)}</p>`, () => {});
+  const inp = m.root.querySelector<HTMLInputElement>('#codeInput')!; setTimeout(() => inp.focus(), 50);
+  inp.addEventListener('input', () => { inp.value = inp.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+  m.root.querySelector('#codeForm')!.addEventListener('submit', async e => {
+    e.preventDefault(); const code = inp.value.toUpperCase();
+    if (code.length !== CODE_LEN || [...code].some(c => !CODE_ALPHABET.includes(c))) { m.close(); askCode(url, 'That code looks wrong. Try again!'); return; }
+    let ok = false; try { ok = await neighborhoodExists(url, code); } catch { }
+    m.close(); ok ? pickNickname(url, code) : askCode(url, "Hmm, we couldn't find that street.");
+  });
+}
+function pickNickname(url: string, code: string, err = '') {
+  modal(`${X}<h2>Pick your street name</h2>${err ? `<p class="err">${esc(err)}</p>` : ''}<div class="nicks">${NICKNAMES.map((n, i) => `<button data-nick="${i}">${esc(n)}</button>`).join('')}</div>`,
+    (t, close) => { const b = t.closest<HTMLElement>('[data-nick]'); if (!b) return; close(); bringHouse(url, code, NICKNAMES[+b.dataset.nick!]); }, 'wide');
+}
+function bringHouse(url: string, code: string, nickname: string) {
+  const s = local.get(); const meChar = s.characters[0];
+  modal(`${X}<h2>Hi, ${esc(nickname)}!</h2><p class="hint">What should your house on the street be?</p>
+    <div class="bigBtns"><button class="big go" data-m="bring">${houseSVG(2)}<span>Bring my house</span></button>
+    <button class="big" data-m="fresh">${houseSVG(5)}<span>Start a new one</span></button></div>`,
+    async (t, close) => {
+      const m = t.closest<HTMLElement>('[data-m]')?.dataset.m; if (!m) return; close();
+      // your first character becomes "you" on the street; the rest stay in the house
+      const look = cleanLook(meChar ?? {});
+      let house: GameState | undefined;
+      if (m === 'bring') { house = s; if (meChar) { const { reduce } = await import('./shared/state'); house = reduce(s, { type: 'char/delete', id: meChar.id }); } }
+      const prev = loadHoodConfig();
+      const cfg: HoodConfig = { url, code, parentKey: prev?.code === code ? prev.parentKey : undefined };
+      const c = new HoodClient(cfg); const r = await c.connect({ nickname, look, house });
+      if (r === 'ok') { saveHoodConfig(c.cfg); enterNeighborhood(c); toast(`Welcome to the street, ${nickname}!`); return; }
+      c.close();
+      if (r.startsWith('nickname')) pickNickname(url, code, 'Someone already has that name. Pick another!');
+      else toast(r === 'full' ? 'That street is full' : "Couldn't join right now");
+    });
+}
+$('btnParent').addEventListener('click', async () => { if (await adultCheck()) parentScreen(); });
+async function parentScreen() {
+  const cfg = loadHoodConfig();
+  if (!cfg) return;
+  if (!cfg.parentKey) {
+    const m = modal(`${X}<h2>Grown-up key</h2><p class="hint">Enter the key you got when the street was made</p><form id="keyForm" class="codeForm"><input id="keyInput" autocomplete="off" spellcheck="false"/><button class="go">OK</button></form>`, () => {});
+    m.root.querySelector('#keyForm')!.addEventListener('submit', e => { e.preventDefault(); cfg.parentKey = (m.root.querySelector('#keyInput') as HTMLInputElement).value.trim(); saveHoodConfig(cfg); if (hood) hood.cfg.parentKey = cfg.parentKey; m.close(); parentScreen(); });
+    return;
+  }
+  // the grown-up screen works whether or not this device has joined as a kid
+  let client = hood;
+  if (!client) { client = new HoodClient({ ...cfg, token: undefined }); await client.connect(); }
+  const c = client;
+  const m = modal(`${X}<h2>Grown-up screen</h2><div id="parentBody"><p class="hint">Loading…</p></div>`, async (t) => {
+    const a = t.closest<HTMLElement>('[data-p]'); if (!a) return;
+    const op = a.dataset.p;
+    if (op === 'free') c.parent({ op: 'freeChat', on: a.dataset.on !== '1' });
+    if (op === 'rename') { const inp = m.root.querySelector<HTMLInputElement>(`input[data-hid="${a.dataset.hid}"]`)!; c.parent({ op: 'rename', houseId: a.dataset.hid, name: inp.value }); }
+    if (op === 'remove') { if (a.dataset.sure !== '1') { a.dataset.sure = '1'; a.textContent = 'Tap again to remove'; return; } c.parent({ op: 'remove', pid: a.dataset.pid }); }
+    if (op === 'leave') { if (a.dataset.sure !== '1') { a.dataset.sure = '1'; a.textContent = 'Tap again: forget this street here'; return; } saveHoodConfig(null); m.close(); goSolo(); toast('This iPad left the street'); }
+  }, 'wide parent');
+  c.on('parentInfo', (info: any) => {
+    const body = m.root.querySelector('#parentBody'); if (!body) return;
+    body.innerHTML = `<div class="pRow"><div><div class="label">Invite code</div><div class="code small" id="pCode">${esc(info.code)}</div></div>
+        <div><div class="label">Free typing in chat</div><button class="toggle ${info.settings.freeChat ? 'on' : ''}" data-p="free" data-on="${info.settings.freeChat ? 1 : 0}" id="pFree">${info.settings.freeChat ? 'On' : 'Off (presets only)'}</button></div></div>
+      <div class="label">Houses</div>${info.houses.map((h: any) => `<div class="pHouse"><input data-hid="${h.id}" value="${esc(h.name)}" maxlength="24"/><button data-p="rename" data-hid="${h.id}">Rename</button></div>`).join('')}
+      <div class="label">Players</div>${info.players.map((p: any) => `<div class="pPlayer"><span class="dot ${p.online ? 'on' : ''}"></span>${esc(p.nickname)}<button class="danger" data-p="remove" data-pid="${p.pid}">Remove</button></div>`).join('') || '<p class="hint">Nobody has joined yet.</p>'}
+      <p class="hint small">No emails, real names or chat history are stored. Chat bubbles are only relayed to kids standing nearby.</p>
+      <button class="danger wideBtn" data-p="leave">Forget this street on this device</button>`;
+  });
+  c.on('error', (code: string) => { if (code === 'badkey') { toast("That grown-up key didn't work"); cfg.parentKey = undefined; saveHoodConfig(cfg); m.close(); } });
+  c.parent({ op: 'info' });
+}
+(window as any).__hood = () => hood;
+(window as any).__ui = () => ({ view, currentHouseId, mode: hood ? 'hood' : 'solo' });
+
+// ---------- start ----------
+renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
+// ---------- hidden surprises ----------
+const renderSecrets = () => { $('secrets').textContent = `Secrets found: ${foundSet().size}/${EGGS.length}`; };
+const eggs = initEggs({
+  world, roomW: W, roomH: H, currentRoom: () => store.get().currentRoom,
+  sparkle: () => sfx.sparkle(), tap: () => sfx.click(),
+  onFound: (_name, isNew) => {
+    renderSecrets();
+    if (isNew) { const t = $('secrets'); t.classList.remove('pulse'); void t.offsetWidth; t.classList.add('pulse'); setTimeout(() => toast('🎁 A secret surprise appeared in your drawer!'), 1400); renderDrawer(); }
+  },
+});
+store.subscribe((_s, a) => { if (a.type === 'room/switch' || a.type === 'game/reset') eggs.update(); });
+renderSecrets();
+(window as any).__eggs = () => ({ found: [...foundSet()] });
+initHood();
