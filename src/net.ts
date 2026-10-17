@@ -48,8 +48,8 @@ export class HoodClient {
   status: 'connecting' | 'online' | 'offline' = 'offline';
   /** Rainbow Ranch garden (shared per street) + server clock offset so growth looks the same on every iPad. */
   ranch: { plots: (Plot | null)[]; skew: number } = { plots: [], skew: 0 };
-  /** Game Room tables. Each `view` is already personalized (your hand only). */
-  tables = new Map<number, TablePub>();
+  /** Game Room tables. Each `view` is already personalized (your hand only). `receivedAt` is local, so away time can keep growing between messages. */
+  tables = new Map<number, TablePub & { receivedAt?: number }>();
   private handlers = new Map<string, Handler[]>();
   private cid = 1; private flushT = 0; private presT = 0; private lastPres: Presence | null = null; private presDirty = false;
   private closedByUs = false; private retry = 0; private retryT = 0; private epoch = 0;
@@ -133,7 +133,9 @@ export class HoodClient {
             this.houses.set(h.id, { meta, confirmed: state, pending: prev ? prev.pending.filter(p => !p.sent) : [], view: null }); } }
         this.presence = new Map(Object.entries(m.presence)); this.presence.delete(this.pid);
         if (m.ranch) this.ranch = { plots: m.ranch.plots, skew: m.ranch.now - Date.now() };
-        this.tables = new Map((m.tables ?? []).map(t => [t.tb, t]));
+        { const next = new Map<number, TablePub & { receivedAt?: number }>();
+          for (const t of m.tables ?? []) next.set(t.tb, this.stampTable(t));
+          this.tables = next; }
         clearInterval(this.flushT); this.flushT = window.setInterval(() => this.flush(), 60);
         // Presence first, then anything said or locked during the gap, then listeners (they may move her again).
         if (this.lastPres) this.presDirty = true;
@@ -166,13 +168,20 @@ export class HoodClient {
       case 'ranch': this.ranch = { plots: m.plots, skew: m.now - Date.now() }; this.emit('ranch'); break;
       case 'ranchFail': this.ranch = { plots: m.plots, skew: m.now - Date.now() }; this.emit('ranch'); this.emit('ranchFail', m.reason); break;
       case 'noride': this.emit('noride', m.ride); break;
-      case 'table': this.tables.set(m.table.tb, m.table); this.emit('table', m.table); break;
+      case 'table': { const t = this.stampTable(m.table); this.tables.set(t.tb, t); this.emit('table', t); break; }
       case 'tblFail': this.emit('tblFail', m.tb, m.reason); break;
       case 'sayFail': this.emit('sayFail', m.reason); break;
       case 'parentInfo': this.emit('parentInfo', m); break;
       case 'error': this.emit('error', m.code); if (m.code === 'badtoken') { this.cfg.token = undefined; this.cfg.pid = undefined; saveHoodConfig(this.cfg); } break;
       case 'removed': this.closedByUs = true; this.emit('removed'); break;
     }
+  }
+
+  /** Keep the original receipt time when the server repeats the same away value, so the local clock is not reset. */
+  private stampTable(t: TablePub): TablePub & { receivedAt?: number } {
+    const prev = this.tables.get(t.tb);
+    const receivedAt = prev && prev.away === t.away && prev.receivedAt ? prev.receivedAt : Date.now();
+    return { ...t, receivedAt };
   }
 
   // ---------- houses ----------

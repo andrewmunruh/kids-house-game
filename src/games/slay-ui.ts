@@ -99,17 +99,18 @@ function render(host: HTMLElement, ctx: PlayCtx) {
     const src = host.querySelector<HTMLElement>(`[data-card="${ev.card.id}"]`) || host.querySelector<HTMLElement>(`[data-p="${ev.p}"]`);
     if (src) from = src.getBoundingClientRect();
   }
-  const yours = you !== null && v.turn === you;
-  const slayOk = you !== null && hand.length <= 2 && hand.length > 0 && !v.slay?.[you] && v.turn >= 0 && table.phase === 'play';
+  const playing = table.phase === 'play' && v.turn >= 0;
+  const yours = playing && you !== null && v.turn === you;
+  const slayOk = you !== null && hand.length <= 2 && hand.length > 0 && !v.slay?.[you] && yours;
   const drawOk = yours && v.drawn == null && table.phase === 'play';
   const passOk = yours && v.drawn != null && table.phase === 'play';
   const sorted = hand.sort((a, b) => a.c - b.c || rank(a.v) - rank(b.v));
-  const turnPid = v.turn >= 0 ? table.players[v.turn] : '';
-  const turnLine = v.turn < 0 ? '' : yours ? 'Your turn!' : `${esc(ctx.name(turnPid))}'s turn`;
+  const turnPid = playing ? table.players[v.turn] : '';
+  const turnLine = !playing ? '' : yours ? 'Your turn!' : `${esc(ctx.name(turnPid))}'s turn`;
   const pal = PAL[v.color] ?? PAL[0];
   host.innerHTML = `<div class="slayFelt">
-    <div class="whose ${yours ? 'yours' : ''}" id="whoseTurn">${turnLine}<span class="slayDir" aria-hidden="true">${v.dir === 1 ? '→' : '←'}</span></div>
-    <div class="slayOpps">${table.players.map((pid, i) => i === you ? '' : `<div class="slayOpp ${v.turn === i ? 'isTurn' : ''}" data-p="${i}" data-count="${v.counts?.[i] ?? 0}"><span class="chipFace">${ctx.face(pid)}</span><b>${esc(ctx.name(pid))}</b><span class="cnt">${v.counts?.[i] ?? 0}</span>${v.slay?.[i] ? '<em>SLAY!</em>' : ''}</div>`).join('')}</div>
+    ${turnLine ? `<div class="whose ${yours ? 'yours' : ''}" id="whoseTurn">${turnLine}<span class="slayDir" aria-hidden="true">${v.dir === 1 ? '→' : '←'}</span></div>` : ''}
+    <div class="slayOpps">${table.players.map((pid, i) => i === you ? '' : `<div class="slayOpp ${v.turn === i ? 'isTurn' : ''}" data-p="${i}" data-count="${v.counts?.[i] ?? 0}"><span class="chipFace">${ctx.face(pid)}</span><b>${esc(ctx.name(pid))}</b><span class="cnt">${v.counts?.[i] ?? 0}</span>${ctx.away(pid) ? '<i class="awayBadge">away</i>' : ''}${v.slay?.[i] ? '<em>SLAY!</em>' : ''}</div>`).join('')}</div>
     <div class="slayPile">
       <button type="button" id="slayDeck" class="slayDeck" ${drawOk ? '' : 'disabled'} aria-label="Draw a card">${backSVG}<span>${v.deck ?? 0}</span></button>
       <div id="slayDiscard" class="slayDiscard" data-top="${v.top.id}">${cardSVG(v.top)}</div>
@@ -122,7 +123,7 @@ function render(host: HTMLElement, ctx: PlayCtx) {
       const word = typeof c.v === 'number' ? PAL[c.c].name + ' ' + c.v : (c.v === 'wild' ? 'Crown' : c.v === 'w4' ? 'Crown plus 4' : c.v === 'd2' ? 'plus 2' : c.v === 'rev' ? 'Flip' : 'Nope');
       return `<button type="button" class="slayCard ${ok ? 'can' : 'dim'} ${c.id === v.drawn ? 'justDrew' : ''} ${c.id === pendingId ? 'picked' : ''}" data-card="${c.id}" data-c="${c.c}" data-v="${c.v}" aria-label="${esc(word)}" ${ok ? '' : 'disabled'}>${cardSVG(c)}</button>`;
     }).join('')}</div>
-    ${you !== null ? `<button type="button" id="slayCall" class="slayCall ${slayOk ? 'ready' : ''}" ${slayOk ? '' : 'disabled'}>SLAY!</button>` : ''}
+    ${playing && you !== null ? `<button type="button" id="slayCall" class="slayCall ${slayOk ? 'ready' : ''}" ${slayOk ? '' : 'disabled'}>SLAY!</button>` : ''}
     <button type="button" id="slayPass" class="slayPass ${passOk ? '' : 'hidden'}" ${passOk ? '' : 'disabled'}>Pass</button>
   </div>`;
   if (ev && ev.n !== lastEv) {

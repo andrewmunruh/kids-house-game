@@ -1,5 +1,5 @@
 import { Neighborhood, type KV, type Conn } from '../server/core';
-import { NICKNAMES } from '../src/shared/hood';
+import { NICKNAMES, cleanFirstName } from '../src/shared/hood';
 const store = new Map<string, any>();
 const kv: KV = { get: async k => store.has(k) ? JSON.parse(JSON.stringify(store.get(k))) : undefined, put: async (k, v) => { store.set(k, JSON.parse(JSON.stringify(v))); }, delete: async k => { store.delete(k); } };
 let pass = 0; const check = (name: string, ok: boolean, extra = '') => { console.log((ok ? 'PASS ' : 'FAIL ') + name, extra); if (ok) pass++; else process.exitCode = 1; };
@@ -60,7 +60,19 @@ async function main() {
   const helper = byPid.get(T2.players[(awayP + 1) % 3])!;
   await pres(awayC, 'street'); const seqBefore = T2.seq;
   await msg(helper, { op: 'nudge', tb: 0 }); check('can\'t skip a friend\'s turn right away', helper.last('tblFail')?.reason === 'tooSoon' && T2.seq === seqBefore);
+  check('leaving the clubhouse starts one away clock', (hood as any).awaySince.has(awayPid) && (hood as any).awayTimers.has(awayPid));
+  await hood.flush();
+  const savedAt = store.get('away')?.[awayPid];
+  check('away start time is saved', typeof savedAt === 'number');
+  const awayKeep = new Neighborhood(kv, { flushMs: 5 }); await awayKeep.load(); await awayKeep.flush();
+  check('away start time survives a restart', (awayKeep as any).awaySince.get(awayPid) === savedAt);
+  store.delete('away');
+  const awayFresh = new Neighborhood(kv, { flushMs: 5 }); await awayFresh.load();
+  const restartedAt = (awayFresh as any).awaySince.get(awayPid);
+  check('a restart with no saved time still starts the away clock', typeof restartedAt === 'number' && restartedAt <= Date.now() && restartedAt >= Date.now() - 5000);
   (hood as any).awaySince.set(awayPid, Date.now() - 21000);
+  (hood as any).pingAway(awayPid);
+  check('server resends the table once she has been away 20s', helper.last('table').table.away >= 20000);
   await msg(helper, { op: 'nudge', tb: 0 }); check('after 20s away, a friend can play her turn for her (she keeps her seat)', T2.seq > seqBefore && T2.seats.includes(awayPid));
   await pres(awayC, 'gameroom');
   // leaving mid-game gives up the seat; the game goes on with 2
@@ -78,6 +90,9 @@ async function main() {
   // persistence: a fresh server instance (Durable Object restart) restores the tables
   await hood.flush(); const hood2 = new Neighborhood(kv); await hood2.load();
   check('tables survive a server restart', hood2.tables[1].phase === 'over' && hood2.tables[1].players.length === 2);
-  console.log(`${pass}/19 passed`); if (pass !== 19) process.exitCode = 1;
+  hood.meta!.roster = [...(hood.meta!.roster ?? []), 'Sloane Smith'];
+  check('an already saved two-word name stays on the roster', hood.roster().some(r => r.name === 'Sloane Smith'));
+  check('a new roster name cannot contain a space', cleanFirstName('Sloane Smith') === null && cleanFirstName('Sloane') === 'Sloane' && cleanFirstName("O'Neil") === "O'Neil" && cleanFirstName('Mary-Jane') === 'Mary-Jane');
+  console.log(`${pass}/26 passed`); if (pass !== 26) process.exitCode = 1;
 }
 main();

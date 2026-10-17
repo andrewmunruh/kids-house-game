@@ -30,12 +30,14 @@ export const fourUI: GamePlugin = {
       const open = yours && col.length < 6;
       cols += `<button type="button" class="fourCol" data-col="${c}" ${open ? '' : 'disabled'} aria-label="Drop in column ${c + 1}">${cells}<span class="dropHint">${open ? '▼' : ''}</span></button>`;
     }
-    const turnPid = v.turn >= 0 ? table.players[v.turn] : '';
-    const turnLine = v.turn < 0 ? (v.draw ? "It's a tie!" : '') : yours ? 'Your turn!' : `${esc(ctx.name(turnPid))}'s turn`;
+    const playing = table.phase === 'play' && v.turn >= 0;
+    const turnPid = playing ? table.players[v.turn] : '';
+    const turnLine = !playing ? '' : yours ? 'Your turn!' : `${esc(ctx.name(turnPid))}'s turn`;
     const legend = you === 0 ? 'You are <b>pink hearts</b>' : you === 1 ? 'You are <b>aqua stars</b>' : 'Pink hearts and aqua stars';
-    const chips = table.players.map((pid, i) => `<div class="playerChip ${v.turn === i ? 'isTurn' : ''}"><span class="chipFace">${ctx.face(pid)}</span><b>${i === 0 ? 'Hearts' : 'Stars'}</b></div>`).join('');
+    const mark = (i: number) => i === 0 ? '♥' : '★';
+    const chips = table.players.map((pid, i) => `<div class="playerChip ${v.turn === i ? 'isTurn' : ''}"><span class="chipFace">${ctx.face(pid)}</span><b>${esc(ctx.name(pid))} ${mark(i)}</b>${ctx.away(pid) ? '<i class="awayBadge">away</i>' : ''}</div>`).join('');
     host.innerHTML = `<div class="fourPlay">
-      <div class="whose ${yours ? 'yours' : ''}" id="whoseTurn">${turnLine}</div>
+      ${turnLine ? `<div class="whose ${yours ? 'yours' : ''}" id="whoseTurn">${turnLine}</div>` : ''}
       <div class="fourChips">${chips}</div>
       <p class="fourLegend">${legend}</p>
       <div class="fourBoard" id="fourBoard">${cols}</div>

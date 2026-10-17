@@ -36,7 +36,9 @@ export class Neighborhood {
   presence = new Map<string, Presence>();
   private lastEgg = new Map<string, number>();
   tables: TableRec[] = TABLES.map((_, i) => freshTable(i));
+  /** When each kid left the clubhouse or dropped her socket. Saved so a restart does not trap the table. */
   private awaySince = new Map<string, number>();
+  private awayTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private loaded: Promise<void> | null = null;
   private dirty = new Set<string>(); private flushT: ReturnType<typeof setTimeout> | null = null;
 
@@ -46,6 +48,13 @@ export class Neighborhood {
     this.meta = (await this.kv.get<Meta>('meta')) ?? null;
     const t = await this.kv.get<TableRec[]>('tables');
     if (Array.isArray(t)) this.tables = TABLES.map((d, i) => t[i] && Array.isArray(t[i].seats) && t[i].seats.length === d.seats ? t[i] : freshTable(i));
+    const away = await this.kv.get<Record<string, number>>('away');
+    if (away && typeof away === 'object') for (const [pid, at] of Object.entries(away)) if (typeof at === 'number') this.awaySince.set(pid, at);
+    // A restart with no saved time: she has been away since this process woke, so Play for her can still arrive.
+    const now = Date.now(); let seeded = false;
+    for (const tb of this.tables) if (tb.phase === 'play') for (const pid of tb.seats) if (pid && !this.awaySince.has(pid)) { this.awaySince.set(pid, now); seeded = true; }
+    if (seeded) this.save('away');
+    for (const pid of this.awaySince.keys()) this.armAwayPing(pid);
     if (this.meta) for (const id of this.meta.houseOrder) { const h = await this.kv.get<HouseFull>('house:' + id); if (h) this.houses.set(id, h); }
   })()); }
   get exists() { return !!this.meta; }
@@ -71,6 +80,7 @@ export class Neighborhood {
     for (const k of keys) {
       if (k === 'meta') { if (this.meta) await this.kv.put('meta', this.meta); continue; }
       if (k === 'tables') { await this.kv.put('tables', this.tables); continue; }
+      if (k === 'away') { await this.kv.put('away', Object.fromEntries(this.awaySince)); continue; }
       const h = this.houses.get(k); if (h) await this.kv.put('house:' + k, h); else await this.kv.delete('house:' + k);
     }
   }
@@ -99,6 +109,35 @@ export class Neighborhood {
   private online(pid: string) { return [...this.conns].some(c => c.pid === pid); }
   /** Away from the table: offline, or wandered out of the Game Room. */
   private away(pid: string) { return !this.online(pid) || this.presence.get(pid)?.where !== 'gameroom'; }
+  /** Start the away clock once. Later presence updates must not push the 20s mark further out. */
+  private noteAway(pid: string) {
+    if (this.awaySince.has(pid)) { this.armAwayPing(pid); return; }
+    this.awaySince.set(pid, Date.now());
+    this.save('away'); this.armAwayPing(pid);
+  }
+  private clearAway(pid: string) {
+    const timer = this.awayTimers.get(pid); if (timer) clearTimeout(timer);
+    this.awayTimers.delete(pid);
+    if (!this.awaySince.has(pid)) return;
+    this.awaySince.delete(pid); this.save('away');
+  }
+  /** One resend about 20s after she left, so a client that does not tick locally still unlocks Play for her. */
+  private armAwayPing(pid: string) {
+    if (this.awayTimers.has(pid)) return;
+    const since = this.awaySince.get(pid); if (since == null) return;
+    const wait = Math.max(0, since + NUDGE_MS - Date.now());
+    const timer = setTimeout(() => { this.awayTimers.delete(pid); this.pingAway(pid); }, wait);
+    (timer as { unref?: () => void }).unref?.();
+    this.awayTimers.set(pid, timer);
+  }
+  private pingAway(pid: string) {
+    if (!this.away(pid) || !this.awaySince.has(pid)) return;
+    this.tables.forEach((t, i) => {
+      if (t.phase !== 'play' || !t.state) return;
+      const turn = GAMES[TABLES[i].game].turn(t.state);
+      if (turn >= 0 && t.players[turn] === pid) this.sendTable(i);
+    });
+  }
   tablePub(i: number, pid: string | null): TablePub {
     const t = this.tables[i], g = GAMES[TABLES[i].game];
     const me = pid ? t.players.indexOf(pid) : -1;
@@ -185,7 +224,7 @@ export class Neighborhood {
   onClose(c: Conn) {
     this.conns.delete(c);
     if (c.pid && ![...this.conns].some(x => x.pid === c.pid)) {
-      this.presence.delete(c.pid); this.awaySince.set(c.pid, Date.now());
+      this.presence.delete(c.pid); this.noteAway(c.pid);
       this.tables.forEach((t, i) => { if (t.seats.includes(c.pid!)) this.sendTable(i); }); // friends see she's away
       this.broadcast({ t: 'pres', pid: c.pid, p: null });
       this.broadcast({ t: 'players', players: this.players() });
@@ -281,7 +320,7 @@ export class Neighborhood {
         this.presence.set(me.pid, p);
         this.broadcast({ t: 'pres', pid: me.pid, p }, x => !!x.pid && x.pid !== me.pid);
         if (wasIn !== (p.where === 'gameroom')) {
-          if (p.where === 'gameroom') this.awaySince.delete(me.pid); else this.awaySince.set(me.pid, Date.now());
+          if (p.where === 'gameroom') this.clearAway(me.pid); else this.noteAway(me.pid);
           // walking out of the Game Room gives up a seat at a table that isn't playing; mid-game she keeps it and can come back
           this.tables.forEach((t, i) => { if (!t.seats.includes(me.pid)) return; if (p.where !== 'gameroom' && t.phase !== 'play') { this.tableLeave(i, me.pid); this.save('tables'); } this.sendTable(i); });
         }

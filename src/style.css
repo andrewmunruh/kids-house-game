@@ -290,6 +290,8 @@ body.reconnecting::after { content: 'Reconnecting…'; position: fixed; top: 70p
 .shake { animation: nope .4s; }
 .toast { position: fixed; left: 50%; bottom: 160px; transform: translateX(-50%); z-index: 50000; background: var(--ink); color: #fff; padding: 12px 22px; border-radius: 20px; font-weight: 800; font-size: 17px;
   box-shadow: 0 6px 0 rgba(0,0,0,.15); animation: rise .3s cubic-bezier(.3,1.6,.5,1); max-width: 80vw; text-align: center; }
+/* A toast at the bottom sits on top of SLAY!. While a table is open, park it above the discard pile. */
+body:has(#tableOverlay:not(.hidden)) .toast { bottom: auto; top: 210px; }
 .toast.out { opacity: 0; transition: opacity .4s; }
 .thing.me { background: radial-gradient(circle at 50% 80%, #fff3b0, #fffbe6 70%); }
 .meStar, .pk .meStar { position: absolute; right: 4px; top: 2px; color: #ffb703; font-size: 20px; text-shadow: 0 0 2px #5a3d5c; }
@@ -633,12 +635,15 @@ body.view-street .stage { visibility: hidden; }
 #gavatars { pointer-events: none; }
 #gavatars .savatar.other { pointer-events: none; }
 #gavatars .savatar.mine { pointer-events: auto; }
+#gavatars .savatar.seated { pointer-events: none; }
 #gavatars .savatar.seated .inner { transform: translateY(16%) scale(1.04, .78); transform-origin: 50% 100%; }
+#gavatars .savatar.seated .nametag { top: 34%; }
 #gavatars .savatar.away { opacity: .5; }
+.awayBadge { font-style: normal; font-size: 11px; line-height: 1.2; font-weight: 900; background: #ffe08a; color: #5a3d5c; border: 2px solid var(--ink); border-radius: 8px; padding: 0 4px; }
 
 .tableOverlay { position: fixed; z-index: 12000; left: 8px; right: 8px; top: 68px; bottom: 8px; display: flex; justify-content: center; align-items: stretch; }
 .tableOverlay.hidden { display: none !important; }
-.tblCard { width: min(960px, 100%); margin: 0 auto; overflow: auto; display: flex; flex-direction: column; gap: 6px;
+.tblCard { width: min(960px, 100%); margin: 0 auto; overflow: auto; min-height: 0; display: flex; flex-direction: column; gap: 6px;
   background: linear-gradient(165deg, #fff6fb, #ffe0f0 38%, #f4e8ff 70%, #e7fbff); border: 5px solid var(--ink); border-radius: 28px; padding: 10px 14px 12px;
   box-shadow: 0 8px 0 rgba(90, 61, 92, .28); }
 .tblCard.game-slay { background:
@@ -697,7 +702,8 @@ body.view-street .stage { visibility: hidden; }
 .slayDeck span { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); background: #fff; border: 2px solid var(--ink); border-radius: 8px; font-weight: 900; font-size: 13px; padding: 0 5px; }
 .slayDeck:disabled { opacity: .55; }
 .nowColor { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--ink); }
-.slayHand { display: flex; gap: 8px; overflow-x: auto; min-height: 114px; padding: 4px 2px 8px; border-radius: 18px; }
+.slayFelt, #tblStage { min-width: 0; max-width: 100%; }
+.slayHand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; overflow-x: auto; max-width: 100%; min-width: 0; min-height: 114px; padding: 4px 2px 8px; border-radius: 18px; }
 .slayHand.isTurn { box-shadow: inset 0 0 0 4px #ffd43b; }
 .slayCard { flex: 0 0 74px; width: 74px; height: 106px; padding: 0; background: none; box-shadow: none; border-radius: 14px; }
 .slayCard.dim { opacity: .42; filter: saturate(.65) brightness(1.05); }
@@ -727,8 +733,14 @@ body.view-street .stage { visibility: hidden; }
 .fourCol { display: flex; flex-direction: column; gap: 4px; padding: 4px; border-radius: 16px; background: transparent; border: 3px solid transparent; min-width: 70px; }
 .fourCol:not(:disabled) { border-color: #ffd43b; background: rgba(255, 243, 191, .18); }
 .fourCol:disabled { opacity: 1; }
-.fourCell { width: 62px; height: 52px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff, #f3e8ff 42%, #d7c4ff); border: 3px solid #3b2764; display: grid; place-items: center; box-shadow: inset 0 3px 0 rgba(90,61,92,.12); }
-.fourCell svg { width: 42px; height: 42px; }
+.fourCell { width: 62px; height: min(52px, 5.2vh); border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff, #f3e8ff 42%, #d7c4ff); border: 3px solid #3b2764; display: grid; place-items: center; box-shadow: inset 0 3px 0 rgba(90,61,92,.12); }
+.fourCell svg { width: min(42px, 4.4vh); height: min(42px, 4.4vh); }
+@media (max-height: 820px) {
+  .tblCard.game-four { gap: 4px; padding-top: 6px; padding-bottom: 8px; }
+  .tblCard.game-four .winBanner { font-size: 40px; padding: 8px 12px; }
+  .tblCard.game-four .tblTop h2 { font-size: 22px; }
+  .fourBoard { padding: 8px 8px 4px; }
+}
 .fourCell.hot { box-shadow: 0 0 0 3px #ffd43b, 0 0 12px #ffd43b; }
 .fourCell.just { animation: pieceDrop .38s cubic-bezier(.2,1.4,.4,1); }
 @keyframes pieceDrop { from { transform: translateY(-36px) scale(.7); opacity: .15; } to { transform: none; opacity: 1; } }

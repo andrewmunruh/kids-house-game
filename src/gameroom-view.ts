@@ -88,10 +88,10 @@ export function renderGamePeople() {
       el = document.createElement('div'); el.className = 'savatar ' + (w.mine ? 'mine' : 'other'); el.dataset.pid = w.key;
       box.appendChild(el); if (w.mine) attachDrag(el);
     }
-    const lk = JSON.stringify(w.look) + w.name;
+    const lk = JSON.stringify(w.look) + w.name + (w.away ? ':away' : '');
     if (el.dataset.look !== lk) {
       const b = el.querySelector('.bubble');
-      el.innerHTML = `<div class="inner">${characterSVG(w.look)}</div>${w.name ? `<div class="nametag">${esc(w.name)}</div>` : ''}`;
+      el.innerHTML = `<div class="inner">${characterSVG(w.look)}</div>${w.name ? `<div class="nametag">${esc(w.name)}${w.away ? '<i class="awayBadge">away</i>' : ''}</div>` : ''}`;
       if (b) el.appendChild(b); el.dataset.look = lk;
     }
     const k = (SIZE_SCALE[w.look.size] ?? 1) * sc * 0.95, wd = CHAR_W * k, h = CHAR_H * k;

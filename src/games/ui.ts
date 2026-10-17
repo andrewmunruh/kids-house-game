@@ -14,6 +14,8 @@ export interface PlayCtx {
   /** Cropped face for a player chip. Empty if we don't know her look. */
   face: (pid: string) => string;
   move: (m: unknown) => void;
+  /** She closed her iPad or left the clubhouse. */
+  away: (pid: string) => boolean;
   toast: (s: string) => void;
   sfx: { click(): void; sparkle(): void; pop(): void; swish(): void };
 }
@@ -61,6 +63,15 @@ export function createTableUI(deps: TableDeps): TableApi {
   const root = document.getElementById('tableOverlay')!;
   let openTb: number | null = null;
   let celebrated = '';
+  let clock = 0;
+  const awayMs = (table: TablePub & { receivedAt?: number }) => table.away == null ? 0 : table.away + Math.max(0, Date.now() - (table.receivedAt ?? Date.now()));
+  const stopClock = () => { if (clock) { clearInterval(clock); clock = 0; } };
+  /** Redraw once a second while someone is away, so Play for her does not wait for another table message. */
+  const syncClock = (table: TablePub | null) => {
+    const on = !!table && table.phase === 'play' && table.away != null && openTb !== null;
+    if (on && !clock) clock = window.setInterval(() => render(), 1000);
+    if (!on) stopClock();
+  };
 
   const hood = () => deps.hood();
   const current = (): TablePub | null => {
@@ -75,6 +86,13 @@ export function createTableUI(deps: TableDeps): TableApi {
       name: pid => h.players.get(pid)?.nickname ?? 'friend',
       face: pid => { const look = h.players.get(pid)?.look; return look ? faceSVG(characterSVG(look)) : ''; },
       move: m => h.tbl({ op: 'move', tb: table.tb, m }),
+      away: pid => {
+        if (pid === h.pid) return false;
+        const pl = h.players.get(pid);
+        if (pl && !pl.online) return true;
+        const p = h.presence.get(pid);
+        return !p || p.where !== 'gameroom';
+      },
       toast: deps.toast, sfx: deps.sfx,
     };
   };
@@ -93,7 +111,7 @@ export function createTableUI(deps: TableDeps): TableApi {
   function render() {
     const h = hood();
     const table = current();
-    if (!h || !table) { root.classList.add('hidden'); root.innerHTML = ''; return; }
+    if (!h || !table) { root.classList.add('hidden'); root.innerHTML = ''; stopClock(); return; }
     const game = GAMES[table.game];
     const me = h.pid;
     const seated = table.seats.includes(me);
@@ -108,7 +126,7 @@ export function createTableUI(deps: TableDeps): TableApi {
       const key = table.tb + ':' + table.seq;
       if (winPid === me && celebrated !== key) { celebrated = key; deps.confetti(); deps.sfx.sparkle(); }
     }
-    const away = table.away ?? 0;
+    const away = awayMs(table);
     const showNudge = table.phase === 'play' && seated && away >= NUDGE_MS && table.you !== null && !!table.view && table.view.turn !== table.you && table.view.turn >= 0;
     const canStart = table.phase !== 'play' && table.host === me && count >= game.minPlayers && count <= game.maxPlayers;
     const waitingHost = seated && table.phase === 'lobby' && table.host !== me && count >= game.minPlayers;
@@ -134,6 +152,7 @@ export function createTableUI(deps: TableDeps): TableApi {
     const stage = root.querySelector<HTMLElement>('#tblStage')!;
     if (table.phase === 'lobby' || !table.view) stage.innerHTML = lobbyHTML(table, h, me);
     else plugins[table.game]?.render(stage, playCtx(table));
+    syncClock(table);
   }
 
   function lobbyHTML(table: TablePub, h: HoodClient, me: string) {
@@ -143,7 +162,7 @@ export function createTableUI(deps: TableDeps): TableApi {
     </div>`).join('')}</div>`;
   }
 
-  function close() { openTb = null; root.classList.add('hidden'); root.innerHTML = ''; }
+  function close() { openTb = null; stopClock(); root.classList.add('hidden'); root.innerHTML = ''; }
   function leave() {
     const h = hood(); const table = current();
     if (h && table && table.seats.includes(h.pid)) h.tbl({ op: 'leave', tb: table.tb });

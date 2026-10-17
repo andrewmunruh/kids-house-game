@@ -285,10 +285,10 @@ export function cleanHouseName(raw: unknown): string | null {
   const f = filterChat(raw); if (!f.ok || f.text.length > 24) return null; return f.text;
 }
 
-/** A first name for the roster: letters (any alphabet), spaces, hyphens, apostrophes; max 20 chars; filtered. */
+/** A single first name: letters, hyphens, apostrophes. No spaces, so a last name cannot be stored. Already-saved names are left as they are. */
 export function cleanFirstName(raw: unknown): string | null {
   const t = String(raw ?? '').normalize('NFC').replace(/\s+/g, ' ').trim();
-  if (!/^\p{L}[\p{L}' -]{0,19}$/u.test(t)) return null;
+  if (!/^\p{L}[\p{L}'-]{0,19}$/u.test(t)) return null;
   const f = filterChat(t); if (!f.ok) return null;
   return t.charAt(0).toUpperCase() + t.slice(1);
 }

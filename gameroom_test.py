@@ -283,6 +283,8 @@ async def main():
             await P.evaluate("""() => { const sc = document.getElementById('gameroom').clientHeight / 600; document.getElementById('grScroll').scrollLeft = Math.max(0, 650 * sc - innerWidth / 2); }""")
             await P.wait_for_timeout(250)
             await P.screenshot(path=SHOT + '02d-seated-at-slay.png')
+            pe = await P.evaluate("""() => { const el = document.querySelector('#gavatars .savatar.seated'); return el ? getComputedStyle(el).pointerEvents : 'missing'; }""")
+            check('seated avatar does not eat table taps', pe == 'none', pe)
             await P.locator('.grTable[data-tb="0"]').click()
             await P.click('#tblStart')
             for pg in pages:
@@ -341,6 +343,49 @@ async def main():
             check('reconnected iPad shows her own hand again', dom_ids == before, str(dom_ids))
             await hidden_hands(pages, 'after reconnect, other hands stay off the screen')
 
+            # ---------- she closes her tab on her turn; nobody else taps ----------
+            infos = [await snap(pg, 0) for pg in pages]
+            turn = infos[0]['view']['turn']
+            away_i = next(i for i, info in enumerate(infos) if info and info['you'] == turn)
+            watcher = pages[(away_i + 1) % 3]
+            if not await watcher.locator('#tableOverlay:not(.hidden)').count():
+                await watcher.locator('.grTable[data-tb="0"]').click()
+                await watcher.wait_for_selector('#slayHand')
+            away_state = await ctxs[away_i].storage_state()
+            await ctxs[away_i].close()
+            saw_badge = False
+            found = False
+            for _ in range(26):
+                if await watcher.locator('.awayBadge').count():
+                    saw_badge = True
+                if await watcher.locator('#tblNudge').count():
+                    found = True
+                    break
+                await watcher.wait_for_timeout(1000)
+            check('away badge shows on her seat after she leaves', saw_badge)
+            check('Play for her appears within 25s with no other taps', found)
+            ctxs[away_i] = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=2, has_touch=True, storage_state=away_state)
+            await ctxs[away_i].add_init_script(SKIP_WN)
+            back = await ctxs[away_i].new_page()
+            pages[away_i] = back
+            P, K2, K3 = pages
+            errs['awayBack'] = []
+            back.set_default_timeout(8000)
+            back.on('pageerror', lambda e: errs['awayBack'].append(str(e)))
+            back.on('console', lambda m: m.type == 'error' and 'favicon' not in m.text and errs['awayBack'].append(m.text))
+            back.on('request', lambda r: prod.append(r.url) if hits_prod(r.url) else None)
+            await back.goto(URL)
+            for _ in range(80):
+                online = await back.evaluate("""() => { try { const h = __hood(); const t = h && h.tables && h.tables.get(0); return !!(h && h.status === 'online' && t && t.phase === 'play'); } catch (e) { return false; } }""")
+                if online:
+                    break
+                await back.wait_for_timeout(100)
+            else:
+                raise TimeoutError('away player did not reconnect')
+            await go(back, 'gameroom')
+            await back.locator('.grTable[data-tb="0"]').click()
+            await back.wait_for_selector('#slayHand .slayCard')
+
             # ---------- play Slay to the end ----------
             shots = {'crown': False}
             moves = 0
@@ -373,6 +418,7 @@ async def main():
                 if await pg.locator('#winBanner').count():
                     banners.append((await pg.inner_text('#winBanner')).strip())
             check('winner celebration says You slayed!', any(t == 'You slayed!' for t in banners), str(banners))
+            check('finished Slay hides the turn bar and the SLAY! button', await pages[0].locator('#slayCall').count() == 0 and await pages[0].locator('#whoseTurn').count() == 0)
             winner_pg = None
             for pg in pages:
                 if await pg.locator('#winBanner').count() and (await pg.inner_text('#winBanner')).strip() == 'You slayed!':
@@ -438,6 +484,14 @@ async def main():
                 if await pg.locator('#winBanner').count() and 'you' in (await pg.inner_text('#winBanner')).lower():
                     endp = pg
                     break
+            chips = ' | '.join(await endp.locator('.playerChip b').all_inner_texts())
+            check('Four chips show a first name and a heart or star', '♥' in chips and '★' in chips and 'Hearts' not in chips and 'Stars' not in chips, chips)
+            check('finished Four hides the empty turn bar', await endp.locator('#whoseTurn').count() == 0)
+            backb = await endp.locator('#tblBack').bounding_box()
+            leaveb = await endp.locator('#tblLeave').bounding_box()
+            vp_h = (endp.viewport_size or {'height': 768})['height']
+            on_screen = bool(backb and leaveb and backb['y'] >= 0 and leaveb['y'] >= 0 and backb['y'] + backb['height'] <= vp_h + 1 and leaveb['y'] + leaveb['height'] <= vp_h + 1)
+            check('Four in a Row Back and Leave stay on screen in landscape', on_screen, f'back={backb} leave={leaveb} h={vp_h}')
             await endp.screenshot(path=SHOT + '09-four-done.png')
             await also_portrait(endp, '09b-four-done-portrait.png')
 
