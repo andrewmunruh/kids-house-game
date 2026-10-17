@@ -1518,7 +1518,14 @@ function tickCat() {
   const b = catAt(cat, Date.now());
   const pose = b.mood === 'walk' ? 'stand' : b.mood === 'nap' ? 'nap' : 'sit';
   const key = pose + cat.coat;
-  if (key !== catKey) { const keepB = catEl.querySelector('.bubble'); catEl.innerHTML = `<div class="inner">${catSVG(cat.coat, pose)}</div>${pose === 'nap' ? '<div class="zzz"><i>z</i><i>z</i><i>z</i></div>' : ''}`; if (keepB) catEl.appendChild(keepB); catKey = key; }
+  if (key !== catKey) {
+    // Pose changes every few seconds. Keep the purr (bubble + hearts); replacing the
+    // whole node used to throw the hearts away mid-animation.
+    const keep = [...catEl.querySelectorAll('.bubble, .heart')];
+    catEl.innerHTML = `<div class="inner">${catSVG(cat.coat, pose)}</div>${pose === 'nap' ? '<div class="zzz"><i>z</i><i>z</i><i>z</i></div>' : ''}`;
+    for (const node of keep) catEl.appendChild(node);
+    catKey = key;
+  }
   catEl.dataset.name = cat.name; catEl.dataset.mood = b.mood;
   catEl.classList.toggle('walking', b.mood === 'walk'); catEl.classList.toggle('groom', b.mood === 'groom'); catEl.classList.toggle('flipped', b.flip);
   placeEl(catEl, b.x, CAT_Y, 100, 83); catEl.style.zIndex = String(5000 + CAT_Y);

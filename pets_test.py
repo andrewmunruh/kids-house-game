@@ -21,6 +21,12 @@ async def drag(pg, a, b, steps=14):
     await pg.mouse.move(*a); await pg.mouse.down(); await pg.mouse.move(*b, steps=steps); await pg.mouse.up(); await pg.wait_for_timeout(300)
 async def center(loc):
     b = await loc.bounding_box(); return (b['x'] + b['width'] / 2, b['y'] + b['height'] / 2)
+async def see_hearts(pg, timeout_ms=2500):
+    # Hearts last ~1.8s. Poll instead of one fixed sleep, so a slow purr relay still counts.
+    for _ in range(timeout_ms // 100):
+        if await pg.locator('.pet.pet-cat .heart').count() > 0: return True
+        await pg.wait_for_timeout(100)
+    return False
 async def adopt(pg, tab, swatch, name=None, typed=None):
     await pg.click('#btnPets'); await pg.wait_for_selector('.pets .petTabs')
     await pg.click(f'.petTabs [data-pt="{tab}"]')
@@ -59,8 +65,8 @@ async def main():
         after = (await pets(P))['dogPos']['solo']; check('solo: dog heels after her character', after['x'] - before['x'] > 150, f'{before} -> {after}')
         await P.click('.pet.pet-dog'); await P.wait_for_timeout(300)
         check('dog trick on tap (sit bubble)', 'sits' in (await P.inner_text('.pet.pet-dog .bubble')))
-        await P.evaluate("document.querySelector('.pet.pet-cat').click()"); await P.wait_for_timeout(300)
-        check('cat purrs with hearts on tap', await P.locator('.pet.pet-cat .heart').count() > 0)
+        await P.evaluate("document.querySelector('.pet.pet-cat').click()")
+        check('cat purrs with hearts on tap', await see_hearts(P))
         await P.screenshot(path=SHOT + '02-solo-purr-and-trick.png')
         # ---------- solo park ----------
         await go(P, 'park'); await P.wait_for_timeout(400)
@@ -93,8 +99,8 @@ async def main():
         check('visitor sees her cat', (await pets(K2))['cat'] is not None and (await pets(K2))['cat']['name'] == 'Mochi')
         mood_p, mood_k = (await pets(P))['cat']['mood'], (await pets(K2))['cat']['mood']
         check('cat behaves the same on both iPads', mood_p == mood_k, f'{mood_p}/{mood_k}')
-        await K2.evaluate("document.querySelector('.pet.pet-cat').click()"); await P.wait_for_timeout(500)
-        check('visitor pets the cat -> owner sees hearts', await P.locator('.pet.pet-cat .heart').count() > 0)
+        await K2.evaluate("document.querySelector('.pet.pet-cat').click()")
+        check('visitor pets the cat -> owner sees hearts', await see_hearts(P))
         await K2.screenshot(path=SHOT + '06-visitor-sees-cat.png')
         # owner calls the cat
         await P.click('#btnPets'); await P.click('#callCat'); await P.wait_for_timeout(500)
