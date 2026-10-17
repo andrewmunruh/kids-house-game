@@ -7,6 +7,8 @@ const RAINBOW = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#4dabf7', '#b197fc
 export const MAP_W = 1000, MAP_H = 700;
 export const ROAD_D = 'M 30 660 C 150 640, 200 540, 330 545 S 540 650, 690 600 S 925 470, 850 375 S 640 330, 520 355 S 270 385, 250 285 S 330 145, 480 150 S 700 200, 790 150';
 export const PARK = { x: 115, y: 170 }, RANCH = { x: 880, y: 120 }, SQUARE = { x: 600, y: 480 };
+/** Glam clubhouse, in the open grass inside the S-curve. */
+export const CLUB = { x: 430, y: 262 };
 export const BARN_PIN = { x: 905, y: 92 };
 
 const tree = (x: number, y: number, s = 1, c = '#5cc985') => `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cx="0" cy="22" rx="20" ry="6" fill="#000" opacity=".1"/><rect x="-5" y="2" width="10" height="20" rx="4" fill="#c99366" ${st(3)}/><circle cx="0" cy="-10" r="20" fill="${c}" ${st(3)}/><circle cx="-12" cy="-2" r="12" fill="${c}" ${st(3)}/><circle cx="12" cy="-3" r="13" fill="${c}" ${st(3)}/><circle cx="-5" cy="-16" r="5" fill="#fff" opacity=".35"/></g>`;
@@ -66,6 +68,19 @@ export const ranchMiniSVG = `<svg viewBox="0 0 220 180"><ellipse cx="110" cy="13
   <rect x="94" y="70" width="32" height="18" rx="4" fill="#fff6e6" ${st(3)}/>
   <path d="M10 150 H52 M168 150 H212 M14 140 V158 M30 140 V158 M46 140 V158 M174 140 V158 M190 140 V158 M206 140 V158" stroke="#fff6e6" stroke-width="5" stroke-linecap="round"/><path d="M10 150 H52 M168 150 H212" ${st(1.5)}/>
   <g transform="translate(178 122) scale(.42)"><ellipse cx="0" cy="0" rx="34" ry="18" fill="#fff" ${st(5)}/><path d="M24 -8 L40 -34 L54 -26 L36 2 Z" fill="#fff" ${st(5)}/>${RAINBOW.slice(0, 4).map((c, i) => `<path d="M38 ${-34 + i * 5} q-14 4 -20 14" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round"/>`).join('')}<path d="M-20 14 V34 M20 14 V34" ${st(6)}/></g>
+</svg>`;
+
+/** The clubhouse from above: a pink cottage, neon heart, fairy lights and two little tables. */
+export const clubhouseMiniSVG = `<svg viewBox="0 0 190 156">
+  <ellipse cx="95" cy="118" rx="88" ry="32" fill="#ffd0e6" ${st()}/>
+  <path d="M28 108 V62 L95 28 L162 62 V108 Z" fill="#fff0f6" ${st(4)}/>
+  <path d="M22 66 L95 22 L168 66" fill="#ff6b9a" ${st(4)}/>
+  <path d="M22 66 L95 22 L168 66" fill="none" stroke="#ffd43b" stroke-width="3" stroke-dasharray="6 5"/>
+  <rect x="78" y="78" width="34" height="30" rx="4" fill="#ff8ec8" ${st(3)}/>
+  <path d="M95 86 C90 80 82 82 86 90 C90 96 95 100 95 100 C95 100 100 96 104 90 C108 82 100 80 95 86 Z" fill="#ff4d94" stroke="#fff" stroke-width="1.5"/>
+  <rect x="42" y="74" width="22" height="16" rx="3" fill="#66d9e8" ${st(2)}/><rect x="126" y="74" width="22" height="16" rx="3" fill="#d0bfff" ${st(2)}/>
+  ${[36, 52, 68, 84, 100, 116, 132, 148].map((x, i) => `<circle cx="${x}" cy="58" r="3.2" fill="${['#ff7eb3', '#ffd43b', '#66d9e8', '#d0bfff'][i % 4]}" ${st(1.4)}/>`).join('')}
+  <circle cx="154" cy="48" r="3" fill="#fff" opacity=".9"/><circle cx="40" cy="44" r="2.4" fill="#fff" opacity=".85"/>
 </svg>`;
 
 export const mapIcon = `<svg viewBox="0 0 48 48"><path d="M6 12 L17 8 L31 13 L42 9 V36 L31 40 L17 35 L6 39 Z" fill="#fff3b0" ${st(3)}/><path d="M17 8 V35 M31 13 V40" ${st(2.5)}/><path d="M9 30 Q16 22 22 27 T38 18" fill="none" stroke="#ff8fab" stroke-width="3" stroke-linecap="round" stroke-dasharray="4 4"/><circle cx="36" cy="18" r="4" fill="#ff6b6b" ${st(2)}/></svg>`;

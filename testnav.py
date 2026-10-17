@@ -13,5 +13,5 @@ async def go(pg, place):
     if place == 'barn':
         await go(pg, 'ranch'); await pg.click('.barnDoor'); await pg.wait_for_selector('body.in-barn #ranchWorld .barnScene'); await pg.wait_for_timeout(500); return
     await to_map(pg); await pg.click(f'[data-go="{place}"]')
-    sel = {'park': 'body.view-park #parkWorld .parkScene', 'ranch': 'body.view-ranch #ranchWorld .ranchScene'}.get(place, 'body:not(.view-street) #stage')
+    sel = {'park': 'body.view-park #parkWorld .parkScene', 'ranch': 'body.view-ranch #ranchWorld .ranchScene', 'gameroom': 'body.view-gameroom #grWorld .grScene'}.get(place, 'body:not(.view-street) #stage')
     await pg.wait_for_selector(sel, timeout=8000); await pg.wait_for_timeout(500)

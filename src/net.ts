@@ -5,6 +5,7 @@ import type { Plot, RanchOp } from './shared/ranch';
 import { reduce, type Action, type GameState, type RoomId } from './shared/state';
 import { PROTOCOL, type ClientMsg, type ServerMsg, type PlayerPub, type HouseMeta, type Presence, type Bubble, type Look, type RosterEntry, type Fx } from './shared/hood';
 import type { Dog } from './shared/state';
+import type { TableOp, TablePub } from './shared/games/index';
 
 /** `id` is the street's permanent id (sockets use it); `code` is the current invite code, shown to grown-ups. */
 export interface HoodConfig { url: string; code: string; id?: string; token?: string; pid?: string; parentKey?: string }
@@ -47,6 +48,8 @@ export class HoodClient {
   status: 'connecting' | 'online' | 'offline' = 'offline';
   /** Rainbow Ranch garden (shared per street) + server clock offset so growth looks the same on every iPad. */
   ranch: { plots: (Plot | null)[]; skew: number } = { plots: [], skew: 0 };
+  /** Game Room tables. Each `view` is already personalized (your hand only). */
+  tables = new Map<number, TablePub>();
   private handlers = new Map<string, Handler[]>();
   private cid = 1; private flushT = 0; private presT = 0; private lastPres: Presence | null = null; private presDirty = false;
   private closedByUs = false; private retry = 0;
@@ -91,6 +94,7 @@ export class HoodClient {
             this.houses.set(h.id, { meta, confirmed: state, pending: prev ? prev.pending.filter(p => !p.sent) : [], view: null }); } }
         this.presence = new Map(Object.entries(m.presence)); this.presence.delete(this.pid);
         if (m.ranch) this.ranch = { plots: m.ranch.plots, skew: m.ranch.now - Date.now() };
+        this.tables = new Map((m.tables ?? []).map(t => [t.tb, t]));
         clearInterval(this.flushT); this.flushT = window.setInterval(() => this.flush(), 60);
         this.emit('welcome'); this.emit('status', this.status);
         if (this.lastPres) { this.presDirty = true; this.flushPres(); }
@@ -120,6 +124,8 @@ export class HoodClient {
       case 'ranch': this.ranch = { plots: m.plots, skew: m.now - Date.now() }; this.emit('ranch'); break;
       case 'ranchFail': this.ranch = { plots: m.plots, skew: m.now - Date.now() }; this.emit('ranch'); this.emit('ranchFail', m.reason); break;
       case 'noride': this.emit('noride', m.ride); break;
+      case 'table': this.tables.set(m.table.tb, m.table); this.emit('table', m.table); break;
+      case 'tblFail': this.emit('tblFail', m.tb, m.reason); break;
       case 'sayFail': this.emit('sayFail', m.reason); break;
       case 'parentInfo': this.emit('parentInfo', m); break;
       case 'error': this.emit('error', m.code); if (m.code === 'badtoken') { this.cfg.token = undefined; this.cfg.pid = undefined; saveHoodConfig(this.cfg); } break;
@@ -159,6 +165,7 @@ export class HoodClient {
   setDog(dog: Dog | null) { this.send({ t: 'dog', dog }); const me = this.players.get(this.pid); if (me) me.dog = dog; }
   fx(fx: Fx) { this.send({ t: 'fx', fx }); }
   ranchOp(o: RanchOp) { this.send({ t: 'ranch', o }); }
+  tbl(op: TableOp) { this.send({ t: 'tbl', ...op }); }
   now() { return Date.now() + this.ranch.skew; }
   parent(op: any) { if (this.cfg.parentKey) this.send({ t: 'parent', key: this.cfg.parentKey, ...op }); }
 }

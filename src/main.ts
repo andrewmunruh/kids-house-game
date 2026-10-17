@@ -1,5 +1,5 @@
 import './style.css';
-import { MAP_W, MAP_H, PARK, RANCH, SQUARE, mapBgSVG, mapTreesSVG, parkMiniSVG, ranchMiniSVG, mapIcon, faceSVG } from './map';
+import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapTreesSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
 import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
 import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, cleanPetName, CAT_NAMES, DOG_NAMES, PARK_W, PARK_SPOTS, SLIDE, DOG_AREA, type Presence, type Bubble, type Look, type Fx } from './shared/hood';
@@ -14,6 +14,7 @@ import { sfx, setSound } from './sound';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H } from './ranch';
+import { bindGameRoom, renderGameRoom, renderGamePeople, tickGameRoom, mySeat, grScale, tableApi } from './gameroom-view';
 
 // The renderer talks to `store`, which forwards to either the offline localStorage house
 // or a neighborhood house (server-authoritative) — same actions, same reducer.
@@ -115,6 +116,8 @@ app.innerHTML = `
 <div class="street park ranch hidden" id="ranch"><div class="streetScroll" id="ranchScroll"><div class="parkWorld ranchWorld" id="ranchWorld"></div></div></div>
 <button class="basketChip hidden" id="basketChip" aria-label="My basket"></button>
 <div class="street park hidden" id="park"><div class="streetScroll" id="parkScroll"><div class="parkWorld" id="parkWorld"></div></div></div>
+<div class="street grRoom hidden" id="gameroom"><div class="streetScroll" id="grScroll"><div class="parkWorld grWorld" id="grWorld"></div></div><div id="grSolo" class="grSolo hidden">Play with friends on your street</div></div>
+<div id="tableOverlay" class="tableOverlay hidden"></div>
 <div class="street mapView hidden" id="street"><div class="mapWorld" id="mapWorld"></div></div>
 <div class="chatTray hidden" id="chatTray"></div>
 <div class="sheet hidden" id="sheet"><div class="card" id="card"></div></div>
@@ -133,7 +136,7 @@ const newId = (p: string) => `${p}-${Date.now().toString(36)}${(++uid).toString(
 const ME = '__me';
 // ---------- neighborhood state (declared early: render functions consult it) ----------
 let hood: HoodClient | null = null;
-let view: 'house' | 'street' | 'park' | 'ranch' = 'house'; // 'street' is the neighborhood map
+let view: 'house' | 'street' | 'park' | 'ranch' | 'gameroom' = 'house'; // 'street' is the neighborhood map
 let inBarn = false; // inside Rainbow Ranch: the yard, or the barn (petting zoo)
 let currentHouseId = '';
 let houseStores = new Map<string, ReturnType<typeof houseStore>>();
@@ -862,7 +865,7 @@ function renderHoodChrome() {
   const inHouse = !!hood && inner !== local && view === 'house';
   const h = inHouse ? hood!.houses.get(currentHouseId) : undefined;
   const own = !!h && h.meta.ownerId === hood!.pid;
-  b.toggle('mode-hood', !!hood); b.toggle('view-street', view !== 'house'); b.toggle('view-park', view === 'park'); b.toggle('view-ranch', view === 'ranch'); b.toggle('view-map', view === 'street'); b.toggle('in-barn', view === 'ranch' && inBarn); renderBasketChip();
+  b.toggle('mode-hood', !!hood); b.toggle('view-street', view !== 'house'); b.toggle('view-park', view === 'park'); b.toggle('view-ranch', view === 'ranch'); b.toggle('view-map', view === 'street'); b.toggle('view-gameroom', view === 'gameroom'); b.toggle('in-barn', view === 'ranch' && inBarn); renderBasketChip();
   b.toggle('own-house', own); b.toggle('locked', !!h && !canEdit()); b.toggle('has-hood', !!hoodServerUrl());
   if (h) {
     const owner = hood!.players.get(h.meta.ownerId)?.nickname ?? '';
@@ -878,7 +881,7 @@ $('btnLock').addEventListener('click', () => {
 });
 
 // ---------- the neighborhood map (one tap takes you anywhere; side-scrolling only inside a scene) ----------
-type Place = { kind: 'house'; houseId: string; room?: RoomId } | { kind: 'home' } | { kind: 'park' } | { kind: 'ranch' } | { kind: 'barn' } | { kind: 'square' };
+type Place = { kind: 'house'; houseId: string; room?: RoomId } | { kind: 'home' } | { kind: 'park' } | { kind: 'ranch' } | { kind: 'barn' } | { kind: 'square' } | { kind: 'gameroom' };
 const mapAnchors = new Map<string, { x: number; y: number }>(); // where face markers stand for each place (map units)
 let mapKey = '';
 let fakeHouses = 0; // test hook only: draw a pretend street with this many houses
@@ -915,11 +918,13 @@ function renderMap(force = false) {
   });
   html += `<button class="mapSpot mapPark" data-go="park" aria-label="The park" style="left:${px(PARK.x - 100)};top:${px(PARK.y - 85)};width:${px(200)};height:${px(170)}">${parkMiniSVG}</button><div class="mapSign place" style="left:${px(PARK.x)};top:${px(PARK.y + 70)}">Park</div>`;
   html += `<button class="mapSpot mapRanch" data-go="ranch" aria-label="Rainbow Ranch" style="left:${px(RANCH.x - 110)};top:${px(RANCH.y - 90)};width:${px(220)};height:${px(180)}">${ranchMiniSVG}</button><div class="mapSign place" style="left:${px(RANCH.x)};top:${px(RANCH.y + 78)}">Rainbow Ranch</div>`;
+  html += `<button class="mapSpot mapClub" data-go="gameroom" aria-label="The clubhouse" style="left:${px(CLUB.x - 95)};top:${px(CLUB.y - 78)};width:${px(190)};height:${px(156)}">${clubhouseMiniSVG}</button><div class="mapSign place" style="left:${px(CLUB.x)};top:${px(CLUB.y + 82)}">Clubhouse</div>`;
   mapAnchors.set('park', { x: PARK.x, y: PARK.y - 60 }); mapAnchors.set('ranch', { x: RANCH.x - 30, y: RANCH.y - 60 }); mapAnchors.set('barn', { x: RANCH.x + 10, y: RANCH.y + 10 });
+  mapAnchors.set('gameroom', { x: CLUB.x, y: CLUB.y - 52 });
   w.insertAdjacentHTML('beforeend', mapTreesSVG(taken, onRoad) + html + '<div class="mapFaces" id="mapFaces"></div>');
   renderMapFaces();
 }
-const baseTaken = () => [{ x: PARK.x, y: PARK.y, r: 115 }, { x: RANCH.x, y: RANCH.y, r: 125 }, { x: SQUARE.x, y: SQUARE.y, r: 100 }];
+const baseTaken = () => [{ x: PARK.x, y: PARK.y, r: 115 }, { x: RANCH.x, y: RANCH.y, r: 125 }, { x: SQUARE.x, y: SQUARE.y, r: 100 }, { x: CLUB.x, y: CLUB.y, r: 100 }];
 /** Where n houses go: evenly along the road, on whichever side has more room (never on the park, ranch or square). */
 function houseSpots(road: SVGPathElement, n: number, taken: { x: number; y: number; r: number }[]) {
   const L = road.getTotalLength(), out: { x: number; y: number }[] = [];
@@ -948,7 +953,7 @@ function houseSpots(road: SVGPathElement, n: number, taken: { x: number; y: numb
 };
 function placeOf(p: Presence): Place {
   if (p.where === 'house' && p.houseId) return { kind: 'house', houseId: p.houseId, room: p.room };
-  if (p.where === 'park' || p.where === 'ranch' || p.where === 'barn') return { kind: p.where };
+  if (p.where === 'park' || p.where === 'ranch' || p.where === 'barn' || p.where === 'gameroom') return { kind: p.where };
   return { kind: 'square' };
 }
 const placeKey = (pl: Place) => (pl.kind === 'house' ? 'house:' + pl.houseId : pl.kind);
@@ -997,6 +1002,7 @@ function goPlace(t: Place) {
   else if (t.kind === 'park') goPark();
   else if (t.kind === 'ranch') goRanch(false);
   else if (t.kind === 'barn') goRanch(true);
+  else if (t.kind === 'gameroom') goGameRoom();
 }
 /** Tap a friend's face: go to where she is and stand next to her. */
 function goToFriend(pid: string) {
@@ -1013,6 +1019,11 @@ function goToFriend(pid: string) {
       setParkPres({ ...me, x, y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, p.y)), flip: x > p.x } as Presence);
       const sc = pl.kind === 'park' ? parkScale() : ranchScale(), scroll = $(pl.kind === 'park' ? 'parkScroll' : 'ranchScroll');
       requestAnimationFrame(() => { scroll.scrollLeft = p.x * sc - scroll.clientWidth / 2; });
+    } else if (pl.kind === 'gameroom' && me.where === 'gameroom') {
+      const seat = mySeat();
+      if (!seat) setParkPres({ where: 'gameroom', x, y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, p.y)), flip: x > p.x });
+      const sc = grScale(), scroll = $('grScroll'), fx = seat?.x ?? p.x;
+      requestAnimationFrame(() => { scroll.scrollLeft = fx * sc - scroll.clientWidth / 2; });
     }
     toast(`You found ${name}! 💕`);
   }, 420);
@@ -1023,9 +1034,9 @@ $('mapWorld').addEventListener('click', e => {
   if (f) { if (f.classList.contains('mine')) { bounce(f); sfx.pop(); toast("That's you! Tap a place to go there"); } else goToFriend(f.dataset.pid!); return; }
   const sp = t.closest<HTMLElement>('[data-go]'); if (!sp) return;
   const g = sp.dataset.go!;
-  mapGo(g.startsWith('house:') ? { kind: 'house', houseId: g.slice(6) } : { kind: g as 'home' | 'park' | 'ranch' }, sp);
+  mapGo(g.startsWith('house:') ? { kind: 'house', houseId: g.slice(6) } : { kind: g as 'home' | 'park' | 'ranch' | 'gameroom' }, sp);
 });
-function hideScenes() { $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('ranch').classList.add('hidden'); $('chatTray').classList.add('hidden'); $('sheet').classList.add('hidden'); }
+function hideScenes() { $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('ranch').classList.add('hidden'); $('gameroom').classList.add('hidden'); tableApi()?.close(); $('chatTray').classList.add('hidden'); $('sheet').classList.add('hidden'); }
 function goMap() {
   fetchSt = null; walkTarget = null; inBarn = false;
   if (hood) setMyPres({ where: 'street', x: 600, y: 540, flip: false }); else soloPark = null;
@@ -1057,19 +1068,19 @@ function goSolo() {
 }
 $('btnMap').addEventListener('click', () => { if (view === 'street') { sfx.pop(); return; } goMap(); });
 $('btnSolo').addEventListener('click', () => { goSolo(); toast('Playing in your own house 🏠'); });
-window.addEventListener('resize', () => { if (view === 'street') renderMap(true); if (view === 'park') renderPark(); if (view === 'ranch') renderRanch(); });
+window.addEventListener('resize', () => { if (view === 'street') renderMap(true); if (view === 'park') renderPark(); if (view === 'ranch') renderRanch(); if (view === 'gameroom') renderGameRoom(); });
 
 // ---------- connecting ----------
 function enterNeighborhood(client: HoodClient) {
   hood = client; houseStores = new Map();
-  client.on('players', () => { if (hood !== client) return; if (view === 'street') renderMap(); else if (view === 'park') renderParkAvatars(); else if (view === 'ranch') { renderRanchAvatars(); renderBasketChip(); } else { renderAvatars(); renderHoodChrome(); } if (sheetMode === 'dress') renderSheet(); });
+  client.on('players', () => { if (hood !== client) return; if (view === 'street') renderMap(); else if (view === 'park') renderParkAvatars(); else if (view === 'ranch') { renderRanchAvatars(); renderBasketChip(); } else if (view === 'gameroom') renderGamePeople(); else { renderAvatars(); renderHoodChrome(); } if (sheetMode === 'dress') renderSheet(); });
   client.on('houses', () => {
     if (hood !== client) return;
     if (view === 'street') renderMap();
     else if (view === 'house' && !client.houses.has(currentHouseId)) { toast('That house is gone now'); goMap(); }
   });
   client.on('houseMeta', (id: string) => { if (hood !== client || id !== currentHouseId || view !== 'house') return; selected = null; renderHoodChrome(); renderItems(store.get()); renderDrawer(); if (!canEdit()) $('sheet').classList.add('hidden'); });
-  client.on('pres', () => { if (hood !== client) return; view === 'street' ? renderMapFaces() : view === 'park' ? renderParkAvatars() : view === 'ranch' ? renderRanchAvatars() : renderAvatars(); });
+  client.on('pres', () => { if (hood !== client) return; view === 'street' ? renderMapFaces() : view === 'park' ? renderParkAvatars() : view === 'ranch' ? renderRanchAvatars() : view === 'gameroom' ? renderGamePeople() : renderAvatars(); });
   client.on('ranch', () => { if (hood === client && view === 'ranch') renderPlots(true); });
   client.on('ranchFail', (r: string) => { if (hood === client) ranchFailToast(r); });
   client.on('noride', () => { if (hood !== client) return; const p = myPres(); if (p?.ride !== undefined) { const { ride: _r, ...q } = p; setMyPres(q); renderRanchAvatars(); } toast('Someone is riding that horse!'); });
@@ -1079,7 +1090,17 @@ function enterNeighborhood(client: HoodClient) {
   client.on('settings', () => { if (!$('chatTray').classList.contains('hidden')) renderChatTray(); });
   client.on('removed', () => { toast('A grown-up took this iPad off the street'); const c = client.cfg; saveHoodConfig({ url: c.url, code: c.code, id: c.id, parentKey: c.parentKey }); goSolo(); });
   client.on('status', (st: string) => document.body.classList.toggle('reconnecting', hood === client && st !== 'online'));
-  client.on('welcome', () => { if (hood !== client) return; if (view === 'street') renderMap(true); else if (view === 'park' || view === 'ranch') { const p = myPres(); if (p) setMyPres(p); view === 'park' ? renderPark() : renderRanch(); } else if (client.houses.has(currentHouseId)) renderAll(); else goMap(); });
+  client.on('table', () => {
+    if (hood !== client) return;
+    if (view === 'gameroom') {
+      const seat = mySeat(), me = myPres();
+      if (seat && me?.where === 'gameroom' && Math.hypot(me.x - seat.x, me.y - seat.y) > 40) setMyPres({ where: 'gameroom', x: seat.x, y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, seat.y)), flip: me.flip });
+      renderGamePeople();
+    }
+    tableApi()?.refresh();
+  });
+  client.on('tblFail', (tb: number, reason: string) => { if (hood === client) tableApi()?.fail(tb, reason); });
+  client.on('welcome', () => { if (hood !== client) return; if (view === 'street') renderMap(true); else if (view === 'park' || view === 'ranch') { const p = myPres(); if (p) setMyPres(p); view === 'park' ? renderPark() : renderRanch(); } else if (view === 'gameroom') { const p = myPres(); if (p) setMyPres(p); renderGameRoom(); tableApi()?.refresh(); } else if (client.houses.has(currentHouseId)) renderAll(); else goMap(); });
   goMap();
 }
 async function initHood() {
@@ -1249,8 +1270,8 @@ type Walker = { key: string; look: Look; name: string; p: Presence; mine: boolea
 function parkScale() { return $('park').clientHeight / PARK_H; }
 const parkWalker = (): Character | undefined => { const s = local.get(); return s.characters.find(c => c.id === s.dog?.owner) ?? s.characters[0]; };
 const myParkPres = (): Presence | null => (hood ? myPres() : soloPark);
-function setParkPres(p: Presence) { if (hood) setMyPres(p); else soloPark = p; view === 'ranch' ? renderRanchAvatars() : renderParkAvatars(); }
-function parkPeople(where: 'park' | 'ranch' | 'barn' = 'park'): Walker[] {
+function setParkPres(p: Presence) { if (hood) setMyPres(p); else soloPark = p; view === 'ranch' ? renderRanchAvatars() : view === 'gameroom' ? renderGamePeople() : renderParkAvatars(); }
+function parkPeople(where: 'park' | 'ranch' | 'barn' | 'gameroom' = 'park'): Walker[] {
   if (hood) {
     const out: Walker[] = []; const entries: [string, Presence][] = [...hood.presence.entries()]; const mine = myPres(); if (mine) entries.push([hood.pid, mine]);
     for (const [pid, p] of entries) { const pl = hood.players.get(pid); if (pl && p.where === where) out.push({ key: pid, look: pl.look, name: pl.nickname, p, mine: pid === hood.pid, dog: pl.dog ?? null }); }
@@ -1357,6 +1378,18 @@ function goPark() {
   sfx.sparkle();
 }
 function leavePark() { goMap(); }
+function goGameRoom() {
+  hideScenes(); walkTarget = null; inBarn = false;
+  view = 'gameroom'; $('gameroom').classList.remove('hidden');
+  const seat = mySeat();
+  const p: Presence = seat
+    ? { where: 'gameroom', x: seat.x, y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, seat.y)), flip: false }
+    : { where: 'gameroom', x: 280, y: 560, flip: false };
+  if (hood) setMyPres(p); else soloPark = p;
+  $('streetTitle').textContent = 'The Clubhouse'; renderHoodChrome(); renderGameRoom();
+  requestAnimationFrame(() => { const sc = grScale(); $('grScroll').scrollLeft = Math.max(0, ((seat?.x ?? 520) * sc) - $('grScroll').clientWidth / 2); });
+  sceneIn($('gameroom')); sfx.sparkle();
+}
 $('btnLeavePark').addEventListener('click', () => { if (view === 'ranch' && inBarn) goRanch(false); else leavePark(); });
 
 // ---------- ball + fetch (each iPad animates the same throw) ----------
@@ -1407,6 +1440,9 @@ function dogOwners(): DogOwner[] {
   } else if (view === 'ranch') {
     const box = document.getElementById('ravatars'); if (!box) return out; const sc = ranchScale();
     for (const w of parkPeople(inBarn ? 'barn' : 'ranch')) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95 });
+  } else if (view === 'gameroom') {
+    const box = document.getElementById('gavatars'); if (!box) return out; const sc = grScale();
+    for (const w of parkPeople('gameroom')) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95 });
   }
   return out;
 }
@@ -1503,7 +1539,7 @@ function onFx(pid: string, fx: Fx) {
 }
 function petTick(now: number) {
   const dt = Math.min(0.05, Math.max(0, (now - lastTick) / 1000)); lastTick = now;
-  try { tickDogs(now, dt); tickCat(); tickRanch(now, dt); } catch { /* never let an animation frame break the game */ }
+  try { tickDogs(now, dt); tickCat(); tickRanch(now, dt); tickGameRoom(dt); } catch { /* never let an animation frame break the game */ }
   requestAnimationFrame(petTick);
 }
 
@@ -1871,6 +1907,10 @@ setTimeout(showWhatsNew, 500);
 (window as any).__hood = () => hood;
 (window as any).__hood_url = () => hoodServerUrl();
 (window as any).__ui = () => ({ view, currentHouseId, mode: hood ? 'hood' : 'solo' });
+bindGameRoom({
+  hood: () => hood, view: () => view, solo: () => soloPark, myPres, setPres: setParkPres, toast, sfx, goMap,
+  soloLook: () => { const s = local.get(); return { look: cleanLook(s.characters[0] ?? {}), dog: s.dog ?? null }; },
+});
 
 // ---------- start ----------
 renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
