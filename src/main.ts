@@ -9,6 +9,8 @@ const store = createStore();
 // World is ROOM_W x ROOM_H; the stage shows a VIEW_W-wide window onto it (fits the iPad).
 const W = ROOM_W, H = ROOM_H, VIEW_W = 1000, FLOOR_Y = 390;
 const MAX_CAM = W - VIEW_W;
+const WALL_BOTTOM = 375; // wall items (manifest `wall: true`) snap so they sit on the wall
+const snapY = (def: ItemDef, y: number) => def.wall ? Math.min(y, WALL_BOTTOM) : y;
 const CHAR_W = 120, CHAR_H = 192;
 const ROOMS: { id: RoomId; name: string; color: string }[] = [
   { id: 'living', name: 'Living Room', color: '#ff8fab' },
@@ -357,7 +359,7 @@ function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
       if (moved) { toolbar.classList.add('hidden'); bin.classList.add('show'); }
       bin.classList.toggle('hot', overBin(ev.clientX, ev.clientY));
       const half = def.w * it.scale / 2;
-      store.dispatch({ type: 'item/move', room, id, x: Math.max(half * .6, Math.min(W - half * .6, p.x + off.x)), y: p.y + off.y });
+      store.dispatch({ type: 'item/move', room, id, x: Math.max(half * .6, Math.min(W - half * .6, p.x + off.x)), y: snapY(def, p.y + off.y) });
       if (moved) toolbar.classList.add('hidden');
       target = moved && def.holdable ? holdTarget(p) : null; showHoldTarget(target);
     },
@@ -444,8 +446,8 @@ function attachShelfDrag(btn: HTMLElement, def: ItemDef) {
         const room = store.get().currentRoom;
         const tapped = Math.hypot(ev.clientX - sx, ev.clientY - sy) < 8;
         let x: number, y: number;
-        if (tapped) { x = camX + 380 + Math.random() * 240; y = def.wall ? 260 : 500 + Math.random() * 40; }
-        else if (inStage(ev.clientX, ev.clientY)) { const p = toRoom(ev.clientX, ev.clientY); x = p.x; y = p.y + hOf(def) * .2; }
+        if (tapped) { x = camX + 380 + Math.random() * 240; y = def.wall ? Math.min(WALL_BOTTOM, 200 + hOf(def) / 2) : 500 + Math.random() * 40; }
+        else if (inStage(ev.clientX, ev.clientY)) { const p = toRoom(ev.clientX, ev.clientY); x = p.x; y = snapY(def, p.y + hOf(def) * .2); }
         else return;
         const item: PlacedItem = { id: newId(def.kind.replace(/[^a-z0-9-]/gi, '')), kind: def.kind, x, y, flip: false, z: 0, scale: 1 };
         store.dispatch({ type: 'item/add', room, item });
@@ -497,7 +499,7 @@ function renderDrawer() {
   $('roomFilter').innerHTML = ROOM_FILTERS.map(f => `<button class="rf ${f.id === roomFilter ? 'on' : ''}" data-rf="${f.id}">${f.name}</button>`).join('');
   const visible = TABS.filter(t => t.kind === 'people' || tabItems(t.id, roomFilter).length);
   if (!visible.some(t => t.id === currentTab)) currentTab = visible[1]?.id ?? '__people';
-  $('cats').innerHTML = visible.map(t => `<button class="cat ${t.kind} ${t.id === currentTab ? 'on' : ''}" data-cat="${t.id}" aria-label="${t.name}" title="${t.name}">${t.kind === 'people' ? PEOPLE_ICON : svgOf(ITEM_MAP[t.icon])}${t.kind === 'pack' ? `<span class="packname">${t.name}</span>` : ''}</button>`).join('');
+  $('cats').innerHTML = visible.map(t => `<button class="cat ${t.kind} ${t.id === currentTab ? 'on' : ''}" data-cat="${t.id}" aria-label="${t.name}" title="${t.name}">${t.kind === 'people' ? PEOPLE_ICON : t.kind === 'pack' ? `<span class="packicon">${svgOf(ITEM_MAP[t.icon])}</span><span class="packname">${t.name}</span>` : svgOf(ITEM_MAP[t.icon])}</button>`).join('');
   const shelf = $('shelf'); shelf.innerHTML = '';
   if (currentTab === '__people') {
     const s = store.get();

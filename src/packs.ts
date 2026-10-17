@@ -13,7 +13,7 @@ export const packLabel = (p: string) => PACK_NAMES[p] ?? p.replace(/[-_]+/g, ' '
 
 export interface PackEntry { slug: string; name?: string; room?: string; category?: string; size?: string; pack?: string; type?: string; holdable?: boolean;
   // optional extras some deliveries include:
-  gameCategory?: string; tag?: string; gameW?: number; widthUnits?: number; heightUnits?: number; png?: string; svg?: string }
+  gameCategory?: string; tag?: string; gameW?: number; widthUnits?: number; heightUnits?: number; png?: string; svg?: string; wall?: boolean; designW?: number }
 export interface PatternDef { id: string; name: string; pack: string; kind: 'wallpaper' | 'floor'; url: string }
 
 // import.meta.glob returns {} when nothing matches, so missing files are fine.
@@ -64,12 +64,13 @@ export const PACK_ITEMS: ItemDef[] = entries.filter(e => !isPattern(e)).flatMap(
   const h = Math.round(w * Math.min(4, Math.max(0.2, ratio)));
   // optional manifest `holdable`; default: small/medium non-furniture items can be held
   const holdable = typeof e.holdable === 'boolean' ? e.holdable : size !== 'large' && cat !== 'furniture';
-  return [{ kind: `pack:${slug}`, name: e.name || slug, cat, rooms: [room], w, h, svg: '', img, pack: pack || undefined, holdable } satisfies ItemDef];
+  return [{ kind: `pack:${slug}`, name: e.name || slug, cat, rooms: [room], w, h, wall: e.wall === true || undefined, svg: '', img, pack: pack || undefined, holdable } satisfies ItemDef];
 });
 
 export const PATTERNS_FROM_PACKS: PatternDef[] = entries.filter(isPattern).flatMap(e => {
   const pack = norm(e.pack, 'extra'), slug = e.slug.trim();
-  const url = find(patternFiles, 'patterns', pack, slug);
+  const explicit = [e.svg, e.png].filter((x): x is string => typeof x === 'string').map(x => patternFiles['../assets/patterns/' + x.replace(/^\.?\//, '')]).find(Boolean);
+  const url = explicit ?? find(patternFiles, 'patterns', pack, slug);
   if (!url) { console.warn(`[packs] no image for patterns/${pack}/${slug}`); return []; }
   return [{ id: `${pack}/${slug}`, name: e.name || slug, pack, kind: norm(e.type, 'wallpaper') as 'wallpaper' | 'floor', url }];
 });
