@@ -29,6 +29,7 @@ export interface SlayState {
   slay: boolean[];             // called SLAY! for her current last card
   owe: number | null;          // player who went down to 1 card without calling: penalty when the next player moves
   winner: number | null;
+  stuck?: number;              // turns in a row where nobody could play or draw (all cards are in hands)
   ev: SlayEvent;               // the latest thing that happened (for animations)
 }
 export type SlayMove = { k: 'play'; id: number; color?: number } | { k: 'draw' } | { k: 'pass' } | { k: 'slay' };
@@ -87,10 +88,17 @@ export const slay: GameRules<SlayState, SlayMove> = {
       const got = draw(s, p, 1, rng);
       const c = got[0];
       if (c && canPlay(s, c)) { s.drawn = c.id; s.ev = { n, p, k: 'draw', drew: 1, ...owed }; }
-      else { s.drawn = null; s.turn = next(s, p); s.ev = { n, p, k: 'draw', drew: got.length, ...owed }; } // nothing to play: turn passes on its own
+      else {
+        s.drawn = null; s.ev = { n, p, k: 'draw', drew: got.length, ...owed }; // nothing to play: turn passes on its own
+        s.stuck = got.length ? 0 : (s.stuck ?? 0) + 1;
+        // stalemate (every card is in someone's hand and nobody can play): fewest cards wins
+        if ((s.stuck ?? 0) >= s.hands.length) { const fewest = Math.min(...s.hands.map(h => h.length)); s.winner = s.hands.findIndex(h => h.length === fewest); s.turn = -1; return s; }
+        s.turn = next(s, p);
+      }
       return s;
     }
     if (m.k === 'pass') { s.drawn = null; s.turn = next(s, p); s.ev = { n, p, k: 'pass', ...owed }; return s; }
+    s.stuck = 0;
     const hand = s.hands[p], card = hand.splice(hand.findIndex(c => c.id === m.id), 1)[0];
     s.discard.push(card); s.drawn = null;
     s.color = card.c === 4 ? m.color! : card.c;

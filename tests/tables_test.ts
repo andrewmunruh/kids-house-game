@@ -12,7 +12,8 @@ async function main() {
   for (let i = 0; i < 4; i++) { const c = mk(); await hood.onConnect(c); await hood.onMessage(c, JSON.stringify({ t: 'join', nickname: NICKNAMES[i], look, v: 4 })); tokens.push(c.last('joined').token); kids.push(c); }
   const [A, B, Cc, W] = kids; const pid = (c: C) => c.pid!;
   check('welcome carries the tables', Array.isArray(A.last('welcome').tables) && A.last('welcome').tables.length === 3);
-  const msg = (c: C, o: any) => hood.onMessage(c, JSON.stringify({ t: 'tbl', ...o }));
+  // the server allows 80 messages/second per iPad; this test fires faster than any kid can tap, so reset the budget
+  const msg = (c: C, o: any) => { (c as any).budget = undefined; return hood.onMessage(c, JSON.stringify({ t: 'tbl', ...o })); };
   const pres = (c: C, where: string) => hood.onMessage(c, JSON.stringify({ t: 'pres', p: { where, x: 300, y: 560, flip: false } }));
   await msg(A, { op: 'sit', tb: 0, seat: 0 }); check('must be in the Game Room to sit', A.last('tblFail')?.reason === 'notHere');
   for (const c of kids) await pres(c, 'gameroom');
@@ -38,7 +39,7 @@ async function main() {
     // an out-of-turn move is refused
     const other = byPid.get(T.players[(p + 1) % T.players.length])!;
     if (moves % 25 === 0) { const before = T.seq; await msg(other, { op: 'move', tb: 0, m: { k: 'draw' } }); if (T.seq === before && other.last('tblFail')?.reason === 'illegal') refused++; }
-    if (moves === 30 && !reconnected) {
+    if (moves === 6 && !reconnected) {
       // reconnect mid-game: B's iPad drops and comes back
       const bHandBefore = JSON.stringify(hood.tables[0].state.hands[T.players.indexOf(pid(B))]);
       hood.onClose(B); const nb = mk(); await hood.onConnect(nb); await hood.onMessage(nb, JSON.stringify({ t: 'hello', token: tokens[1], v: 4 }));
@@ -77,6 +78,6 @@ async function main() {
   // persistence: a fresh server instance (Durable Object restart) restores the tables
   await hood.flush(); const hood2 = new Neighborhood(kv); await hood2.load();
   check('tables survive a server restart', hood2.tables[1].phase === 'over' && hood2.tables[1].players.length === 2);
-  console.log(`${pass} passed`);
+  console.log(`${pass}/19 passed`); if (pass !== 19) process.exitCode = 1;
 }
 main();
