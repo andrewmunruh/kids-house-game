@@ -1,23 +1,31 @@
 import './style.css';
-import { createStore, type RoomId, type PlacedItem, type GameState } from './state';
+import { createStore, ROOM_W, ROOM_H, V1_OFFSET, type RoomId, type PlacedItem, type GameState } from './state';
 import { ITEMS, ITEM_MAP, svgOf, type Category } from './items';
 import { characterSVG, SKINS, HAIRS, CLOTHES, HAIR_STYLES } from './character';
 import { sfx, setSound } from './sound';
 
 const store = createStore();
-const W = 1000, H = 600, FLOOR_Y = 390;
+// World is ROOM_W x ROOM_H; the stage shows a VIEW_W-wide window onto it (fits the iPad).
+const W = ROOM_W, H = ROOM_H, VIEW_W = 1000, FLOOR_Y = 390;
+const MAX_CAM = W - VIEW_W;
 const ROOMS: { id: RoomId; name: string; color: string }[] = [
   { id: 'living', name: 'Living Room', color: '#ff8fab' },
   { id: 'bedroom', name: 'Bedroom', color: '#b388d6' },
   { id: 'kitchen', name: 'Kitchen', color: '#5cc985' },
 ];
-const CATS: { id: Category; name: string; icon: string }[] = [
+const BASE_CATS: { id: Category; name: string; icon: string }[] = [
   { id: 'furniture', name: 'Furniture', icon: 'armchair' },
   { id: 'decor', name: 'Decor', icon: 'balloon' },
   { id: 'plants', name: 'Plants', icon: 'flowers' },
   { id: 'food', name: 'Food', icon: 'donut' },
   { id: 'pets', name: 'Pets', icon: 'cat' },
 ];
+// Pack items may introduce new categories / rooms.
+const CATS = [...BASE_CATS];
+for (const it of ITEMS) if (!CATS.some(c => c.id === it.cat)) CATS.push({ id: it.cat, name: it.cat, icon: it.kind });
+const ROOM_FILTERS: { id: string; name: string }[] = [{ id: 'all', name: 'All' }, { id: 'living', name: 'Living' }, { id: 'bedroom', name: 'Bed' }, { id: 'kitchen', name: 'Kitchen' }];
+for (const it of ITEMS) for (const r of it.rooms ?? []) if (r !== 'any' && !ROOM_FILTERS.some(f => f.id === r)) ROOM_FILTERS.push({ id: r, name: r[0].toUpperCase() + r.slice(1) });
+const matchesRoom = (rooms: string[] | undefined, f: string) => f === 'all' || !rooms || rooms.includes('any') || rooms.includes(f);
 const WALLS = ['#ffd6e0', '#d9ccff', '#cdf3dc', '#cfe8ff', '#fff1b8', '#ffe0c7', '#ffffff', '#f6c1ff'];
 const FLOORS = ['#e8b98a', '#f2d0a4', '#c99366', '#ffe7a8', '#bfe3d0', '#d6d6f5', '#ffc8dd', '#9fb4c7'];
 const ICON = {
@@ -36,6 +44,7 @@ const app = document.getElementById('app')!;
 app.innerHTML = `
 <div class="top">
   <div class="tabs" id="tabs"></div>
+  <div class="minimap" id="minimap" aria-label="Room map"><div class="mmWall" id="mmWall"></div><div class="mmFloor" id="mmFloor"></div><div id="mmDots"></div><div class="mmView" id="mmView"></div></div>
   <div class="tools">
     <button class="round" id="btnPaint" aria-label="Colors">${ICON.paint}</button>
     <button class="round" id="btnDress" aria-label="Dress up">${ICON.shirt}</button>
@@ -44,15 +53,20 @@ app.innerHTML = `
 </div>
 <div class="stageWrap" id="stageWrap">
   <div class="stage" id="stage">
-    <div class="wall" id="wall"></div><div class="floor" id="floor"></div><div class="baseboard"></div>
-    <div class="layer" id="layer"></div>
-    <div class="toolbar hidden" id="toolbar">
-      <button data-a="flip">${ICON.flip}</button><button data-a="front">${ICON.front}</button><button data-a="back">${ICON.back}</button><button data-a="delete" class="danger">${ICON.trash}</button>
+    <div class="world" id="world">
+      <div class="wall" id="wall"></div><div class="floor" id="floor"></div><div class="baseboard"></div>
+      <div class="layer" id="layer"></div>
+      <div class="toolbar hidden" id="toolbar">
+        <button data-a="flip">${ICON.flip}</button><button data-a="front">${ICON.front}</button><button data-a="back">${ICON.back}</button><button data-a="delete" class="danger">${ICON.trash}</button>
+      </div>
     </div>
+    <button class="nudge left" id="nudgeL" aria-label="Look left"><svg viewBox="0 0 40 40"><path d="M24 10 L14 20 L24 30" fill="none" stroke="#5a3d5c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="nudge right" id="nudgeR" aria-label="Look right"><svg viewBox="0 0 40 40"><path d="M16 10 L26 20 L16 30" fill="none" stroke="#5a3d5c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
   <div class="bin" id="bin">${ICON.trash}</div>
 </div>
 <div class="drawer">
+  <div class="rooms" id="roomFilter"></div>
   <div class="cats" id="cats"></div>
   <div class="shelf" id="shelf"></div>
 </div>
@@ -60,20 +74,43 @@ app.innerHTML = `
 <div class="fx" id="fx"></div>`;
 
 const $ = (id: string) => document.getElementById(id)!;
-const stage = $('stage'), layer = $('layer'), toolbar = $('toolbar'), bin = $('bin');
+const stage = $('stage'), world = $('world'), layer = $('layer'), toolbar = $('toolbar'), bin = $('bin');
 let selected: string | null = null;
 let currentCat: Category = 'furniture';
+let roomFilter = 'all';
+
+// ---------- camera (view-only, not part of game state) ----------
+const cams: Record<string, number> = {};
+let camX = V1_OFFSET;
+let inertia = 0;
+const stopGlide = () => { cancelAnimationFrame(inertia); glideTarget = null; };
+const clampCam = (x: number) => Math.max(0, Math.min(MAX_CAM, x));
+function setCam(x: number) {
+  camX = clampCam(x); cams[store.get().currentRoom] = camX;
+  world.style.transform = `translate3d(${-camX}px,0,0)`;
+  $('nudgeL').classList.toggle('off', camX <= 1);
+  $('nudgeR').classList.toggle('off', camX >= MAX_CAM - 1);
+  const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%';
+  if (selected) renderToolbar(store.get());
+}
+let glideTarget: number | null = null;
+function glideTo(target: number) {
+  cancelAnimationFrame(inertia); target = clampCam(target); glideTarget = target;
+  const step = () => { const d = target - camX; if (Math.abs(d) < 0.5) { setCam(target); glideTarget = null; return; } setCam(camX + d * 0.18); inertia = requestAnimationFrame(step); };
+  inertia = requestAnimationFrame(step);
+}
+const stageScale = () => stage.getBoundingClientRect().width / VIEW_W;
 
 // ---------- scaling ----------
 function fit() {
   const wrap = $('stageWrap');
-  const sc = Math.min(wrap.clientWidth / W, wrap.clientHeight / H);
+  const sc = Math.min(wrap.clientWidth / VIEW_W, wrap.clientHeight / H);
   stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
 }
 window.addEventListener('resize', fit);
 const toRoom = (cx: number, cy: number) => {
   const r = stage.getBoundingClientRect();
-  return { x: (cx - r.left) / r.width * W, y: (cy - r.top) / r.height * H };
+  return { x: (cx - r.left) / r.width * VIEW_W + camX, y: (cy - r.top) / r.height * H };
 };
 const inStage = (cx: number, cy: number) => { const r = stage.getBoundingClientRect(); return cx > r.left && cx < r.right && cy > r.top && cy < r.bottom; };
 const overBin = (cx: number, cy: number) => { const r = bin.getBoundingClientRect(); return cx > r.left - 20 && cx < r.right + 20 && cy > r.top - 20 && cy < r.bottom + 20; };
@@ -93,6 +130,13 @@ function renderRoomBg(s: GameState) {
   wall.style.backgroundSize = room.pattern === 1 ? '44px 44px' : room.pattern === 3 ? '60px 60px' : 'auto';
   wall.style.backgroundPosition = room.pattern === 3 ? '0 0, 30px 30px' : '0 0';
   $('floor').style.backgroundColor = room.floor;
+  $('mmWall').style.background = room.wallpaper; $('mmFloor').style.background = room.floor;
+}
+function renderMinimap(s: GameState) {
+  const room = s.rooms[s.currentRoom];
+  const dots = room.items.filter(i => ITEM_MAP[i.kind]).map(i => `<i style="left:${i.x / W * 100}%;top:${(i.y - ITEM_MAP[i.kind].w * i.scale / 2) / H * 100}%"></i>`).join('');
+  const c = s.character; const me = c.room === s.currentRoom ? `<b style="left:${c.x / W * 100}%;top:${(c.y - 90) / H * 100}%"></b>` : '';
+  $('mmDots').innerHTML = dots + me;
 }
 
 function renderTabs(s: GameState) {
@@ -127,7 +171,7 @@ function renderItems(s: GameState) {
     el.classList.toggle('sel', selected === it.id);
   }
   layer.querySelectorAll<HTMLElement>('.item').forEach(el => { if (!seen.has(el.dataset.id!)) el.remove(); });
-  renderToolbar(s);
+  renderToolbar(s); renderMinimap(s);
 }
 
 let charEl: HTMLElement | null = null;
@@ -146,6 +190,7 @@ function renderChar(s: GameState) {
   placeEl(charEl, c.x, c.y, CHAR_W, CHAR_H);
   charEl.style.zIndex = '5000';
   charEl.classList.toggle('flipped', c.flip);
+  renderMinimap(s);
 }
 
 function renderToolbar(s: GameState) {
@@ -154,7 +199,7 @@ function renderToolbar(s: GameState) {
   const def = ITEM_MAP[it.kind];
   const top = it.y - def.w * it.scale - 20;
   toolbar.classList.remove('hidden');
-  toolbar.style.left = Math.max(110, Math.min(W - 110, it.x)) / W * 100 + '%';
+  toolbar.style.left = Math.max(camX + 130, Math.min(camX + VIEW_W - 130, it.x)) / W * 100 + '%';
   toolbar.style.top = Math.max(40, top) / H * 100 + '%';
 }
 
@@ -164,6 +209,7 @@ function renderAll() {
   const s = store.get();
   layer.innerHTML = ''; charEl = null;
   renderTabs(s); renderRoomBg(s); renderItems(s); renderChar(s); renderSoundBtn(s);
+  stopGlide(); setCam(cams[s.currentRoom] ?? clampCam(s.character.room === s.currentRoom ? s.character.x - VIEW_W / 2 : V1_OFFSET));
 }
 
 store.subscribe((s, a) => {
@@ -191,10 +237,44 @@ function sparkles(cx: number, cy: number, n = 7) {
 function poof(cx: number, cy: number) { sparkles(cx, cy, 10); sfx.pop(); }
 
 // ---------- dragging ----------
-type DragCtx = { onMove: (e: PointerEvent) => void; onUp: (e: PointerEvent) => void };
+type DragCtx = { onMove: (e: PointerEvent) => void; onUp: (e: PointerEvent) => void; edgeScroll?: boolean };
+// Multi-touch tracking: two fingers anywhere on the stage = pan, and pauses any single-finger drag.
+const touches = new Map<number, number>();
+let twoFinger = false, twoLastX = 0;
+const avgX = () => [...touches.values()].reduce((a, b) => a + b, 0) / touches.size;
+stage.addEventListener('pointerdown', e => {
+  if (e.pointerType !== 'touch') return;
+  touches.set(e.pointerId, e.clientX);
+  if (touches.size >= 2) { twoFinger = true; twoLastX = avgX(); stopGlide(); toolbar.classList.add('hidden'); }
+}, true);
+window.addEventListener('pointermove', e => {
+  if (!touches.has(e.pointerId)) return;
+  touches.set(e.pointerId, e.clientX);
+  if (twoFinger && touches.size >= 2) { const a = avgX(); setCam(camX - (a - twoLastX) / stageScale()); twoLastX = a; }
+}, true);
+const endTouch = (e: PointerEvent) => { touches.delete(e.pointerId); if (touches.size < 2 && twoFinger) { if (touches.size === 0) twoFinger = false; else twoLastX = avgX(); } };
+window.addEventListener('pointerup', endTouch, true); window.addEventListener('pointercancel', endTouch, true);
+
+// Auto-scroll the camera while dragging near the left/right edge of the stage.
+const EDGE = 80;
+function edgeSpeed(cx: number, cy: number) {
+  const r = stage.getBoundingClientRect();
+  if (cy < r.top - 40 || cy > r.bottom + 10) return 0;
+  if (cx < r.left + EDGE) return -Math.min(1, (r.left + EDGE - cx) / EDGE) * 16;
+  if (cx > r.right - EDGE) return Math.min(1, (cx - (r.right - EDGE)) / EDGE) * 16;
+  return 0;
+}
+
 function startDrag(e: PointerEvent, ctx: DragCtx) {
-  const move = (ev: PointerEvent) => { ev.preventDefault(); ctx.onMove(ev); };
-  const up = (ev: PointerEvent) => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); ctx.onUp(ev); };
+  let last = e, raf = 0;
+  const tick = () => {
+    const v = twoFinger ? 0 : edgeSpeed(last.clientX, last.clientY);
+    if (v) { const before = camX; setCam(camX + v); if (camX !== before) ctx.onMove(last); }
+    raf = requestAnimationFrame(tick);
+  };
+  if (ctx.edgeScroll !== false) raf = requestAnimationFrame(tick);
+  const move = (ev: PointerEvent) => { if (ev.pointerId !== e.pointerId) return; ev.preventDefault(); last = ev; if (!twoFinger) ctx.onMove(ev); };
+  const up = (ev: PointerEvent) => { if (ev.pointerId !== e.pointerId) return; cancelAnimationFrame(raf); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); ctx.onUp(ev); };
   window.addEventListener('pointermove', move, { passive: false });
   window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
 }
@@ -202,6 +282,7 @@ function startDrag(e: PointerEvent, ctx: DragCtx) {
 function attachItemDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
     e.preventDefault(); e.stopPropagation();
+    if (twoFinger) return;
     const s = store.get(); const room = s.currentRoom;
     const id = el.dataset.id!; const it = s.rooms[room].items.find(i => i.id === id); if (!it) return;
     const p0 = toRoom(e.clientX, e.clientY); const off = { x: it.x - p0.x, y: it.y - p0.y };
@@ -213,7 +294,8 @@ function attachItemDrag(el: HTMLElement) {
         const p = toRoom(ev.clientX, ev.clientY);
         if (Math.hypot(p.x - p0.x, p.y - p0.y) > 6) { moved = true; toolbar.classList.add('hidden'); bin.classList.add('show'); }
         bin.classList.toggle('hot', overBin(ev.clientX, ev.clientY));
-        store.dispatch({ type: 'item/move', room, id, x: p.x + off.x, y: p.y + off.y });
+        const half = ITEM_MAP[it.kind].w * it.scale / 2;
+        store.dispatch({ type: 'item/move', room, id, x: Math.max(half * .6, Math.min(W - half * .6, p.x + off.x)), y: p.y + off.y });
         if (moved) toolbar.classList.add('hidden');
       },
       onUp(ev) {
@@ -229,6 +311,7 @@ function attachItemDrag(el: HTMLElement) {
 function attachCharDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
     e.preventDefault(); e.stopPropagation();
+    if (twoFinger) return;
     selected = null; renderItems(store.get());
     const s = store.get(); const c = s.character;
     const p0 = toRoom(e.clientX, e.clientY); const off = { x: c.x - p0.x, y: c.y - p0.y };
@@ -253,7 +336,7 @@ function attachShelfDrag(btn: HTMLElement, kind: string) {
     const def = ITEM_MAP[kind];
     const ghost = document.createElement('div'); ghost.className = 'ghost'; ghost.innerHTML = svgOf(def);
     document.body.appendChild(ghost);
-    const sc = stage.getBoundingClientRect().width / W; const gw = Math.max(60, def.w * sc);
+    const sc = stageScale(); const gw = Math.max(60, def.w * sc);
     ghost.style.width = ghost.style.height = gw + 'px';
     const pos = (ev: PointerEvent) => { ghost.style.left = ev.clientX - gw / 2 + 'px'; ghost.style.top = ev.clientY - gw * .8 + 'px'; };
     pos(e); sfx.pick(); btn.classList.add('pressed');
@@ -265,7 +348,7 @@ function attachShelfDrag(btn: HTMLElement, kind: string) {
         const s = store.get(); const room = s.currentRoom;
         const tapped = Math.hypot(ev.clientX - sx, ev.clientY - sy) < 8;
         let x: number, y: number;
-        if (tapped) { x = 380 + Math.random() * 240; y = def.wall ? 260 : 500 + Math.random() * 40; }
+        if (tapped) { x = camX + 380 + Math.random() * 240; y = def.wall ? 260 : 500 + Math.random() * 40; }
         else if (inStage(ev.clientX, ev.clientY)) { const p = toRoom(ev.clientX, ev.clientY); x = p.x; y = p.y + def.w * .3; }
         else return;
         const item: PlacedItem = { id: `${kind}-${++uid}`, kind, x, y, flip: false, z: 0, scale: 1 };
@@ -280,9 +363,14 @@ function attachShelfDrag(btn: HTMLElement, kind: string) {
 }
 
 function renderDrawer() {
-  $('cats').innerHTML = CATS.map(c => `<button class="cat ${c.id === currentCat ? 'on' : ''}" data-cat="${c.id}" aria-label="${c.name}">${svgOf(ITEM_MAP[c.icon])}</button>`).join('');
+  $('roomFilter').innerHTML = ROOM_FILTERS.map(f => `<button class="rf ${f.id === roomFilter ? 'on' : ''}" data-rf="${f.id}">${f.name}</button>`).join('');
+  const visibleCats = CATS.filter(c => ITEMS.some(i => i.cat === c.id && matchesRoom(i.rooms, roomFilter)));
+  if (!visibleCats.some(c => c.id === currentCat) && visibleCats.length) currentCat = visibleCats[0].id;
+  $('cats').innerHTML = visibleCats.map(c => `<button class="cat ${c.id === currentCat ? 'on' : ''}" data-cat="${c.id}" aria-label="${c.name}">${svgOf(ITEM_MAP[c.icon])}</button>`).join('');
   const shelf = $('shelf'); shelf.innerHTML = '';
-  for (const d of ITEMS.filter(i => i.cat === currentCat)) {
+  const list = ITEMS.filter(i => i.cat === currentCat && matchesRoom(i.rooms, roomFilter));
+  if (!list.length) shelf.innerHTML = `<div class="empty">Nothing here yet!</div>`;
+  for (const d of list) {
     const b = document.createElement('button'); b.className = 'thing'; b.setAttribute('aria-label', d.name);
     b.innerHTML = svgOf(d); shelf.appendChild(b); attachShelfDrag(b, d.kind);
   }
@@ -345,6 +433,10 @@ $('cats').addEventListener('click', e => {
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-cat]'); if (!b) return;
   currentCat = b.dataset.cat as Category; sfx.click(); renderDrawer();
 });
+$('roomFilter').addEventListener('click', e => {
+  const b = (e.target as HTMLElement).closest<HTMLElement>('[data-rf]'); if (!b) return;
+  roomFilter = b.dataset.rf!; sfx.click(); renderDrawer();
+});
 toolbar.addEventListener('pointerdown', e => e.stopPropagation());
 toolbar.addEventListener('click', e => {
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-a]'); if (!b || !selected) return;
@@ -356,7 +448,38 @@ toolbar.addEventListener('click', e => {
     case 'delete': { const r = el?.getBoundingClientRect(); selected = null; store.dispatch({ type: 'item/delete', room, id }); if (r) poof(r.left + r.width / 2, r.top + r.height / 2); break; }
   }
 });
-stage.addEventListener('pointerdown', () => { if (selected) { selected = null; renderItems(store.get()); } });
+// One finger on empty wall/floor pans the room (with a little momentum); a tap deselects.
+stage.addEventListener('pointerdown', e => {
+  if ((e.target as HTMLElement).closest('.nudge,.minimap')) return;
+  stopGlide();
+  const x0 = e.clientX, cam0 = camX; let moved = false, vx = 0, lx = e.clientX, lt = performance.now();
+  startDrag(e, {
+    edgeScroll: false,
+    onMove(ev) {
+      if (Math.abs(ev.clientX - x0) > 6) moved = true;
+      if (!moved) return;
+      const now = performance.now(); vx = (ev.clientX - lx) / Math.max(1, now - lt); lx = ev.clientX; lt = now;
+      setCam(cam0 - (ev.clientX - x0) / stageScale());
+    },
+    onUp() {
+      if (!moved) { if (selected) { selected = null; renderItems(store.get()); } return; }
+      if (twoFinger) return;
+      let v = -vx * 16 / stageScale(); // units per frame
+      const coast = () => { if (Math.abs(v) < 0.3) return; setCam(camX + v); v *= 0.92; inertia = requestAnimationFrame(coast); };
+      inertia = requestAnimationFrame(coast);
+    },
+  });
+});
+stage.addEventListener('wheel', e => { e.preventDefault(); stopGlide(); setCam(camX + (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) / stageScale()); }, { passive: false });
+$('nudgeL').addEventListener('pointerdown', e => { e.stopPropagation(); sfx.swish(); glideTo((glideTarget ?? camX) - VIEW_W * 0.6); });
+$('nudgeR').addEventListener('pointerdown', e => { e.stopPropagation(); sfx.swish(); glideTo((glideTarget ?? camX) + VIEW_W * 0.6); });
+const mm = $('minimap');
+mm.addEventListener('pointerdown', e => {
+  e.stopPropagation(); e.preventDefault();
+  const jump = (ev: PointerEvent) => { const r = mm.getBoundingClientRect(); glideTo((ev.clientX - r.left) / r.width * W - VIEW_W / 2); };
+  jump(e); sfx.click();
+  startDrag(e, { edgeScroll: false, onMove: jump, onUp() {} });
+});
 $('btnPaint').addEventListener('click', () => openSheet('paint'));
 $('btnDress').addEventListener('click', () => openSheet('dress'));
 $('btnSound').addEventListener('click', () => { store.dispatch({ type: 'settings/sound', on: !store.get().soundOn }); sfx.click(); });
@@ -366,3 +489,4 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
 if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js');
 (window as any).__store = store; // handy for debugging / tests
+(window as any).__cam = { get: () => camX, set: setCam };

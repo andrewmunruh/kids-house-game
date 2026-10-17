@@ -1,6 +1,7 @@
+import { PACK_ITEMS } from './packs';
 // Original rounded SVG art. Each item: viewBox 0 0 100 100, anchored bottom-center.
-export type Category = 'furniture' | 'decor' | 'plants' | 'food' | 'pets';
-export interface ItemDef { kind: string; name: string; cat: Category; w: number; svg: string; wall?: boolean }
+export type Category = string; // built-ins: furniture | decor | plants | food | pets (packs may add more)
+export interface ItemDef { kind: string; name: string; cat: Category; w: number; svg: string; wall?: boolean; img?: string; rooms?: string[] }
 
 const O = '#5a3d5c'; // soft plum outline
 const s = `stroke="${O}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"`;
@@ -49,5 +50,17 @@ export const ITEMS: ItemDef[] = [
   { kind: 'fish', name: 'Fish Bowl', cat: 'pets', w: 100, svg: `${shadow}<circle cx="50" cy="54" r="40" fill="#cdeffd" ${s}/><path d="M14 46 H86" stroke="#8ecae6" stroke-width="3"/><path d="M60 64 l14 -8 v16 z" fill="#ff9f68" ${s}/><ellipse cx="46" cy="64" rx="16" ry="11" fill="#ffb347" ${s}/><circle cx="40" cy="62" r="2.5" fill="${O}"/><circle cx="32" cy="38" r="3" fill="#fff" opacity=".8"/><rect x="24" y="10" width="52" height="8" rx="4" fill="#cdeffd" ${s}/>` },
 ];
 
+// Which room filter each built-in item shows up under ('any' = every room).
+const BUILTIN_ROOMS: Record<string, string[]> = {
+  sofa: ['living'], armchair: ['living'], lamp: ['living', 'bedroom'], tv: ['living'], rug: ['living', 'bedroom'], picture: ['living', 'bedroom'],
+  bookshelf: ['living', 'bedroom'], bed: ['bedroom'], teddy: ['bedroom'], stars: ['bedroom'], tub: ['bedroom'], balloon: ['any'], clock: ['any'],
+  window: ['any'], ball: ['any'], fridge: ['kitchen'], stove: ['kitchen'], table: ['kitchen', 'living'], chair: ['kitchen', 'living'],
+};
+for (const i of ITEMS) i.rooms = BUILTIN_ROOMS[i.kind] ?? (['food'].includes(i.cat) ? ['kitchen'] : ['any']);
+
+ITEMS.push(...PACK_ITEMS);
 export const ITEM_MAP: Record<string, ItemDef> = Object.fromEntries(ITEMS.map(i => [i.kind, i]));
-export const svgOf = (d: ItemDef) => `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">${d.svg}</svg>`;
+const esc = (t: string) => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+export const svgOf = (d: ItemDef) => d.img
+  ? `<img class="packimg" src="${esc(d.img)}" alt="${esc(d.name)}" draggable="false" />`
+  : `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">${d.svg}</svg>`;
