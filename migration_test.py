@@ -8,6 +8,7 @@
 # Usage: migration_test.py   (needs: /tmp/prodtree = git worktree of main, builds in /tmp/prod-dist, /tmp/new-dist, /tmp/preview-dist)
 import asyncio, json, os, shutil, subprocess, time, sys, signal
 from playwright.async_api import async_playwright
+from testnav import to_map, go
 ROOT = os.path.dirname(os.path.abspath(__file__)); M = '/tmp/migr'; WWW = M + '/www'; PORT_WEB = 4190; PORT_HOOD = 8795; PORT_PREV = 8796
 BASE = f'http://localhost:{PORT_WEB}'; URL = f'{BASE}/kids-house-game/?hood=http://localhost:{PORT_HOOD}'
 res = {}
@@ -43,6 +44,9 @@ def serve_build(dist):  # "deploy": swap what the web server serves at /kids-hou
     if os.path.islink(link): os.unlink(link)
     os.symlink(dist, link)
 WN_LATEST = __import__('re').search(r'CHANGELOG: ChangeEntry\[\] = \[\s*\{\s*v:\s*(\d+)', open(__import__('os').path.dirname(__import__('os').path.abspath(__file__)) + '/src/whatsnew.ts').read()).group(1)
+OLD_MAIN = open('/tmp/prodtree/src/main.ts').read()
+OLD_HAS_MAP = 'id="btnMap"' in OLD_MAIN  # map era (1b33280+): joining lands on the map, the ranch is reached from the map
+WN_OLD = __import__('re').search(r'CHANGELOG: ChangeEntry\[\] = \[\s*\{\s*v:\s*(\d+)', open('/tmp/prodtree/src/whatsnew.ts').read()).group(1)  # old (production) build's latest What's new
 async def adult(pg):
     await pg.wait_for_selector('.adultCard .q'); q = int(await pg.get_attribute('.adultCard .q', 'data-q'))
     for d in str(q): await pg.click(f'.adultCard [data-k="{d}"]')
@@ -52,7 +56,7 @@ async def join_prod(pg, code, nick, bring):
     await pg.fill('#codeInput', code.lower()); await pg.click('#codeForm button')
     await pg.click(f'.nicks button:has-text("{nick}")')
     if bring is not None: await pg.click('[data-m="bring"]' if bring else '[data-m="fresh"]')
-    await pg.wait_for_selector('body.view-street .house', timeout=8000)
+    await pg.wait_for_selector('body.view-map #mapWorld .mapHouse' if OLD_HAS_MAP else 'body.view-street .house', timeout=8000)
 SNAP = """(() => { const h = __hood(); if (!h) return null;
   const houses = {}; for (const [id, x] of h.houses) houses[id] = { meta: x.meta, view: h.view(id) };
   const players = {}; for (const [pid, p] of h.players) players[pid] = { nickname: p.nickname, houseId: p.houseId, look: p.look, dog: p.dog ?? null, basket: p.basket ?? null };
@@ -79,13 +83,14 @@ async def main():
         async with async_playwright() as p:
             b = await p.chromium.launch()
             ctxs = [await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=2, has_touch=True) for _ in range(3)]
-            for c in ctxs: await c.add_init_script("localStorage.getItem('cozy-whatsnew') || localStorage.setItem('cozy-whatsnew', '3')")  # they've seen the ranch popup
+            for c in ctxs: await c.add_init_script(f"localStorage.getItem('cozy-whatsnew') || localStorage.setItem('cozy-whatsnew', '{WN_OLD}')")  # they've seen the old build's latest popup
             P, K2, K3 = [await c.new_page() for c in ctxs]
             P.on("response", lambda r: print("NET", r.status, r.url[-60:], r.from_service_worker) if ("/api/" in r.url or r.request.resource_type == "document") else None); P.on("requestfailed", lambda r: print("NETFAIL", r.url, r.failure) if "/api/" in r.url else None); P.on("console", lambda m: print("CON", m.text[:200]) if m.type == "error" else None)
             errs = []
             for pg in (P, K2, K3): pg.on('pageerror', lambda e: errs.append(str(e))); await pg.goto(URL); await pg.wait_for_timeout(700)
             # ================= Phase A: production =================
-            check('phase A runs the production build (street, no map)', await P.locator('#btnMap').count() == 0 and await P.locator('#btnPark').count() == 1)
+            if OLD_HAS_MAP: check('phase A runs the production build (map era: map button, no home button yet)', await P.locator('#btnMap').count() == 1 and await P.locator('#btnHome').count() == ('id="btnHome"' in OLD_MAIN))
+            else: check('phase A runs the production build (street, no map)', await P.locator('#btnMap').count() == 0 and await P.locator('#btnPark').count() == 1)
             # a rich solo save on the family iPad: 3 characters, items in 3 rooms (one held), paint, cat, dog, ranch basket + garden
             await P.evaluate("""(() => { const s = __store; const now = Date.now();
               s.dispatch({type:'char/add', char:{id:'c-mig2', name:'Bea', room:'bedroom', x:700, y:560, flip:true, skin:'#8d5524', hair:'#ff8fab', hairStyle:2, shirt:'#5aa9e6', pants:'#ffd166', size:'little', acc:1, held:{}}});
@@ -121,9 +126,11 @@ async def main():
             await K3.evaluate("""(() => { const h = __hood(); h.setDog({name:'Biscuit', breed:2}); h.lock(h.myHouseId(), true); return true; })()""")
             await K3.wait_for_timeout(300)
             # ranch: K2 collects an egg and plants in the garden (production ranch)
-            await K2.click('#btnRanch'); await K2.wait_for_timeout(600)
+            if OLD_HAS_MAP: await go(K2, 'ranch')
+            else: await K2.click('#btnRanch'); await K2.wait_for_timeout(600)
             await K2.evaluate("__hood().ranchOp({op:'egg'}); __hood().ranchOp({op:'plant', i:0, seed:'carrot'}); __hood().ranchOp({op:'water', i:0})"); await K2.wait_for_timeout(500)
-            await K2.click('#btnLeavePark'); await K2.wait_for_timeout(400)
+            if OLD_HAS_MAP: await to_map(K2)
+            else: await K2.click('#btnLeavePark'); await K2.wait_for_timeout(400)
             await P.click('#btnParent'); await adult(P); await P.wait_for_selector('.pHouse, input[data-hid]')
             k3h = await K3.evaluate('__hood().myHouseId()')
             await P.fill(f'input[data-hid="{k3h}"]', 'Koala Castle'); await P.click(f'[data-p="rename"][data-hid="{k3h}"]'); await P.wait_for_timeout(500)

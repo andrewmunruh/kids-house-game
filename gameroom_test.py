@@ -233,7 +233,12 @@ async def main():
             box = await P.locator('.grChair').first.bounding_box()
             check('portrait chair is a large touch target', box is not None and box['width'] >= 56 and box['height'] >= 56, str(box))
             await P.set_viewport_size({'width': 1024, 'height': 768})
-            await go(P, 'home')
+            hb = await P.locator('#btnHome').bounding_box()
+            mb = await P.locator('#btnMap').bounding_box()
+            check('clubhouse Home button matches the other round tools', hb is not None and mb is not None and abs(hb['width'] - mb['width']) < 2 and abs(hb['height'] - mb['height']) < 2 and await P.locator('#btnHome.homeBtn').is_visible(), str(hb))
+            await P.click('#btnHome')
+            await P.wait_for_timeout(400)
+            check('Home from the clubhouse goes back to her house', await P.evaluate("!document.body.classList.contains('view-gameroom') && !document.body.classList.contains('view-street')"))
 
             # ---------- three kids on a street ----------
             await P.click('#btnHood')

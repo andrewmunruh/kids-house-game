@@ -21,6 +21,7 @@ const houseArt = `<svg viewBox="0 0 120 100"><path d="M20 50 L60 16 L100 50" fil
   <rect x="52" y="64" width="16" height="28" rx="4" fill="#c9a0dc" stroke="${O}" stroke-width="3"/><rect x="34" y="58" width="13" height="13" rx="3" fill="#bfe6ff" stroke="${O}" stroke-width="3"/><rect x="73" y="58" width="13" height="13" rx="3" fill="#bfe6ff" stroke="${O}" stroke-width="3"/></svg>`;
 const shirtArt = `<svg viewBox="0 0 120 100"><path d="M40 18 L24 28 L14 46 L30 52 L34 44 V88 H86 V44 L90 52 L106 46 L96 28 L80 18 Q60 34 40 18 Z" fill="#8ecae6" stroke="${O}" stroke-width="4" stroke-linejoin="round"/><circle cx="60" cy="58" r="7" fill="#fff3b0" stroke="${O}" stroke-width="3"/></svg>`;
 const wrap = (svg: string) => `<div class="wnArt">${svg}</div>`;
+const brushArt = `<svg viewBox="0 0 120 100"><rect x="16" y="58" width="74" height="24" rx="10" fill="#fff" stroke="${O}" stroke-width="4"/><circle cx="32" cy="70" r="7" fill="#ff8fab" stroke="${O}" stroke-width="3"/><circle cx="52" cy="70" r="7" fill="#ffe066" stroke="${O}" stroke-width="3"/><circle cx="72" cy="70" r="7" fill="#8ecae6" stroke="${O}" stroke-width="3"/><path d="M86 46 l14 -16 8 8 -14 16z" fill="#ffd166" stroke="${O}" stroke-width="3" stroke-linejoin="round"/><rect x="78" y="44" width="12" height="24" rx="4" fill="#c9a0dc" stroke="${O}" stroke-width="3"/></svg>`;
 
 const ranchArt = `<svg viewBox="0 0 120 100">${RAINBOW.map((c, i) => `<path d="M${12 + i * 6} 84 A${48 - i * 6} ${48 - i * 6} 0 0 1 ${108 - i * 6} 84" fill="none" stroke="${c}" stroke-width="6"/>`).join('')}
   <path d="M38 92 V62 L60 44 L82 62 V92 Z" fill="#ef5b5b" stroke="${O}" stroke-width="3.5" stroke-linejoin="round"/><rect x="52" y="70" width="16" height="22" fill="#fff6e6" stroke="${O}" stroke-width="3"/></svg>`;
@@ -35,10 +36,15 @@ const fourArt = `<svg viewBox="0 0 120 100"><rect x="10" y="16" width="100" heig
   <path d="M36 58 C28 48 18 50 24 60 C28 68 36 74 36 74 C36 74 44 68 48 60 C54 50 44 48 36 58 Z" fill="#ff4d94" stroke="${O}" stroke-width="2"/>
   <path d="M78 28 L82 40 H94 L84 48 L88 60 L78 52 L68 60 L72 48 L62 40 H74 Z" fill="#66d9e8" stroke="${O}" stroke-width="2"/></svg>`;
 export const CHANGELOG: ChangeEntry[] = [
-  { v: 5, title: 'The clubhouse is open!', lines: [
+  { v: 6, title: 'The clubhouse is open!', lines: [
     { art: wrap(clubArt), text: 'A glam <b>clubhouse</b> on the map!' },
     { art: wrap(slayArt), text: 'Play <b>Slay</b> with friends at a table!' },
     { art: wrap(fourArt), text: 'Line up <b>hearts</b> or <b>stars</b>!' },
+  ] },
+  { v: 5, title: 'Your house looks even cozier!', lines: [
+    { art: wrap(brushArt), text: 'Wallpaper and floors show their <b>real patterns</b> when you paint!' },
+    { art: wrap(catSVG(0, 'sit')), text: 'Your cat is <b>big and cozy</b>, just like the toy cat.' },
+    { art: wrap(houseArt), text: 'Tap <b>home</b> to come back from the map, the park, or the ranch.' },
   ] },
   { v: 4, title: 'A map of our neighborhood!', lines: [
     { art: wrap(mapIcon), text: 'Tap the <b>map</b> to go anywhere!' },
@@ -84,7 +90,7 @@ export function markSeen() { try { localStorage.setItem(SEEN_KEY, String(LATEST)
 export function whatsNewHTML(kind: 'welcome' | 'news', entries: ChangeEntry[]): string {
   const title = kind === 'welcome' ? WELCOME.title : entries[0].title;
   const lines = entries.flatMap(e => e.lines).slice(0, 5); // newest first, never a wall of text
-  return `<div class="wnBadge">${kind === 'welcome' ? pawIcon : entries[0].v >= 5 ? clubIcon : entries[0].v >= 4 ? mapIcon : entries[0].v >= 3 ? rainbowIcon : treeIcon}</div>
+  return `<div class="wnBadge">${kind === 'welcome' ? pawIcon : entries[0].v >= 6 ? clubIcon : entries[0].v >= 5 ? brushArt : entries[0].v >= 4 ? mapIcon : entries[0].v >= 3 ? rainbowIcon : treeIcon}</div>
     <h2 class="wnTitle">${title}</h2>
     <div class="wnList ${lines.length > 3 ? 'many' : ''}">${lines.map((l, i) => `<div class="wnLine" style="animation-delay:${0.15 + i * 0.18}s">${l.art}<p>${l.text}</p></div>`).join('')}</div>
     <button class="wnGo" id="wnGo">Let's play!</button>`;

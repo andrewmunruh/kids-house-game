@@ -58,6 +58,32 @@ async def main():
         d = await P.evaluate('__store.get().dog'); check('solo: dog adopted', d and d['name'] == 'Rocket' and d['breed'] == 3)
         pp = await pets(P); check('solo: cat + dog shown in the house', pp['cat'] is not None and 'solo' in pp['dogs'], json.dumps(pp))
         await P.screenshot(path=SHOT + '01-solo-house-cat-and-dog.png')
+        # The bigger cat's box covers a character's feet. Pin her there and drag the character.
+        cid = await P.evaluate("""() => {
+          const s = __store.get();
+          const c = s.characters.find(ch => ch.room === s.currentRoom) || s.characters[0];
+          window.__pinCat = { x: c.x };
+          return c.id;
+        }""")
+        await P.wait_for_timeout(300)
+        hit = await P.evaluate("""() => {
+          const ch = document.querySelector('#layer .char');
+          const cat = document.querySelector('.pet.pet-cat');
+          const cb = ch.getBoundingClientRect(), kb = cat.getBoundingClientRect();
+          const ix = Math.min(cb.right, kb.right) - Math.max(cb.left, kb.left);
+          const iy = Math.min(cb.bottom, kb.bottom) - Math.max(cb.top, kb.top);
+          const x = cb.left + cb.width / 2, y = cb.top + cb.height / 2;
+          const top = document.elementFromPoint(x, y);
+          return { ix, iy, charZ: +ch.style.zIndex, catZ: +cat.style.zIndex, onChar: !!(top && top.closest('.char')) };
+        }""")
+        check('cat overlapping her feet stays under the character', hit['ix'] > 40 and hit['iy'] > 40 and hit['charZ'] > hit['catZ'] and hit['onChar'], json.dumps(hit))
+        x0 = await P.evaluate(f"() => __store.get().characters.find(c => c.id === {json.dumps(cid)}).x")
+        ch = P.locator('#layer .char').first
+        c0 = await center(ch)
+        await drag(P, c0, (c0[0] + 250, c0[1]))
+        x1 = await P.evaluate(f"() => __store.get().characters.find(c => c.id === {json.dumps(cid)}).x")
+        check('dragging the character works while the cat overlaps her', x1 - x0 > 120, f'{x0} -> {x1}')
+        await P.evaluate('window.__pinCat = null')
         # cat behaves deterministically: two iPads with the same cat agree
         x1 = await P.evaluate("(() => { const c = __store.get().cat; return document.querySelector('.pet.pet-cat').style.left; })()")
         before = (await pets(P))['dogPos']['solo']

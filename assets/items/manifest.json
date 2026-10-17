@@ -1663,7 +1663,7 @@
   {
     "type": "item",
     "slug": "bar-stool",
-    "name": "Stool",
+    "name": "Bar Stool",
     "room": "kitchen",
     "category": "furniture",
     "tag": "seating",
@@ -2725,7 +2725,7 @@
   },
   {
     "slug": "wh-string-lights",
-    "name": "String Lights",
+    "name": "Cozy Lights",
     "type": "item",
     "pack": "welcome-home",
     "category": "decor",
@@ -3001,7 +3001,7 @@
   },
   {
     "slug": "wh-nightstand",
-    "name": "Nightstand",
+    "name": "Cozy Nightstand",
     "type": "item",
     "pack": "welcome-home",
     "category": "furniture",
@@ -3085,7 +3085,7 @@
   },
   {
     "slug": "wh-snake-plant",
-    "name": "Snake Plant",
+    "name": "Cozy Snake Plant",
     "type": "item",
     "pack": "welcome-home",
     "category": "plants",
@@ -3172,7 +3172,7 @@
   },
   {
     "slug": "wh-teapot",
-    "name": "Teapot",
+    "name": "Cozy Teapot",
     "type": "item",
     "pack": "welcome-home",
     "category": "food",
@@ -3708,7 +3708,7 @@
   },
   {
     "slug": "sv-cloud-rug",
-    "name": "Cloud Rug",
+    "name": "Sunny Cloud Rug",
     "type": "item",
     "pack": "sunny-vibes",
     "category": "decor",
@@ -3902,7 +3902,7 @@
   },
   {
     "slug": "sv-wall-shelf",
-    "name": "Wall Shelf",
+    "name": "Sunny Shelf",
     "type": "item",
     "pack": "sunny-vibes",
     "category": "decor",
@@ -3988,7 +3988,7 @@
   },
   {
     "slug": "sv-bean-bag",
-    "name": "Bean Bag",
+    "name": "Sunny Bean Bag",
     "type": "item",
     "pack": "sunny-vibes",
     "category": "furniture",

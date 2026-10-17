@@ -28,8 +28,9 @@ function hookStore(st: AnyStore) { if (hooked.has(st)) return; hooked.add(st); s
 hookStore(local);
 const store: AnyStore = { get: () => inner.get(), dispatch: a => inner.dispatch(a), subscribe: l => { storeListeners.push(l); } };
 // World is ROOM_W x ROOM_H; the stage shows a VIEW_W-wide window onto it (fits the iPad).
-const W = ROOM_W, H = ROOM_H, VIEW_W = 1000, FLOOR_Y = 390;
-const MAX_CAM = W - VIEW_W;
+const W = ROOM_W, H = ROOM_H, FLOOR_Y = 390;
+let VIEW_W = 1000; // visible window; narrower in portrait so the room can fill the height
+const maxCam = () => Math.max(0, W - VIEW_W);
 const WALL_BOTTOM = 375; // wall items (manifest `wall: true`) snap so they sit on the wall
 const snapY = (def: ItemDef, y: number) => def.wall ? Math.min(y, WALL_BOTTOM) : y;
 const CHAR_W = 120, CHAR_H = 192;
@@ -50,8 +51,6 @@ const TABS: Tab[] = [
 TABS.push({ id: 'secrets', name: 'Secrets', icon: 'egg:chloe-starlamp', kind: 'cat' });
 for (const it of ITEMS) if (!TABS.some(t => t.kind === 'cat' && t.id === it.cat)) TABS.push({ id: it.cat, name: it.cat, icon: it.kind, kind: 'cat' });
 for (const it of ITEMS) if (it.pack && !TABS.some(t => t.id === 'pack:' + it.pack)) TABS.push({ id: 'pack:' + it.pack, name: packLabel(it.pack), icon: it.kind, kind: 'pack' });
-const ROOM_FILTERS: { id: string; name: string }[] = [{ id: 'all', name: 'All' }, { id: 'living', name: 'Living' }, { id: 'bedroom', name: 'Bed' }, { id: 'kitchen', name: 'Kitchen' }, { id: 'salon', name: 'Salon' }];
-for (const it of ITEMS) for (const r of it.rooms ?? []) if (r !== 'any' && !ROOM_FILTERS.some(f => f.id === r)) ROOM_FILTERS.push({ id: r, name: r[0].toUpperCase() + r.slice(1) });
 const matchesRoom = (rooms: string[] | undefined, f: string) => f === 'all' || !rooms || rooms.includes('any') || rooms.includes(f);
 const tabItems = (tab: string, rf: string) => ITEMS.filter(i => (!i.secret || foundSet().has(i.secret)) && (tab.startsWith('pack:') ? i.pack === tab.slice(5) : i.cat === tab) && matchesRoom(i.rooms, rf));
 
@@ -80,7 +79,8 @@ app.innerHTML = `
   <div class="tools">
     <button class="round ownOnly" id="btnLock" aria-label="Lock house"></button>
     <button class="round hoodOnly" id="btnChat" aria-label="Talk">${ICONS.chat}</button>
-    <button class="round soloOnly" id="btnHood" aria-label="Neighborhood">${ICONS.street}</button>
+    <button class="round soloOnly" id="btnHood" aria-label="Friends">${ICONS.street}</button>
+    <button class="round homeBtn" id="btnHome" aria-label="Home">${ICONS.home}</button>
     <button class="round streetOnly" id="btnParent" aria-label="Grown-ups">${ICONS.shield}</button>
     <button class="round streetOnly" id="btnSolo" aria-label="Play in my own house">${ICONS.solo}</button>
     <button class="round barnOnly" id="btnLeavePark" aria-label="Go outside">${gateIcon}</button>
@@ -109,8 +109,10 @@ app.innerHTML = `
   <div class="secrets" id="secrets"></div>
 </div>
 <div class="drawer">
-  <div class="rooms" id="roomFilter"></div>
-  <div class="cats" id="cats"></div>
+  <div class="drawerTop">
+    <div class="rooms" id="roomFilter"></div>
+    <div class="cats" id="cats"></div>
+  </div>
   <div class="shelf" id="shelf"></div>
 </div>
 <div class="street park ranch hidden" id="ranch"><div class="streetScroll" id="ranchScroll"><div class="parkWorld ranchWorld" id="ranchWorld"></div></div></div>
@@ -121,7 +123,8 @@ app.innerHTML = `
 <div class="street mapView hidden" id="street"><div class="mapWorld" id="mapWorld"></div></div>
 <div class="chatTray hidden" id="chatTray"></div>
 <div class="sheet hidden" id="sheet"><div class="card" id="card"></div></div>
-<div class="fx" id="fx"></div>`;
+<div class="fx" id="fx"></div>
+<div class="phoneNote" id="phoneNote"><div class="card"><h2>Best on an iPad</h2><p>This cozy house is made for an iPad. Open it there, and turn the iPad sideways if you can.</p><button class="phoneOk" id="phoneOk" type="button">OK!</button></div></div>`;
 
 const $ = (id: string) => document.getElementById(id)!;
 // preview builds (separate URL, separate server, prefixed saves) wear a little ribbon so nobody mixes them up
@@ -130,7 +133,7 @@ const stage = $('stage'), world = $('world'), layer = $('layer'), toolbar = $('t
 let selected: string | null = null;          // selected room item (UI only)
 let activeChar: string | null = store.get().characters[0]?.id ?? null; // character being edited (UI only)
 let currentTab = 'furniture';
-let roomFilter = 'all';
+let roomFilter = ''; // '' follows the room you're in; 'all' shows every room's things
 let uid = Date.now() % 100000;
 const newId = (p: string) => `${p}-${Date.now().toString(36)}${(++uid).toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 const ME = '__me';
@@ -147,12 +150,12 @@ const cams: Record<string, number> = {};
 let camX = V1_OFFSET, inertia = 0;
 let glideTarget: number | null = null;
 const stopGlide = () => { cancelAnimationFrame(inertia); glideTarget = null; };
-const clampCam = (x: number) => Math.max(0, Math.min(MAX_CAM, x));
+const clampCam = (x: number) => Math.max(0, Math.min(maxCam(), x));
 function setCam(x: number) {
   camX = clampCam(x); cams[store.get().currentRoom] = camX;
   world.style.transform = `translate3d(${-camX}px,0,0)`;
   $('nudgeL').classList.toggle('off', camX <= 1);
-  $('nudgeR').classList.toggle('off', camX >= MAX_CAM - 1);
+  $('nudgeR').classList.toggle('off', camX >= maxCam() - 1);
   const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%';
   if (selected) renderToolbar(store.get());
 }
@@ -163,10 +166,26 @@ function glideTo(target: number) {
 }
 const stageScale = () => stage.getBoundingClientRect().width / VIEW_W;
 
+function syncChrome() {
+  const top = document.querySelector('.top');
+  if (top) document.documentElement.style.setProperty('--chrome-h', Math.ceil(top.getBoundingClientRect().height) + 'px');
+}
 function fit() {
+  syncChrome();
   const wrap = $('stageWrap');
+  const portrait = wrap.clientHeight > wrap.clientWidth + 40;
+  if (portrait) {
+    // Match the free space's shape so the room scales up and fills the height.
+    const aspect = wrap.clientWidth / Math.max(1, wrap.clientHeight);
+    VIEW_W = Math.round(Math.max(480, Math.min(860, H * aspect)));
+  } else VIEW_W = 1000;
+  stage.style.width = VIEW_W + 'px';
+  stage.style.height = H + 'px';
   const sc = Math.min(wrap.clientWidth / VIEW_W, wrap.clientHeight / H);
   stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
+  if (camX > maxCam()) setCam(camX);
+  else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
+  if (view === 'ranch') requestAnimationFrame(frameRanchSign);
 }
 window.addEventListener('resize', fit);
 stage.addEventListener('scroll', () => { stage.scrollLeft = 0; stage.scrollTop = 0; });
@@ -207,7 +226,8 @@ const PATTERNS = [
   'linear-gradient(45deg, rgba(255,255,255,.35) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.35) 75%), linear-gradient(45deg, rgba(255,255,255,.35) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.35) 75%)',
 ];
 const FLOOR_BOARDS = 'repeating-linear-gradient(90deg, rgba(90,61,92,.08) 0 3px, transparent 3px 125px), linear-gradient(rgba(0,0,0,.06), transparent 50%)';
-const cssUrl = (u: string) => `url("${u.replace(/"/g, '%22')}")`;
+// Single quotes: this value is dropped into style="…" attributes, and a " would end the attribute early.
+const cssUrl = (u: string) => `url('${u.replace(/'/g, '%27')}')`;
 function renderRoomBg(s: GameState) {
   const room = s.rooms[s.currentRoom];
   const wall = $('wall'), floor = $('floor');
@@ -322,7 +342,7 @@ function renderAll() {
 
 store.subscribe((s, a) => {
   switch (a.type) {
-    case 'room/switch': if (hood && inner !== local) moveMeToRoom(a.room); renderAll(); break;
+    case 'room/switch': if (hood && inner !== local) moveMeToRoom(a.room); renderAll(); renderDrawer(); break;
     case 'game/reset': renderAll(); break;
     case 'room/wallpaper': case 'room/floor': case 'room/pattern': case 'room/wallTile': case 'room/floorTile': renderRoomBg(s); break;
     case 'char/update': case 'char/move': renderChars(s); break;
@@ -555,14 +575,19 @@ function addCharacter(): string | null {
   return id;
 }
 
+function activeRoomFilter() { return roomFilter === 'all' ? 'all' : store.get().currentRoom; }
 function renderDrawer() {
-  // the secrets tab lives in the spare slot of the room column so the pack tabs keep their room
+  const room = store.get().currentRoom;
+  const rf = activeRoomFilter();
+  const rname = ROOMS.find(r => r.id === room)?.name ?? 'This room';
+  const all = rf === 'all';
+  $('roomFilter').innerHTML = `<button class="rf ${all ? 'on' : ''}" data-rf="${all ? 'room' : 'all'}">${all ? 'Just ' + rname : 'All rooms'}</button>`;
   const hasSecrets = tabItems('secrets', 'all').length > 0;
-  $('roomFilter').innerHTML = ROOM_FILTERS.map(f => `<button class="rf ${f.id === roomFilter ? 'on' : ''}" data-rf="${f.id}">${f.name}</button>`).join('')
-    + (hasSecrets ? `<button class="rf secretTab ${currentTab === 'secrets' ? 'on' : ''}" data-cat="secrets" aria-label="Secrets" title="Secrets">🎁</button>` : '');
-  const visible = TABS.filter(t => t.id !== 'secrets' && (t.kind === 'people' || tabItems(t.id, roomFilter).length));
+  // Pack tabs stay on screen in every room (Glossy is all salon pieces, and kids still need to see it).
+  const visible = TABS.filter(t => t.id !== 'secrets' && (t.kind === 'people' || t.kind === 'pack' || tabItems(t.id, rf).length));
   if (!(currentTab === 'secrets' && hasSecrets) && !visible.some(t => t.id === currentTab)) currentTab = visible[1]?.id ?? '__people';
-  $('cats').innerHTML = visible.map(t => `<button class="cat ${t.kind} ${t.id === currentTab ? 'on' : ''}" data-cat="${t.id}" aria-label="${t.name}" title="${t.name}">${t.kind === 'people' ? PEOPLE_ICON : t.kind === 'pack' ? `<span class="packicon">${svgOf(ITEM_MAP[t.icon])}</span><span class="packname">${t.name}</span>` : svgOf(ITEM_MAP[t.icon])}</button>`).join('');
+  $('cats').innerHTML = visible.map(t => `<button class="cat ${t.kind} ${t.id === currentTab ? 'on' : ''}" data-cat="${t.id}" aria-label="${t.name}" title="${t.name}">${t.kind === 'people' ? PEOPLE_ICON : t.kind === 'pack' ? `<span class="packicon">${svgOf(ITEM_MAP[t.icon])}</span><span class="packname">${t.name}</span>` : svgOf(ITEM_MAP[t.icon])}</button>`).join('')
+    + (hasSecrets ? `<button class="cat secretTab ${currentTab === 'secrets' ? 'on' : ''}" data-cat="secrets" aria-label="Secrets" title="Secrets">🎁</button>` : '');
   const shelf = $('shelf'); shelf.innerHTML = '';
   if (!canEdit()) { shelf.innerHTML = `<div class="empty locked">🔒 This house is look-only right now</div>`; return; }
   if (currentTab === '__people') {
@@ -585,7 +610,7 @@ function renderDrawer() {
     }
     return;
   }
-  const list = tabItems(currentTab, roomFilter);
+  const list = tabItems(currentTab, currentTab.startsWith('pack:') ? 'all' : rf);
   if (!list.length) shelf.innerHTML = `<div class="empty">Nothing here yet!</div>`;
   for (const d of list) {
     const b = document.createElement('button'); b.className = 'thing'; b.setAttribute('aria-label', d.name);
@@ -622,11 +647,11 @@ function renderSheet() {
     const thumb = (patch: Partial<Character>) => characterSVG({ ...c, ...patch }).replace('<svg ', '<svg preserveAspectRatio="xMidYMin slice" ');
     card.innerHTML = `<button class="close" data-act="close">✕</button>${picker}<div class="dress"><div class="previewCol"><div class="preview"><div style="height:${SIZE_SCALE[c.size] * 78}%">${characterSVG(c)}</div></div>
         ${c.id === ME ? `<div class="meNote">This is you!</div>` : `<button class="del ${confirmDelete ? 'sure' : ''}" data-act="delc">`}${c.id === ME ? '' : `${ICON.trash}<span>${confirmDelete ? 'Tap again' : ''}</span></button>`}</div><div class="opts">
-      <div class="row2"><div><h3>Size</h3><div class="sw">${SIZES.map(z => `<button class="dot sz ${z === c.size ? 'on' : ''}" data-act="size" data-v="${z}"><div style="height:${SIZE_SCALE[z] * 70}%">${characterSVG(c)}</div></button>`).join('')}</div></div>
-      <div><h3>Extras</h3><div class="sw">${Array.from({ length: ACCESSORIES }, (_, i) => `<button class="dot hs ${i === c.acc ? 'on' : ''}" data-act="acc" data-v="${i}">${thumb({ acc: i })}</button>`).join('')}</div></div></div>
+      <div class="row2"><div class="optCol"><h3>Size</h3><div class="sw">${SIZES.map(z => `<button class="dot sz ${z === c.size ? 'on' : ''}" data-act="size" data-v="${z}"><div style="height:${SIZE_SCALE[z] * 70}%">${characterSVG(c)}</div></button>`).join('')}</div></div>
+      <div class="optCol"><h3>Extras</h3><div class="sw">${Array.from({ length: ACCESSORIES }, (_, i) => `<button class="dot hs ${i === c.acc ? 'on' : ''}" data-act="acc" data-v="${i}">${thumb({ acc: i })}</button>`).join('')}</div></div></div>
       <h3>Skin</h3>${swatches(SKINS, c.skin, 'skin')}
       <h3>Hair</h3>${swatches(HAIRS, c.hair, 'hair')}
-      <div class="sw" style="margin-top:8px">${Array.from({ length: HAIR_STYLES }, (_, i) => `<button class="dot hs ${i === c.hairStyle ? 'on' : ''}" data-act="hs" data-v="${i}">${thumb({ hairStyle: i, acc: 0 })}</button>`).join('')}</div>
+      <h3>Hair style</h3><div class="sw">${Array.from({ length: HAIR_STYLES }, (_, i) => `<button class="dot hs ${i === c.hairStyle ? 'on' : ''}" data-act="hs" data-v="${i}">${thumb({ hairStyle: i, acc: 0 })}</button>`).join('')}</div>
       <h3>Shirt</h3>${swatches(CLOTHES, c.shirt, 'shirt')}
       <h3>Pants</h3>${swatches(CLOTHES, c.pants, 'pants')}</div></div>`;
   }
@@ -676,7 +701,7 @@ $('cats').addEventListener('click', e => {
 $('roomFilter').addEventListener('click', e => {
   const sec = (e.target as HTMLElement).closest<HTMLElement>('[data-cat]'); if (sec) { currentTab = sec.dataset.cat!; sfx.click(); renderDrawer(); return; }
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-rf]'); if (!b) return;
-  roomFilter = b.dataset.rf!; sfx.click(); renderDrawer();
+  roomFilter = b.dataset.rf === 'all' ? 'all' : ''; sfx.click(); renderDrawer();
 });
 toolbar.addEventListener('pointerdown', e => e.stopPropagation());
 toolbar.addEventListener('click', e => {
@@ -1067,6 +1092,8 @@ function goSolo() {
   useStore(local); renderHoodChrome();
 }
 $('btnMap').addEventListener('click', () => { if (view === 'street') { sfx.pop(); return; } goMap(); });
+$('btnHome').addEventListener('click', () => { if (view === 'house' && (!hood || currentHouseId === hood.myHouseId())) { sfx.pop(); return; } goHome(); });
+$('phoneOk').addEventListener('click', () => { $('phoneNote').classList.add('hidden'); sfx.click(); });
 $('btnSolo').addEventListener('click', () => { goSolo(); toast('Playing in your own house 🏠'); });
 window.addEventListener('resize', () => { if (view === 'street') renderMap(true); if (view === 'park') renderPark(); if (view === 'ranch') renderRanch(); if (view === 'gameroom') renderGameRoom(); });
 
@@ -1426,7 +1453,8 @@ function dogOwners(): DogOwner[] {
   const out: DogOwner[] = [];
   if (view === 'house') {
     const s = store.get();
-    const house = { box: layer, place: placeEl, z: (y: number) => String(5000 + Math.round(y)), scale: 1 };
+    // Pets stay under every character (characters are 5000 + y, and y is at least the floor).
+    const house = { box: layer, place: placeEl, z: (y: number) => String(4000 + Math.round(y)), scale: 1 };
     if (hood && inner !== local) {
       const entries: [string, Presence][] = [...hood.presence.entries()]; const mine = myPres(); if (mine) entries.push([hood.pid, mine]);
       for (const [pid, p] of entries) { const d = hood.players.get(pid)?.dog; if (d && p.where === 'house' && p.houseId === currentHouseId && p.room === s.currentRoom) out.push({ key: pid, dog: d, x: p.x, y: p.y, flip: p.flip, ...house }); }
@@ -1436,13 +1464,13 @@ function dogOwners(): DogOwner[] {
     }
   } else if (view === 'park') {
     const box = document.getElementById('pavatars'); if (!box) return out; const sc = parkScale();
-    for (const w of parkPeople()) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95 });
+    for (const w of parkPeople()) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(Math.round(y) - 200), scale: 0.95 });
   } else if (view === 'ranch') {
     const box = document.getElementById('ravatars'); if (!box) return out; const sc = ranchScale();
-    for (const w of parkPeople(inBarn ? 'barn' : 'ranch')) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95 });
+    for (const w of parkPeople(inBarn ? 'barn' : 'ranch')) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(Math.round(y) - 200), scale: 0.95 });
   } else if (view === 'gameroom') {
     const box = document.getElementById('gavatars'); if (!box) return out; const sc = grScale();
-    for (const w of parkPeople('gameroom')) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(100 + Math.round(y)), scale: 0.95 });
+    for (const w of parkPeople('gameroom')) if (w.dog) out.push({ key: w.key, dog: w.dog, x: w.p.x, y: w.p.y, flip: w.p.flip, box, place: pxPlace(sc), z: y => String(Math.round(y) - 200), scale: 0.95 });
   }
   return out;
 }
@@ -1528,7 +1556,10 @@ function tickCat() {
   }
   catEl.dataset.name = cat.name; catEl.dataset.mood = b.mood;
   catEl.classList.toggle('walking', b.mood === 'walk'); catEl.classList.toggle('groom', b.mood === 'groom'); catEl.classList.toggle('flipped', b.flip);
-  placeEl(catEl, b.x, CAT_Y, 100, 83); catEl.style.zIndex = String(5000 + CAT_Y);
+  // __pinCat holds her on a character's feet for tests. She stays under characters (5000 + y).
+  const pin = (window as any).__pinCat as { x: number } | null;
+  placeEl(catEl, pin && Number.isFinite(pin.x) ? pin.x : b.x, CAT_Y, 150, 128);
+  catEl.style.zIndex = String(4000 + CAT_Y);
 }
 function purr() {
   if (!catEl) return; sfx.purr(); setTimeout(() => sfx.meow(), 250);
@@ -1595,14 +1626,14 @@ function openPets(tab: 'cat' | 'dog' = 'cat') {
     const prev = (m.root.querySelector<HTMLInputElement>('#petName')?.value ?? '');
     card.innerHTML = `${X}<h2>Pets</h2>
       <div class="petTabs"><button data-pt="cat" class="${isCat ? 'on' : ''}">🐱 Cat</button><button data-pt="dog" class="${isCat ? '' : 'on'}">🐶 Dog</button></div>
-      <p class="hint small">${isCat ? (hood ? 'Your cat lives in your house. Friends can see it when they visit!' : 'Your cat lives in your house and does cat things.') : (hood ? 'Your dog follows you everywhere: the street, friends\' houses and the park!' : 'Your dog follows its walker around the house and to the park.')}</p>
+      <p class="hint small">${isCat ? (hood ? 'Your cat lives in your house. Friends can see her when they visit!' : 'Your cat lives in your house. She naps, purrs, and plays!') : (hood ? 'Your dog follows you everywhere: the street, friends\' houses, and the park!' : 'Your dog follows you around the house and to the park!')}</p>
       <div class="petRow"><div class="petPreview">${isCat ? catSVG(d.coat, 'sit') : dogSVG(d.breed, 'stand')}</div>
         <div class="swatches">${(isCat ? CAT_COATS : DOG_BREEDS).map((c, i) => `<button ${isCat ? 'data-coat' : 'data-breed'}="${i}" class="${i === (isCat ? d.coat : d.breed) ? 'on' : ''}"><div>${isCat ? catSVG(i, 'sit') : dogSVG(i, 'stand')}</div><span>${c.name}</span></button>`).join('')}</div></div>
       <div class="label">Name</div>
       <div class="nameChips">${names.map(n => `<button ${isCat ? 'data-cname' : 'data-dname'}="${n}" class="${n === cur ? 'on' : ''}">${n}</button>`).join('')}</div>
       <input id="petName" class="petName" maxlength="14" autocomplete="off" placeholder="…or type a name" value="${esc(prev)}"/>
       ${d.err ? `<p class="err" id="petErr">${esc(d.err)}</p>` : ''}
-      ${!isCat && !hood && chars.length > 1 ? `<div class="label">Who walks the dog?</div><div class="walkers">${chars.map(c => `<button data-owner="${c.id}" class="${c.id === d.owner ? 'on' : ''}">${characterSVG(c)}</button>`).join('')}</div>` : ''}
+      ${!isCat && !hood && chars.length > 1 ? `<div class="label">Who does your dog follow?</div><div class="walkers">${chars.map(c => `<button data-owner="${c.id}" class="${c.id === d.owner ? 'on' : ''}">${characterSVG(c)}</button>`).join('')}</div>` : ''}
       <div class="petBtns"><button class="go" data-pa="${isCat ? 'adoptCat' : 'adoptDog'}" id="adoptBtn">${have ? 'Save' : 'Adopt! 💛'}</button>
         ${isCat && cat0 && inMyHouse() ? '<button data-pa="callCat" id="callCat">Here, kitty!</button>' : ''}
         ${have ? `<button class="danger" data-pa="bye">${d.bye ? 'Tap again to say goodbye' : 'Find a new home'}</button>` : ''}</div>`;
@@ -1648,10 +1679,17 @@ function goRanch(barn = false) {
   const fromBarn = view === 'ranch' && inBarn && !barn;
   hideScenes(); $('ranch').classList.remove('hidden');
   fetchSt = null; walkTarget = null; view = 'ranch'; inBarn = barn;
-  const p: Presence = barn ? { where: 'barn', x: 170, y: 560, flip: false } : { where: 'ranch', x: fromBarn ? BARN_DOOR_X : 320, y: fromBarn ? 520 : 565, flip: false };
+  // Arrive left of the barn door so she never covers the "Petting zoo inside!" sign.
+  // Stepping back out of the barn still stands in the doorway (the ranch test checks that spot).
+  const p: Presence = barn ? { where: 'barn', x: 170, y: 560, flip: false } : { where: 'ranch', x: fromBarn ? BARN_DOOR_X : 130, y: fromBarn ? 520 : 565, flip: false };
   if (hood) setMyPres(p); else soloPark = p;
   $('streetTitle').textContent = barn ? 'The Barn' : 'Rainbow Ranch'; renderHoodChrome(); renderRanch();
-  requestAnimationFrame(() => { $('ranchScroll').scrollLeft = fromBarn ? Math.max(0, BARN_DOOR_X * ranchScale() - $('ranchScroll').clientWidth / 2) : 0; });
+  requestAnimationFrame(() => {
+    const scroll = $('ranchScroll'), sc = ranchScale();
+    scroll.scrollLeft = fromBarn ? Math.max(0, BARN_DOOR_X * sc - scroll.clientWidth / 2) : 0;
+    frameRanchSign();
+  });
+  setTimeout(frameRanchSign, 650);
   sceneIn($('ranch')); barn ? sfx.swish() : sfx.sparkle();
 }
 $('btnHopOff').addEventListener('click', () => hopOff());
@@ -1662,14 +1700,14 @@ function renderRanch() {
   w.style.width = RW() * sc + 'px'; w.style.height = RANCH_H * sc + 'px'; w.style.setProperty('--sc', String(sc));
   if (inBarn) {
     w.innerHTML = barnSceneSVG()
-      + `<button class="rprop barnExit" data-r="exit" aria-label="Go outside" style="${box(127, 444, 206, 244)}"><span class="exitHint">Outside ☀️</span></button>`
+      + `<button class="rprop barnExit" data-r="exit" aria-label="Go outside" style="${box(127, 444, 206, 244)}"><span class="exitHint"><span>Outside ☀️</span></span></button>`
       + ANIMALS.map((_, i) => `<button class="animal" data-animal="${i}" aria-label="${ANIMAL_INFO[i].name}" style="${box(BARN_ANIMAL_X[i], ANIMAL_Y + 30, 128, 107)}">${animalSVG(i)}</button>`).join('')
       + [300, 1244].map(x0 => (['carrot', 'apple', 'hay'] as const).map((f, i) => `<button class="bucket" data-feed="${f}" aria-label="${f} bucket" style="${box(x0 + i * 56, 592, 54, 62)}">${bucketSVG(f)}</button>`).join('')).join('') // by the door + in the middle
       + `<div class="rfx" id="rfx"></div><div class="savatars" id="ravatars"></div>`;
     renderRanchAvatars(); return;
   }
   w.innerHTML = ranchSceneSVG()
-    + `<button class="rprop barnDoor" data-r="barn" aria-label="Go into the barn" style="${box(BARN_DOOR_X, 472, 150, 150)}"><span class="doorHint">Petting zoo inside! 🐐</span></button>`
+    + `<button class="rprop barnDoor" data-r="barn" aria-label="Go into the barn" style="${box(BARN_DOOR_X, 472, 150, 150)}"><span class="doorHint"><span>Petting zoo inside! 🐐</span></span></button>`
     + `<button class="rprop windmill" data-r="mill" aria-label="Windmill" style="${box(1540, 478, 150, 240)}">${windmillSVG}</button>`
     + `<button class="rprop henHouse" data-r="egg" aria-label="Hen house" style="${box(715, 482, 180, 170)}">${henHouseSVG}</button>`
     + `<button class="rprop tractor" data-r="honk" aria-label="Tractor" style="${box(900, 580, 170, 130)}">${tractorSVG}</button>`
@@ -1922,7 +1960,36 @@ bindGameRoom({
 // ---------- start ----------
 renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
 // ---------- hidden surprises ----------
-const renderSecrets = () => { $('secrets').textContent = `Secrets found: ${foundSet().size}/${EGGS.length}`; };
+const renderSecrets = () => { $('secrets').textContent = `🎁 Surprises: ${foundSet().size}/${EGGS.length}`; };
+
+/** Keep the petting-zoo label on screen. Scroll a little if the girl still fits, then slide the label. */
+function frameRanchSign() {
+  if (view !== 'ranch' || inBarn) return;
+  const scroll = $('ranchScroll');
+  const hint = document.querySelector<HTMLElement>('.doorHint');
+  if (!hint || !scroll.clientWidth) return;
+  const sc = ranchScale(), pad = 14, vw = scroll.clientWidth, hw = hint.offsetWidth;
+  const need = Math.max(0, BARN_DOOR_X * sc + hw / 2 + pad - vw);
+  if (scroll.scrollLeft < need) {
+    const me = myParkPres();
+    const maxForGirl = me && me.where === 'ranch' ? Math.max(0, me.x * sc - 60 * sc - pad) : need;
+    scroll.scrollLeft = Math.min(need, maxForGirl);
+  }
+  keepDoorHintOnScreen();
+}
+function keepDoorHintOnScreen() {
+  const hint = document.querySelector<HTMLElement>('.doorHint');
+  const scroll = document.getElementById('ranchScroll');
+  if (!hint || !scroll) return;
+  const sc = ranchScale();
+  const doorX = BARN_DOOR_X * sc - scroll.scrollLeft;
+  const hw = hint.offsetWidth, pad = 12;
+  const right = doorX + hw / 2, left = doorX - hw / 2;
+  let dx = 0;
+  if (right > innerWidth - pad) dx -= right - (innerWidth - pad);
+  if (left + dx < pad) dx += pad - (left + dx);
+  hint.style.transform = `translateX(calc(-50% + ${dx}px))`;
+}
 const eggs = initEggs({
   world, roomW: W, roomH: H, currentRoom: () => store.get().currentRoom,
   sparkle: () => sfx.sparkle(), tap: () => sfx.click(),
