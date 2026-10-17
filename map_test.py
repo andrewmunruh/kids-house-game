@@ -30,7 +30,6 @@ async def main():
             c = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=2, has_touch=True)
             await c.add_init_script(SKIP_WN); return c
         P, K2, K3 = [await (await mk()).new_page() for _ in range(3)]
-        P.on("response", lambda r: print("NET", r.status, r.url) if "/api/" in r.url else None); P.on("console", lambda m: print("CON", m.text) if m.type=="error" else None)
         errs = {}
         for name, pg in (('P', P), ('K2', K2), ('K3', K3)):
             errs[name] = []; pg.on('pageerror', lambda e, n=name: errs[n].append(str(e)))
@@ -68,6 +67,8 @@ async def main():
         names = await P.evaluate("[...__hood().houses.values()].map(h => h.meta.name)")
         signs = await P.locator('.mapSign:not(.place)').all_inner_texts()
         check('street map: every kid\'s house with her name sign', await P.locator('.mapHouse').count() == 3 and all(any(n[:12] in s for s in signs) for n in names), json.dumps(signs))
+        offs = await P.evaluate("(() => { const W = innerWidth; return [...document.querySelectorAll('.mapSign')].filter(e => { const r = e.getBoundingClientRect(); return r.left < 0 || r.right > W || e.scrollWidth > e.clientWidth + 1; }).map(e => e.textContent); })()")
+        check('every map sign is fully on screen (not cut off)', offs == [], json.dumps(offs))
         check('everyone shows as a face on every map', [await pg.locator('.mapFace').count() for pg in (P, K2, K3)] == [3, 3, 3])
         k2pid, k3pid, ppid = [await pg.evaluate('__hood().pid') for pg in (K2, K3, P)]
         p_house = await P.evaluate('__hood().myHouseId()')
