@@ -317,30 +317,6 @@
   },
   {
     "type": "item",
-    "slug": "side-table",
-    "name": "Side Table",
-    "room": "living",
-    "category": "furniture",
-    "tag": "furniture",
-    "size": "small",
-    "svg": "living/side-table.svg",
-    "png": "living/side-table.png",
-    "widthUnits": 68.8,
-    "heightUnits": 56.0,
-    "gameW": 68.8,
-    "viewBox": [
-      7.0,
-      31.0,
-      86.0,
-      70.0
-    ],
-    "pngPx": [
-      460,
-      375
-    ]
-  },
-  {
-    "type": "item",
     "slug": "rocking-chair",
     "name": "Rocking Chair",
     "room": "living",
@@ -542,18 +518,18 @@
     "size": "large",
     "svg": "living/rainbow-rug.svg",
     "png": "living/rainbow-rug.png",
-    "widthUnits": 270.4,
-    "heightUnits": 74.1,
-    "gameW": 270.4,
+    "widthUnits": 254.8,
+    "heightUnits": 66.3,
+    "gameW": 254.8,
     "viewBox": [
-      -2.0,
-      69.5,
-      104.0,
-      28.5
+      1.0,
+      68.5,
+      98.0,
+      25.5
     ],
     "pngPx": [
-      1810,
-      496
+      1705,
+      444
     ]
   },
   {
@@ -663,12 +639,12 @@
     "room": "living",
     "category": "plants",
     "tag": "plant",
-    "size": "medium",
+    "size": "large",
     "svg": "living/fiddle-leaf-fig.svg",
     "png": "living/fiddle-leaf-fig.png",
-    "widthUnits": 106.2,
-    "heightUnits": 175.1,
-    "gameW": 106.2,
+    "widthUnits": 118.8,
+    "heightUnits": 195.7,
+    "gameW": 118.8,
     "viewBox": [
       18.5,
       -2.0,
@@ -676,8 +652,8 @@
       103.0
     ],
     "pngPx": [
-      711,
-      1172
+      795,
+      1310
     ]
   },
   {
@@ -974,5 +950,4061 @@
       1092,
       900
     ]
+  },
+  {
+    "type": "item",
+    "slug": "bunk-bed",
+    "name": "Bunk Bed",
+    "room": "bedroom",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "svg": "bedroom/bunk-bed.svg",
+    "png": "bedroom/bunk-bed.png",
+    "widthUnits": 294.0,
+    "heightUnits": 300.0,
+    "gameW": 294.0,
+    "viewBox": [
+      1.0,
+      1.0,
+      98.0,
+      100.0
+    ],
+    "pngPx": [
+      1968,
+      2008
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "dresser",
+    "name": "Dresser",
+    "room": "bedroom",
+    "category": "furniture",
+    "tag": "storage",
+    "size": "medium",
+    "svg": "bedroom/dresser.svg",
+    "png": "bedroom/dresser.png",
+    "widthUnits": 141.0,
+    "heightUnits": 126.0,
+    "gameW": 141.0,
+    "viewBox": [
+      3.0,
+      17.0,
+      94.0,
+      84.0
+    ],
+    "pngPx": [
+      944,
+      843
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "nightstand",
+    "name": "Nightstand",
+    "room": "bedroom",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "small",
+    "svg": "bedroom/nightstand.svg",
+    "png": "bedroom/nightstand.png",
+    "widthUnits": 69.7,
+    "heightUnits": 59.5,
+    "gameW": 69.7,
+    "viewBox": [
+      9.0,
+      31.0,
+      82.0,
+      70.0
+    ],
+    "pngPx": [
+      466,
+      398
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "wardrobe",
+    "name": "Wardrobe",
+    "room": "bedroom",
+    "category": "furniture",
+    "tag": "storage",
+    "size": "medium",
+    "svg": "bedroom/wardrobe.svg",
+    "png": "bedroom/wardrobe.png",
+    "widthUnits": 150.5,
+    "heightUnits": 178.5,
+    "gameW": 150.5,
+    "viewBox": [
+      7.0,
+      -1.0,
+      86.0,
+      102.0
+    ],
+    "pngPx": [
+      1007,
+      1195
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "desk",
+    "name": "Desk",
+    "room": "bedroom",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "medium",
+    "svg": "bedroom/desk.svg",
+    "png": "bedroom/desk.png",
+    "widthUnits": 166.6,
+    "heightUnits": 166.6,
+    "gameW": 166.6,
+    "viewBox": [
+      1.0,
+      3.0,
+      98.0,
+      98.0
+    ],
+    "pngPx": [
+      1115,
+      1115
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "toy-chest",
+    "name": "Toy Chest",
+    "room": "bedroom",
+    "category": "furniture",
+    "tag": "storage",
+    "size": "medium",
+    "svg": "bedroom/toy-chest.svg",
+    "png": "bedroom/toy-chest.png",
+    "widthUnits": 126.0,
+    "heightUnits": 114.8,
+    "gameW": 126.0,
+    "viewBox": [
+      5.0,
+      19.0,
+      90.0,
+      82.0
+    ],
+    "pngPx": [
+      843,
+      768
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "play-tent",
+    "name": "Play Tent",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "toy",
+    "size": "large",
+    "svg": "bedroom/play-tent.svg",
+    "png": "bedroom/play-tent.png",
+    "widthUnits": 180.0,
+    "heightUnits": 200.0,
+    "gameW": 180.0,
+    "viewBox": [
+      5.0,
+      1.0,
+      90.0,
+      100.0
+    ],
+    "pngPx": [
+      1205,
+      1339
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "egg-chair",
+    "name": "Swing Chair",
+    "room": "bedroom",
+    "category": "furniture",
+    "tag": "seating",
+    "size": "medium",
+    "svg": "bedroom/egg-chair.svg",
+    "png": "bedroom/egg-chair.png",
+    "widthUnits": 126.0,
+    "heightUnits": 154.5,
+    "gameW": 126.0,
+    "viewBox": [
+      9.0,
+      -2.0,
+      84.0,
+      103.0
+    ],
+    "pngPx": [
+      843,
+      1034
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "alarm-clock",
+    "name": "Alarm Clock",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "svg": "bedroom/alarm-clock.svg",
+    "png": "bedroom/alarm-clock.png",
+    "widthUnits": 40.7,
+    "heightUnits": 51.2,
+    "gameW": 40.7,
+    "holdable": true,
+    "viewBox": [
+      13.0,
+      8.0,
+      74.0,
+      93.0
+    ],
+    "pngPx": [
+      272,
+      343
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "lava-lamp",
+    "name": "Lava Lamp",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "small",
+    "svg": "bedroom/lava-lamp.svg",
+    "png": "bedroom/lava-lamp.png",
+    "widthUnits": 33.0,
+    "heightUnits": 50.0,
+    "gameW": 33.0,
+    "holdable": true,
+    "viewBox": [
+      17.0,
+      1.0,
+      66.0,
+      100.0
+    ],
+    "pngPx": [
+      221,
+      335
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "paper-lantern",
+    "name": "Paper Lantern",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "small",
+    "svg": "bedroom/paper-lantern.svg",
+    "png": "bedroom/paper-lantern.png",
+    "widthUnits": 91.8,
+    "heightUnits": 98.5,
+    "gameW": 91.8,
+    "wall": true,
+    "viewBox": [
+      -1.0,
+      -2.5,
+      102.0,
+      109.5
+    ],
+    "pngPx": [
+      614,
+      659
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "heart-rug",
+    "name": "Heart Rug",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "rug",
+    "size": "large",
+    "svg": "bedroom/heart-rug.svg",
+    "png": "bedroom/heart-rug.png",
+    "widthUnits": 217.8,
+    "heightUnits": 77.0,
+    "gameW": 217.8,
+    "viewBox": [
+      0.5,
+      65.0,
+      99.0,
+      35.0
+    ],
+    "pngPx": [
+      1458,
+      515
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "cloud-rug",
+    "name": "Cloud Rug",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "rug",
+    "size": "large",
+    "svg": "bedroom/cloud-rug.svg",
+    "png": "bedroom/cloud-rug.png",
+    "widthUnits": 258.7,
+    "heightUnits": 98.8,
+    "gameW": 258.7,
+    "viewBox": [
+      1.5,
+      63.0,
+      99.5,
+      38.0
+    ],
+    "pngPx": [
+      1731,
+      661
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "cloud-shelf",
+    "name": "Cloud Shelf",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "decor",
+    "size": "medium",
+    "svg": "bedroom/cloud-shelf.svg",
+    "png": "bedroom/cloud-shelf.png",
+    "widthUnits": 118.2,
+    "heightUnits": 60.6,
+    "gameW": 118.2,
+    "wall": true,
+    "viewBox": [
+      0.5,
+      20.5,
+      98.5,
+      50.5
+    ],
+    "pngPx": [
+      791,
+      406
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "star-mobile",
+    "name": "Star Mobile",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "decor",
+    "size": "medium",
+    "svg": "bedroom/star-mobile.svg",
+    "png": "bedroom/star-mobile.png",
+    "widthUnits": 102.3,
+    "heightUnits": 105.1,
+    "gameW": 102.3,
+    "wall": true,
+    "viewBox": [
+      3.5,
+      -2.5,
+      93.0,
+      95.5
+    ],
+    "pngPx": [
+      685,
+      703
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "cork-board",
+    "name": "Pin Board",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "wall-art",
+    "size": "medium",
+    "svg": "bedroom/cork-board.svg",
+    "png": "bedroom/cork-board.png",
+    "widthUnits": 127.4,
+    "heightUnits": 98.8,
+    "gameW": 127.4,
+    "wall": true,
+    "viewBox": [
+      1.0,
+      11.0,
+      98.0,
+      76.0
+    ],
+    "pngPx": [
+      853,
+      661
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "bunny-slippers",
+    "name": "Bunny Slippers",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "svg": "bedroom/bunny-slippers.svg",
+    "png": "bedroom/bunny-slippers.png",
+    "widthUnits": 54.0,
+    "heightUnits": 45.6,
+    "gameW": 54.0,
+    "holdable": true,
+    "viewBox": [
+      5.0,
+      25.0,
+      90.0,
+      76.0
+    ],
+    "pngPx": [
+      361,
+      305
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "book-stack",
+    "name": "Books",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "svg": "bedroom/book-stack.svg",
+    "png": "bedroom/book-stack.png",
+    "widthUnits": 47.3,
+    "heightUnits": 38.5,
+    "gameW": 47.3,
+    "holdable": true,
+    "viewBox": [
+      7.0,
+      31.0,
+      86.0,
+      70.0
+    ],
+    "pngPx": [
+      317,
+      258
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "piggy-bank",
+    "name": "Piggy Bank",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "svg": "bedroom/piggy-bank.svg",
+    "png": "bedroom/piggy-bank.png",
+    "widthUnits": 52.8,
+    "heightUnits": 51.6,
+    "gameW": 52.8,
+    "holdable": true,
+    "viewBox": [
+      9.0,
+      15.0,
+      88.0,
+      86.0
+    ],
+    "pngPx": [
+      353,
+      345
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "doll-house",
+    "name": "Doll House",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "toy",
+    "size": "medium",
+    "svg": "bedroom/doll-house.svg",
+    "png": "bedroom/doll-house.png",
+    "widthUnits": 109.2,
+    "heightUnits": 131.6,
+    "gameW": 109.2,
+    "viewBox": [
+      11.0,
+      7.0,
+      78.0,
+      94.0
+    ],
+    "pngPx": [
+      731,
+      881
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "toy-robot",
+    "name": "Robot",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "svg": "bedroom/toy-robot.svg",
+    "png": "bedroom/toy-robot.png",
+    "widthUnits": 60.2,
+    "heightUnits": 72.4,
+    "gameW": 60.2,
+    "holdable": true,
+    "viewBox": [
+      7.0,
+      -2.5,
+      86.0,
+      103.5
+    ],
+    "pngPx": [
+      403,
+      485
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "unicorn-plush",
+    "name": "Unicorn Plushie",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "svg": "bedroom/unicorn-plush.svg",
+    "png": "bedroom/unicorn-plush.png",
+    "widthUnits": 66.3,
+    "heightUnits": 90.1,
+    "gameW": 66.3,
+    "holdable": true,
+    "viewBox": [
+      11.0,
+      -5.0,
+      78.0,
+      106.0
+    ],
+    "pngPx": [
+      444,
+      603
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "toy-train",
+    "name": "Toy Train",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "toy",
+    "size": "medium",
+    "svg": "bedroom/toy-train.svg",
+    "png": "bedroom/toy-train.png",
+    "widthUnits": 114.4,
+    "heightUnits": 115.0,
+    "gameW": 114.4,
+    "viewBox": [
+      1.0,
+      -3.5,
+      104.0,
+      104.5
+    ],
+    "pngPx": [
+      766,
+      770
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "plant-stand",
+    "name": "Plant Stand",
+    "room": "bedroom",
+    "category": "plants",
+    "tag": "plant",
+    "size": "medium",
+    "svg": "bedroom/plant-stand.svg",
+    "png": "bedroom/plant-stand.png",
+    "widthUnits": 78.1,
+    "heightUnits": 107.8,
+    "gameW": 78.1,
+    "viewBox": [
+      14.5,
+      3.0,
+      71.0,
+      98.0
+    ],
+    "pngPx": [
+      523,
+      721
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "daisy-pot",
+    "name": "Daisy Pot",
+    "room": "bedroom",
+    "category": "plants",
+    "tag": "plant",
+    "size": "small",
+    "svg": "bedroom/daisy-pot.svg",
+    "png": "bedroom/daisy-pot.png",
+    "widthUnits": 37.7,
+    "heightUnits": 57.2,
+    "gameW": 37.7,
+    "holdable": true,
+    "viewBox": [
+      21.0,
+      13.0,
+      58.0,
+      88.0
+    ],
+    "pngPx": [
+      252,
+      383
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "hamster-cage",
+    "name": "Hamster House",
+    "room": "bedroom",
+    "category": "pets",
+    "tag": "pet",
+    "size": "medium",
+    "svg": "bedroom/hamster-cage.svg",
+    "png": "bedroom/hamster-cage.png",
+    "widthUnits": 112.8,
+    "heightUnits": 119.4,
+    "gameW": 112.8,
+    "viewBox": [
+      3.0,
+      1.5,
+      94.0,
+      99.5
+    ],
+    "pngPx": [
+      755,
+      799
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "guinea-pig",
+    "name": "Guinea Pig",
+    "room": "bedroom",
+    "category": "pets",
+    "tag": "pet",
+    "size": "small",
+    "svg": "bedroom/guinea-pig.svg",
+    "png": "bedroom/guinea-pig.png",
+    "widthUnits": 51.6,
+    "heightUnits": 41.7,
+    "gameW": 51.6,
+    "holdable": true,
+    "viewBox": [
+      9.0,
+      31.5,
+      86.0,
+      69.5
+    ],
+    "pngPx": [
+      345,
+      279
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "kitchen-counter",
+    "name": "Counter",
+    "room": "kitchen",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "medium",
+    "svg": "kitchen/kitchen-counter.svg",
+    "png": "kitchen/kitchen-counter.png",
+    "widthUnits": 166.6,
+    "heightUnits": 146.2,
+    "gameW": 166.6,
+    "viewBox": [
+      1.0,
+      15.0,
+      98.0,
+      86.0
+    ],
+    "pngPx": [
+      1115,
+      978
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "kitchen-sink",
+    "name": "Sink",
+    "room": "kitchen",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "medium",
+    "svg": "kitchen/kitchen-sink.svg",
+    "png": "kitchen/kitchen-sink.png",
+    "widthUnits": 166.6,
+    "heightUnits": 162.3,
+    "gameW": 166.6,
+    "viewBox": [
+      1.0,
+      5.5,
+      98.0,
+      95.5
+    ],
+    "pngPx": [
+      1115,
+      1086
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "bar-stool",
+    "name": "Stool",
+    "room": "kitchen",
+    "category": "furniture",
+    "tag": "seating",
+    "size": "small",
+    "svg": "kitchen/bar-stool.svg",
+    "png": "kitchen/bar-stool.png",
+    "widthUnits": 52.8,
+    "heightUnits": 68.8,
+    "gameW": 52.8,
+    "viewBox": [
+      17.0,
+      15.0,
+      66.0,
+      86.0
+    ],
+    "pngPx": [
+      353,
+      460
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "high-chair",
+    "name": "High Chair",
+    "room": "kitchen",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "small",
+    "svg": "kitchen/high-chair.svg",
+    "png": "kitchen/high-chair.png",
+    "widthUnits": 88.0,
+    "heightUnits": 99.0,
+    "gameW": 88.0,
+    "viewBox": [
+      7.0,
+      11.0,
+      80.0,
+      90.0
+    ],
+    "pngPx": [
+      589,
+      663
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "china-hutch",
+    "name": "Dish Cabinet",
+    "room": "kitchen",
+    "category": "furniture",
+    "tag": "storage",
+    "size": "medium",
+    "svg": "kitchen/china-hutch.svg",
+    "png": "kitchen/china-hutch.png",
+    "widthUnits": 164.5,
+    "heightUnits": 171.5,
+    "gameW": 164.5,
+    "viewBox": [
+      3.0,
+      3.0,
+      94.0,
+      98.0
+    ],
+    "pngPx": [
+      1101,
+      1148
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "pantry-shelf",
+    "name": "Pantry",
+    "room": "kitchen",
+    "category": "furniture",
+    "tag": "storage",
+    "size": "medium",
+    "svg": "kitchen/pantry-shelf.svg",
+    "png": "kitchen/pantry-shelf.png",
+    "widthUnits": 137.6,
+    "heightUnits": 153.6,
+    "gameW": 137.6,
+    "viewBox": [
+      7.0,
+      5.0,
+      86.0,
+      96.0
+    ],
+    "pngPx": [
+      921,
+      1028
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "microwave",
+    "name": "Microwave",
+    "room": "kitchen",
+    "category": "decor",
+    "tag": "appliance",
+    "size": "small",
+    "svg": "kitchen/microwave.svg",
+    "png": "kitchen/microwave.png",
+    "widthUnits": 89.3,
+    "heightUnits": 70.3,
+    "gameW": 89.3,
+    "viewBox": [
+      3.0,
+      27.0,
+      94.0,
+      74.0
+    ],
+    "pngPx": [
+      598,
+      471
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "kettle",
+    "name": "Kettle",
+    "room": "kitchen",
+    "category": "decor",
+    "tag": "appliance",
+    "size": "small",
+    "svg": "kitchen/kettle.svg",
+    "png": "kitchen/kettle.png",
+    "widthUnits": 49.2,
+    "heightUnits": 56.4,
+    "gameW": 49.2,
+    "holdable": true,
+    "viewBox": [
+      15.0,
+      7.0,
+      82.0,
+      94.0
+    ],
+    "pngPx": [
+      329,
+      377
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "rice-cooker",
+    "name": "Rice Cooker",
+    "room": "kitchen",
+    "category": "decor",
+    "tag": "appliance",
+    "size": "small",
+    "svg": "kitchen/rice-cooker.svg",
+    "png": "kitchen/rice-cooker.png",
+    "widthUnits": 55.9,
+    "heightUnits": 53.0,
+    "gameW": 55.9,
+    "holdable": true,
+    "viewBox": [
+      7.0,
+      19.5,
+      86.0,
+      81.5
+    ],
+    "pngPx": [
+      374,
+      355
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "stand-mixer",
+    "name": "Mixer",
+    "room": "kitchen",
+    "category": "decor",
+    "tag": "appliance",
+    "size": "small",
+    "svg": "kitchen/stand-mixer.svg",
+    "png": "kitchen/stand-mixer.png",
+    "widthUnits": 64.5,
+    "heightUnits": 67.5,
+    "gameW": 64.5,
+    "viewBox": [
+      7.0,
+      11.0,
+      86.0,
+      90.0
+    ],
+    "pngPx": [
+      432,
+      452
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "pendant-lamp",
+    "name": "Hanging Lamp",
+    "room": "kitchen",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "medium",
+    "svg": "kitchen/pendant-lamp.svg",
+    "png": "kitchen/pendant-lamp.png",
+    "widthUnits": 78.0,
+    "heightUnits": 103.5,
+    "gameW": 78.0,
+    "wall": true,
+    "viewBox": [
+      11.0,
+      -2.5,
+      78.0,
+      103.5
+    ],
+    "pngPx": [
+      522,
+      693
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "runner-rug",
+    "name": "Runner Rug",
+    "room": "kitchen",
+    "category": "decor",
+    "tag": "rug",
+    "size": "large",
+    "svg": "kitchen/runner-rug.svg",
+    "png": "kitchen/runner-rug.png",
+    "widthUnits": 207.2,
+    "heightUnits": 105.0,
+    "gameW": 207.2,
+    "viewBox": [
+      13.0,
+      63.0,
+      74.0,
+      37.5
+    ],
+    "pngPx": [
+      1387,
+      703
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "utensil-rail",
+    "name": "Utensil Rail",
+    "room": "kitchen",
+    "category": "decor",
+    "tag": "decor",
+    "size": "medium",
+    "svg": "kitchen/utensil-rail.svg",
+    "png": "kitchen/utensil-rail.png",
+    "widthUnits": 127.4,
+    "heightUnits": 94.2,
+    "gameW": 127.4,
+    "wall": true,
+    "viewBox": [
+      1.0,
+      7.0,
+      98.0,
+      72.5
+    ],
+    "pngPx": [
+      853,
+      630
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "spice-rack",
+    "name": "Spice Rack",
+    "room": "kitchen",
+    "category": "decor",
+    "tag": "decor",
+    "size": "medium",
+    "svg": "kitchen/spice-rack.svg",
+    "png": "kitchen/spice-rack.png",
+    "widthUnits": 107.8,
+    "heightUnits": 56.7,
+    "gameW": 107.8,
+    "wall": true,
+    "viewBox": [
+      1.0,
+      25.5,
+      98.0,
+      51.5
+    ],
+    "pngPx": [
+      721,
+      379
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "cookie-jar",
+    "name": "Cookie Jar",
+    "room": "kitchen",
+    "category": "food",
+    "tag": "food",
+    "size": "small",
+    "svg": "kitchen/cookie-jar.svg",
+    "png": "kitchen/cookie-jar.png",
+    "widthUnits": 43.8,
+    "heightUnits": 54.0,
+    "gameW": 43.8,
+    "holdable": true,
+    "viewBox": [
+      13.5,
+      11.0,
+      73.0,
+      90.0
+    ],
+    "pngPx": [
+      293,
+      361
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "teapot",
+    "name": "Teapot",
+    "room": "kitchen",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "svg": "kitchen/teapot.svg",
+    "png": "kitchen/teapot.png",
+    "widthUnits": 55.5,
+    "heightUnits": 43.8,
+    "gameW": 55.5,
+    "holdable": true,
+    "viewBox": [
+      5.0,
+      28.0,
+      92.5,
+      73.0
+    ],
+    "pngPx": [
+      371,
+      293
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "cocoa-mug",
+    "name": "Cocoa Mug",
+    "room": "kitchen",
+    "category": "food",
+    "tag": "drink",
+    "size": "small",
+    "svg": "kitchen/cocoa-mug.svg",
+    "png": "kitchen/cocoa-mug.png",
+    "widthUnits": 33.8,
+    "heightUnits": 36.6,
+    "gameW": 33.8,
+    "holdable": true,
+    "viewBox": [
+      15.0,
+      9.5,
+      84.5,
+      91.5
+    ],
+    "pngPx": [
+      226,
+      245
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "cooking-pot",
+    "name": "Cooking Pot",
+    "room": "kitchen",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "svg": "kitchen/cooking-pot.svg",
+    "png": "kitchen/cooking-pot.png",
+    "widthUnits": 73.5,
+    "heightUnits": 66.0,
+    "gameW": 73.5,
+    "holdable": true,
+    "viewBox": [
+      1.0,
+      13.0,
+      98.0,
+      88.0
+    ],
+    "pngPx": [
+      492,
+      442
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "frying-pan",
+    "name": "Egg Pan",
+    "room": "kitchen",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "svg": "kitchen/frying-pan.svg",
+    "png": "kitchen/frying-pan.png",
+    "widthUnits": 80.4,
+    "heightUnits": 40.4,
+    "gameW": 80.4,
+    "holdable": true,
+    "viewBox": [
+      3.0,
+      50.5,
+      100.5,
+      50.5
+    ],
+    "pngPx": [
+      538,
+      270
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "herb-box",
+    "name": "Herb Box",
+    "room": "kitchen",
+    "category": "plants",
+    "tag": "plant",
+    "size": "medium",
+    "svg": "kitchen/herb-box.svg",
+    "png": "kitchen/herb-box.png",
+    "widthUnits": 110.0,
+    "heightUnits": 83.6,
+    "gameW": 110.0,
+    "viewBox": [
+      0.0,
+      25.0,
+      100.0,
+      76.0
+    ],
+    "pngPx": [
+      736,
+      560
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "lemon-tree",
+    "name": "Lemon Tree",
+    "room": "kitchen",
+    "category": "plants",
+    "tag": "plant",
+    "size": "medium",
+    "svg": "kitchen/lemon-tree.svg",
+    "png": "kitchen/lemon-tree.png",
+    "widthUnits": 79.8,
+    "heightUnits": 120.0,
+    "gameW": 79.8,
+    "viewBox": [
+      18.0,
+      1.0,
+      66.5,
+      100.0
+    ],
+    "pngPx": [
+      534,
+      803
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "bananas",
+    "name": "Bananas",
+    "room": "kitchen",
+    "category": "food",
+    "tag": "food",
+    "size": "small",
+    "svg": "kitchen/bananas.svg",
+    "png": "kitchen/bananas.png",
+    "widthUnits": 44.5,
+    "heightUnits": 42.5,
+    "gameW": 44.5,
+    "holdable": true,
+    "viewBox": [
+      14.0,
+      17.0,
+      89.0,
+      85.0
+    ],
+    "pngPx": [
+      298,
+      284
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "watermelon-slice",
+    "name": "Watermelon",
+    "room": "kitchen",
+    "category": "food",
+    "tag": "food",
+    "size": "small",
+    "svg": "kitchen/watermelon-slice.svg",
+    "png": "kitchen/watermelon-slice.png",
+    "widthUnits": 45.0,
+    "heightUnits": 34.0,
+    "gameW": 45.0,
+    "holdable": true,
+    "viewBox": [
+      5.0,
+      33.0,
+      90.0,
+      68.0
+    ],
+    "pngPx": [
+      301,
+      228
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "pancakes",
+    "name": "Pancakes",
+    "room": "kitchen",
+    "category": "food",
+    "tag": "food",
+    "size": "small",
+    "svg": "kitchen/pancakes.svg",
+    "png": "kitchen/pancakes.png",
+    "widthUnits": 56.4,
+    "heightUnits": 47.1,
+    "gameW": 56.4,
+    "holdable": true,
+    "viewBox": [
+      3.0,
+      22.5,
+      94.0,
+      78.5
+    ],
+    "pngPx": [
+      377,
+      315
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "ice-cream",
+    "name": "Ice Cream",
+    "room": "kitchen",
+    "category": "food",
+    "tag": "food",
+    "size": "small",
+    "svg": "kitchen/ice-cream.svg",
+    "png": "kitchen/ice-cream.png",
+    "widthUnits": 18.4,
+    "heightUnits": 39.8,
+    "gameW": 18.4,
+    "holdable": true,
+    "viewBox": [
+      27.0,
+      -0.5,
+      46.0,
+      99.5
+    ],
+    "pngPx": [
+      123,
+      266
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "milk-bottle",
+    "name": "Milk",
+    "room": "kitchen",
+    "category": "food",
+    "tag": "drink",
+    "size": "small",
+    "svg": "kitchen/milk-bottle.svg",
+    "png": "kitchen/milk-bottle.png",
+    "widthUnits": 23.2,
+    "heightUnits": 37.6,
+    "gameW": 23.2,
+    "holdable": true,
+    "viewBox": [
+      21.0,
+      7.0,
+      58.0,
+      94.0
+    ],
+    "pngPx": [
+      155,
+      252
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "bread-loaf",
+    "name": "Bread",
+    "room": "kitchen",
+    "category": "food",
+    "tag": "food",
+    "size": "small",
+    "svg": "kitchen/bread-loaf.svg",
+    "png": "kitchen/bread-loaf.png",
+    "widthUnits": 48.4,
+    "heightUnits": 44.0,
+    "gameW": 48.4,
+    "holdable": true,
+    "viewBox": [
+      6.0,
+      21.0,
+      88.0,
+      80.0
+    ],
+    "pngPx": [
+      324,
+      294
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "cupcake",
+    "name": "Cupcake",
+    "room": "kitchen",
+    "category": "food",
+    "tag": "food",
+    "size": "small",
+    "svg": "kitchen/cupcake.svg",
+    "png": "kitchen/cupcake.png",
+    "widthUnits": 32.9,
+    "heightUnits": 44.8,
+    "gameW": 32.9,
+    "holdable": true,
+    "viewBox": [
+      13.5,
+      1.5,
+      73.0,
+      99.5
+    ],
+    "pngPx": [
+      220,
+      300
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "dish-rack",
+    "name": "Dish Rack",
+    "room": "kitchen",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "svg": "kitchen/dish-rack.svg",
+    "png": "kitchen/dish-rack.png",
+    "widthUnits": 76.5,
+    "heightUnits": 67.6,
+    "gameW": 76.5,
+    "viewBox": [
+      5.0,
+      21.5,
+      90.0,
+      79.5
+    ],
+    "pngPx": [
+      512,
+      452
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "pet-bowl",
+    "name": "Pet Bowl",
+    "room": "kitchen",
+    "category": "pets",
+    "tag": "pet",
+    "size": "small",
+    "svg": "kitchen/pet-bowl.svg",
+    "png": "kitchen/pet-bowl.png",
+    "widthUnits": 49.5,
+    "heightUnits": 34.4,
+    "gameW": 49.5,
+    "holdable": true,
+    "viewBox": [
+      5.0,
+      38.5,
+      90.0,
+      62.5
+    ],
+    "pngPx": [
+      331,
+      230
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "chick",
+    "name": "Chick",
+    "room": "kitchen",
+    "category": "pets",
+    "tag": "pet",
+    "size": "small",
+    "svg": "kitchen/chick.svg",
+    "png": "kitchen/chick.png",
+    "widthUnits": 37.4,
+    "heightUnits": 37.6,
+    "gameW": 37.4,
+    "holdable": true,
+    "viewBox": [
+      8.5,
+      17.5,
+      83.0,
+      83.5
+    ],
+    "pngPx": [
+      250,
+      252
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "retro-radio",
+    "name": "Radio",
+    "room": "living",
+    "category": "decor",
+    "tag": "appliance",
+    "size": "small",
+    "svg": "living/retro-radio.svg",
+    "png": "living/retro-radio.png",
+    "widthUnits": 63.0,
+    "heightUnits": 70.0,
+    "gameW": 63.0,
+    "holdable": true,
+    "viewBox": [
+      5.0,
+      1.0,
+      90.0,
+      100.0
+    ],
+    "pngPx": [
+      422,
+      468
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "floor-fan",
+    "name": "Fan",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "appliance",
+    "size": "small",
+    "svg": "bedroom/floor-fan.svg",
+    "png": "bedroom/floor-fan.png",
+    "widthUnits": 52.8,
+    "heightUnits": 78.4,
+    "gameW": 52.8,
+    "viewBox": [
+      17.0,
+      3.0,
+      66.0,
+      98.0
+    ],
+    "pngPx": [
+      353,
+      525
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "bedtime-snack",
+    "name": "Milk & Cookies",
+    "room": "bedroom",
+    "category": "food",
+    "tag": "food",
+    "size": "small",
+    "svg": "bedroom/bedtime-snack.svg",
+    "png": "bedroom/bedtime-snack.png",
+    "widthUnits": 56.4,
+    "heightUnits": 44.4,
+    "gameW": 56.4,
+    "holdable": true,
+    "viewBox": [
+      3.0,
+      27.0,
+      94.0,
+      74.0
+    ],
+    "pngPx": [
+      377,
+      297
+    ]
+  },
+  {
+    "slug": "wood-bookshelf",
+    "name": "Wood Bookshelf",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 124.0,
+    "designW": 200,
+    "widthUnits": 124.0,
+    "heightUnits": 200.0,
+    "viewBox": [
+      19.0,
+      1.0,
+      62.0,
+      100.0
+    ],
+    "svg": "packs/welcome-home/wood-bookshelf.svg",
+    "png": "packs/welcome-home/wood-bookshelf.png"
+  },
+  {
+    "slug": "lattice-bench",
+    "name": "Lattice Bench",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 147.0,
+    "designW": 150,
+    "widthUnits": 147.0,
+    "heightUnits": 135.0,
+    "viewBox": [
+      1.0,
+      11.0,
+      98.0,
+      90.0
+    ],
+    "svg": "packs/welcome-home/lattice-bench.svg",
+    "png": "packs/welcome-home/lattice-bench.png"
+  },
+  {
+    "slug": "wood-coffee-table",
+    "name": "Wood Coffee Table",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "medium",
+    "gameW": 171.0,
+    "designW": 190,
+    "widthUnits": 171.0,
+    "heightUnits": 121.6,
+    "viewBox": [
+      5.0,
+      37.0,
+      90.0,
+      64.0
+    ],
+    "svg": "packs/welcome-home/wood-coffee-table.svg",
+    "png": "packs/welcome-home/wood-coffee-table.png"
+  },
+  {
+    "slug": "wood-desk",
+    "name": "Wood Desk",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 150.4,
+    "designW": 160,
+    "widthUnits": 150.4,
+    "heightUnits": 137.6,
+    "viewBox": [
+      3.0,
+      15.0,
+      94.0,
+      86.0
+    ],
+    "svg": "packs/welcome-home/wood-desk.svg",
+    "png": "packs/welcome-home/wood-desk.png"
+  },
+  {
+    "slug": "big-wardrobe",
+    "name": "Big Wardrobe",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 154.0,
+    "designW": 220,
+    "widthUnits": 154.0,
+    "heightUnits": 220.0,
+    "viewBox": [
+      15.0,
+      1.0,
+      70.0,
+      100.0
+    ],
+    "svg": "packs/welcome-home/big-wardrobe.svg",
+    "png": "packs/welcome-home/big-wardrobe.png"
+  },
+  {
+    "slug": "glass-cabinet",
+    "name": "Glass Cabinet",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 118.8,
+    "designW": 180,
+    "widthUnits": 118.8,
+    "heightUnits": 180.0,
+    "viewBox": [
+      17.0,
+      1.0,
+      66.0,
+      100.0
+    ],
+    "svg": "packs/welcome-home/glass-cabinet.svg",
+    "png": "packs/welcome-home/glass-cabinet.png"
+  },
+  {
+    "slug": "ladder-shelf",
+    "name": "Ladder Shelf",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 87.0,
+    "designW": 150,
+    "widthUnits": 87.0,
+    "heightUnits": 151.5,
+    "viewBox": [
+      21.0,
+      0.0,
+      58.0,
+      101.0
+    ],
+    "svg": "packs/welcome-home/ladder-shelf.svg",
+    "png": "packs/welcome-home/ladder-shelf.png"
+  },
+  {
+    "slug": "moving-box",
+    "name": "Moving Box",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "gameW": 88.2,
+    "designW": 90,
+    "widthUnits": 88.2,
+    "heightUnits": 73.8,
+    "viewBox": [
+      1.0,
+      19.0,
+      98.0,
+      82.0
+    ],
+    "svg": "packs/welcome-home/moving-box.svg",
+    "png": "packs/welcome-home/moving-box.png",
+    "holdable": true
+  },
+  {
+    "slug": "box-stack",
+    "name": "Box Stack",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "decor",
+    "size": "medium",
+    "gameW": 128.8,
+    "designW": 140,
+    "widthUnits": 128.8,
+    "heightUnits": 114.8,
+    "viewBox": [
+      5.0,
+      19.0,
+      92.0,
+      82.0
+    ],
+    "svg": "packs/welcome-home/box-stack.svg",
+    "png": "packs/welcome-home/box-stack.png"
+  },
+  {
+    "slug": "wh-fiddle-leaf-fig",
+    "name": "Fiddle-Leaf Fig",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "plants",
+    "tag": "plant",
+    "size": "large",
+    "gameW": 75.0,
+    "designW": 150,
+    "widthUnits": 75.0,
+    "heightUnits": 158.2,
+    "viewBox": [
+      25.0,
+      -4.5,
+      50.0,
+      105.5
+    ],
+    "svg": "packs/welcome-home/wh-fiddle-leaf-fig.svg",
+    "png": "packs/welcome-home/wh-fiddle-leaf-fig.png"
+  },
+  {
+    "slug": "apple-tree",
+    "name": "Apple Tree",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "plants",
+    "tag": "plant",
+    "size": "large",
+    "gameW": 187.2,
+    "designW": 240,
+    "widthUnits": 187.2,
+    "heightUnits": 235.2,
+    "viewBox": [
+      11.0,
+      3.0,
+      78.0,
+      98.0
+    ],
+    "svg": "packs/welcome-home/apple-tree.svg",
+    "png": "packs/welcome-home/apple-tree.png"
+  },
+  {
+    "slug": "mini-greenhouse",
+    "name": "Mini Greenhouse",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 156.0,
+    "designW": 200,
+    "widthUnits": 156.0,
+    "heightUnits": 188.0,
+    "viewBox": [
+      11.0,
+      7.0,
+      78.0,
+      94.0
+    ],
+    "svg": "packs/welcome-home/mini-greenhouse.svg",
+    "png": "packs/welcome-home/mini-greenhouse.png"
+  },
+  {
+    "slug": "brick-fireplace",
+    "name": "Cozy Fireplace",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 156.8,
+    "designW": 160,
+    "widthUnits": 156.8,
+    "heightUnits": 150.4,
+    "viewBox": [
+      1.0,
+      7.0,
+      98.0,
+      94.0
+    ],
+    "svg": "packs/welcome-home/brick-fireplace.svg",
+    "png": "packs/welcome-home/brick-fireplace.png"
+  },
+  {
+    "slug": "wh-string-lights",
+    "name": "String Lights",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "medium",
+    "gameW": 222.2,
+    "designW": 220,
+    "widthUnits": 222.2,
+    "heightUnits": 58.3,
+    "viewBox": [
+      -0.5,
+      7.5,
+      101.0,
+      26.5
+    ],
+    "svg": "packs/welcome-home/wh-string-lights.svg",
+    "png": "packs/welcome-home/wh-string-lights.png",
+    "holdable": true
+  },
+  {
+    "slug": "wh-pendant-lamp",
+    "name": "Pendant Lamp",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "small",
+    "gameW": 54.0,
+    "designW": 100,
+    "widthUnits": 54.0,
+    "heightUnits": 107.5,
+    "viewBox": [
+      23.0,
+      -0.5,
+      54.0,
+      107.5
+    ],
+    "svg": "packs/welcome-home/wh-pendant-lamp.svg",
+    "png": "packs/welcome-home/wh-pendant-lamp.png"
+  },
+  {
+    "slug": "wh-arc-floor-lamp",
+    "name": "Arc Floor Lamp",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "large",
+    "gameW": 105.0,
+    "designW": 150,
+    "widthUnits": 105.0,
+    "heightUnits": 141.8,
+    "viewBox": [
+      29.0,
+      6.5,
+      70.0,
+      94.5
+    ],
+    "svg": "packs/welcome-home/wh-arc-floor-lamp.svg",
+    "png": "packs/welcome-home/wh-arc-floor-lamp.png"
+  },
+  {
+    "slug": "cream-sofa",
+    "name": "Cream Sofa",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 234.6,
+    "designW": 230,
+    "widthUnits": 234.6,
+    "heightUnits": 188.6,
+    "viewBox": [
+      -1.0,
+      19.0,
+      102.0,
+      82.0
+    ],
+    "svg": "packs/welcome-home/cream-sofa.svg",
+    "png": "packs/welcome-home/cream-sofa.png"
+  },
+  {
+    "slug": "wooden-bed",
+    "name": "Wooden Bed",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 235.2,
+    "designW": 240,
+    "widthUnits": 235.2,
+    "heightUnits": 192.0,
+    "viewBox": [
+      1.0,
+      21.0,
+      98.0,
+      80.0
+    ],
+    "svg": "packs/welcome-home/wooden-bed.svg",
+    "png": "packs/welcome-home/wooden-bed.png"
+  },
+  {
+    "slug": "bulletin-board",
+    "name": "Bulletin Board",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "decor",
+    "size": "medium",
+    "gameW": 131.6,
+    "designW": 140,
+    "widthUnits": 131.6,
+    "heightUnits": 92.4,
+    "viewBox": [
+      3.0,
+      7.0,
+      94.0,
+      66.0
+    ],
+    "svg": "packs/welcome-home/bulletin-board.svg",
+    "png": "packs/welcome-home/bulletin-board.png",
+    "holdable": true
+  },
+  {
+    "slug": "landscape-art",
+    "name": "Landscape Art",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "decor",
+    "size": "medium",
+    "gameW": 103.2,
+    "designW": 120,
+    "widthUnits": 103.2,
+    "heightUnits": 84.0,
+    "viewBox": [
+      7.0,
+      7.0,
+      86.0,
+      70.0
+    ],
+    "svg": "packs/welcome-home/landscape-art.svg",
+    "png": "packs/welcome-home/landscape-art.png",
+    "holdable": true
+  },
+  {
+    "slug": "sale-sign",
+    "name": "Yard Sign",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "decor",
+    "size": "medium",
+    "gameW": 63.8,
+    "designW": 110,
+    "widthUnits": 63.8,
+    "heightUnits": 103.4,
+    "viewBox": [
+      25.0,
+      7.0,
+      58.0,
+      94.0
+    ],
+    "svg": "packs/welcome-home/sale-sign.svg",
+    "png": "packs/welcome-home/sale-sign.png"
+  },
+  {
+    "slug": "fire-pit",
+    "name": "Fire Pit",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "medium",
+    "gameW": 126.0,
+    "designW": 140,
+    "widthUnits": 126.0,
+    "heightUnits": 106.4,
+    "viewBox": [
+      5.0,
+      25.0,
+      90.0,
+      76.0
+    ],
+    "svg": "packs/welcome-home/fire-pit.svg",
+    "png": "packs/welcome-home/fire-pit.png"
+  },
+  {
+    "slug": "hanging-lantern",
+    "name": "Hanging Lantern",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "small",
+    "gameW": 39.6,
+    "designW": 60,
+    "widthUnits": 39.6,
+    "heightUnits": 54.9,
+    "viewBox": [
+      17.0,
+      -0.5,
+      66.0,
+      91.5
+    ],
+    "svg": "packs/welcome-home/hanging-lantern.svg",
+    "png": "packs/welcome-home/hanging-lantern.png"
+  },
+  {
+    "slug": "round-rug",
+    "name": "Round Woven Rug",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "rug",
+    "size": "large",
+    "gameW": 244.8,
+    "designW": 240,
+    "widthUnits": 244.8,
+    "heightUnits": 86.4,
+    "viewBox": [
+      -1.0,
+      62.0,
+      102.0,
+      36.0
+    ],
+    "svg": "packs/welcome-home/round-rug.svg",
+    "png": "packs/welcome-home/round-rug.png"
+  },
+  {
+    "slug": "stripe-runner",
+    "name": "Striped Runner",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "rug",
+    "size": "large",
+    "gameW": 235.2,
+    "designW": 240,
+    "widthUnits": 235.2,
+    "heightUnits": 64.8,
+    "viewBox": [
+      1.0,
+      69.0,
+      98.0,
+      27.0
+    ],
+    "svg": "packs/welcome-home/stripe-runner.svg",
+    "png": "packs/welcome-home/stripe-runner.png"
+  },
+  {
+    "slug": "wood-armchair",
+    "name": "Wood Armchair",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 127.4,
+    "designW": 130,
+    "widthUnits": 127.4,
+    "heightUnits": 117.0,
+    "viewBox": [
+      1.0,
+      11.0,
+      98.0,
+      90.0
+    ],
+    "svg": "packs/welcome-home/wood-armchair.svg",
+    "png": "packs/welcome-home/wood-armchair.png"
+  },
+  {
+    "slug": "wh-nightstand",
+    "name": "Nightstand",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "medium",
+    "gameW": 74.0,
+    "designW": 100,
+    "widthUnits": 74.0,
+    "heightUnits": 90.0,
+    "viewBox": [
+      13.0,
+      11.0,
+      74.0,
+      90.0
+    ],
+    "svg": "packs/welcome-home/wh-nightstand.svg",
+    "png": "packs/welcome-home/wh-nightstand.png"
+  },
+  {
+    "slug": "wh-kitchen-counter",
+    "name": "Kitchen Counter",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "appliance",
+    "size": "large",
+    "gameW": 166.6,
+    "designW": 170,
+    "widthUnits": 166.6,
+    "heightUnits": 155.5,
+    "viewBox": [
+      1.0,
+      9.5,
+      98.0,
+      91.5
+    ],
+    "svg": "packs/welcome-home/wh-kitchen-counter.svg",
+    "png": "packs/welcome-home/wh-kitchen-counter.png"
+  },
+  {
+    "slug": "wood-stool",
+    "name": "Wood Stool",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "small",
+    "gameW": 46.2,
+    "designW": 70,
+    "widthUnits": 46.2,
+    "heightUnits": 47.6,
+    "viewBox": [
+      17.0,
+      33.0,
+      66.0,
+      68.0
+    ],
+    "svg": "packs/welcome-home/wood-stool.svg",
+    "png": "packs/welcome-home/wood-stool.png"
+  },
+  {
+    "slug": "wh-dresser",
+    "name": "Wood Dresser",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 146.2,
+    "designW": 170,
+    "widthUnits": 146.2,
+    "heightUnits": 158.1,
+    "viewBox": [
+      7.0,
+      8.0,
+      86.0,
+      93.0
+    ],
+    "svg": "packs/welcome-home/wh-dresser.svg",
+    "png": "packs/welcome-home/wh-dresser.png"
+  },
+  {
+    "slug": "wh-snake-plant",
+    "name": "Snake Plant",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "plants",
+    "tag": "plant",
+    "size": "medium",
+    "gameW": 50.0,
+    "designW": 90,
+    "widthUnits": 50.0,
+    "heightUnits": 87.8,
+    "viewBox": [
+      20.5,
+      3.5,
+      55.5,
+      97.5
+    ],
+    "svg": "packs/welcome-home/wh-snake-plant.svg",
+    "png": "packs/welcome-home/wh-snake-plant.png"
+  },
+  {
+    "slug": "sprout-pot",
+    "name": "Little Sprout",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "plants",
+    "tag": "plant",
+    "size": "small",
+    "gameW": 27.6,
+    "designW": 60,
+    "widthUnits": 27.6,
+    "heightUnits": 44.7,
+    "viewBox": [
+      27.0,
+      26.5,
+      46.0,
+      74.5
+    ],
+    "svg": "packs/welcome-home/sprout-pot.svg",
+    "png": "packs/welcome-home/sprout-pot.png",
+    "holdable": true
+  },
+  {
+    "slug": "trailing-plant",
+    "name": "Trailing Plant Shelf",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "plants",
+    "tag": "plant",
+    "size": "medium",
+    "gameW": 94.6,
+    "designW": 110,
+    "widthUnits": 94.6,
+    "heightUnits": 97.4,
+    "viewBox": [
+      7.0,
+      9.0,
+      86.0,
+      88.5
+    ],
+    "svg": "packs/welcome-home/trailing-plant.svg",
+    "png": "packs/welcome-home/trailing-plant.png",
+    "holdable": true
+  },
+  {
+    "slug": "acorn-friend",
+    "name": "Acorn Friend",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "gameW": 26.4,
+    "designW": 40,
+    "widthUnits": 26.4,
+    "heightUnits": 36.0,
+    "viewBox": [
+      17.0,
+      11.0,
+      66.0,
+      90.0
+    ],
+    "svg": "packs/welcome-home/acorn-friend.svg",
+    "png": "packs/welcome-home/acorn-friend.png",
+    "holdable": true
+  },
+  {
+    "slug": "wh-teapot",
+    "name": "Teapot",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "food",
+    "tag": "food",
+    "size": "small",
+    "gameW": 60.2,
+    "designW": 70,
+    "widthUnits": 60.2,
+    "heightUnits": 54.6,
+    "viewBox": [
+      7.5,
+      23.0,
+      86.0,
+      78.0
+    ],
+    "svg": "packs/welcome-home/wh-teapot.svg",
+    "png": "packs/welcome-home/wh-teapot.png",
+    "holdable": true
+  },
+  {
+    "slug": "cozy-mug",
+    "name": "Cozy Mug",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "food",
+    "tag": "food",
+    "size": "small",
+    "gameW": 28.4,
+    "designW": 40,
+    "widthUnits": 28.4,
+    "heightUnits": 36.6,
+    "viewBox": [
+      19.0,
+      9.5,
+      71.0,
+      91.5
+    ],
+    "svg": "packs/welcome-home/cozy-mug.svg",
+    "png": "packs/welcome-home/cozy-mug.png",
+    "holdable": true
+  },
+  {
+    "slug": "wh-book-stack",
+    "name": "Book Stack",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "gameW": 49.2,
+    "designW": 60,
+    "widthUnits": 49.2,
+    "heightUnits": 44.4,
+    "viewBox": [
+      9.0,
+      27.0,
+      82.0,
+      74.0
+    ],
+    "svg": "packs/welcome-home/wh-book-stack.svg",
+    "png": "packs/welcome-home/wh-book-stack.png",
+    "holdable": true
+  },
+  {
+    "slug": "knit-cushion",
+    "name": "Knit Cushion",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "gameW": 46.8,
+    "designW": 60,
+    "widthUnits": 46.8,
+    "heightUnits": 44.4,
+    "viewBox": [
+      11.0,
+      27.0,
+      78.0,
+      74.0
+    ],
+    "svg": "packs/welcome-home/knit-cushion.svg",
+    "png": "packs/welcome-home/knit-cushion.png",
+    "holdable": true
+  },
+  {
+    "slug": "picnic-basket",
+    "name": "Picnic Basket",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "food",
+    "tag": "food",
+    "size": "small",
+    "gameW": 60.2,
+    "designW": 70,
+    "widthUnits": 60.2,
+    "heightUnits": 59.1,
+    "viewBox": [
+      7.0,
+      16.5,
+      86.0,
+      84.5
+    ],
+    "svg": "packs/welcome-home/picnic-basket.svg",
+    "png": "packs/welcome-home/picnic-basket.png",
+    "holdable": true
+  },
+  {
+    "slug": "leaf-wreath",
+    "name": "Autumn Wreath",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "gameW": 96.0,
+    "designW": 80,
+    "widthUnits": 96.0,
+    "heightUnits": 96.0,
+    "viewBox": [
+      -10.0,
+      -10.0,
+      120.0,
+      120.0
+    ],
+    "svg": "packs/welcome-home/leaf-wreath.svg",
+    "png": "packs/welcome-home/leaf-wreath.png"
+  },
+  {
+    "slug": "wall-clock",
+    "name": "Wood Wall Clock",
+    "type": "item",
+    "pack": "welcome-home",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "gameW": 60.2,
+    "designW": 70,
+    "widthUnits": 60.2,
+    "heightUnits": 60.2,
+    "viewBox": [
+      7.0,
+      7.0,
+      86.0,
+      86.0
+    ],
+    "svg": "packs/welcome-home/wall-clock.svg",
+    "png": "packs/welcome-home/wall-clock.png",
+    "holdable": true
+  },
+  {
+    "slug": "ring-light",
+    "name": "Ring Light",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "large",
+    "gameW": 105.4,
+    "designW": 170,
+    "widthUnits": 105.4,
+    "heightUnits": 173.4,
+    "viewBox": [
+      19.0,
+      -1.0,
+      62.0,
+      102.0
+    ],
+    "svg": "packs/sunny-vibes/ring-light.svg",
+    "png": "packs/sunny-vibes/ring-light.png"
+  },
+  {
+    "slug": "phone-stand",
+    "name": "Phone on a Stand",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "gameW": 27.0,
+    "designW": 50,
+    "widthUnits": 27.0,
+    "heightUnits": 45.0,
+    "viewBox": [
+      23.0,
+      11.0,
+      54.0,
+      90.0
+    ],
+    "svg": "packs/sunny-vibes/phone-stand.svg",
+    "png": "packs/sunny-vibes/phone-stand.png",
+    "holdable": true
+  },
+  {
+    "slug": "gaming-chair",
+    "name": "Gaming Chair",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 101.4,
+    "designW": 130,
+    "widthUnits": 101.4,
+    "heightUnits": 130.0,
+    "viewBox": [
+      11.0,
+      1.0,
+      78.0,
+      100.0
+    ],
+    "svg": "packs/sunny-vibes/gaming-chair.svg",
+    "png": "packs/sunny-vibes/gaming-chair.png"
+  },
+  {
+    "slug": "curvy-desk",
+    "name": "Curvy Yellow Desk",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 180.0,
+    "designW": 200,
+    "widthUnits": 180.0,
+    "heightUnits": 168.0,
+    "viewBox": [
+      5.0,
+      17.0,
+      90.0,
+      84.0
+    ],
+    "svg": "packs/sunny-vibes/curvy-desk.svg",
+    "png": "packs/sunny-vibes/curvy-desk.png"
+  },
+  {
+    "slug": "cloud-sofa",
+    "name": "Puffy Cloud Sofa",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 212.0,
+    "designW": 200,
+    "widthUnits": 212.0,
+    "heightUnits": 168.0,
+    "viewBox": [
+      -3.5,
+      17.0,
+      106.0,
+      84.0
+    ],
+    "svg": "packs/sunny-vibes/cloud-sofa.svg",
+    "png": "packs/sunny-vibes/cloud-sofa.png"
+  },
+  {
+    "slug": "arched-mirror",
+    "name": "Arched Mirror",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 112.0,
+    "designW": 160,
+    "widthUnits": 112.0,
+    "heightUnits": 160.0,
+    "viewBox": [
+      15.0,
+      1.0,
+      70.0,
+      100.0
+    ],
+    "svg": "packs/sunny-vibes/arched-mirror.svg",
+    "png": "packs/sunny-vibes/arched-mirror.png"
+  },
+  {
+    "slug": "clothes-rail",
+    "name": "Clothes Rail",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 135.0,
+    "designW": 150,
+    "widthUnits": 135.0,
+    "heightUnits": 138.0,
+    "viewBox": [
+      5.0,
+      9.0,
+      90.0,
+      92.0
+    ],
+    "svg": "packs/sunny-vibes/clothes-rail.svg",
+    "png": "packs/sunny-vibes/clothes-rail.png"
+  },
+  {
+    "slug": "cube-shelf",
+    "name": "Cube Shelf",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 106.6,
+    "designW": 130,
+    "widthUnits": 106.6,
+    "heightUnits": 122.2,
+    "viewBox": [
+      9.0,
+      7.0,
+      82.0,
+      94.0
+    ],
+    "svg": "packs/sunny-vibes/cube-shelf.svg",
+    "png": "packs/sunny-vibes/cube-shelf.png"
+  },
+  {
+    "slug": "big-monitor",
+    "name": "Big Monitor",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "appliance",
+    "size": "medium",
+    "gameW": 103.4,
+    "designW": 110,
+    "widthUnits": 103.4,
+    "heightUnits": 107.8,
+    "viewBox": [
+      3.0,
+      3.0,
+      94.0,
+      98.0
+    ],
+    "svg": "packs/sunny-vibes/big-monitor.svg",
+    "png": "packs/sunny-vibes/big-monitor.png"
+  },
+  {
+    "slug": "keyboard",
+    "name": "Cute Keyboard",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "appliance",
+    "size": "small",
+    "gameW": 65.8,
+    "designW": 70,
+    "widthUnits": 65.8,
+    "heightUnits": 32.2,
+    "viewBox": [
+      3.0,
+      55.0,
+      94.0,
+      46.0
+    ],
+    "svg": "packs/sunny-vibes/keyboard.svg",
+    "png": "packs/sunny-vibes/keyboard.png",
+    "holdable": true
+  },
+  {
+    "slug": "vlog-camera",
+    "name": "Vlog Camera",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "gameW": 51.6,
+    "designW": 60,
+    "widthUnits": 51.6,
+    "heightUnits": 46.8,
+    "viewBox": [
+      9.0,
+      23.0,
+      86.0,
+      78.0
+    ],
+    "svg": "packs/sunny-vibes/vlog-camera.svg",
+    "png": "packs/sunny-vibes/vlog-camera.png",
+    "holdable": true
+  },
+  {
+    "slug": "desk-mic",
+    "name": "Desk Mic",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "gameW": 27.0,
+    "designW": 50,
+    "widthUnits": 27.0,
+    "heightUnits": 47.0,
+    "viewBox": [
+      23.0,
+      7.0,
+      54.0,
+      94.0
+    ],
+    "svg": "packs/sunny-vibes/desk-mic.svg",
+    "png": "packs/sunny-vibes/desk-mic.png",
+    "holdable": true
+  },
+  {
+    "slug": "star-lamp",
+    "name": "Star Lamp",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "medium",
+    "gameW": 82.0,
+    "designW": 100,
+    "widthUnits": 82.0,
+    "heightUnits": 102.0,
+    "viewBox": [
+      9.0,
+      -1.0,
+      82.0,
+      102.0
+    ],
+    "svg": "packs/sunny-vibes/star-lamp.svg",
+    "png": "packs/sunny-vibes/star-lamp.png"
+  },
+  {
+    "slug": "flower-lamp",
+    "name": "Flower Lamp",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "small",
+    "gameW": 48.0,
+    "designW": 80,
+    "widthUnits": 48.0,
+    "heightUnits": 77.6,
+    "viewBox": [
+      20.0,
+      4.0,
+      60.0,
+      97.0
+    ],
+    "svg": "packs/sunny-vibes/flower-lamp.svg",
+    "png": "packs/sunny-vibes/flower-lamp.png"
+  },
+  {
+    "slug": "boba-cup",
+    "name": "Boba Buddy",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "food",
+    "tag": "food",
+    "size": "small",
+    "gameW": 26.4,
+    "designW": 40,
+    "widthUnits": 26.4,
+    "heightUnits": 41.4,
+    "viewBox": [
+      17.0,
+      -2.5,
+      66.0,
+      103.5
+    ],
+    "svg": "packs/sunny-vibes/boba-cup.svg",
+    "png": "packs/sunny-vibes/boba-cup.png",
+    "holdable": true
+  },
+  {
+    "slug": "mini-fridge",
+    "name": "Mini Fridge",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "furniture",
+    "tag": "appliance",
+    "size": "medium",
+    "gameW": 77.0,
+    "designW": 110,
+    "widthUnits": 77.0,
+    "heightUnits": 88.0,
+    "viewBox": [
+      15.0,
+      21.0,
+      70.0,
+      80.0
+    ],
+    "svg": "packs/sunny-vibes/mini-fridge.svg",
+    "png": "packs/sunny-vibes/mini-fridge.png"
+  },
+  {
+    "slug": "bubble-bath",
+    "name": "Bubble Bath",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 166.6,
+    "designW": 170,
+    "widthUnits": 166.6,
+    "heightUnits": 156.4,
+    "viewBox": [
+      1.0,
+      9.0,
+      98.0,
+      92.0
+    ],
+    "svg": "packs/sunny-vibes/bubble-bath.svg",
+    "png": "packs/sunny-vibes/bubble-bath.png"
+  },
+  {
+    "slug": "checker-rug",
+    "name": "Checker Rug",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "rug",
+    "size": "large",
+    "gameW": 244.8,
+    "designW": 240,
+    "widthUnits": 244.8,
+    "heightUnits": 86.4,
+    "viewBox": [
+      -1.0,
+      62.0,
+      102.0,
+      36.0
+    ],
+    "svg": "packs/sunny-vibes/checker-rug.svg",
+    "png": "packs/sunny-vibes/checker-rug.png"
+  },
+  {
+    "slug": "sv-cloud-rug",
+    "name": "Cloud Rug",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "rug",
+    "size": "large",
+    "gameW": 224.4,
+    "designW": 220,
+    "widthUnits": 224.4,
+    "heightUnits": 83.6,
+    "viewBox": [
+      -1.0,
+      61.0,
+      102.0,
+      38.0
+    ],
+    "svg": "packs/sunny-vibes/sv-cloud-rug.svg",
+    "png": "packs/sunny-vibes/sv-cloud-rug.png"
+  },
+  {
+    "slug": "caterpillar-plush",
+    "name": "Caterpillar Plush",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "gameW": 94.0,
+    "designW": 100,
+    "widthUnits": 94.0,
+    "heightUnits": 74.0,
+    "viewBox": [
+      0.0,
+      27.0,
+      94.0,
+      74.0
+    ],
+    "svg": "packs/sunny-vibes/caterpillar-plush.svg",
+    "png": "packs/sunny-vibes/caterpillar-plush.png",
+    "holdable": true
+  },
+  {
+    "slug": "frog-plush",
+    "name": "Frog Plush",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "gameW": 44.4,
+    "designW": 60,
+    "widthUnits": 44.4,
+    "heightUnits": 45.0,
+    "viewBox": [
+      13.0,
+      26.0,
+      74.0,
+      75.0
+    ],
+    "svg": "packs/sunny-vibes/frog-plush.svg",
+    "png": "packs/sunny-vibes/frog-plush.png",
+    "holdable": true
+  },
+  {
+    "slug": "hamster-pet",
+    "name": "Hamster Pal",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "pets",
+    "tag": "pet",
+    "size": "small",
+    "gameW": 39.0,
+    "designW": 50,
+    "widthUnits": 39.0,
+    "heightUnits": 41.0,
+    "viewBox": [
+      11.0,
+      19.0,
+      78.0,
+      82.0
+    ],
+    "svg": "packs/sunny-vibes/hamster-pet.svg",
+    "png": "packs/sunny-vibes/hamster-pet.png",
+    "holdable": true
+  },
+  {
+    "slug": "sunny-art",
+    "name": "Sunny Art",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "decor",
+    "size": "medium",
+    "gameW": 77.4,
+    "designW": 90,
+    "widthUnits": 77.4,
+    "heightUnits": 84.6,
+    "viewBox": [
+      7.0,
+      3.0,
+      86.0,
+      94.0
+    ],
+    "svg": "packs/sunny-vibes/sunny-art.svg",
+    "png": "packs/sunny-vibes/sunny-art.png",
+    "holdable": true
+  },
+  {
+    "slug": "pothos-plant",
+    "name": "Pothos Plant",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "plants",
+    "tag": "plant",
+    "size": "medium",
+    "gameW": 48.6,
+    "designW": 90,
+    "widthUnits": 48.6,
+    "heightUnits": 62.6,
+    "viewBox": [
+      23.0,
+      31.5,
+      54.0,
+      69.5
+    ],
+    "svg": "packs/sunny-vibes/pothos-plant.svg",
+    "png": "packs/sunny-vibes/pothos-plant.png"
+  },
+  {
+    "slug": "cactus-buddy",
+    "name": "Cactus Buddy",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "plants",
+    "tag": "plant",
+    "size": "small",
+    "gameW": 33.0,
+    "designW": 50,
+    "widthUnits": 33.0,
+    "heightUnits": 46.5,
+    "viewBox": [
+      17.0,
+      8.0,
+      66.0,
+      93.0
+    ],
+    "svg": "packs/sunny-vibes/cactus-buddy.svg",
+    "png": "packs/sunny-vibes/cactus-buddy.png",
+    "holdable": true
+  },
+  {
+    "slug": "checker-bed",
+    "name": "Checkered Bed",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 196.0,
+    "designW": 200,
+    "widthUnits": 196.0,
+    "heightUnits": 144.0,
+    "viewBox": [
+      1.0,
+      29.0,
+      98.0,
+      72.0
+    ],
+    "svg": "packs/sunny-vibes/checker-bed.svg",
+    "png": "packs/sunny-vibes/checker-bed.png"
+  },
+  {
+    "slug": "puffy-stool",
+    "name": "Puffy Stool",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "small",
+    "gameW": 46.9,
+    "designW": 70,
+    "widthUnits": 46.9,
+    "heightUnits": 52.8,
+    "viewBox": [
+      16.0,
+      25.5,
+      67.0,
+      75.5
+    ],
+    "svg": "packs/sunny-vibes/puffy-stool.svg",
+    "png": "packs/sunny-vibes/puffy-stool.png"
+  },
+  {
+    "slug": "sv-wall-shelf",
+    "name": "Wall Shelf",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "decor",
+    "size": "medium",
+    "gameW": 122.2,
+    "designW": 130,
+    "widthUnits": 122.2,
+    "heightUnits": 56.6,
+    "viewBox": [
+      3.0,
+      33.0,
+      94.0,
+      43.5
+    ],
+    "svg": "packs/sunny-vibes/sv-wall-shelf.svg",
+    "png": "packs/sunny-vibes/sv-wall-shelf.png"
+  },
+  {
+    "slug": "headphones",
+    "name": "Headphones",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "gameW": 43.0,
+    "designW": 50,
+    "widthUnits": 43.0,
+    "heightUnits": 36.8,
+    "viewBox": [
+      7.0,
+      11.5,
+      86.0,
+      73.5
+    ],
+    "svg": "packs/sunny-vibes/headphones.svg",
+    "png": "packs/sunny-vibes/headphones.png",
+    "holdable": true
+  },
+  {
+    "slug": "game-controller",
+    "name": "Game Controller",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "gameW": 45.5,
+    "designW": 50,
+    "widthUnits": 45.5,
+    "heightUnits": 36.0,
+    "viewBox": [
+      4.5,
+      29.0,
+      91.0,
+      72.0
+    ],
+    "svg": "packs/sunny-vibes/game-controller.svg",
+    "png": "packs/sunny-vibes/game-controller.png",
+    "holdable": true
+  },
+  {
+    "slug": "heart-light",
+    "name": "Heart Wall Light",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "small",
+    "gameW": 60.2,
+    "designW": 70,
+    "widthUnits": 60.2,
+    "heightUnits": 60.2,
+    "viewBox": [
+      7.0,
+      7.0,
+      86.0,
+      86.0
+    ],
+    "svg": "packs/sunny-vibes/heart-light.svg",
+    "png": "packs/sunny-vibes/heart-light.png"
+  },
+  {
+    "slug": "sv-bean-bag",
+    "name": "Bean Bag",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "medium",
+    "gameW": 114.4,
+    "designW": 130,
+    "widthUnits": 114.4,
+    "heightUnits": 98.2,
+    "viewBox": [
+      5.5,
+      25.5,
+      88.0,
+      75.5
+    ],
+    "svg": "packs/sunny-vibes/sv-bean-bag.svg",
+    "png": "packs/sunny-vibes/sv-bean-bag.png"
+  },
+  {
+    "slug": "cute-speaker",
+    "name": "Cute Speaker",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "appliance",
+    "size": "small",
+    "gameW": 29.0,
+    "designW": 50,
+    "widthUnits": 29.0,
+    "heightUnits": 45.0,
+    "viewBox": [
+      21.0,
+      11.0,
+      58.0,
+      90.0
+    ],
+    "svg": "packs/sunny-vibes/cute-speaker.svg",
+    "png": "packs/sunny-vibes/cute-speaker.png",
+    "holdable": true
+  },
+  {
+    "slug": "wavy-floor-lamp",
+    "name": "Wavy Floor Lamp",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "large",
+    "gameW": 45.0,
+    "designW": 90,
+    "widthUnits": 45.0,
+    "heightUnits": 86.4,
+    "viewBox": [
+      25.0,
+      5.0,
+      50.0,
+      96.0
+    ],
+    "svg": "packs/sunny-vibes/wavy-floor-lamp.svg",
+    "png": "packs/sunny-vibes/wavy-floor-lamp.png"
+  },
+  {
+    "slug": "pastel-wardrobe",
+    "name": "Pastel Wardrobe",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 132.0,
+    "designW": 200,
+    "widthUnits": 132.0,
+    "heightUnits": 200.0,
+    "viewBox": [
+      17.0,
+      1.0,
+      66.0,
+      100.0
+    ],
+    "svg": "packs/sunny-vibes/pastel-wardrobe.svg",
+    "png": "packs/sunny-vibes/pastel-wardrobe.png"
+  },
+  {
+    "slug": "desk-lamp",
+    "name": "Desk Lamp",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "small",
+    "gameW": 43.2,
+    "designW": 60,
+    "widthUnits": 43.2,
+    "heightUnits": 51.6,
+    "viewBox": [
+      15.0,
+      15.0,
+      72.0,
+      86.0
+    ],
+    "svg": "packs/sunny-vibes/desk-lamp.svg",
+    "png": "packs/sunny-vibes/desk-lamp.png",
+    "holdable": true
+  },
+  {
+    "slug": "side-table-round",
+    "name": "Round Side Table",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "small",
+    "gameW": 68.8,
+    "designW": 80,
+    "widthUnits": 68.8,
+    "heightUnits": 64.0,
+    "viewBox": [
+      7.0,
+      21.0,
+      86.0,
+      80.0
+    ],
+    "svg": "packs/sunny-vibes/side-table-round.svg",
+    "png": "packs/sunny-vibes/side-table-round.png"
+  },
+  {
+    "slug": "sticker-board",
+    "name": "Sticker Board",
+    "type": "item",
+    "pack": "sunny-vibes",
+    "category": "decor",
+    "tag": "decor",
+    "size": "medium",
+    "gameW": 103.4,
+    "designW": 110,
+    "widthUnits": 103.4,
+    "heightUnits": 77.0,
+    "viewBox": [
+      3.0,
+      7.0,
+      94.0,
+      70.0
+    ],
+    "svg": "packs/sunny-vibes/sticker-board.svg",
+    "png": "packs/sunny-vibes/sticker-board.png",
+    "holdable": true
+  },
+  {
+    "slug": "salon-chair",
+    "name": "Salon Chair",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 111.8,
+    "designW": 130,
+    "widthUnits": 111.8,
+    "heightUnits": 127.4,
+    "viewBox": [
+      7.0,
+      3.0,
+      86.0,
+      98.0
+    ],
+    "svg": "packs/glossy/salon-chair.svg",
+    "png": "packs/glossy/salon-chair.png"
+  },
+  {
+    "slug": "wash-chair",
+    "name": "Hair-Wash Chair",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 186.2,
+    "designW": 190,
+    "widthUnits": 186.2,
+    "heightUnits": 174.8,
+    "viewBox": [
+      1.0,
+      9.0,
+      98.0,
+      92.0
+    ],
+    "svg": "packs/glossy/wash-chair.svg",
+    "png": "packs/glossy/wash-chair.png"
+  },
+  {
+    "slug": "glow-mirror",
+    "name": "Glow Mirror",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "medium",
+    "gameW": 103.4,
+    "designW": 110,
+    "widthUnits": 103.4,
+    "heightUnits": 103.4,
+    "viewBox": [
+      3.0,
+      -1.0,
+      94.0,
+      94.0
+    ],
+    "svg": "packs/glossy/glow-mirror.svg",
+    "png": "packs/glossy/glow-mirror.png"
+  },
+  {
+    "slug": "pink-vanity",
+    "name": "Pink Vanity",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 159.8,
+    "designW": 170,
+    "widthUnits": 159.8,
+    "heightUnits": 166.6,
+    "viewBox": [
+      3.0,
+      3.0,
+      94.0,
+      98.0
+    ],
+    "svg": "packs/glossy/pink-vanity.svg",
+    "png": "packs/glossy/pink-vanity.png"
+  },
+  {
+    "slug": "polish-rack",
+    "name": "Nail Polish Rack",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "decor",
+    "size": "medium",
+    "gameW": 99.0,
+    "designW": 110,
+    "widthUnits": 99.0,
+    "heightUnits": 103.4,
+    "viewBox": [
+      5.0,
+      3.0,
+      90.0,
+      94.0
+    ],
+    "svg": "packs/glossy/polish-rack.svg",
+    "png": "packs/glossy/polish-rack.png"
+  },
+  {
+    "slug": "polish-bottle",
+    "name": "Polish Bottle",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "gameW": 18.6,
+    "designW": 30,
+    "widthUnits": 18.6,
+    "heightUnits": 29.4,
+    "viewBox": [
+      19.0,
+      3.0,
+      62.0,
+      98.0
+    ],
+    "svg": "packs/glossy/polish-bottle.svg",
+    "png": "packs/glossy/polish-bottle.png",
+    "holdable": true
+  },
+  {
+    "slug": "cream-jars",
+    "name": "Cream Jars",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "gameW": 47.0,
+    "designW": 50,
+    "widthUnits": 47.0,
+    "heightUnits": 31.0,
+    "viewBox": [
+      3.0,
+      39.0,
+      94.0,
+      62.0
+    ],
+    "svg": "packs/glossy/cream-jars.svg",
+    "png": "packs/glossy/cream-jars.png",
+    "holdable": true
+  },
+  {
+    "slug": "lotion-trio",
+    "name": "Lotion Bottles",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "gameW": 49.2,
+    "designW": 60,
+    "widthUnits": 49.2,
+    "heightUnits": 43.2,
+    "viewBox": [
+      9.0,
+      29.0,
+      82.0,
+      72.0
+    ],
+    "svg": "packs/glossy/lotion-trio.svg",
+    "png": "packs/glossy/lotion-trio.png"
+  },
+  {
+    "slug": "hair-dryer",
+    "name": "Hair Dryer",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "gameW": 42.0,
+    "designW": 50,
+    "widthUnits": 42.0,
+    "heightUnits": 40.0,
+    "viewBox": [
+      9.0,
+      15.0,
+      84.0,
+      80.0
+    ],
+    "svg": "packs/glossy/hair-dryer.svg",
+    "png": "packs/glossy/hair-dryer.png",
+    "holdable": true
+  },
+  {
+    "slug": "towel-cart",
+    "name": "Towel Cart",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "medium",
+    "gameW": 93.6,
+    "designW": 120,
+    "widthUnits": 93.6,
+    "heightUnits": 112.8,
+    "viewBox": [
+      11.0,
+      7.0,
+      78.0,
+      94.0
+    ],
+    "svg": "packs/glossy/towel-cart.svg",
+    "png": "packs/glossy/towel-cart.png"
+  },
+  {
+    "slug": "nail-table",
+    "name": "Manicure Table",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 169.2,
+    "designW": 180,
+    "widthUnits": 169.2,
+    "heightUnits": 140.4,
+    "viewBox": [
+      3.0,
+      23.0,
+      94.0,
+      78.0
+    ],
+    "svg": "packs/glossy/nail-table.svg",
+    "png": "packs/glossy/nail-table.png"
+  },
+  {
+    "slug": "arched-shelf",
+    "name": "Arched Shelf",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 98.6,
+    "designW": 170,
+    "widthUnits": 98.6,
+    "heightUnits": 170.0,
+    "viewBox": [
+      21.0,
+      1.0,
+      58.0,
+      100.0
+    ],
+    "svg": "packs/glossy/arched-shelf.svg",
+    "png": "packs/glossy/arched-shelf.png"
+  },
+  {
+    "slug": "pink-fountain",
+    "name": "Bubbly Fountain",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "decor",
+    "size": "large",
+    "gameW": 126.0,
+    "designW": 140,
+    "widthUnits": 126.0,
+    "heightUnits": 131.6,
+    "viewBox": [
+      5.0,
+      7.0,
+      90.0,
+      94.0
+    ],
+    "svg": "packs/glossy/pink-fountain.svg",
+    "png": "packs/glossy/pink-fountain.png"
+  },
+  {
+    "slug": "fancy-sofa",
+    "name": "Fancy Sofa",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 234.6,
+    "designW": 230,
+    "widthUnits": 234.6,
+    "heightUnits": 202.4,
+    "viewBox": [
+      -1.0,
+      13.0,
+      102.0,
+      88.0
+    ],
+    "svg": "packs/glossy/fancy-sofa.svg",
+    "png": "packs/glossy/fancy-sofa.png"
+  },
+  {
+    "slug": "lilac-curtain",
+    "name": "Lilac Curtain",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "decor",
+    "size": "large",
+    "gameW": 176.4,
+    "designW": 180,
+    "widthUnits": 176.4,
+    "heightUnits": 172.8,
+    "viewBox": [
+      1.0,
+      1.0,
+      98.0,
+      96.0
+    ],
+    "svg": "packs/glossy/lilac-curtain.svg",
+    "png": "packs/glossy/lilac-curtain.png"
+  },
+  {
+    "slug": "reception-desk",
+    "name": "Reception Desk",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 186.2,
+    "designW": 190,
+    "widthUnits": 186.2,
+    "heightUnits": 163.4,
+    "viewBox": [
+      1.0,
+      15.0,
+      98.0,
+      86.0
+    ],
+    "svg": "packs/glossy/reception-desk.svg",
+    "png": "packs/glossy/reception-desk.png"
+  },
+  {
+    "slug": "bubbly-plant",
+    "name": "Bubbly Plant",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "plants",
+    "tag": "plant",
+    "size": "medium",
+    "gameW": 53.1,
+    "designW": 90,
+    "widthUnits": 53.1,
+    "heightUnits": 81.0,
+    "viewBox": [
+      20.0,
+      11.0,
+      59.0,
+      90.0
+    ],
+    "svg": "packs/glossy/bubbly-plant.svg",
+    "png": "packs/glossy/bubbly-plant.png"
+  },
+  {
+    "slug": "vine-planter",
+    "name": "Hanging Vine Planter",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "plants",
+    "tag": "plant",
+    "size": "medium",
+    "gameW": 56.7,
+    "designW": 90,
+    "widthUnits": 56.7,
+    "heightUnits": 99.9,
+    "viewBox": [
+      18.5,
+      -0.5,
+      63.0,
+      111.0
+    ],
+    "svg": "packs/glossy/vine-planter.svg",
+    "png": "packs/glossy/vine-planter.png"
+  },
+  {
+    "slug": "droplet-buddy",
+    "name": "Droplet Buddy",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "gameW": 32.0,
+    "designW": 50,
+    "widthUnits": 32.0,
+    "heightUnits": 49.0,
+    "viewBox": [
+      18.0,
+      3.0,
+      64.0,
+      98.0
+    ],
+    "svg": "packs/glossy/droplet-buddy.svg",
+    "png": "packs/glossy/droplet-buddy.png",
+    "holdable": true
+  },
+  {
+    "slug": "flower-cart",
+    "name": "Flower Cart",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 173.4,
+    "designW": 170,
+    "widthUnits": 173.4,
+    "heightUnits": 153.0,
+    "viewBox": [
+      -1.0,
+      11.0,
+      102.0,
+      90.0
+    ],
+    "svg": "packs/glossy/flower-cart.svg",
+    "png": "packs/glossy/flower-cart.png"
+  },
+  {
+    "slug": "globe-pendants",
+    "name": "Globe Pendants",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "medium",
+    "gameW": 92.4,
+    "designW": 110,
+    "widthUnits": 92.4,
+    "heightUnits": 84.2,
+    "viewBox": [
+      8.0,
+      -0.5,
+      84.0,
+      76.5
+    ],
+    "svg": "packs/glossy/globe-pendants.svg",
+    "png": "packs/glossy/globe-pendants.png"
+  },
+  {
+    "slug": "drop-lamp",
+    "name": "Water-Drop Lamp",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "small",
+    "gameW": 32.4,
+    "designW": 60,
+    "widthUnits": 32.4,
+    "heightUnits": 58.5,
+    "viewBox": [
+      23.0,
+      -0.5,
+      54.0,
+      97.5
+    ],
+    "svg": "packs/glossy/drop-lamp.svg",
+    "png": "packs/glossy/drop-lamp.png"
+  },
+  {
+    "slug": "gold-floor-mirror",
+    "name": "Gold Floor Mirror",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 52.2,
+    "designW": 90,
+    "widthUnits": 52.2,
+    "heightUnits": 90.0,
+    "viewBox": [
+      21.0,
+      1.0,
+      58.0,
+      100.0
+    ],
+    "svg": "packs/glossy/gold-floor-mirror.svg",
+    "png": "packs/glossy/gold-floor-mirror.png"
+  },
+  {
+    "slug": "heart-pouf",
+    "name": "Heart Pouf",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "small",
+    "gameW": 58.4,
+    "designW": 80,
+    "widthUnits": 58.4,
+    "heightUnits": 62.0,
+    "viewBox": [
+      13.5,
+      23.5,
+      73.0,
+      77.5
+    ],
+    "svg": "packs/glossy/heart-pouf.svg",
+    "png": "packs/glossy/heart-pouf.png"
+  },
+  {
+    "slug": "swivel-stool",
+    "name": "Swivel Stool",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "small",
+    "gameW": 46.2,
+    "designW": 70,
+    "widthUnits": 46.2,
+    "heightUnits": 51.8,
+    "viewBox": [
+      17.0,
+      27.0,
+      66.0,
+      74.0
+    ],
+    "svg": "packs/glossy/swivel-stool.svg",
+    "png": "packs/glossy/swivel-stool.png"
+  },
+  {
+    "slug": "spray-bottle",
+    "name": "Spray Bottle",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "gameW": 26.4,
+    "designW": 40,
+    "widthUnits": 26.4,
+    "heightUnits": 37.6,
+    "viewBox": [
+      19.0,
+      7.0,
+      66.0,
+      94.0
+    ],
+    "svg": "packs/glossy/spray-bottle.svg",
+    "png": "packs/glossy/spray-bottle.png",
+    "holdable": true
+  },
+  {
+    "slug": "comb-brush",
+    "name": "Brush & Comb",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "gameW": 36.2,
+    "designW": 50,
+    "widthUnits": 36.2,
+    "heightUnits": 44.5,
+    "viewBox": [
+      11.0,
+      10.0,
+      72.5,
+      89.0
+    ],
+    "svg": "packs/glossy/comb-brush.svg",
+    "png": "packs/glossy/comb-brush.png",
+    "holdable": true
+  },
+  {
+    "slug": "towel-stack",
+    "name": "Towel Stack",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "gameW": 49.2,
+    "designW": 60,
+    "widthUnits": 49.2,
+    "heightUnits": 43.2,
+    "viewBox": [
+      9.0,
+      29.0,
+      82.0,
+      72.0
+    ],
+    "svg": "packs/glossy/towel-stack.svg",
+    "png": "packs/glossy/towel-stack.png",
+    "holdable": true
+  },
+  {
+    "slug": "blob-rug",
+    "name": "Bubble-Gum Rug",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "rug",
+    "size": "large",
+    "gameW": 224.4,
+    "designW": 240,
+    "widthUnits": 224.4,
+    "heightUnits": 92.4,
+    "viewBox": [
+      3.0,
+      59.5,
+      93.5,
+      38.5
+    ],
+    "svg": "packs/glossy/blob-rug.svg",
+    "png": "packs/glossy/blob-rug.png"
+  },
+  {
+    "slug": "pebble-rug",
+    "name": "Mint Pebble Rug",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "rug",
+    "size": "medium",
+    "gameW": 156.8,
+    "designW": 160,
+    "widthUnits": 156.8,
+    "heightUnits": 57.6,
+    "viewBox": [
+      1.0,
+      62.0,
+      98.0,
+      36.0
+    ],
+    "svg": "packs/glossy/pebble-rug.svg",
+    "png": "packs/glossy/pebble-rug.png"
+  },
+  {
+    "slug": "heart-plant",
+    "name": "Heart-Leaf Plant",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "plants",
+    "tag": "plant",
+    "size": "small",
+    "gameW": 34.2,
+    "designW": 60,
+    "widthUnits": 34.2,
+    "heightUnits": 54.3,
+    "viewBox": [
+      21.5,
+      10.5,
+      57.0,
+      90.5
+    ],
+    "svg": "packs/glossy/heart-plant.svg",
+    "png": "packs/glossy/heart-plant.png",
+    "holdable": true
+  },
+  {
+    "slug": "bud-vase",
+    "name": "Bud Vase",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "gameW": 21.6,
+    "designW": 40,
+    "widthUnits": 21.6,
+    "heightUnits": 39.6,
+    "viewBox": [
+      23.0,
+      2.0,
+      54.0,
+      99.0
+    ],
+    "svg": "packs/glossy/bud-vase.svg",
+    "png": "packs/glossy/bud-vase.png",
+    "holdable": true
+  },
+  {
+    "slug": "perfume-bottle",
+    "name": "Perfume Bottle",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "gameW": 27.6,
+    "designW": 40,
+    "widthUnits": 27.6,
+    "heightUnits": 37.2,
+    "viewBox": [
+      15.5,
+      8.0,
+      69.0,
+      93.0
+    ],
+    "svg": "packs/glossy/perfume-bottle.svg",
+    "png": "packs/glossy/perfume-bottle.png",
+    "holdable": true
+  },
+  {
+    "slug": "scent-candle",
+    "name": "Candle Jar",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "small",
+    "gameW": 24.8,
+    "designW": 40,
+    "widthUnits": 24.8,
+    "heightUnits": 38.2,
+    "viewBox": [
+      19.0,
+      5.5,
+      62.0,
+      95.5
+    ],
+    "svg": "packs/glossy/scent-candle.svg",
+    "png": "packs/glossy/scent-candle.png",
+    "holdable": true
+  },
+  {
+    "slug": "foot-spa",
+    "name": "Foot Spa",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "furniture",
+    "tag": "appliance",
+    "size": "medium",
+    "gameW": 84.6,
+    "designW": 90,
+    "widthUnits": 84.6,
+    "heightUnits": 62.1,
+    "viewBox": [
+      3.0,
+      32.0,
+      94.0,
+      69.0
+    ],
+    "svg": "packs/glossy/foot-spa.svg",
+    "png": "packs/glossy/foot-spa.png"
+  },
+  {
+    "slug": "mani-lamp",
+    "name": "Nail Dryer",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "appliance",
+    "size": "small",
+    "gameW": 54.0,
+    "designW": 60,
+    "widthUnits": 54.0,
+    "heightUnits": 44.4,
+    "viewBox": [
+      5.0,
+      27.0,
+      90.0,
+      74.0
+    ],
+    "svg": "packs/glossy/mani-lamp.svg",
+    "png": "packs/glossy/mani-lamp.png",
+    "holdable": true
+  },
+  {
+    "slug": "tiered-tray",
+    "name": "Tiered Tray",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "gameW": 46.8,
+    "designW": 60,
+    "widthUnits": 46.8,
+    "heightUnits": 60.0,
+    "viewBox": [
+      11.0,
+      1.0,
+      78.0,
+      100.0
+    ],
+    "svg": "packs/glossy/tiered-tray.svg",
+    "png": "packs/glossy/tiered-tray.png",
+    "holdable": true
+  },
+  {
+    "slug": "star-wall-sign",
+    "name": "Sparkle Wall Light",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "small",
+    "gameW": 76.0,
+    "designW": 80,
+    "widthUnits": 76.0,
+    "heightUnits": 76.0,
+    "viewBox": [
+      2.5,
+      2.5,
+      95.0,
+      95.0
+    ],
+    "svg": "packs/glossy/star-wall-sign.svg",
+    "png": "packs/glossy/star-wall-sign.png"
+  },
+  {
+    "slug": "waiting-bench",
+    "name": "Waiting Bench",
+    "type": "item",
+    "pack": "glossy",
+    "room": "salon",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "gameW": 166.6,
+    "designW": 170,
+    "widthUnits": 166.6,
+    "heightUnits": 108.8,
+    "viewBox": [
+      1.0,
+      37.0,
+      98.0,
+      64.0
+    ],
+    "svg": "packs/glossy/waiting-bench.svg",
+    "png": "packs/glossy/waiting-bench.png"
   }
 ]

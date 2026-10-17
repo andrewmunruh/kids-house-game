@@ -1,0 +1,122 @@
+[
+  {
+    "slug": "leafy-cream",
+    "name": "Leafy Cream",
+    "type": "wallpaper",
+    "pack": "welcome-home",
+    "svg": "welcome-home/leafy-cream.svg",
+    "png": "welcome-home/leafy-cream.png"
+  },
+  {
+    "slug": "orange-gingham",
+    "name": "Orange Gingham",
+    "type": "wallpaper",
+    "pack": "welcome-home",
+    "svg": "welcome-home/orange-gingham.svg",
+    "png": "welcome-home/orange-gingham.png"
+  },
+  {
+    "slug": "wood-panel",
+    "name": "Wood Panel",
+    "type": "wallpaper",
+    "pack": "welcome-home",
+    "svg": "welcome-home/wood-panel.svg",
+    "png": "welcome-home/wood-panel.png"
+  },
+  {
+    "slug": "wood-planks",
+    "name": "Wood Planks",
+    "type": "floor",
+    "pack": "welcome-home",
+    "svg": "welcome-home/wood-planks.svg",
+    "png": "welcome-home/wood-planks.png"
+  },
+  {
+    "slug": "terracotta-tiles",
+    "name": "Terracotta Tiles",
+    "type": "floor",
+    "pack": "welcome-home",
+    "svg": "welcome-home/terracotta-tiles.svg",
+    "png": "welcome-home/terracotta-tiles.png"
+  },
+  {
+    "slug": "sunny-stars",
+    "name": "Sunny Stars",
+    "type": "wallpaper",
+    "pack": "sunny-vibes",
+    "svg": "sunny-vibes/sunny-stars.svg",
+    "png": "sunny-vibes/sunny-stars.png"
+  },
+  {
+    "slug": "mint-checks",
+    "name": "Mint Checks",
+    "type": "wallpaper",
+    "pack": "sunny-vibes",
+    "svg": "sunny-vibes/mint-checks.svg",
+    "png": "sunny-vibes/mint-checks.png"
+  },
+  {
+    "slug": "sky-clouds",
+    "name": "Sky Clouds",
+    "type": "wallpaper",
+    "pack": "sunny-vibes",
+    "svg": "sunny-vibes/sky-clouds.svg",
+    "png": "sunny-vibes/sky-clouds.png"
+  },
+  {
+    "slug": "butter-check-floor",
+    "name": "Butter Check Floor",
+    "type": "floor",
+    "pack": "sunny-vibes",
+    "svg": "sunny-vibes/butter-check-floor.svg",
+    "png": "sunny-vibes/butter-check-floor.png"
+  },
+  {
+    "slug": "sky-tiles",
+    "name": "Sky Tiles",
+    "type": "floor",
+    "pack": "sunny-vibes",
+    "svg": "sunny-vibes/sky-tiles.svg",
+    "png": "sunny-vibes/sky-tiles.png"
+  },
+  {
+    "slug": "pink-hearts",
+    "name": "Pink Hearts",
+    "type": "wallpaper",
+    "pack": "glossy",
+    "svg": "glossy/pink-hearts.svg",
+    "png": "glossy/pink-hearts.png"
+  },
+  {
+    "slug": "lilac-stripes",
+    "name": "Lilac Stripes",
+    "type": "wallpaper",
+    "pack": "glossy",
+    "svg": "glossy/lilac-stripes.svg",
+    "png": "glossy/lilac-stripes.png"
+  },
+  {
+    "slug": "mint-bubbles",
+    "name": "Mint Bubbles",
+    "type": "wallpaper",
+    "pack": "glossy",
+    "svg": "glossy/mint-bubbles.svg",
+    "png": "glossy/mint-bubbles.png"
+  },
+  {
+    "slug": "pink-check-floor",
+    "name": "Pink Check Floor",
+    "type": "floor",
+    "pack": "glossy",
+    "svg": "glossy/pink-check-floor.svg",
+    "png": "glossy/pink-check-floor.png"
+  },
+  {
+    "slug": "lilac-terrazzo",
+    "name": "Lilac Terrazzo",
+    "type": "floor",
+    "pack": "glossy",
+    "svg": "glossy/lilac-terrazzo.svg",
+    "png": "glossy/lilac-terrazzo.png"
+  }
+]
