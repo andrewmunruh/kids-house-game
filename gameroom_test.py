@@ -3,9 +3,9 @@
 import asyncio, os, shutil, sys, traceback
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
-from testnav import SKIP_WN, to_map, go
+from testnav import SKIP_WN, to_map, go, local_page
 
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
+URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/gameroom/'
 ART = '/opt/cursor/artifacts/screenshots'
 # The page itself is andrewmunruh.github.io. Only the production Worker host counts.

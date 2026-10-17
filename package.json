@@ -13,6 +13,8 @@
     "worker:login": "npx -y node@22 node_modules/wrangler/bin/wrangler.js login",
     "worker:deploy": "npx -y node@22 node_modules/wrangler/bin/wrangler.js deploy",
     "test:hood": "/workspace/.pwvenv/bin/python hood_test.py",
+    "test:hood:worker": "HOOD=http://localhost:8788 /workspace/.pwvenv/bin/python hood_test.py",
+    "test:gameroom:worker": "HOOD=http://localhost:8788 /workspace/.pwvenv/bin/python gameroom_test.py",
     "test:pets": "/workspace/.pwvenv/bin/python pets_test.py",
     "test:eggs": "/workspace/.pwvenv/bin/python eggs_test.py",
     "test:ranch": "/workspace/.pwvenv/bin/python ranch_test.py",

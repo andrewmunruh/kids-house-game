@@ -221,7 +221,17 @@ export class Neighborhood {
     if (!this.meta) { this.send(c, { t: 'error', code: 'nohood' }); c.close(4404, 'no such neighborhood'); return; }
     this.conns.add(c);
   }
+  /** Drop any earlier socket for this player. A late close from the one we replaced must not take the new session with it. */
+  private supersede(pid: string, next: Conn) {
+    for (const old of [...this.conns]) {
+      if (old === next || old.pid !== pid) continue;
+      old.pid = undefined; this.conns.delete(old);
+      try { old.close(4000, 'replaced'); } catch { /* peer already gone */ }
+    }
+  }
   onClose(c: Conn) {
+    // Only the socket still registered for this connection. A replaced socket, or a close that fires twice, leaves the live one alone.
+    if (!this.conns.has(c)) return;
     this.conns.delete(c);
     if (c.pid && ![...this.conns].some(x => x.pid === c.pid)) {
       this.presence.delete(c.pid); this.noteAway(c.pid);
@@ -250,7 +260,7 @@ export class Neighborhood {
         const h = typeof m.token === 'string' ? await sha256(m.token) : '';
         const p = h ? Object.values(meta.players).find(p => p.tokenHash === h) : undefined;
         if (!p) { this.send(c, { t: 'error', code: 'badtoken' }); return; }
-        c.pid = p.pid; this.welcome(c); this.tables.forEach((t, i) => { if (t.seats.includes(p.pid)) this.sendTable(i); }); this.broadcast({ t: 'players', players: this.players() });
+        c.pid = p.pid; this.supersede(p.pid, c); this.welcome(c); this.tables.forEach((t, i) => { if (t.seats.includes(p.pid)) this.sendTable(i); }); this.broadcast({ t: 'players', players: this.players() });
         return;
       }
       case 'join': {
@@ -266,7 +276,7 @@ export class Neighborhood {
           if (prev && prev.tokenHash) { this.send(c, { t: 'error', code: 'nickname', msg: 'taken' }); return; }
           if (prev) { // claim was reset by a grown-up: this device takes over her player + house
             const token = randomToken(); prev.tokenHash = await sha256(token); prev.look = cleanLook(m.look); this.save('meta');
-            c.pid = prev.pid; this.send(c, { t: 'joined', token, pid: prev.pid });
+            c.pid = prev.pid; this.supersede(prev.pid, c); this.send(c, { t: 'joined', token, pid: prev.pid });
             this.welcome(c); this.broadcast({ t: 'players', players: this.players() }); return;
           }
           nickname = name;

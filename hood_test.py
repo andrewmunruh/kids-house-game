@@ -1,8 +1,8 @@
 # Multi-client neighborhood test: 3 simulated iPads against the local server.
 import asyncio, os, re, sys, random, traceback
 from playwright.async_api import async_playwright
-from testnav import PFX, SKIP_WN, K, to_map, go
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
+from testnav import PFX, SKIP_WN, K, to_map, go, local_page
+URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = os.environ.get('HOOD_SHOTS', 'screens/hood/')
 if not SHOT.endswith('/'): SHOT += '/'
 os.makedirs(SHOT, exist_ok=True)

@@ -2,6 +2,10 @@
 # PFX="preview:" for the preview build (its keys are prefixed so it never touches the real save); "" for production.
 import os
 PFX = os.environ.get('PFX', '')
+def local_page():
+    """Default game URL. HOOD=http://localhost:8788 points the suite at `npm run worker:dev` (node server is :8787)."""
+    hood = os.environ.get('HOOD', 'http://localhost:8787').rstrip('/')
+    return f'http://localhost:4173/kids-house-game/?hood={hood}'
 SKIP_WN = f"localStorage.getItem('{PFX}cozy-whatsnew') || localStorage.setItem('{PFX}cozy-whatsnew', '999')"  # skip the What's new popup
 def K(k): return PFX + k
 async def to_map(pg):
