@@ -30,11 +30,20 @@ Server code: `server/core.ts` (platform-agnostic) with two adapters:
 - `server/node.ts`: any Node host, JSON files on disk. `npm run server` (port 8787). Used automatically on localhost.
 - `server/worker.ts` + `wrangler.toml`: **Cloudflare Workers + Durable Objects (free plan)**, one Durable Object per street.
 
-### Going live (Cloudflare, free)
-1. `npm run worker:login`: opens a Cloudflare login (Andy creates/uses a free Cloudflare account).
-2. `npm run worker:deploy`: prints a URL like `https://cozy-hood.<your-subdomain>.workers.dev`.
-3. Build the game against it: `VITE_HOOD_URL=https://cozy-hood.<sub>.workers.dev npm run deploy`.
-(For a quick try without rebuilding, open the game with `?hood=https://cozy-hood.<sub>.workers.dev`.)
+### Live server
+Deployed at **https://cozy-hood.andrewmunruh.workers.dev** (Cloudflare Workers + Durable Objects, free plan).
+`.env.production` points production builds at it, so `npm run deploy` ships a client that talks to it.
+Redeploy the server with `CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… npm run worker:deploy`.
+For local multiplayer testing, open the preview with `?hood=http://localhost:8787` (Node) or `?hood=http://localhost:8788` (Worker).
+
+### Sign-in and invite codes
+- Grown-up screen → *Kids' names*: add first names (one-tap suggestions). Kids joining pick their name; one iPad per name,
+  remembered on that iPad (no password/email). *Reset* signs a name out so she can sign in on another iPad and keep her house.
+  With no names on the list, kids pick a preset nickname instead.
+- Grown-up screen → *Invite code*: set a memorable code (4–16 letters/numbers, not case-sensitive, unique across streets),
+  e.g. a word plus a number. Changing it never disconnects anyone (devices use the street's permanent id).
+- Code lookups are throttled per IP (20 per 10 min, at most 8 wrong codes per 10 min). A stranger with the code still
+  can only pick an unclaimed name from the list.
 
 ### Tests
 `npm run server` (or `npm run worker:dev`), `npx vite preview`, then `npm run test:hood` (3 simulated iPads,
