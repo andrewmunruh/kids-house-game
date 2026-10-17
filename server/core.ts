@@ -4,8 +4,9 @@
 import { reduce, initialState, type GameState, type Dog } from '../src/shared/state';
 import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, cleanPresence, cleanHouseName,
-  filterChat, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, fxAllowedAt, PROTOCOL, PROTO_PETS, PROTO_RANCH, RANCH_FX, normCode, validInvite, MAX_ROSTER, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble,
+  filterChat, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, fxAllowedAt, PROTOCOL, PROTO_PETS, PROTO_RANCH, PROTO_GAMES, RANCH_FX, normCode, validInvite, MAX_ROSTER, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble,
 } from '../src/shared/hood';
+import { GAMES, TABLES, NUDGE_MS, cleanTableOp, type TablePub, type TablePhase } from '../src/shared/games/index';
 import { cleanBasket, cleanPlots, cleanRanchOp, ranchApply, BASKET_ITEM, type Basket, type Plot } from '../src/shared/ranch';
 
 export interface KV { get<T>(k: string): Promise<T | undefined>; put(k: string, v: unknown): Promise<void>; delete(k: string): Promise<void> }
@@ -14,6 +15,9 @@ export interface CodeRegistry { claim(code: string, id: string): Promise<boolean
 export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number }
 
 interface Player { pid: string; nickname: string; houseId: string; tokenHash: string; look: Look; joinedAt: number; dog?: Dog | null; basket?: Basket }
+/** One table in the Game Room. Seats are kept by player id, so a kid who reconnects is still sitting there with her cards. */
+interface TableRec { seats: (string | null)[]; host: string | null; phase: TablePhase; players: string[]; state: any; seq: number; winPid?: string | null }
+const freshTable = (i: number): TableRec => ({ seats: Array(TABLES[i].seats).fill(null), host: null, phase: 'lobby', players: [], state: null, seq: 0 });
 interface Meta { id?: string; code: string; roster?: string[]; createdAt: number; parentKeyHash: string; settings: { freeChat: boolean }; players: Record<string, Player>; houseOrder: string[]; nextStyle: number; ranch?: { plots: (Plot | null)[] } }
 
 const enc = new TextEncoder();
@@ -31,6 +35,8 @@ export class Neighborhood {
   conns = new Set<Conn>();
   presence = new Map<string, Presence>();
   private lastEgg = new Map<string, number>();
+  tables: TableRec[] = TABLES.map((_, i) => freshTable(i));
+  private awaySince = new Map<string, number>();
   private loaded: Promise<void> | null = null;
   private dirty = new Set<string>(); private flushT: ReturnType<typeof setTimeout> | null = null;
 
@@ -38,6 +44,8 @@ export class Neighborhood {
 
   load() { return (this.loaded ??= (async () => {
     this.meta = (await this.kv.get<Meta>('meta')) ?? null;
+    const t = await this.kv.get<TableRec[]>('tables');
+    if (Array.isArray(t)) this.tables = TABLES.map((d, i) => t[i] && Array.isArray(t[i].seats) && t[i].seats.length === d.seats ? t[i] : freshTable(i));
     if (this.meta) for (const id of this.meta.houseOrder) { const h = await this.kv.get<HouseFull>('house:' + id); if (h) this.houses.set(id, h); }
   })()); }
   get exists() { return !!this.meta; }
@@ -62,6 +70,7 @@ export class Neighborhood {
     const keys = [...this.dirty]; this.dirty.clear();
     for (const k of keys) {
       if (k === 'meta') { if (this.meta) await this.kv.put('meta', this.meta); continue; }
+      if (k === 'tables') { await this.kv.put('tables', this.tables); continue; }
       const h = this.houses.get(k); if (h) await this.kv.put('house:' + k, h); else await this.kv.delete('house:' + k);
     }
   }
@@ -78,12 +87,93 @@ export class Neighborhood {
   private broadcast(m: ServerMsg, filter: (c: Conn) => boolean = c => !!c.pid) { const s = JSON.stringify(m); for (const c of this.conns) if (filter(c)) try { c.send(s); } catch { } }
   private welcome(c: Conn) {
     const presence: Record<string, Presence> = {}; this.presence.forEach((p, k) => { presence[k] = p; });
-    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean), presence, ranch: { plots: cleanPlots(this.meta!.ranch?.plots), now: Date.now() } });
+    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean), presence, ranch: { plots: cleanPlots(this.meta!.ranch?.plots), now: Date.now() }, ...((c.v ?? 1) >= PROTO_GAMES ? { tables: this.tables.map((_, i) => this.tablePub(i, c.pid!)) } : {}) });
   }
   private rateOk(c: Conn) {
     const now = Date.now(); c.budget ??= { t: now, n: 0 };
     if (now - c.budget.t > 1000) { c.budget.t = now; c.budget.n = 0; }
     return ++c.budget.n <= MSGS_PER_SEC;
+  }
+
+  // ---------- Game Room tables (server-authoritative; hidden hands go only to their owner) ----------
+  private online(pid: string) { return [...this.conns].some(c => c.pid === pid); }
+  /** Away from the table: offline, or wandered out of the Game Room. */
+  private away(pid: string) { return !this.online(pid) || this.presence.get(pid)?.where !== 'gameroom'; }
+  tablePub(i: number, pid: string | null): TablePub {
+    const t = this.tables[i], g = GAMES[TABLES[i].game];
+    const me = pid ? t.players.indexOf(pid) : -1;
+    const turnPid = t.phase === 'play' && t.state ? t.players[g.turn(t.state)] : undefined;
+    const off = turnPid ? this.awaySince.get(turnPid) : undefined;
+    return { tb: i, game: TABLES[i].game, seats: t.seats, host: t.host, phase: t.phase, players: t.players, seq: t.seq,
+      view: t.state ? { ...(g.view(t.state, me >= 0 && t.phase !== 'lobby' ? me : null) as object), winPid: t.winPid ?? null } : null,
+      you: me >= 0 ? me : null, ...(turnPid && this.away(turnPid) ? { away: Date.now() - (off ?? Date.now()) } : {}) };
+  }
+  private sendTable(i: number) {
+    for (const c of this.conns) if (c.pid && (c.v ?? 1) >= PROTO_GAMES) this.send(c, { t: 'table', table: this.tablePub(i, c.pid) });
+  }
+  private fixHost(t: TableRec) { if (!t.host || !t.seats.includes(t.host)) t.host = t.seats.find(Boolean) ?? null; }
+  /** Leave a table: free the seat; mid-game the rules module takes her out (or the game ends if too few are left). */
+  private tableLeave(i: number, pid: string) {
+    const t = this.tables[i], g = GAMES[TABLES[i].game];
+    const s = t.seats.indexOf(pid); if (s < 0) return false;
+    t.seats[s] = null;
+    const p = t.players.indexOf(pid);
+    if (t.phase === 'play' && p >= 0) {
+      const next = g.removePlayer(t.state, p, Math.random);
+      t.players.splice(p, 1);
+      if (next) t.state = next;
+      else { t.phase = 'over'; t.winPid = t.players.length === 1 ? t.players[0] : null; if (t.state) { t.state.winner = t.players.length === 1 ? 0 : null; if ('turn' in t.state) t.state.turn = -1; } }
+    }
+    if (!t.seats.some(Boolean)) { this.tables[i] = freshTable(i); this.tables[i].seq = t.seq + 1; } else { this.fixHost(t); t.seq++; }
+    return true;
+  }
+  tableDropPlayer(pid: string) { this.tables.forEach((_, i) => { if (this.tableLeave(i, pid)) this.sendTable(i); }); this.save('tables'); }
+  private tableOp(pid: string, o: ReturnType<typeof cleanTableOp> & {}): string | null {
+    const i = o.tb, t = this.tables[i], g = GAMES[TABLES[i].game];
+    switch (o.op) {
+      case 'sit': {
+        const where = this.presence.get(pid)?.where; if (where !== 'gameroom') return 'notHere';
+        if (t.seats[o.seat]) return t.seats[o.seat] === pid ? null : 'taken';
+        if (t.phase === 'play' && t.players.includes(pid)) return 'playing';
+        // one table at a time: stand up from any other table first (not while playing a game there)
+        for (let j = 0; j < this.tables.length; j++) if (j !== i && this.tables[j].seats.includes(pid)) {
+          if (this.tables[j].phase === 'play' && this.tables[j].players.includes(pid)) return 'playingElsewhere';
+          this.tableLeave(j, pid); this.sendTable(j);
+        }
+        const old = t.seats.indexOf(pid); if (old >= 0) t.seats[old] = null; // move to another seat at the same table
+        t.seats[o.seat] = pid; this.fixHost(t); t.seq++; break;
+      }
+      case 'leave': if (!this.tableLeave(i, pid)) return 'notSeated'; break;
+      case 'start': {
+        if (t.host !== pid) return 'notHost';
+        if (t.phase === 'play') return 'playing';
+        const seated = t.seats.filter(Boolean) as string[];
+        if (seated.length < g.minPlayers) return 'needMore';
+        if (seated.length > g.maxPlayers) return 'tooMany';
+        t.players = seated; t.state = g.setup(seated.length, Math.random); t.phase = 'play'; t.winPid = null; t.seq++; break;
+      }
+      case 'move': {
+        if (t.phase !== 'play') return 'notPlaying';
+        const p = t.players.indexOf(pid); if (p < 0) return 'notPlayer';
+        const mv = g.cleanMove(o.m); if (!mv || !g.legal(t.state, p, mv)) return 'illegal';
+        this.applyMove(i, p, mv); break;
+      }
+      case 'nudge': {
+        // a friend went away on her turn: after a little while anyone at the table can have her turn played for her
+        if (t.phase !== 'play' || !t.players.includes(pid)) return 'notPlayer';
+        const p = g.turn(t.state), who = t.players[p]; if (p < 0 || !who || !this.away(who)) return 'notAway';
+        if (Date.now() - (this.awaySince.get(who) ?? Date.now()) < NUDGE_MS) return 'tooSoon';
+        const mv = g.autoMove(t.state, p); if (!mv || !g.legal(t.state, p, mv)) return 'noMove';
+        this.applyMove(i, p, mv); break;
+      }
+    }
+    this.save('tables'); this.sendTable(i); return null;
+  }
+  private applyMove(i: number, p: number, mv: unknown) {
+    const t = this.tables[i], g = GAMES[TABLES[i].game];
+    t.state = g.apply(t.state, p, mv, Math.random); t.seq++;
+    const w = g.winner(t.state);
+    if (w !== null || g.turn(t.state) < 0) { t.phase = 'over'; t.winPid = w !== null ? t.players[w] : null; }
   }
 
   // ---------- socket lifecycle ----------
@@ -95,7 +185,8 @@ export class Neighborhood {
   onClose(c: Conn) {
     this.conns.delete(c);
     if (c.pid && ![...this.conns].some(x => x.pid === c.pid)) {
-      this.presence.delete(c.pid);
+      this.presence.delete(c.pid); this.awaySince.set(c.pid, Date.now());
+      this.tables.forEach((t, i) => { if (t.seats.includes(c.pid!)) this.sendTable(i); }); // friends see she's away
       this.broadcast({ t: 'pres', pid: c.pid, p: null });
       this.broadcast({ t: 'players', players: this.players() });
     }
@@ -120,7 +211,7 @@ export class Neighborhood {
         const h = typeof m.token === 'string' ? await sha256(m.token) : '';
         const p = h ? Object.values(meta.players).find(p => p.tokenHash === h) : undefined;
         if (!p) { this.send(c, { t: 'error', code: 'badtoken' }); return; }
-        c.pid = p.pid; this.welcome(c); this.broadcast({ t: 'players', players: this.players() });
+        c.pid = p.pid; this.welcome(c); this.tables.forEach((t, i) => { if (t.seats.includes(p.pid)) this.sendTable(i); }); this.broadcast({ t: 'players', players: this.players() });
         return;
       }
       case 'join': {
@@ -186,8 +277,20 @@ export class Neighborhood {
         if (p.ride !== undefined && [...this.presence].some(([pid, q]) => pid !== me.pid && q.where === 'ranch' && q.ride === p.ride)) {
           this.send(c, { t: 'noride', ride: p.ride }); delete p.ride; // one rider per horse
         }
+        const wasIn = this.presence.get(me.pid)?.where === 'gameroom';
         this.presence.set(me.pid, p);
         this.broadcast({ t: 'pres', pid: me.pid, p }, x => !!x.pid && x.pid !== me.pid);
+        if (wasIn !== (p.where === 'gameroom')) {
+          if (p.where === 'gameroom') this.awaySince.delete(me.pid); else this.awaySince.set(me.pid, Date.now());
+          // walking out of the Game Room gives up a seat at a table that isn't playing; mid-game she keeps it and can come back
+          this.tables.forEach((t, i) => { if (!t.seats.includes(me.pid)) return; if (p.where !== 'gameroom' && t.phase !== 'play') { this.tableLeave(i, me.pid); this.save('tables'); } this.sendTable(i); });
+        }
+        return;
+      }
+      case 'tbl': {
+        if ((c.v ?? 1) < PROTO_GAMES) return;
+        const o = cleanTableOp(m); if (!o) return;
+        const r = this.tableOp(me.pid, o); if (r) this.send(c, { t: 'tblFail', tb: o.tb, reason: r });
         return;
       }
       case 'dog': {
@@ -294,7 +397,7 @@ export class Neighborhood {
         delete meta.players[p.pid]; this.houses.delete(p.houseId); meta.houseOrder = meta.houseOrder.filter(id => id !== p.houseId);
         meta.houseOrder.forEach((id, i) => { const h = this.houses.get(id); if (h && h.slot !== i) { h.slot = i; this.save(id); } });
         this.presence.delete(p.pid); this.save('meta'); this.save(p.houseId);
-        kick(p.pid);
+        kick(p.pid); this.tableDropPlayer(p.pid);
         this.broadcast({ t: 'houseGone', houseId: p.houseId }); this.broadcast({ t: 'pres', pid: p.pid, p: null });
         this.broadcast({ t: 'players', players: this.players() });
         meta.houseOrder.forEach(id => { const h = this.houses.get(id); if (h) this.broadcast({ t: 'houseMeta', meta: this.metaOf(h) }); });
