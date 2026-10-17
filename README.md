@@ -81,4 +81,4 @@ brand-new device (no saved house) gets the short welcome instead.
 `npm run test:pets` (park/pets, 34 checks, 3 iPads + an old-app socket), `python whatsnew_test.py` (popup), and:
 `npm run server` (or `npm run worker:dev`), `npx vite preview`, then `npm run test:hood` (3 simulated iPads,
 25 checks; add `'http://localhost:4173/kids-house-game/?hood=http://localhost:8788'` to target the Worker),
-`PORT=8788 node server/smoke.mjs` for the raw protocol, and `npm run test:eggs`.
+`PORT=8788 node server/smoke.mjs` for the raw protocol, `npm run test:eggs`, and `npm run test:phone` (phone viewports only; iPad sizes must not pick up the phone layout).

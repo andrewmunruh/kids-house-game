@@ -121,7 +121,7 @@ app.innerHTML = `
 <div class="chatTray hidden" id="chatTray"></div>
 <div class="sheet hidden" id="sheet"><div class="card" id="card"></div></div>
 <div class="fx" id="fx"></div>
-<div class="phoneNote" id="phoneNote"><div class="card"><h2>Best on an iPad</h2><p>This cozy house is made for an iPad. Open it there, and turn the iPad sideways if you can.</p><button class="phoneOk" id="phoneOk" type="button">OK!</button></div></div>`;
+<div class="phoneNote" id="phoneNote"><div class="card"><h2>Turn sideways</h2><p>Turn your phone sideways for more room to play!</p><button class="phoneOk" id="phoneOk" type="button">OK!</button></div></div>`;
 
 const $ = (id: string) => document.getElementById(id)!;
 // preview builds (separate URL, separate server, prefixed saves) wear a little ribbon so nobody mixes them up
@@ -163,14 +163,38 @@ function glideTo(target: number) {
 }
 const stageScale = () => stage.getBoundingClientRect().width / VIEW_W;
 
+// Phones only. iPad sizes (1180×820, 1024×768, 820×1180) never match this, even with a coarse pointer.
+const PHONE_MQ = '(pointer: coarse) and (max-width: 600px), (pointer: coarse) and (orientation: landscape) and (max-height: 500px)';
+const phoneMQ = window.matchMedia(PHONE_MQ);
+function syncPhone() {
+  const on = phoneMQ.matches;
+  document.body.classList.toggle('phone', on);
+  document.body.classList.toggle('phone-portrait', on && window.matchMedia('(orientation: portrait)').matches);
+  // Nudge arrows live inside the scaled stage on iPad. On a phone the stage is small, so
+  // they move onto the wrap (screen pixels, >= 44px) and back when the gate no longer matches.
+  const wrap = $('stageWrap');
+  for (const n of [$('nudgeL'), $('nudgeR')]) {
+    const home = on ? wrap : stage;
+    if (n.parentElement !== home) home.appendChild(n);
+  }
+}
 function syncChrome() {
   const top = document.querySelector('.top');
-  if (top) document.documentElement.style.setProperty('--chrome-h', Math.ceil(top.getBoundingClientRect().height) + 'px');
+  if (!top) return;
+  const box = top.getBoundingClientRect();
+  // iPad: height only, same as before. Phone: the bar's bottom, so fixed scenes start below the notch padding.
+  const px = document.body.classList.contains('phone') ? box.bottom : box.height;
+  document.documentElement.style.setProperty('--chrome-h', Math.ceil(px) + 'px');
 }
 function fit() {
+  syncPhone();
   syncChrome();
   const wrap = $('stageWrap');
-  const portrait = wrap.clientHeight > wrap.clientWidth + 40;
+  // iPad keeps the original test. On a phone, a tall tool row can make the stage almost square;
+  // still frame it as portrait so the room fills the screen instead of shrinking to a wide sliver.
+  const portrait = document.body.classList.contains('phone')
+    ? wrap.clientHeight > wrap.clientWidth * 0.85
+    : wrap.clientHeight > wrap.clientWidth + 40;
   if (portrait) {
     // Match the free space's shape so the room scales up and fills the height.
     const aspect = wrap.clientWidth / Math.max(1, wrap.clientHeight);
@@ -180,11 +204,14 @@ function fit() {
   stage.style.height = H + 'px';
   const sc = Math.min(wrap.clientWidth / VIEW_W, wrap.clientHeight / H);
   stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
+  if (document.body.classList.contains('phone')) stage.style.setProperty('--fit', String(sc));
   if (camX > maxCam()) setCam(camX);
   else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
   if (view === 'ranch') requestAnimationFrame(frameRanchSign);
+  clampPhoneBubbles();
 }
 window.addEventListener('resize', fit);
+phoneMQ.addEventListener('change', fit);
 stage.addEventListener('scroll', () => { stage.scrollLeft = 0; stage.scrollTop = 0; });
 const toRoom = (cx: number, cy: number) => {
   const r = stage.getBoundingClientRect();
@@ -834,6 +861,31 @@ function attachMyAvatarDrag(el: HTMLElement) {
 
 // ---------- speech bubbles ----------
 function bubbleText(b: Bubble): string { if (b.kind === 'text') return b.v; return (b.kind === 'phrase' ? PHRASES : EMOTES)[b.v] ?? ''; }
+// On a phone the stage is scaled down, so a bubble centered on someone near the edge
+// can draw past the screen. Nudge it back. iPad never has body.phone, so this is a no-op there.
+function clampPhoneBubbles() {
+  const nodes = document.querySelectorAll<HTMLElement>('.bubble');
+  if (!document.body.classList.contains('phone')) {
+    nodes.forEach(el => { if (el.style.marginLeft || el.style.marginTop) { el.style.marginLeft = ''; el.style.marginTop = ''; } });
+    return;
+  }
+  const view = stage.getBoundingClientRect();
+  const sc = stageScale() || 1;
+  nodes.forEach(el => {
+    el.style.marginLeft = '0px';
+    el.style.marginTop = '0px';
+    const r = el.getBoundingClientRect();
+    let dx = 0;
+    if (r.width >= view.width - 8) dx = view.left + 4 - r.left;
+    else if (r.left < view.left + 4) dx = view.left + 4 - r.left;
+    else if (r.right > view.right - 4) dx = view.right - 4 - r.right;
+    let dy = 0;
+    if (r.top < view.top + 4) dy = view.top + 4 - r.top;
+    else if (r.bottom > view.bottom - 4) dy = view.bottom - 4 - r.bottom;
+    if (dx) el.style.marginLeft = dx / sc + 'px';
+    if (dy) el.style.marginTop = dy / sc + 'px';
+  });
+}
 function showBubble(pid: string, b: Bubble) {
   const el0 = view === 'street' ? document.querySelector<HTMLElement>(`#mapFaces .mapFace[data-pid="${pid}"]`)
     : view === 'park' ? document.querySelector<HTMLElement>(`#pavatars .savatar[data-pid="${pid}"]`)
@@ -843,6 +895,7 @@ function showBubble(pid: string, b: Bubble) {
     el.querySelector('.bubble')?.remove();
     const d = document.createElement('div'); d.className = 'bubble' + (b.kind === 'emote' ? ' emote' : '');
     d.textContent = bubbleText(b); el.appendChild(d);
+    clampPhoneBubbles();
     setTimeout(() => d.classList.add('out'), 4600); setTimeout(() => d.remove(), 5000);
   }
   if (pid !== hood?.pid) sfx.click();
@@ -896,6 +949,7 @@ function renderHoodChrome() {
     $('btnLock').setAttribute('aria-label', h.meta.locked ? 'Unlock house' : 'Lock house');
   }
   updateNear();
+  if (document.body.classList.contains('phone')) syncChrome();
 }
 $('btnLock').addEventListener('click', () => {
   const h = hood?.houses.get(currentHouseId); if (!h || h.meta.ownerId !== hood!.pid) return;
@@ -1474,7 +1528,7 @@ function tickDogs(now: number, dt: number) {
   for (const [k, r] of dogRuns) if (!seen.has(k)) { r.el.remove(); dogRuns.delete(k); }
 }
 function dogBubble(r: DogRun, text: string) {
-  r.el.querySelector('.bubble')?.remove(); const b = document.createElement('div'); b.className = 'bubble petBubble'; b.textContent = text; r.el.appendChild(b);
+  r.el.querySelector('.bubble')?.remove(); const b = document.createElement('div'); b.className = 'bubble petBubble'; b.textContent = text; r.el.appendChild(b); clampPhoneBubbles();
   setTimeout(() => b.classList.add('out'), 1300); setTimeout(() => b.remove(), 1700);
 }
 const trickCount = new Map<string, number>();
@@ -1516,7 +1570,7 @@ function tickCat() {
 }
 function purr() {
   if (!catEl) return; sfx.purr(); setTimeout(() => sfx.meow(), 250);
-  catEl.querySelector('.bubble')?.remove(); const b = document.createElement('div'); b.className = 'bubble petBubble'; b.textContent = `${catEl.dataset.name} purrs ♥`; catEl.appendChild(b);
+  catEl.querySelector('.bubble')?.remove(); const b = document.createElement('div'); b.className = 'bubble petBubble'; b.textContent = `${catEl.dataset.name} purrs ♥`; catEl.appendChild(b); clampPhoneBubbles();
   setTimeout(() => b.classList.add('out'), 1500); setTimeout(() => b.remove(), 1900);
   catEl.classList.remove('happy'); void catEl.offsetWidth; catEl.classList.add('happy');
   for (let i = 0; i < 5; i++) { const h = document.createElement('div'); h.className = 'heart'; h.textContent = '♥'; h.style.left = 20 + Math.random() * 60 + '%'; h.style.animationDelay = i * 0.12 + 's'; h.style.color = ['#ff6b9a', '#ff8fab', '#e879c6'][i % 3]; catEl.appendChild(h); setTimeout(() => h.remove(), 1800); }
@@ -1736,7 +1790,7 @@ function reactAnimal(idx: number, food: number) {
   el.classList.remove('hop', 'munch'); void el.offsetWidth; el.classList.add(food ? 'munch' : 'hop');
   setTimeout(() => el.classList.remove('hop', 'munch'), 1400);
   el.querySelector('.abubble')?.remove();
-  const b = document.createElement('div'); b.className = 'bubble petBubble abubble'; b.textContent = food ? `Yum! Munch munch ${food === 1 ? '🥕' : food === 2 ? '🍎' : '🌾'}` : info.say; el.appendChild(b);
+  const b = document.createElement('div'); b.className = 'bubble petBubble abubble'; b.textContent = food ? `Yum! Munch munch ${food === 1 ? '🥕' : food === 2 ? '🍎' : '🌾'}` : info.say; el.appendChild(b); clampPhoneBubbles();
   setTimeout(() => b.classList.add('out'), 1400); setTimeout(() => b.remove(), 1800);
   for (let i = 0; i < (food ? 6 : 4); i++) { const h = document.createElement('div'); h.className = 'heart'; h.textContent = '♥'; h.style.left = 15 + Math.random() * 70 + '%'; h.style.animationDelay = i * 0.12 + 's'; h.style.color = ['#ff6b9a', '#ff8fab', '#e879c6', '#b197fc'][i % 4]; el.appendChild(h); setTimeout(() => h.remove(), 1900); }
   (sfx as any)[info.snd]?.(); if (food) setTimeout(() => sfx.munch(), 250);

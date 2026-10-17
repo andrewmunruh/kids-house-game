@@ -15,6 +15,7 @@
     "test:hood": "/workspace/.pwvenv/bin/python hood_test.py",
     "test:pets": "/workspace/.pwvenv/bin/python pets_test.py",
     "test:eggs": "/workspace/.pwvenv/bin/python eggs_test.py",
+    "test:phone": "/workspace/.pwvenv/bin/python phone_test.py",
     "test:ranch": "/workspace/.pwvenv/bin/python ranch_test.py",
     "test:whatsnew": "/workspace/.pwvenv/bin/python whatsnew_test.py"
   },
