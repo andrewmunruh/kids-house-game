@@ -1,1 +1,978 @@
-[]
+[
+  {
+    "type": "item",
+    "slug": "comfy-armchair",
+    "name": "Comfy Chair",
+    "room": "living",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "svg": "living/comfy-armchair.svg",
+    "png": "living/comfy-armchair.png",
+    "widthUnits": 161.7,
+    "heightUnits": 162.5,
+    "gameW": 161.7,
+    "viewBox": [
+      1.0,
+      2.5,
+      98.0,
+      98.5
+    ],
+    "pngPx": [
+      1082,
+      1088
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "daisy-rug",
+    "name": "Daisy Rug",
+    "room": "living",
+    "category": "decor",
+    "tag": "rug",
+    "size": "large",
+    "svg": "living/daisy-rug.svg",
+    "png": "living/daisy-rug.png",
+    "widthUnits": 306.0,
+    "heightUnits": 108.0,
+    "gameW": 306.0,
+    "viewBox": [
+      -1.0,
+      64.0,
+      102.0,
+      36.0
+    ],
+    "pngPx": [
+      2048,
+      723
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "monstera-plant",
+    "name": "Big Leaf Plant",
+    "room": "living",
+    "category": "plants",
+    "tag": "plant",
+    "size": "medium",
+    "svg": "living/monstera-plant.svg",
+    "png": "living/monstera-plant.png",
+    "widthUnits": 158.2,
+    "heightUnits": 145.6,
+    "gameW": 158.2,
+    "viewBox": [
+      -6.5,
+      -3.0,
+      113.0,
+      104.0
+    ],
+    "pngPx": [
+      1059,
+      974
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "canopy-bed",
+    "name": "Canopy Bed",
+    "room": "bedroom",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "svg": "bedroom/canopy-bed.svg",
+    "png": "bedroom/canopy-bed.png",
+    "widthUnits": 294.0,
+    "heightUnits": 294.0,
+    "gameW": 294.0,
+    "viewBox": [
+      1.0,
+      3.0,
+      98.0,
+      98.0
+    ],
+    "pngPx": [
+      1968,
+      1968
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "cat-bed",
+    "name": "Cat Bed",
+    "room": "bedroom",
+    "category": "pets",
+    "tag": "pet",
+    "size": "medium",
+    "svg": "bedroom/cat-bed.svg",
+    "png": "bedroom/cat-bed.png",
+    "widthUnits": 112.8,
+    "heightUnits": 91.2,
+    "gameW": 112.8,
+    "viewBox": [
+      3.0,
+      25.0,
+      94.0,
+      76.0
+    ],
+    "pngPx": [
+      755,
+      610
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "moon-night-light",
+    "name": "Moon Night-Light",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "small",
+    "svg": "bedroom/moon-night-light.svg",
+    "png": "bedroom/moon-night-light.png",
+    "widthUnits": 57.7,
+    "heightUnits": 70.0,
+    "gameW": 57.7,
+    "holdable": true,
+    "viewBox": [
+      7.0,
+      1.0,
+      82.5,
+      100.0
+    ],
+    "pngPx": [
+      386,
+      468
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "dino-plush",
+    "name": "Dino Plushie",
+    "room": "bedroom",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "svg": "bedroom/dino-plush.svg",
+    "png": "bedroom/dino-plush.png",
+    "widthUnits": 78.3,
+    "heightUnits": 90.9,
+    "gameW": 78.3,
+    "holdable": true,
+    "viewBox": [
+      11.0,
+      0.0,
+      87.0,
+      101.0
+    ],
+    "pngPx": [
+      524,
+      608
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "happy-fridge",
+    "name": "Happy Fridge",
+    "room": "kitchen",
+    "category": "furniture",
+    "tag": "appliance",
+    "size": "large",
+    "svg": "kitchen/happy-fridge.svg",
+    "png": "kitchen/happy-fridge.png",
+    "widthUnits": 132.6,
+    "heightUnits": 170.0,
+    "gameW": 132.6,
+    "viewBox": [
+      11.0,
+      1.0,
+      78.0,
+      100.0
+    ],
+    "pngPx": [
+      887,
+      1138
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "toaster",
+    "name": "Toaster",
+    "room": "kitchen",
+    "category": "decor",
+    "tag": "appliance",
+    "size": "small",
+    "svg": "kitchen/toaster.svg",
+    "png": "kitchen/toaster.png",
+    "widthUnits": 70.4,
+    "heightUnits": 73.6,
+    "gameW": 70.4,
+    "holdable": true,
+    "viewBox": [
+      9.0,
+      9.0,
+      88.0,
+      92.0
+    ],
+    "pngPx": [
+      471,
+      493
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "fruit-bowl",
+    "name": "Fruit Bowl",
+    "room": "kitchen",
+    "category": "food",
+    "tag": "food",
+    "size": "small",
+    "svg": "kitchen/fruit-bowl.svg",
+    "png": "kitchen/fruit-bowl.png",
+    "widthUnits": 75.2,
+    "heightUnits": 70.0,
+    "gameW": 75.2,
+    "holdable": true,
+    "viewBox": [
+      3.0,
+      13.5,
+      94.0,
+      87.5
+    ],
+    "pngPx": [
+      503,
+      468
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "coffee-table",
+    "name": "Coffee Table",
+    "room": "living",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "medium",
+    "svg": "living/coffee-table.svg",
+    "png": "living/coffee-table.png",
+    "widthUnits": 159.8,
+    "heightUnits": 102.0,
+    "gameW": 159.8,
+    "viewBox": [
+      3.0,
+      41.0,
+      94.0,
+      60.0
+    ],
+    "pngPx": [
+      1070,
+      683
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "bean-bag",
+    "name": "Bean Bag",
+    "room": "living",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "medium",
+    "svg": "living/bean-bag.svg",
+    "png": "living/bean-bag.png",
+    "widthUnits": 112.8,
+    "heightUnits": 87.6,
+    "gameW": 112.8,
+    "viewBox": [
+      3.0,
+      28.0,
+      94.0,
+      73.0
+    ],
+    "pngPx": [
+      755,
+      586
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "pouf",
+    "name": "Pouf",
+    "room": "living",
+    "category": "furniture",
+    "tag": "seating",
+    "size": "small",
+    "svg": "living/pouf.svg",
+    "png": "living/pouf.png",
+    "widthUnits": 62.4,
+    "heightUnits": 52.0,
+    "gameW": 62.4,
+    "viewBox": [
+      11.0,
+      36.0,
+      78.0,
+      65.0
+    ],
+    "pngPx": [
+      418,
+      348
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "side-table",
+    "name": "Side Table",
+    "room": "living",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "small",
+    "svg": "living/side-table.svg",
+    "png": "living/side-table.png",
+    "widthUnits": 68.8,
+    "heightUnits": 56.0,
+    "gameW": 68.8,
+    "viewBox": [
+      7.0,
+      31.0,
+      86.0,
+      70.0
+    ],
+    "pngPx": [
+      460,
+      375
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "rocking-chair",
+    "name": "Rocking Chair",
+    "room": "living",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "medium",
+    "svg": "living/rocking-chair.svg",
+    "png": "living/rocking-chair.png",
+    "widthUnits": 137.2,
+    "heightUnits": 136.5,
+    "gameW": 137.2,
+    "viewBox": [
+      1.0,
+      3.5,
+      98.0,
+      97.5
+    ],
+    "pngPx": [
+      918,
+      914
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "cubby-shelf",
+    "name": "Cubby Shelf",
+    "room": "living",
+    "category": "furniture",
+    "tag": "storage",
+    "size": "medium",
+    "svg": "living/cubby-shelf.svg",
+    "png": "living/cubby-shelf.png",
+    "widthUnits": 159.8,
+    "heightUnits": 125.8,
+    "gameW": 159.8,
+    "viewBox": [
+      3.0,
+      27.0,
+      94.0,
+      74.0
+    ],
+    "pngPx": [
+      1070,
+      842
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "piano",
+    "name": "Piano",
+    "room": "living",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "medium",
+    "svg": "living/piano.svg",
+    "png": "living/piano.png",
+    "widthUnits": 186.2,
+    "heightUnits": 174.8,
+    "gameW": 186.2,
+    "viewBox": [
+      1.0,
+      9.0,
+      98.0,
+      92.0
+    ],
+    "pngPx": [
+      1246,
+      1170
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "fireplace",
+    "name": "Fireplace",
+    "room": "living",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "large",
+    "svg": "living/fireplace.svg",
+    "png": "living/fireplace.png",
+    "widthUnits": 204.0,
+    "heightUnits": 180.0,
+    "gameW": 204.0,
+    "viewBox": [
+      -1.0,
+      11.0,
+      102.0,
+      90.0
+    ],
+    "pngPx": [
+      1365,
+      1205
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "tv-stand",
+    "name": "TV Stand",
+    "room": "living",
+    "category": "furniture",
+    "tag": "storage",
+    "size": "medium",
+    "svg": "living/tv-stand.svg",
+    "png": "living/tv-stand.png",
+    "widthUnits": 176.4,
+    "heightUnits": 90.0,
+    "gameW": 176.4,
+    "viewBox": [
+      1.0,
+      51.0,
+      98.0,
+      50.0
+    ],
+    "pngPx": [
+      1181,
+      602
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "arc-floor-lamp",
+    "name": "Arc Lamp",
+    "room": "living",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "medium",
+    "svg": "living/arc-floor-lamp.svg",
+    "png": "living/arc-floor-lamp.png",
+    "widthUnits": 135.0,
+    "heightUnits": 146.2,
+    "gameW": 135.0,
+    "viewBox": [
+      3.0,
+      3.5,
+      90.0,
+      97.5
+    ],
+    "pngPx": [
+      904,
+      978
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "string-lights",
+    "name": "String Lights",
+    "room": "living",
+    "category": "decor",
+    "tag": "lighting",
+    "size": "large",
+    "svg": "living/string-lights.svg",
+    "png": "living/string-lights.png",
+    "widthUnits": 262.6,
+    "heightUnits": 68.9,
+    "gameW": 262.6,
+    "wall": true,
+    "viewBox": [
+      -0.5,
+      17.5,
+      101.0,
+      26.5
+    ],
+    "pngPx": [
+      1758,
+      461
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "tassel-rug",
+    "name": "Tassel Rug",
+    "room": "living",
+    "category": "decor",
+    "tag": "rug",
+    "size": "large",
+    "svg": "living/tassel-rug.svg",
+    "png": "living/tassel-rug.png",
+    "widthUnits": 294.0,
+    "heightUnits": 100.5,
+    "gameW": 294.0,
+    "viewBox": [
+      1.0,
+      67.0,
+      98.0,
+      33.5
+    ],
+    "pngPx": [
+      1968,
+      673
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "rainbow-rug",
+    "name": "Rainbow Rug",
+    "room": "living",
+    "category": "decor",
+    "tag": "rug",
+    "size": "large",
+    "svg": "living/rainbow-rug.svg",
+    "png": "living/rainbow-rug.png",
+    "widthUnits": 270.4,
+    "heightUnits": 74.1,
+    "gameW": 270.4,
+    "viewBox": [
+      -2.0,
+      69.5,
+      104.0,
+      28.5
+    ],
+    "pngPx": [
+      1810,
+      496
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "rainbow-wall-art",
+    "name": "Rainbow Art",
+    "room": "living",
+    "category": "decor",
+    "tag": "wall-art",
+    "size": "medium",
+    "svg": "living/rainbow-wall-art.svg",
+    "png": "living/rainbow-wall-art.png",
+    "widthUnits": 130.2,
+    "heightUnits": 67.2,
+    "gameW": 130.2,
+    "wall": true,
+    "viewBox": [
+      -3.5,
+      27.0,
+      108.5,
+      56.0
+    ],
+    "pngPx": [
+      871,
+      450
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "wall-shelf",
+    "name": "Wall Shelf",
+    "room": "living",
+    "category": "decor",
+    "tag": "decor",
+    "size": "medium",
+    "svg": "living/wall-shelf.svg",
+    "png": "living/wall-shelf.png",
+    "widthUnits": 156.8,
+    "heightUnits": 100.0,
+    "gameW": 156.8,
+    "wall": true,
+    "viewBox": [
+      1.0,
+      14.5,
+      98.0,
+      62.5
+    ],
+    "pngPx": [
+      1049,
+      669
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "globe",
+    "name": "Globe",
+    "room": "living",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "svg": "living/globe.svg",
+    "png": "living/globe.png",
+    "widthUnits": 49.7,
+    "heightUnits": 63.7,
+    "gameW": 49.7,
+    "holdable": true,
+    "viewBox": [
+      9.0,
+      10.0,
+      71.0,
+      91.0
+    ],
+    "pngPx": [
+      333,
+      426
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "tulip-vase",
+    "name": "Tulip Vase",
+    "room": "living",
+    "category": "plants",
+    "tag": "plant",
+    "size": "small",
+    "svg": "living/tulip-vase.svg",
+    "png": "living/tulip-vase.png",
+    "widthUnits": 44.8,
+    "heightUnits": 76.4,
+    "gameW": 44.8,
+    "holdable": true,
+    "viewBox": [
+      22.0,
+      5.5,
+      56.0,
+      95.5
+    ],
+    "pngPx": [
+      300,
+      511
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "fiddle-leaf-fig",
+    "name": "Fig Tree",
+    "room": "living",
+    "category": "plants",
+    "tag": "plant",
+    "size": "medium",
+    "svg": "living/fiddle-leaf-fig.svg",
+    "png": "living/fiddle-leaf-fig.png",
+    "widthUnits": 106.2,
+    "heightUnits": 175.1,
+    "gameW": 106.2,
+    "viewBox": [
+      18.5,
+      -2.0,
+      62.5,
+      103.0
+    ],
+    "pngPx": [
+      711,
+      1172
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "hanging-planter",
+    "name": "Hanging Plant",
+    "room": "living",
+    "category": "plants",
+    "tag": "plant",
+    "size": "small",
+    "svg": "living/hanging-planter.svg",
+    "png": "living/hanging-planter.png",
+    "widthUnits": 67.0,
+    "heightUnits": 98.0,
+    "gameW": 67.0,
+    "wall": true,
+    "viewBox": [
+      17.0,
+      -2.5,
+      67.0,
+      98.0
+    ],
+    "pngPx": [
+      448,
+      656
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "snake-plant",
+    "name": "Snake Plant",
+    "room": "living",
+    "category": "plants",
+    "tag": "plant",
+    "size": "medium",
+    "svg": "living/snake-plant.svg",
+    "png": "living/snake-plant.png",
+    "widthUnits": 68.2,
+    "heightUnits": 103.4,
+    "gameW": 68.2,
+    "viewBox": [
+      19.0,
+      7.0,
+      62.0,
+      94.0
+    ],
+    "pngPx": [
+      456,
+      692
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "succulent-trio",
+    "name": "Succulents",
+    "room": "living",
+    "category": "plants",
+    "tag": "plant",
+    "size": "small",
+    "svg": "living/succulent-trio.svg",
+    "png": "living/succulent-trio.png",
+    "widthUnits": 81.0,
+    "heightUnits": 66.2,
+    "gameW": 81.0,
+    "holdable": true,
+    "viewBox": [
+      5.0,
+      27.5,
+      90.0,
+      73.5
+    ],
+    "pngPx": [
+      542,
+      443
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "throw-pillow",
+    "name": "Pillow",
+    "room": "living",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "svg": "living/throw-pillow.svg",
+    "png": "living/throw-pillow.png",
+    "widthUnits": 53.4,
+    "heightUnits": 52.2,
+    "gameW": 53.4,
+    "holdable": true,
+    "viewBox": [
+      5.5,
+      14.0,
+      89.0,
+      87.0
+    ],
+    "pngPx": [
+      357,
+      349
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "blanket-basket",
+    "name": "Blanket Basket",
+    "room": "living",
+    "category": "decor",
+    "tag": "decor",
+    "size": "small",
+    "svg": "living/blanket-basket.svg",
+    "png": "living/blanket-basket.png",
+    "widthUnits": 77.4,
+    "heightUnits": 72.9,
+    "gameW": 77.4,
+    "viewBox": [
+      7.0,
+      20.0,
+      86.0,
+      81.0
+    ],
+    "pngPx": [
+      518,
+      488
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "building-blocks",
+    "name": "Blocks",
+    "room": "living",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "svg": "living/building-blocks.svg",
+    "png": "living/building-blocks.png",
+    "widthUnits": 69.0,
+    "heightUnits": 63.0,
+    "gameW": 69.0,
+    "holdable": true,
+    "viewBox": [
+      5.0,
+      17.0,
+      92.0,
+      84.0
+    ],
+    "pngPx": [
+      462,
+      422
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "toy-car",
+    "name": "Toy Car",
+    "room": "living",
+    "category": "decor",
+    "tag": "toy",
+    "size": "small",
+    "svg": "living/toy-car.svg",
+    "png": "living/toy-car.png",
+    "widthUnits": 65.8,
+    "heightUnits": 54.6,
+    "gameW": 65.8,
+    "holdable": true,
+    "viewBox": [
+      3.0,
+      23.0,
+      94.0,
+      78.0
+    ],
+    "pngPx": [
+      440,
+      365
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "rocking-horse",
+    "name": "Rocking Horse",
+    "room": "living",
+    "category": "decor",
+    "tag": "toy",
+    "size": "medium",
+    "svg": "living/rocking-horse.svg",
+    "png": "living/rocking-horse.png",
+    "widthUnits": 128.7,
+    "heightUnits": 127.4,
+    "gameW": 128.7,
+    "viewBox": [
+      0.5,
+      3.0,
+      99.0,
+      98.0
+    ],
+    "pngPx": [
+      861,
+      853
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "popcorn",
+    "name": "Popcorn",
+    "room": "living",
+    "category": "food",
+    "tag": "food",
+    "size": "small",
+    "svg": "living/popcorn.svg",
+    "png": "living/popcorn.png",
+    "widthUnits": 41.8,
+    "heightUnits": 50.9,
+    "gameW": 41.8,
+    "holdable": true,
+    "viewBox": [
+      12.0,
+      8.5,
+      76.0,
+      92.5
+    ],
+    "pngPx": [
+      280,
+      341
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "bird-cage",
+    "name": "Birdie",
+    "room": "living",
+    "category": "pets",
+    "tag": "pet",
+    "size": "medium",
+    "svg": "living/bird-cage.svg",
+    "png": "living/bird-cage.png",
+    "widthUnits": 99.0,
+    "heightUnits": 111.7,
+    "gameW": 99.0,
+    "viewBox": [
+      5.0,
+      -0.5,
+      90.0,
+      101.5
+    ],
+    "pngPx": [
+      663,
+      748
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "turtle",
+    "name": "Turtle",
+    "room": "living",
+    "category": "pets",
+    "tag": "pet",
+    "size": "small",
+    "svg": "living/turtle.svg",
+    "png": "living/turtle.png",
+    "widthUnits": 67.9,
+    "heightUnits": 46.2,
+    "gameW": 67.9,
+    "holdable": true,
+    "viewBox": [
+      1.0,
+      35.0,
+      97.0,
+      66.0
+    ],
+    "pngPx": [
+      454,
+      309
+    ]
+  },
+  {
+    "type": "item",
+    "slug": "aquarium",
+    "name": "Fish Tank",
+    "room": "living",
+    "category": "pets",
+    "tag": "pet",
+    "size": "medium",
+    "svg": "living/aquarium.svg",
+    "png": "living/aquarium.png",
+    "widthUnits": 163.2,
+    "heightUnits": 134.4,
+    "gameW": 163.2,
+    "viewBox": [
+      -1.0,
+      17.0,
+      102.0,
+      84.0
+    ],
+    "pngPx": [
+      1092,
+      900
+    ]
+  }
+]

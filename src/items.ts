@@ -1,7 +1,7 @@
 import { PACK_ITEMS } from './packs';
 // Original rounded SVG art. Each item: viewBox 0 0 100 100, anchored bottom-center.
 export type Category = string; // built-ins: furniture | decor | plants | food | pets (packs may add more)
-export interface ItemDef { kind: string; name: string; cat: Category; w: number; svg: string; wall?: boolean; img?: string; rooms?: string[] }
+export interface ItemDef { kind: string; name: string; cat: Category; w: number; h?: number; svg: string; wall?: boolean; img?: string; rooms?: string[]; pack?: string; holdable?: boolean }
 
 const O = '#5a3d5c'; // soft plum outline
 const s = `stroke="${O}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"`;
@@ -48,19 +48,31 @@ export const ITEMS: ItemDef[] = [
   { kind: 'dog', name: 'Puppy', cat: 'pets', w: 120, svg: `${shadow}<ellipse cx="56" cy="76" rx="30" ry="20" fill="#f5ebe0" ${s}/><circle cx="50" cy="42" r="28" fill="#fff" ${s}/><ellipse cx="22" cy="44" rx="10" ry="18" fill="#b07d54" ${s}/><ellipse cx="78" cy="44" rx="10" ry="18" fill="#b07d54" ${s}/><circle cx="60" cy="34" r="8" fill="#e6b88a" opacity=".7"/>${eyes(40, 60, 40)}<ellipse cx="50" cy="52" rx="5" ry="4" fill="${O}"/><path d="M50 56 v6" ${s}/>` },
   { kind: 'bunny', name: 'Bunny', cat: 'pets', w: 90, svg: `${shadow}<ellipse cx="36" cy="22" rx="8" ry="20" fill="#fff" ${s}/><ellipse cx="64" cy="22" rx="8" ry="20" fill="#fff" ${s}/><ellipse cx="36" cy="24" rx="3" ry="12" fill="#ffc8dd"/><ellipse cx="64" cy="24" rx="3" ry="12" fill="#ffc8dd"/><ellipse cx="50" cy="76" rx="28" ry="20" fill="#fff" ${s}/><circle cx="50" cy="52" r="22" fill="#fff" ${s}/>${eyes(42, 58, 50)}<path d="M47 58 l3 3 3 -3" ${s} fill="none"/>${blush(36, 64, 58)}` },
   { kind: 'fish', name: 'Fish Bowl', cat: 'pets', w: 100, svg: `${shadow}<circle cx="50" cy="54" r="40" fill="#cdeffd" ${s}/><path d="M14 46 H86" stroke="#8ecae6" stroke-width="3"/><path d="M60 64 l14 -8 v16 z" fill="#ff9f68" ${s}/><ellipse cx="46" cy="64" rx="16" ry="11" fill="#ffb347" ${s}/><circle cx="40" cy="62" r="2.5" fill="${O}"/><circle cx="32" cy="38" r="3" fill="#fff" opacity=".8"/><rect x="24" y="10" width="52" height="8" rx="4" fill="#cdeffd" ${s}/>` },
+  // ---------- salon ----------
+  { kind: 'vanity', name: 'Vanity', cat: 'furniture', w: 230, svg: `${shadow}<ellipse cx="50" cy="26" rx="24" ry="22" fill="#fff" ${s}/><ellipse cx="50" cy="26" rx="18" ry="16" fill="#cdeffd"/><path d="M38 18 l6 -6 M42 26 l10 -10" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="26" cy="12" r="3" fill="#ffd166" ${s}/><circle cx="74" cy="12" r="3" fill="#ffd166" ${s}/><rect x="6" y="48" width="88" height="14" rx="7" fill="#ffc8dd" ${s}/><rect x="10" y="60" width="28" height="30" rx="6" fill="#ffe0ec" ${s}/><rect x="62" y="60" width="28" height="30" rx="6" fill="#ffe0ec" ${s}/><circle cx="24" cy="75" r="3" fill="${O}"/><circle cx="76" cy="75" r="3" fill="${O}"/><rect x="12" y="90" width="6" height="7" rx="2" fill="${O}"/><rect x="82" y="90" width="6" height="7" rx="2" fill="${O}"/>` },
+  { kind: 'stool', name: 'Stool', cat: 'furniture', w: 90, svg: `${shadow}<ellipse cx="50" cy="48" rx="34" ry="14" fill="#c9a0dc" ${s}/><ellipse cx="50" cy="44" rx="28" ry="9" fill="#e4ccf2"/><path d="M28 58 L22 94 M72 58 L78 94 M50 62 V94" ${s}/><ellipse cx="50" cy="78" rx="22" ry="4" fill="none" ${s}/>` },
+  { kind: 'perfume', name: 'Perfume', cat: 'decor', w: 50, svg: `<rect x="40" y="8" width="20" height="14" rx="5" fill="#ffd166" ${s}/><rect x="46" y="20" width="8" height="10" fill="#fff" ${s}/><path d="M20 50 Q20 30 50 30 Q80 30 80 50 V80 Q80 94 66 94 H34 Q20 94 20 80 Z" fill="#ff8fab" ${s}/><ellipse cx="36" cy="52" rx="5" ry="10" fill="#fff" opacity=".6"/><path d="M50 56 l4 8 8 1 -6 6 2 8 -8 -4 -8 4 2 -8 -6 -6 8 -1z" fill="#fff" opacity=".8"/>` },
+  { kind: 'polish', name: 'Nail Polish', cat: 'decor', w: 40, svg: `<rect x="38" y="4" width="24" height="40" rx="8" fill="${O}"/><path d="M24 54 Q24 42 36 42 H64 Q76 42 76 54 V84 Q76 96 64 96 H36 Q24 96 24 84 Z" fill="#b388d6" ${s}/><ellipse cx="38" cy="62" rx="5" ry="12" fill="#fff" opacity=".55"/>` },
+  { kind: 'hairdryer', name: 'Hair Dryer', cat: 'decor', w: 90, svg: `<path d="M60 52 L70 92 Q70 96 64 96 H58 Q52 96 52 90 L46 56 Z" fill="#a2d2ff" ${s}/><rect x="6" y="20" width="62" height="40" rx="20" fill="#bde0fe" ${s}/><ellipse cx="82" cy="40" rx="12" ry="20" fill="#ffc8dd" ${s}/><ellipse cx="82" cy="40" rx="6" ry="11" fill="#fff" ${s}/><circle cx="24" cy="40" r="7" fill="#fff" opacity=".7"/>` },
+  { kind: 'mirror', name: 'Mirror', cat: 'decor', w: 120, wall: true, svg: `<path d="M50 6 C74 6 88 24 88 50 C88 76 72 94 50 94 C28 94 12 76 12 50 C12 24 26 6 50 6 Z" fill="#ffd166" ${s}/><ellipse cx="50" cy="50" rx="30" ry="36" fill="#e0f4ff" ${s}/><path d="M36 34 l10 -10 M36 46 l20 -20" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="50" cy="6" r="6" fill="#ff8fab" ${s}/>` },
 ];
 
 // Which room filter each built-in item shows up under ('any' = every room).
 const BUILTIN_ROOMS: Record<string, string[]> = {
   sofa: ['living'], armchair: ['living'], lamp: ['living', 'bedroom'], tv: ['living'], rug: ['living', 'bedroom'], picture: ['living', 'bedroom'],
   bookshelf: ['living', 'bedroom'], bed: ['bedroom'], teddy: ['bedroom'], stars: ['bedroom'], tub: ['bedroom'], balloon: ['any'], clock: ['any'],
-  window: ['any'], ball: ['any'], fridge: ['kitchen'], stove: ['kitchen'], table: ['kitchen', 'living'], chair: ['kitchen', 'living'],
+  window: ['any'], ball: ['any'], vanity: ['salon'], stool: ['salon'], perfume: ['salon'], polish: ['salon'], hairdryer: ['salon'], mirror: ['salon', 'bedroom'], fridge: ['kitchen'], stove: ['kitchen'], table: ['kitchen', 'living'], chair: ['kitchen', 'living'],
 };
 for (const i of ITEMS) i.rooms = BUILTIN_ROOMS[i.kind] ?? (['food'].includes(i.cat) ? ['kitchen'] : ['any']);
+// Holdable by default: small/medium, non-wall, non-furniture items.
+const NOT_HOLDABLE = new Set(['rug', 'tv', 'tree']);
+for (const i of ITEMS) i.holdable ??= !i.wall && i.cat !== 'furniture' && i.w <= 150 && !NOT_HOLDABLE.has(i.kind);
 
 ITEMS.push(...PACK_ITEMS);
 export const ITEM_MAP: Record<string, ItemDef> = Object.fromEntries(ITEMS.map(i => [i.kind, i]));
 const esc = (t: string) => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+/** Height in room units (square unless the art says otherwise). */
+export const hOf = (d: ItemDef) => d.h ?? d.w;
 export const svgOf = (d: ItemDef) => d.img
   ? `<img class="packimg" src="${esc(d.img)}" alt="${esc(d.name)}" draggable="false" />`
   : `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">${d.svg}</svg>`;

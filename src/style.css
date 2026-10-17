@@ -29,13 +29,13 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .layer { position: absolute; inset: 0; }
 .item, .char { position: absolute; touch-action: none; cursor: grab; }
 .item .inner, .char .inner { width: 100%; height: 100%; transform-origin: 50% 100%; transition: transform .18s, filter .18s; }
-.item.flipped .inner svg, .char.flipped .inner svg { transform: scaleX(-1); }
+.item.flipped .inner svg, .char.flipped > .inner svg { transform: scaleX(-1); }
 .item.sel .inner { filter: drop-shadow(0 0 0 #fff) drop-shadow(0 0 6px #fff) drop-shadow(0 0 3px #ffd166); }
 .lifted .inner { transform: scale(1.1) translateY(-6px); filter: drop-shadow(0 14px 8px rgba(0,0,0,.18)); }
 .bounce { animation: bounce .45s cubic-bezier(.3,1.8,.5,1); }
 @keyframes bounce { 0% { transform: scale(1.15,.85); } 40% { transform: scale(.92,1.1) translateY(-8px); } 100% { transform: none; } }
-.char .inner { animation: idle 2.4s ease-in-out infinite; }
-.char.lifted .inner { animation: none; transform: rotate(-5deg) scale(1.08) translateY(-10px); }
+.char > .inner { animation: idle 2.4s ease-in-out infinite; }
+.char.lifted > .inner { animation: none; transform: rotate(-5deg) scale(1.08) translateY(-10px); }
 @keyframes idle { 50% { transform: scale(1.02, .98); } }
 
 .toolbar { position: absolute; transform: translate(-50%, -100%); display: flex; gap: 8px; padding: 8px; background: #fff; border-radius: 26px; border: 4px solid var(--ink); z-index: 9000; box-shadow: 0 6px 0 rgba(90,61,92,.25); animation: pop .25s cubic-bezier(.3,1.8,.5,1); }
@@ -51,8 +51,8 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .bin.hot { transform: scale(1.3) rotate(-10deg); background: #ffadad; }
 
 .drawer { display: flex; gap: 10px; padding: 8px 12px 12px; height: 132px; }
-.cats { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: 6px; width: 170px; }
-.cat { background: #fff; border-radius: 16px; padding: 5px; border: 3px solid transparent; box-shadow: 0 3px 0 #e6c9d8; }
+.cats { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 35px; gap: 4px; width: 184px; overflow-y: auto; scrollbar-width: none; align-content: start; }
+.cat { position: relative; background: #fff; border-radius: 12px; padding: 3px; border: 3px solid transparent; box-shadow: 0 3px 0 #e6c9d8; }
 .cat.on { border-color: var(--ink); background: #fff3b0; }
 .shelf { flex: 1; display: flex; gap: 12px; overflow-x: auto; padding: 8px 12px; background: rgba(255,255,255,.7); border-radius: 26px; border: 4px solid var(--ink); touch-action: pan-x; scrollbar-width: none; }
 .shelf::-webkit-scrollbar { display: none; }
@@ -95,10 +95,61 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 #mmDots i, #mmDots b { position: absolute; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: rgba(90,61,92,.55); }
 #mmDots b { width: 10px; height: 10px; margin: -5px; background: #ff7aa8; border: 2px solid #fff; }
 .mmView { position: absolute; top: 0; bottom: 0; border: 3px solid #fff; border-radius: 9px; background: rgba(255,255,255,.25); box-shadow: 0 0 0 2px var(--ink); }
-.rooms { display: flex; flex-direction: column; gap: 4px; width: 84px; overflow-y: auto; scrollbar-width: none; }
-.rf { flex: 0 0 auto; height: 24px; border-radius: 12px; background: #fff; font-weight: 800; font-size: 12px; box-shadow: 0 2px 0 #e6c9d8; border: 2px solid transparent; }
+.rooms { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 34px; gap: 4px; width: 128px; align-content: start; overflow-y: auto; scrollbar-width: none; }
+.rf { border-radius: 12px; background: #fff; font-weight: 800; font-size: 12px; box-shadow: 0 2px 0 #e6c9d8; border: 2px solid transparent; }
 .rf.on { background: #fff3b0; border-color: var(--ink); }
-.packimg { display: block; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; pointer-events: none; }
+.packimg { display: block; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; pointer-events: none; -webkit-user-drag: none; }
 .item.flipped .inner .packimg, .ghost.flipped .packimg { transform: scaleX(-1); }
 .ghost .packimg, .thing .packimg { object-position: 50% 50%; }
 .empty { align-self: center; margin: auto; font-weight: 800; opacity: .5; font-size: 18px; }
+
+/* ---------- v2.1: characters, holding, packs, patterns ---------- */
+.tab { padding: 10px 14px; font-size: 16px; }
+.tab.drop { transform: scale(1.15) rotate(-3deg); background: var(--c); color: #fff; border-color: var(--ink); }
+.minimap { flex: 0 1 210px; width: 210px; }
+.char .hands { position: absolute; inset: 0; pointer-events: none; }
+.char.flipped .hands { transform: scaleX(-1); }
+.held { position: absolute; pointer-events: auto; touch-action: none; }
+.held .inner { width: 100%; height: 100%; }
+.held.flipped .inner > * { transform: scaleX(-1); }
+.char.active > .inner { filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 2px #ffd166); }
+.char.hold-target > .inner { filter: drop-shadow(0 0 6px #fff) drop-shadow(0 0 8px #80ed99); }
+.char.hold-target::after { content: ''; position: absolute; width: 26%; aspect-ratio: 1; border-radius: 50%; border: 4px dashed #2fb36b; top: 64%; transform: translate(-50%, -50%); animation: pulse .6s ease-in-out infinite alternate; }
+.char.hold-target[data-hand="left"]::after { left: 15%; } .char.hold-target[data-hand="right"]::after { left: 85%; }
+.char.hold-target.flipped[data-hand="left"]::after { left: 85%; } .char.hold-target.flipped[data-hand="right"]::after { left: 15%; }
+@keyframes pulse { to { transform: translate(-50%, -50%) scale(1.25); } }
+.cat.people { background: #e8f6ff; }
+.cat.people.on { background: #fff3b0; }
+.cat.pack { background: linear-gradient(135deg, #fff, #ffe8f6); box-shadow: 0 3px 0 #f0b8da; }
+.cat .packimg { object-position: 50% 50%; }
+.packname { position: absolute; left: 0; right: 0; bottom: -2px; font-size: 7px; font-weight: 900; line-height: 1; text-align: center; color: var(--ink); white-space: nowrap; overflow: hidden; }
+.thing.person { position: relative; padding: 4px; background: radial-gradient(circle at 50% 80%, #fff3b0, #fff 70%); }
+.face { width: 100%; height: 100%; overflow: hidden; }
+.face svg { height: 160%; width: 100%; }
+.where { position: absolute; right: 6px; top: 6px; width: 14px; height: 14px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px var(--ink); }
+.thing.add { background: #fffbe6; padding: 18px; }
+.picker { display: flex; gap: 8px; padding: 2px 50px 8px 0; flex-wrap: wrap; }
+.pk { position: relative; width: 58px; height: 58px; border-radius: 18px; background: #fff3f7; padding: 3px; border: 3px solid transparent; }
+.pk.on { border-color: var(--ink); background: #fff3b0; }
+.pk.add { padding: 8px; background: #fffbe6; }
+.pk .where { right: 2px; top: 2px; width: 12px; height: 12px; }
+.card { padding: 14px 22px 18px; }
+.card h3 { margin: 6px 0 4px; font-size: 14px; }
+.dress { gap: 18px; align-items: flex-start; }
+.previewCol { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.preview { display: flex; align-items: flex-end; justify-content: center; width: 160px; height: 250px; }
+.preview > div { aspect-ratio: 100 / 160; }
+.del { display: flex; align-items: center; gap: 6px; height: 50px; padding: 6px 12px; border-radius: 18px; background: #ffe0e6; font-weight: 800; transition: all .2s; }
+.del svg { width: 34px; height: 34px; }
+.del.sure { background: #ff8fab; color: #fff; transform: scale(1.06); }
+.row2 { display: flex; gap: 22px; }
+.dot.sz { width: 52px; height: 60px; border-radius: 16px; background: #fff3f7; display: flex; align-items: flex-end; justify-content: center; padding: 3px; }
+.dot.sz > div { aspect-ratio: 100 / 160; }
+.dot.hs { width: 52px; height: 52px; }
+.dot { width: 42px; height: 42px; }
+.dot.tile { width: 64px; }
+.hint { font-weight: 800; opacity: .6; }
+/* Only painted pixels are grabbable, so a character's/item's transparent box never hides things behind it. */
+.item, .char, .held { pointer-events: none; }
+.item .inner svg > *, .char .inner svg > *, .held .inner svg > * { pointer-events: visiblePainted; }
+.item .packimg, .held .packimg { pointer-events: auto; }

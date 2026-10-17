@@ -1,31 +1,36 @@
 import './style.css';
-import { createStore, ROOM_W, ROOM_H, V1_OFFSET, type RoomId, type PlacedItem, type GameState } from './state';
-import { ITEMS, ITEM_MAP, svgOf, type Category } from './items';
-import { characterSVG, SKINS, HAIRS, CLOTHES, HAIR_STYLES } from './character';
+import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand } from './state';
+import { ITEMS, ITEM_MAP, svgOf, hOf, type Category, type ItemDef } from './items';
+import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
+import { characterSVG, SKINS, HAIRS, CLOTHES, HAIR_STYLES, ACCESSORIES, SIZES, SIZE_SCALE, HANDS } from './character';
 import { sfx, setSound } from './sound';
 
 const store = createStore();
 // World is ROOM_W x ROOM_H; the stage shows a VIEW_W-wide window onto it (fits the iPad).
 const W = ROOM_W, H = ROOM_H, VIEW_W = 1000, FLOOR_Y = 390;
 const MAX_CAM = W - VIEW_W;
+const CHAR_W = 120, CHAR_H = 192;
 const ROOMS: { id: RoomId; name: string; color: string }[] = [
   { id: 'living', name: 'Living Room', color: '#ff8fab' },
   { id: 'bedroom', name: 'Bedroom', color: '#b388d6' },
   { id: 'kitchen', name: 'Kitchen', color: '#5cc985' },
+  { id: 'salon', name: 'Salon', color: '#f0a0d8' },
 ];
-const BASE_CATS: { id: Category; name: string; icon: string }[] = [
-  { id: 'furniture', name: 'Furniture', icon: 'armchair' },
-  { id: 'decor', name: 'Decor', icon: 'balloon' },
-  { id: 'plants', name: 'Plants', icon: 'flowers' },
-  { id: 'food', name: 'Food', icon: 'donut' },
-  { id: 'pets', name: 'Pets', icon: 'cat' },
+const roomColor = (r: string) => ROOMS.find(x => x.id === r)?.color ?? '#ccc';
+
+// ---------- drawer tabs: people, categories, then packs ----------
+type Tab = { id: string; name: string; icon: string; kind: 'people' | 'cat' | 'pack' };
+const TABS: Tab[] = [
+  { id: '__people', name: 'People', icon: '', kind: 'people' },
+  ...(['furniture', 'decor', 'plants', 'food', 'pets'] as Category[]).map((c, i) => ({ id: c, name: c, icon: ['armchair', 'balloon', 'flowers', 'donut', 'cat'][i], kind: 'cat' as const })),
 ];
-// Pack items may introduce new categories / rooms.
-const CATS = [...BASE_CATS];
-for (const it of ITEMS) if (!CATS.some(c => c.id === it.cat)) CATS.push({ id: it.cat, name: it.cat, icon: it.kind });
-const ROOM_FILTERS: { id: string; name: string }[] = [{ id: 'all', name: 'All' }, { id: 'living', name: 'Living' }, { id: 'bedroom', name: 'Bed' }, { id: 'kitchen', name: 'Kitchen' }];
+for (const it of ITEMS) if (!TABS.some(t => t.kind === 'cat' && t.id === it.cat)) TABS.push({ id: it.cat, name: it.cat, icon: it.kind, kind: 'cat' });
+for (const it of ITEMS) if (it.pack && !TABS.some(t => t.id === 'pack:' + it.pack)) TABS.push({ id: 'pack:' + it.pack, name: packLabel(it.pack), icon: it.kind, kind: 'pack' });
+const ROOM_FILTERS: { id: string; name: string }[] = [{ id: 'all', name: 'All' }, { id: 'living', name: 'Living' }, { id: 'bedroom', name: 'Bed' }, { id: 'kitchen', name: 'Kitchen' }, { id: 'salon', name: 'Salon' }];
 for (const it of ITEMS) for (const r of it.rooms ?? []) if (r !== 'any' && !ROOM_FILTERS.some(f => f.id === r)) ROOM_FILTERS.push({ id: r, name: r[0].toUpperCase() + r.slice(1) });
 const matchesRoom = (rooms: string[] | undefined, f: string) => f === 'all' || !rooms || rooms.includes('any') || rooms.includes(f);
+const tabItems = (tab: string, rf: string) => ITEMS.filter(i => (tab.startsWith('pack:') ? i.pack === tab.slice(5) : i.cat === tab) && matchesRoom(i.rooms, rf));
+
 const WALLS = ['#ffd6e0', '#d9ccff', '#cdf3dc', '#cfe8ff', '#fff1b8', '#ffe0c7', '#ffffff', '#f6c1ff'];
 const FLOORS = ['#e8b98a', '#f2d0a4', '#c99366', '#ffe7a8', '#bfe3d0', '#d6d6f5', '#ffc8dd', '#9fb4c7'];
 const ICON = {
@@ -38,6 +43,8 @@ const ICON = {
   back: `<svg viewBox="0 0 48 48"><rect x="18" y="18" width="24" height="24" rx="5" fill="#ddd" stroke="#5a3d5c" stroke-width="3"/><rect x="6" y="6" width="22" height="22" rx="5" fill="#ffd166" stroke="#5a3d5c" stroke-width="3"/></svg>`,
   trash: `<svg viewBox="0 0 48 48"><rect x="12" y="14" width="24" height="28" rx="5" fill="#ff8fab" stroke="#5a3d5c" stroke-width="3"/><rect x="8" y="9" width="32" height="7" rx="3.5" fill="#ffadad" stroke="#5a3d5c" stroke-width="3"/><path d="M20 21 V35 M28 21 V35" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/></svg>`,
 };
+const PEOPLE_ICON = `<svg viewBox="0 0 48 48"><circle cx="17" cy="18" r="8" fill="#ffd166" stroke="#5a3d5c" stroke-width="3"/><circle cx="32" cy="20" r="7" fill="#ff8fab" stroke="#5a3d5c" stroke-width="3"/><path d="M5 42 Q6 28 17 28 Q28 28 29 42 Z" fill="#8ecae6" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/><path d="M24 42 Q25 30 32 30 Q42 30 43 42 Z" fill="#c9a0dc" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/></svg>`;
+const PLUS = `<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="#fff3b0" stroke="#5a3d5c" stroke-width="3"/><path d="M24 15 V33 M15 24 H33" stroke="#5a3d5c" stroke-width="4" stroke-linecap="round"/></svg>`;
 
 // ---------- DOM skeleton ----------
 const app = document.getElementById('app')!;
@@ -47,7 +54,7 @@ app.innerHTML = `
   <div class="minimap" id="minimap" aria-label="Room map"><div class="mmWall" id="mmWall"></div><div class="mmFloor" id="mmFloor"></div><div id="mmDots"></div><div class="mmView" id="mmView"></div></div>
   <div class="tools">
     <button class="round" id="btnPaint" aria-label="Colors">${ICON.paint}</button>
-    <button class="round" id="btnDress" aria-label="Dress up">${ICON.shirt}</button>
+    <button class="round" id="btnDress" aria-label="Characters">${ICON.shirt}</button>
     <button class="round" id="btnSound" aria-label="Sound"></button>
   </div>
 </div>
@@ -75,14 +82,17 @@ app.innerHTML = `
 
 const $ = (id: string) => document.getElementById(id)!;
 const stage = $('stage'), world = $('world'), layer = $('layer'), toolbar = $('toolbar'), bin = $('bin');
-let selected: string | null = null;
-let currentCat: Category = 'furniture';
+let selected: string | null = null;          // selected room item (UI only)
+let activeChar: string | null = store.get().characters[0]?.id ?? null; // character being edited (UI only)
+let currentTab = 'furniture';
 let roomFilter = 'all';
+let uid = Date.now() % 100000;
+const newId = (p: string) => `${p}-${Date.now().toString(36)}${(++uid).toString(36)}`;
 
 // ---------- camera (view-only, not part of game state) ----------
 const cams: Record<string, number> = {};
-let camX = V1_OFFSET;
-let inertia = 0;
+let camX = V1_OFFSET, inertia = 0;
+let glideTarget: number | null = null;
 const stopGlide = () => { cancelAnimationFrame(inertia); glideTarget = null; };
 const clampCam = (x: number) => Math.max(0, Math.min(MAX_CAM, x));
 function setCam(x: number) {
@@ -93,7 +103,6 @@ function setCam(x: number) {
   const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%';
   if (selected) renderToolbar(store.get());
 }
-let glideTarget: number | null = null;
 function glideTo(target: number) {
   cancelAnimationFrame(inertia); target = clampCam(target); glideTarget = target;
   const step = () => { const d = target - camX; if (Math.abs(d) < 0.5) { setCam(target); glideTarget = null; return; } setCam(camX + d * 0.18); inertia = requestAnimationFrame(step); };
@@ -101,19 +110,41 @@ function glideTo(target: number) {
 }
 const stageScale = () => stage.getBoundingClientRect().width / VIEW_W;
 
-// ---------- scaling ----------
 function fit() {
   const wrap = $('stageWrap');
   const sc = Math.min(wrap.clientWidth / VIEW_W, wrap.clientHeight / H);
   stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
 }
 window.addEventListener('resize', fit);
+stage.addEventListener('scroll', () => { stage.scrollLeft = 0; stage.scrollTop = 0; });
 const toRoom = (cx: number, cy: number) => {
   const r = stage.getBoundingClientRect();
   return { x: (cx - r.left) / r.width * VIEW_W + camX, y: (cy - r.top) / r.height * H };
 };
 const inStage = (cx: number, cy: number) => { const r = stage.getBoundingClientRect(); return cx > r.left && cx < r.right && cy > r.top && cy < r.bottom; };
 const overBin = (cx: number, cy: number) => { const r = bin.getBoundingClientRect(); return cx > r.left - 20 && cx < r.right + 20 && cy > r.top - 20 && cy < r.bottom + 20; };
+
+// ---------- character geometry ----------
+const charScale = (c: Character) => SIZE_SCALE[c.size] ?? 1;
+function handWorld(c: Character, hand: Hand) {
+  const sc = charScale(c); let hx = HANDS[hand].x; if (c.flip) hx = 100 - hx;
+  return { x: c.x + (hx - 50) / 100 * CHAR_W * sc, y: c.y - CHAR_H * sc + HANDS[hand].y / 160 * CHAR_H * sc };
+}
+/** Which character hand (if any) would catch a holdable item dropped at world point p. */
+function holdTarget(p: { x: number; y: number }): { c: Character; hand: Hand } | null {
+  const s = store.get(); let best: { c: Character; hand: Hand; d: number } | null = null;
+  for (const c of s.characters) {
+    if (c.room !== s.currentRoom) continue;
+    const sc = charScale(c);
+    const onBody = Math.abs(p.x - c.x) < CHAR_W * sc / 2 + 25 && p.y > c.y - CHAR_H * sc - 25 && p.y < c.y + 20;
+    for (const hand of ['left', 'right'] as Hand[]) {
+      if (c.held[hand]) continue;
+      const h = handWorld(c, hand), d = Math.hypot(p.x - h.x, p.y - h.y);
+      if ((onBody || d < 75) && (!best || d < best.d)) best = { c, hand, d };
+    }
+  }
+  return best;
+}
 
 // ---------- render ----------
 const PATTERNS = [
@@ -122,27 +153,34 @@ const PATTERNS = [
   'repeating-linear-gradient(90deg, rgba(255,255,255,.4) 0 26px, transparent 26px 52px)',
   'linear-gradient(45deg, rgba(255,255,255,.35) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.35) 75%), linear-gradient(45deg, rgba(255,255,255,.35) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.35) 75%)',
 ];
+const FLOOR_BOARDS = 'repeating-linear-gradient(90deg, rgba(90,61,92,.08) 0 3px, transparent 3px 125px), linear-gradient(rgba(0,0,0,.06), transparent 50%)';
+const cssUrl = (u: string) => `url("${u.replace(/"/g, '%22')}")`;
 function renderRoomBg(s: GameState) {
   const room = s.rooms[s.currentRoom];
-  const wall = $('wall');
+  const wall = $('wall'), floor = $('floor');
+  const wt = room.wallTile ? PATTERN_MAP[room.wallTile] : undefined; // missing pack asset -> falls back to colour/pattern
   wall.style.backgroundColor = room.wallpaper;
-  wall.style.backgroundImage = PATTERNS[room.pattern] ?? 'none';
-  wall.style.backgroundSize = room.pattern === 1 ? '44px 44px' : room.pattern === 3 ? '60px 60px' : 'auto';
-  wall.style.backgroundPosition = room.pattern === 3 ? '0 0, 30px 30px' : '0 0';
-  $('floor').style.backgroundColor = room.floor;
+  if (wt) { wall.style.backgroundImage = cssUrl(wt.url); wall.style.backgroundSize = '220px auto'; wall.style.backgroundPosition = '0 0'; }
+  else {
+    wall.style.backgroundImage = PATTERNS[room.pattern] ?? 'none';
+    wall.style.backgroundSize = room.pattern === 1 ? '44px 44px' : room.pattern === 3 ? '60px 60px' : 'auto';
+    wall.style.backgroundPosition = room.pattern === 3 ? '0 0, 30px 30px' : '0 0';
+  }
+  const ft = room.floorTile ? PATTERN_MAP[room.floorTile] : undefined;
+  floor.style.backgroundColor = room.floor;
+  floor.style.backgroundImage = ft ? `${cssUrl(ft.url)}, linear-gradient(rgba(0,0,0,.06), transparent 50%)` : FLOOR_BOARDS;
+  floor.style.backgroundSize = ft ? '180px auto, auto' : 'auto';
   $('mmWall').style.background = room.wallpaper; $('mmFloor').style.background = room.floor;
 }
 function renderMinimap(s: GameState) {
   const room = s.rooms[s.currentRoom];
-  const dots = room.items.filter(i => ITEM_MAP[i.kind]).map(i => `<i style="left:${i.x / W * 100}%;top:${(i.y - ITEM_MAP[i.kind].w * i.scale / 2) / H * 100}%"></i>`).join('');
-  const c = s.character; const me = c.room === s.currentRoom ? `<b style="left:${c.x / W * 100}%;top:${(c.y - 90) / H * 100}%"></b>` : '';
+  const dots = room.items.filter(i => ITEM_MAP[i.kind]).map(i => `<i style="left:${i.x / W * 100}%;top:${(i.y - hOf(ITEM_MAP[i.kind]) * i.scale / 2) / H * 100}%"></i>`).join('');
+  const me = s.characters.filter(c => c.room === s.currentRoom).map(c => `<b style="left:${c.x / W * 100}%;top:${(c.y - 90) / H * 100}%;background:${c.shirt}"></b>`).join('');
   $('mmDots').innerHTML = dots + me;
 }
-
 function renderTabs(s: GameState) {
   $('tabs').innerHTML = ROOMS.map(r => `<button class="tab ${s.currentRoom === r.id ? 'on' : ''}" data-room="${r.id}" style="--c:${r.color}">${r.name}</button>`).join('');
 }
-
 function placeEl(el: HTMLElement, x: number, y: number, w: number, h: number) {
   el.style.left = (x - w / 2) / W * 100 + '%';
   el.style.top = (y - h) / H * 100 + '%';
@@ -154,18 +192,17 @@ function renderItems(s: GameState) {
   const room = s.rooms[s.currentRoom];
   const seen = new Set<string>();
   for (const it of room.items) {
-    const def = ITEM_MAP[it.kind]; if (!def) continue;
+    const def = ITEM_MAP[it.kind]; if (!def) continue; // unknown kind (e.g. removed pack) -> skipped, kept in save
     seen.add(it.id);
-    let el = layer.querySelector<HTMLElement>(`[data-id="${it.id}"]`);
+    let el = layer.querySelector<HTMLElement>(`.item[data-id="${it.id}"]`);
     if (!el) {
       el = document.createElement('div');
       el.className = 'item'; el.dataset.id = it.id;
       el.innerHTML = `<div class="inner">${svgOf(def)}</div>`;
       layer.appendChild(el);
-      attachItemDrag(el);
+      el.addEventListener('pointerdown', e => beginItemDrag(el!, e));
     }
-    const w = def.w * it.scale;
-    placeEl(el, it.x, it.y, w, w);
+    placeEl(el, it.x, it.y, def.w * it.scale, hOf(def) * it.scale);
     el.style.zIndex = String(1000 + it.z);
     el.classList.toggle('flipped', it.flip);
     el.classList.toggle('sel', selected === it.id);
@@ -174,56 +211,72 @@ function renderItems(s: GameState) {
   renderToolbar(s); renderMinimap(s);
 }
 
-let charEl: HTMLElement | null = null;
-const CHAR_W = 120, CHAR_H = 192;
-function renderChar(s: GameState) {
-  const c = s.character;
-  if (c.room !== s.currentRoom) { charEl?.remove(); charEl = null; return; }
-  if (!charEl) {
-    charEl = document.createElement('div');
-    charEl.className = 'char';
-    charEl.innerHTML = `<div class="inner"></div>`;
-    layer.appendChild(charEl);
-    attachCharDrag(charEl);
+const charEls = new Map<string, HTMLElement>();
+function heldHTML(c: Character) {
+  const sc = charScale(c), bw = CHAR_W * sc, bh = CHAR_H * sc;
+  return (['left', 'right'] as Hand[]).map(hand => {
+    const it = c.held[hand]; const def = it && ITEM_MAP[it.kind]; if (!it || !def) return '';
+    const k = Math.min(0.7, 120 * sc / Math.max(def.w, hOf(def)) / it.scale);
+    const iw = def.w * it.scale * k, ih = hOf(def) * it.scale * k;
+    const hx = HANDS[hand].x / 100 * bw, hy = HANDS[hand].y / 160 * bh;
+    return `<div class="held ${it.flip ? 'flipped' : ''}" data-hand="${hand}" style="left:${(hx - iw / 2) / bw * 100}%;top:${(hy - ih * 0.62) / bh * 100}%;width:${iw / bw * 100}%;height:${ih / bh * 100}%"><div class="inner">${svgOf(def)}</div></div>`;
+  }).join('');
+}
+function renderChars(s: GameState) {
+  const here = s.characters.filter(c => c.room === s.currentRoom);
+  for (const [id, el] of charEls) if (!here.some(c => c.id === id)) { el.remove(); charEls.delete(id); }
+  for (const c of here) {
+    let el = charEls.get(c.id);
+    if (!el) {
+      el = document.createElement('div'); el.className = 'char'; el.dataset.cid = c.id;
+      el.innerHTML = `<div class="inner"></div><div class="hands"></div>`;
+      layer.appendChild(el); charEls.set(c.id, el); attachCharDrag(el);
+    }
+    const look = [c.skin, c.hair, c.hairStyle, c.shirt, c.pants, c.acc].join('|');
+    if (el.dataset.look !== look) { el.querySelector('.inner')!.innerHTML = characterSVG(c); el.dataset.look = look; }
+    const heldKey = JSON.stringify([c.held.left?.id, c.held.left?.flip, c.held.right?.id, c.held.right?.flip, c.size]);
+    if (el.dataset.held !== heldKey) { el.querySelector('.hands')!.innerHTML = heldHTML(c); el.dataset.held = heldKey; }
+    const sc = charScale(c);
+    placeEl(el, c.x, c.y, CHAR_W * sc, CHAR_H * sc);
+    el.style.zIndex = String(5000 + Math.round(c.y));
+    el.classList.toggle('flipped', c.flip);
+    el.classList.toggle('active', c.id === activeChar);
   }
-  charEl.querySelector('.inner')!.innerHTML = characterSVG(c);
-  placeEl(charEl, c.x, c.y, CHAR_W, CHAR_H);
-  charEl.style.zIndex = '5000';
-  charEl.classList.toggle('flipped', c.flip);
   renderMinimap(s);
 }
 
 function renderToolbar(s: GameState) {
   const it = selected && s.rooms[s.currentRoom].items.find(i => i.id === selected);
-  if (!it) { toolbar.classList.add('hidden'); return; }
+  if (!it || !ITEM_MAP[it.kind]) { toolbar.classList.add('hidden'); return; }
   const def = ITEM_MAP[it.kind];
-  const top = it.y - def.w * it.scale - 20;
+  const top = it.y - hOf(def) * it.scale - 20;
   toolbar.classList.remove('hidden');
   toolbar.style.left = Math.max(camX + 130, Math.min(camX + VIEW_W - 130, it.x)) / W * 100 + '%';
   toolbar.style.top = Math.max(40, top) / H * 100 + '%';
 }
-
 function renderSoundBtn(s: GameState) { $('btnSound').innerHTML = s.soundOn ? ICON.soundOn : ICON.soundOff; setSound(s.soundOn); }
 
 function renderAll() {
   const s = store.get();
-  layer.innerHTML = ''; charEl = null;
-  renderTabs(s); renderRoomBg(s); renderItems(s); renderChar(s); renderSoundBtn(s);
-  stopGlide(); setCam(cams[s.currentRoom] ?? clampCam(s.character.room === s.currentRoom ? s.character.x - VIEW_W / 2 : V1_OFFSET));
+  layer.innerHTML = ''; charEls.clear();
+  renderTabs(s); renderRoomBg(s); renderItems(s); renderChars(s); renderSoundBtn(s);
+  const first = s.characters.find(c => c.room === s.currentRoom);
+  stopGlide(); setCam(cams[s.currentRoom] ?? clampCam(first ? first.x - VIEW_W / 2 : V1_OFFSET));
 }
 
 store.subscribe((s, a) => {
   switch (a.type) {
     case 'room/switch': case 'game/reset': renderAll(); break;
-    case 'room/wallpaper': case 'room/floor': case 'room/pattern': renderRoomBg(s); break;
-    case 'char/update': case 'char/move': renderChar(s); break;
+    case 'room/wallpaper': case 'room/floor': case 'room/pattern': case 'room/wallTile': case 'room/floorTile': renderRoomBg(s); break;
+    case 'char/update': case 'char/move': renderChars(s); break;
+    case 'char/add': case 'char/delete': case 'char/hold': case 'char/release': renderItems(s); renderChars(s); if (currentTab === '__people') renderDrawer(); break;
     case 'settings/sound': renderSoundBtn(s); break;
     default: renderItems(s);
   }
 });
 
 // ---------- effects ----------
-function bounce(el: Element | null) { if (!el) return; const i = el.querySelector('.inner') ?? el; i.classList.remove('bounce'); void (i as HTMLElement).offsetWidth; i.classList.add('bounce'); }
+function bounce(el: Element | null | undefined) { if (!el) return; const i = el.querySelector(':scope > .inner') ?? el; i.classList.remove('bounce'); void (i as HTMLElement).offsetWidth; i.classList.add('bounce'); }
 function sparkles(cx: number, cy: number, n = 7) {
   const fx = $('fx'); const cols = ['#ffd166', '#ff8fab', '#8ecae6', '#80ed99', '#c9a0dc'];
   for (let i = 0; i < n; i++) {
@@ -234,7 +287,16 @@ function sparkles(cx: number, cy: number, n = 7) {
     fx.appendChild(p); setTimeout(() => p.remove(), 650);
   }
 }
+const sparkleAt = (el: Element | null | undefined) => { const r = el?.getBoundingClientRect(); if (r) sparkles(r.left + r.width / 2, r.top + r.height / 2); };
 function poof(cx: number, cy: number) { sparkles(cx, cy, 10); sfx.pop(); }
+function showHoldTarget(t: { c: Character; hand: Hand } | null) {
+  charEls.forEach((el, id) => { el.classList.toggle('hold-target', !!t && t.c.id === id); el.dataset.hand = t && t.c.id === id ? t.hand : ''; });
+}
+function holdInto(t: { c: Character; hand: Hand }, itemId: string) {
+  store.dispatch({ type: 'char/hold', id: t.c.id, hand: t.hand, room: t.c.room, itemId });
+  selected = null; renderItems(store.get());
+  const el = charEls.get(t.c.id); bounce(el); sparkleAt(el?.querySelector(`.held[data-hand="${t.hand}"]`)); sfx.sparkle();
+}
 
 // ---------- dragging ----------
 type DragCtx = { onMove: (e: PointerEvent) => void; onUp: (e: PointerEvent) => void; edgeScroll?: boolean };
@@ -264,7 +326,6 @@ function edgeSpeed(cx: number, cy: number) {
   if (cx > r.right - EDGE) return Math.min(1, (cx - (r.right - EDGE)) / EDGE) * 16;
   return 0;
 }
-
 function startDrag(e: PointerEvent, ctx: DragCtx) {
   let last = e, raf = 0;
   const tick = () => {
@@ -279,100 +340,184 @@ function startDrag(e: PointerEvent, ctx: DragCtx) {
   window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
 }
 
-function attachItemDrag(el: HTMLElement) {
-  el.addEventListener('pointerdown', e => {
-    e.preventDefault(); e.stopPropagation();
-    if (twoFinger) return;
-    const s = store.get(); const room = s.currentRoom;
-    const id = el.dataset.id!; const it = s.rooms[room].items.find(i => i.id === id); if (!it) return;
-    const p0 = toRoom(e.clientX, e.clientY); const off = { x: it.x - p0.x, y: it.y - p0.y };
-    let moved = false;
-    selected = id; store.dispatch({ type: 'item/front', room, id });
-    el.classList.add('lifted'); sfx.pick();
-    startDrag(e, {
-      onMove(ev) {
-        const p = toRoom(ev.clientX, ev.clientY);
-        if (Math.hypot(p.x - p0.x, p.y - p0.y) > 6) { moved = true; toolbar.classList.add('hidden'); bin.classList.add('show'); }
-        bin.classList.toggle('hot', overBin(ev.clientX, ev.clientY));
-        const half = ITEM_MAP[it.kind].w * it.scale / 2;
-        store.dispatch({ type: 'item/move', room, id, x: Math.max(half * .6, Math.min(W - half * .6, p.x + off.x)), y: p.y + off.y });
-        if (moved) toolbar.classList.add('hidden');
-      },
-      onUp(ev) {
-        el.classList.remove('lifted'); bin.classList.remove('show', 'hot');
-        if (moved && overBin(ev.clientX, ev.clientY)) { selected = null; store.dispatch({ type: 'item/delete', room, id }); poof(ev.clientX, ev.clientY); return; }
-        if (moved) sfx.drop(); else sfx.click();
-        bounce(el); renderItems(store.get());
-      },
-    });
+function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
+  e.preventDefault(); e.stopPropagation();
+  if (twoFinger) return;
+  const s = store.get(); const room = s.currentRoom;
+  const id = el.dataset.id!; const it = s.rooms[room].items.find(i => i.id === id); if (!it) return;
+  const def = ITEM_MAP[it.kind];
+  const p0 = toRoom(e.clientX, e.clientY); const off = { x: it.x - p0.x, y: it.y - p0.y };
+  let moved = forceMoved, target: ReturnType<typeof holdTarget> = null;
+  selected = id; store.dispatch({ type: 'item/front', room, id });
+  el.classList.add('lifted'); sfx.pick();
+  startDrag(e, {
+    onMove(ev) {
+      const p = toRoom(ev.clientX, ev.clientY);
+      if (Math.hypot(p.x - p0.x, p.y - p0.y) > 6) moved = true;
+      if (moved) { toolbar.classList.add('hidden'); bin.classList.add('show'); }
+      bin.classList.toggle('hot', overBin(ev.clientX, ev.clientY));
+      const half = def.w * it.scale / 2;
+      store.dispatch({ type: 'item/move', room, id, x: Math.max(half * .6, Math.min(W - half * .6, p.x + off.x)), y: p.y + off.y });
+      if (moved) toolbar.classList.add('hidden');
+      target = moved && def.holdable ? holdTarget(p) : null; showHoldTarget(target);
+    },
+    onUp(ev) {
+      el.classList.remove('lifted'); bin.classList.remove('show', 'hot'); showHoldTarget(null);
+      if (moved && overBin(ev.clientX, ev.clientY)) { selected = null; store.dispatch({ type: 'item/delete', room, id }); poof(ev.clientX, ev.clientY); return; }
+      if (moved && target) { holdInto(target, id); return; }
+      if (moved) sfx.drop(); else sfx.click();
+      bounce(el); renderItems(store.get());
+    },
   });
+}
+
+/** Drag a held item off a hand: it is released into the room and becomes a normal dragged item. */
+function beginHeldDrag(charEl: HTMLElement, heldEl: HTMLElement, e: PointerEvent) {
+  e.preventDefault(); e.stopPropagation();
+  if (twoFinger) return;
+  const cid = charEl.dataset.cid!, hand = heldEl.dataset.hand as Hand;
+  const c = store.get().characters.find(c => c.id === cid); const it = c?.held[hand]; if (!c || !it) return;
+  const r = heldEl.getBoundingClientRect(); const p = toRoom(r.left + r.width / 2, r.bottom);
+  store.dispatch({ type: 'char/release', id: cid, hand, x: p.x, y: p.y });
+  const el = layer.querySelector<HTMLElement>(`.item[data-id="${it.id}"]`);
+  if (el) beginItemDrag(el, e, true);
 }
 
 function attachCharDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
+    const heldEl = (e.target as HTMLElement).closest<HTMLElement>('.held');
+    if (heldEl) return beginHeldDrag(el, heldEl, e);
     e.preventDefault(); e.stopPropagation();
     if (twoFinger) return;
     selected = null; renderItems(store.get());
-    const s = store.get(); const c = s.character;
+    const id = el.dataset.cid!; activeChar = id;
+    const s = store.get(); const c = s.characters.find(c => c.id === id); if (!c) return;
     const p0 = toRoom(e.clientX, e.clientY); const off = { x: c.x - p0.x, y: c.y - p0.y };
-    let lastX = c.x;
-    el.classList.add('lifted'); sfx.pick();
+    let lastX = c.x, moved = false;
+    el.classList.add('lifted'); sfx.pick(); renderChars(store.get());
     startDrag(e, {
       onMove(ev) {
         const p = toRoom(ev.clientX, ev.clientY); const nx = p.x + off.x;
-        if (Math.abs(nx - lastX) > 3) { const flip = nx < lastX; if (flip !== store.get().character.flip) store.dispatch({ type: 'char/update', patch: { flip } }); lastX = nx; }
-        store.dispatch({ type: 'char/move', room: s.currentRoom, x: nx, y: Math.max(FLOOR_Y + 40, p.y + off.y) });
+        if (Math.hypot(p.x - p0.x, p.y - p0.y) > 6) moved = true;
+        const cur = store.get().characters.find(x => x.id === id); if (!cur) return;
+        if (Math.abs(nx - lastX) > 3) { const flip = nx < lastX; if (flip !== cur.flip) store.dispatch({ type: 'char/update', id, patch: { flip } }); lastX = nx; }
+        store.dispatch({ type: 'char/move', id, room: s.currentRoom, x: nx, y: Math.max(FLOOR_Y + 40, p.y + off.y) });
+        // hovering a room tab = "walk to that room"
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('drop'));
+        (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest('.tab:not(.on)')?.classList.add('drop');
       },
-      onUp() { el.classList.remove('lifted'); sfx.drop(); bounce(el); },
+      onUp(ev) {
+        el.classList.remove('lifted'); document.querySelectorAll('.tab').forEach(t => t.classList.remove('drop'));
+        const tab = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest<HTMLElement>('[data-room]');
+        const cur = store.get().characters.find(x => x.id === id);
+        if (moved && cur && tab && tab.dataset.room !== s.currentRoom) {
+          const r = tab.getBoundingClientRect(); sparkles(r.left + r.width / 2, r.top + r.height / 2, 9); sfx.swish();
+          store.dispatch({ type: 'char/move', id, room: tab.dataset.room as RoomId, x: cur.x, y: cur.y });
+          return;
+        }
+        sfx.drop(); bounce(el);
+      },
     });
   });
 }
 
-// Drawer -> room
-let uid = Date.now() % 100000;
-function attachShelfDrag(btn: HTMLElement, kind: string) {
+// Drawer -> room (items)
+function attachShelfDrag(btn: HTMLElement, def: ItemDef) {
   btn.addEventListener('pointerdown', e => {
     e.preventDefault();
-    const def = ITEM_MAP[kind];
     const ghost = document.createElement('div'); ghost.className = 'ghost'; ghost.innerHTML = svgOf(def);
     document.body.appendChild(ghost);
-    const sc = stageScale(); const gw = Math.max(60, def.w * sc);
-    ghost.style.width = ghost.style.height = gw + 'px';
-    const pos = (ev: PointerEvent) => { ghost.style.left = ev.clientX - gw / 2 + 'px'; ghost.style.top = ev.clientY - gw * .8 + 'px'; };
+    const k = Math.max(1, 60 / (Math.max(def.w, hOf(def)) * stageScale()));
+    const gw = def.w * stageScale() * k, gh = hOf(def) * stageScale() * k;
+    ghost.style.width = gw + 'px'; ghost.style.height = gh + 'px';
+    let target: ReturnType<typeof holdTarget> = null;
+    const pos = (ev: PointerEvent) => {
+      ghost.style.left = ev.clientX - gw / 2 + 'px'; ghost.style.top = ev.clientY - gh * .8 + 'px';
+      target = def.holdable && inStage(ev.clientX, ev.clientY) ? holdTarget(toRoom(ev.clientX, ev.clientY)) : null; showHoldTarget(target);
+    };
     pos(e); sfx.pick(); btn.classList.add('pressed');
     const sx = e.clientX, sy = e.clientY;
     startDrag(e, {
       onMove: pos,
       onUp(ev) {
-        ghost.remove(); btn.classList.remove('pressed');
-        const s = store.get(); const room = s.currentRoom;
+        ghost.remove(); btn.classList.remove('pressed'); showHoldTarget(null);
+        const room = store.get().currentRoom;
         const tapped = Math.hypot(ev.clientX - sx, ev.clientY - sy) < 8;
         let x: number, y: number;
         if (tapped) { x = camX + 380 + Math.random() * 240; y = def.wall ? 260 : 500 + Math.random() * 40; }
-        else if (inStage(ev.clientX, ev.clientY)) { const p = toRoom(ev.clientX, ev.clientY); x = p.x; y = p.y + def.w * .3; }
+        else if (inStage(ev.clientX, ev.clientY)) { const p = toRoom(ev.clientX, ev.clientY); x = p.x; y = p.y + hOf(def) * .2; }
         else return;
-        const item: PlacedItem = { id: `${kind}-${++uid}`, kind, x, y, flip: false, z: 0, scale: 1 };
-        selected = item.id;
+        const item: PlacedItem = { id: newId(def.kind.replace(/[^a-z0-9-]/gi, '')), kind: def.kind, x, y, flip: false, z: 0, scale: 1 };
         store.dispatch({ type: 'item/add', room, item });
-        const el = layer.querySelector(`[data-id="${item.id}"]`); bounce(el);
-        const r = el?.getBoundingClientRect(); if (r) sparkles(r.left + r.width / 2, r.top + r.height / 2);
-        sfx.sparkle();
+        if (!tapped && target) { holdInto(target, item.id); return; }
+        selected = item.id; renderItems(store.get());
+        const el = layer.querySelector(`.item[data-id="${item.id}"]`); bounce(el); sparkleAt(el); sfx.sparkle();
       },
     });
   });
 }
 
+// Drawer -> room (people): drag a card to bring that character here; tap to edit.
+function attachPersonCard(btn: HTMLElement, id: string) {
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    const c = store.get().characters.find(c => c.id === id); if (!c) return;
+    const sc = charScale(c), gw = CHAR_W * sc * stageScale(), gh = CHAR_H * sc * stageScale();
+    const ghost = document.createElement('div'); ghost.className = 'ghost'; ghost.innerHTML = characterSVG(c);
+    ghost.style.width = gw + 'px'; ghost.style.height = gh + 'px'; document.body.appendChild(ghost);
+    const pos = (ev: PointerEvent) => { ghost.style.left = ev.clientX - gw / 2 + 'px'; ghost.style.top = ev.clientY - gh * .85 + 'px'; };
+    const sx = e.clientX, sy = e.clientY; let moved = false;
+    ghost.style.visibility = 'hidden';
+    startDrag(e, {
+      onMove(ev) { if (Math.hypot(ev.clientX - sx, ev.clientY - sy) > 8) { moved = true; ghost.style.visibility = ''; } pos(ev); },
+      onUp(ev) {
+        ghost.remove();
+        if (!moved) { sfx.click(); activeChar = id; openSheet('dress'); return; }
+        if (!inStage(ev.clientX, ev.clientY)) return;
+        const p = toRoom(ev.clientX, ev.clientY), room = store.get().currentRoom;
+        store.dispatch({ type: 'char/move', id, room, x: p.x, y: Math.max(FLOOR_Y + 40, p.y + CHAR_H * sc * .15) });
+        activeChar = id; renderChars(store.get());
+        const el = charEls.get(id); bounce(el); sparkleAt(el); sfx.sparkle();
+      },
+    });
+  });
+}
+
+const pick = <T,>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)];
+function addCharacter(): string | null {
+  const s = store.get(); if (s.characters.length >= MAX_CHARS) return null;
+  const id = newId('c');
+  store.dispatch({ type: 'char/add', char: newCharacter({ id, skin: pick(SKINS), hair: pick(HAIRS), hairStyle: Math.floor(Math.random() * HAIR_STYLES), shirt: pick(CLOTHES), pants: pick(CLOTHES), room: s.currentRoom, x: camX + 300 + Math.random() * 400, y: 520 + Math.random() * 40 }) });
+  activeChar = id; renderChars(store.get());
+  const el = charEls.get(id); bounce(el); sparkleAt(el); sfx.sparkle();
+  return id;
+}
+
 function renderDrawer() {
   $('roomFilter').innerHTML = ROOM_FILTERS.map(f => `<button class="rf ${f.id === roomFilter ? 'on' : ''}" data-rf="${f.id}">${f.name}</button>`).join('');
-  const visibleCats = CATS.filter(c => ITEMS.some(i => i.cat === c.id && matchesRoom(i.rooms, roomFilter)));
-  if (!visibleCats.some(c => c.id === currentCat) && visibleCats.length) currentCat = visibleCats[0].id;
-  $('cats').innerHTML = visibleCats.map(c => `<button class="cat ${c.id === currentCat ? 'on' : ''}" data-cat="${c.id}" aria-label="${c.name}">${svgOf(ITEM_MAP[c.icon])}</button>`).join('');
+  const visible = TABS.filter(t => t.kind === 'people' || tabItems(t.id, roomFilter).length);
+  if (!visible.some(t => t.id === currentTab)) currentTab = visible[1]?.id ?? '__people';
+  $('cats').innerHTML = visible.map(t => `<button class="cat ${t.kind} ${t.id === currentTab ? 'on' : ''}" data-cat="${t.id}" aria-label="${t.name}" title="${t.name}">${t.kind === 'people' ? PEOPLE_ICON : svgOf(ITEM_MAP[t.icon])}${t.kind === 'pack' ? `<span class="packname">${t.name}</span>` : ''}</button>`).join('');
   const shelf = $('shelf'); shelf.innerHTML = '';
-  const list = ITEMS.filter(i => i.cat === currentCat && matchesRoom(i.rooms, roomFilter));
+  if (currentTab === '__people') {
+    const s = store.get();
+    for (const c of s.characters) {
+      const b = document.createElement('button'); b.className = 'thing person'; b.setAttribute('aria-label', 'Character');
+      b.innerHTML = `<div class="face">${characterSVG(c)}</div><span class="where" style="background:${roomColor(c.room)}"></span>`;
+      shelf.appendChild(b); attachPersonCard(b, c.id);
+    }
+    if (s.characters.length < MAX_CHARS) {
+      const b = document.createElement('button'); b.className = 'thing add'; b.setAttribute('aria-label', 'New character'); b.innerHTML = PLUS;
+      b.addEventListener('click', () => { if (addCharacter()) { renderDrawer(); openSheet('dress'); } });
+      shelf.appendChild(b);
+    }
+    return;
+  }
+  const list = tabItems(currentTab, roomFilter);
   if (!list.length) shelf.innerHTML = `<div class="empty">Nothing here yet!</div>`;
   for (const d of list) {
     const b = document.createElement('button'); b.className = 'thing'; b.setAttribute('aria-label', d.name);
-    b.innerHTML = svgOf(d); shelf.appendChild(b); attachShelfDrag(b, d.kind);
+    b.innerHTML = svgOf(d); shelf.appendChild(b); attachShelfDrag(b, d);
   }
   shelf.scrollLeft = 0;
 }
@@ -382,39 +527,61 @@ function swatches(list: string[], cur: string, act: string) {
   return `<div class="sw">${list.map(c => `<button class="dot ${c === cur ? 'on' : ''}" style="background:${c}" data-act="${act}" data-v="${c}"></button>`).join('')}</div>`;
 }
 let sheetMode: 'paint' | 'dress' | null = null;
+let confirmDelete = false;
 function renderSheet() {
   const s = store.get(); const card = $('card');
   if (sheetMode === 'paint') {
     const r = s.rooms[s.currentRoom];
+    const wallTiles = PATTERNS_FROM_PACKS.filter(p => p.kind === 'wallpaper'), floorTiles = PATTERNS_FROM_PACKS.filter(p => p.kind === 'floor');
+    const tile = (p: typeof wallTiles[0], cur: string | null | undefined, act: string, bg: string) =>
+      `<button class="dot pat tile ${p.id === cur ? 'on' : ''}" data-act="${act}" data-v="${p.id}" title="${p.name} (${packLabel(p.pack)})" style="background-color:${bg};background-image:${cssUrl(p.url)};background-size:48px auto"></button>`;
     card.innerHTML = `<button class="close" data-act="close">✕</button><h2>Paint the room</h2>
       <h3>Walls</h3>${swatches(WALLS, r.wallpaper, 'wall')}
-      <h3>Pattern</h3><div class="sw">${PATTERNS.map((p, i) => `<button class="dot pat ${i === r.pattern ? 'on' : ''}" data-act="pat" data-v="${i}" style="background-color:${r.wallpaper};background-image:${p};background-size:${i === 1 ? '16px 16px' : i === 3 ? '20px 20px' : 'auto'}"></button>`).join('')}</div>
-      <h3>Floor</h3>${swatches(FLOORS, r.floor, 'floor')}`;
+      <h3>Wallpaper</h3><div class="sw">${PATTERNS.map((p, i) => `<button class="dot pat ${!r.wallTile && i === r.pattern ? 'on' : ''}" data-act="pat" data-v="${i}" style="background-color:${r.wallpaper};background-image:${p};background-size:${i === 1 ? '16px 16px' : i === 3 ? '20px 20px' : 'auto'}"></button>`).join('')}${wallTiles.map(p => tile(p, r.wallTile, 'wtile', r.wallpaper)).join('')}</div>
+      <h3>Floor</h3>${swatches(FLOORS, r.floor, 'floor')}
+      ${floorTiles.length ? `<h3>Floor style</h3><div class="sw"><button class="dot pat ${!r.floorTile ? 'on' : ''}" data-act="ftile" data-v="" style="background-color:${r.floor};background-image:${FLOOR_BOARDS}"></button>${floorTiles.map(p => tile(p, r.floorTile, 'ftile', r.floor)).join('')}</div>` : ''}`;
   } else if (sheetMode === 'dress') {
-    const c = s.character;
-    card.innerHTML = `<button class="close" data-act="close">✕</button><div class="dress"><div class="preview">${characterSVG(c)}</div><div class="opts">
+    let c = s.characters.find(x => x.id === activeChar) ?? s.characters[0];
+    const picker = `<div class="picker">${s.characters.map(x => `<button class="pk ${x.id === c?.id ? 'on' : ''}" data-act="pickc" data-v="${x.id}"><div class="face">${characterSVG(x)}</div><span class="where" style="background:${roomColor(x.room)}"></span></button>`).join('')}${s.characters.length < MAX_CHARS ? `<button class="pk add" data-act="newc">${PLUS}</button>` : ''}</div>`;
+    if (!c) { card.innerHTML = `<button class="close" data-act="close">✕</button><h2>Characters</h2>${picker}<p class="hint">Tap + to make someone new!</p>`; return; }
+    activeChar = c.id;
+    const thumb = (patch: Partial<Character>) => characterSVG({ ...c, ...patch }).replace('<svg ', '<svg preserveAspectRatio="xMidYMin slice" ');
+    card.innerHTML = `<button class="close" data-act="close">✕</button>${picker}<div class="dress"><div class="previewCol"><div class="preview"><div style="height:${SIZE_SCALE[c.size] * 78}%">${characterSVG(c)}</div></div>
+        <button class="del ${confirmDelete ? 'sure' : ''}" data-act="delc">${ICON.trash}<span>${confirmDelete ? 'Tap again' : ''}</span></button></div><div class="opts">
+      <div class="row2"><div><h3>Size</h3><div class="sw">${SIZES.map(z => `<button class="dot sz ${z === c.size ? 'on' : ''}" data-act="size" data-v="${z}"><div style="height:${SIZE_SCALE[z] * 70}%">${characterSVG(c)}</div></button>`).join('')}</div></div>
+      <div><h3>Extras</h3><div class="sw">${Array.from({ length: ACCESSORIES }, (_, i) => `<button class="dot hs ${i === c.acc ? 'on' : ''}" data-act="acc" data-v="${i}">${thumb({ acc: i })}</button>`).join('')}</div></div></div>
       <h3>Skin</h3>${swatches(SKINS, c.skin, 'skin')}
       <h3>Hair</h3>${swatches(HAIRS, c.hair, 'hair')}
-      <div class="sw">${Array.from({ length: HAIR_STYLES }, (_, i) => `<button class="dot hs ${i === c.hairStyle ? 'on' : ''}" data-act="hs" data-v="${i}">${characterSVG({ ...c, hairStyle: i }).replace('<svg ', '<svg preserveAspectRatio="xMidYMin slice" ')}</button>`).join('')}</div>
+      <div class="sw" style="margin-top:8px">${Array.from({ length: HAIR_STYLES }, (_, i) => `<button class="dot hs ${i === c.hairStyle ? 'on' : ''}" data-act="hs" data-v="${i}">${thumb({ hairStyle: i, acc: 0 })}</button>`).join('')}</div>
       <h3>Shirt</h3>${swatches(CLOTHES, c.shirt, 'shirt')}
       <h3>Pants</h3>${swatches(CLOTHES, c.pants, 'pants')}</div></div>`;
   }
 }
-function openSheet(m: 'paint' | 'dress') { sheetMode = m; renderSheet(); $('sheet').classList.remove('hidden'); sfx.swish(); }
+function openSheet(m: 'paint' | 'dress') { sheetMode = m; confirmDelete = false; renderSheet(); $('sheet').classList.remove('hidden'); sfx.swish(); }
 $('sheet').addEventListener('click', e => {
   const t = (e.target as HTMLElement).closest<HTMLElement>('[data-act]');
-  if (e.target === $('sheet') || t?.dataset.act === 'close') { $('sheet').classList.add('hidden'); sheetMode = null; sfx.click(); return; }
+  if (e.target === $('sheet') || t?.dataset.act === 'close') { $('sheet').classList.add('hidden'); sheetMode = null; sfx.click(); if (currentTab === '__people') renderDrawer(); return; }
   if (!t) return;
-  const s = store.get(), room = s.currentRoom, v = t.dataset.v!;
-  switch (t.dataset.act) {
+  const s = store.get(), room = s.currentRoom, v = t.dataset.v!, id = activeChar ?? '';
+  const act = t.dataset.act;
+  if (act !== 'delc') confirmDelete = false;
+  switch (act) {
     case 'wall': store.dispatch({ type: 'room/wallpaper', room, color: v }); break;
     case 'floor': store.dispatch({ type: 'room/floor', room, color: v }); break;
     case 'pat': store.dispatch({ type: 'room/pattern', room, pattern: +v }); break;
-    case 'skin': store.dispatch({ type: 'char/update', patch: { skin: v } }); break;
-    case 'hair': store.dispatch({ type: 'char/update', patch: { hair: v } }); break;
-    case 'hs': store.dispatch({ type: 'char/update', patch: { hairStyle: +v } }); break;
-    case 'shirt': store.dispatch({ type: 'char/update', patch: { shirt: v } }); break;
-    case 'pants': store.dispatch({ type: 'char/update', patch: { pants: v } }); break;
+    case 'wtile': store.dispatch({ type: 'room/wallTile', room, tile: v }); break;
+    case 'ftile': store.dispatch({ type: 'room/floorTile', room, tile: v || null }); break;
+    case 'skin': case 'hair': case 'shirt': case 'pants': store.dispatch({ type: 'char/update', id, patch: { [act]: v } }); break;
+    case 'hs': store.dispatch({ type: 'char/update', id, patch: { hairStyle: +v } }); break;
+    case 'acc': store.dispatch({ type: 'char/update', id, patch: { acc: +v } }); break;
+    case 'size': store.dispatch({ type: 'char/update', id, patch: { size: v as Character['size'] } }); renderChars(store.get()); break;
+    case 'pickc': activeChar = v; renderChars(store.get()); sfx.click(); renderSheet(); return;
+    case 'newc': addCharacter(); break;
+    case 'delc':
+      if (!confirmDelete) { confirmDelete = true; sfx.click(); renderSheet(); return; }
+      confirmDelete = false;
+      { const el = charEls.get(id); const r = el?.getBoundingClientRect(); store.dispatch({ type: 'char/delete', id }); if (r) poof(r.left + r.width / 2, r.top + r.height / 2); else sfx.pop(); }
+      activeChar = store.get().characters[0]?.id ?? null; renderSheet(); return;
   }
   sfx.sparkle(); renderSheet(); bounce(document.querySelector('.preview'));
 });
@@ -426,12 +593,10 @@ $('tabs').addEventListener('click', e => {
   selected = null; sfx.swish();
   stage.classList.remove('swap'); void stage.offsetWidth; stage.classList.add('swap');
   store.dispatch({ type: 'room/switch', room });
-  // bring the character along to the new room
-  const c = store.get().character; store.dispatch({ type: 'char/move', room, x: c.x, y: c.y });
 });
 $('cats').addEventListener('click', e => {
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-cat]'); if (!b) return;
-  currentCat = b.dataset.cat as Category; sfx.click(); renderDrawer();
+  currentTab = b.dataset.cat!; sfx.click(); renderDrawer();
 });
 $('roomFilter').addEventListener('click', e => {
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-rf]'); if (!b) return;
@@ -440,7 +605,7 @@ $('roomFilter').addEventListener('click', e => {
 toolbar.addEventListener('pointerdown', e => e.stopPropagation());
 toolbar.addEventListener('click', e => {
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-a]'); if (!b || !selected) return;
-  const room = store.get().currentRoom, id = selected, el = layer.querySelector(`[data-id="${id}"]`);
+  const room = store.get().currentRoom, id = selected, el = layer.querySelector(`.item[data-id="${id}"]`);
   switch (b.dataset.a) {
     case 'flip': store.dispatch({ type: 'item/flip', room, id }); sfx.swish(); bounce(el); break;
     case 'front': store.dispatch({ type: 'item/front', room, id }); sfx.click(); bounce(el); break;
@@ -450,7 +615,7 @@ toolbar.addEventListener('click', e => {
 });
 // One finger on empty wall/floor pans the room (with a little momentum); a tap deselects.
 stage.addEventListener('pointerdown', e => {
-  if ((e.target as HTMLElement).closest('.nudge,.minimap')) return;
+  if ((e.target as HTMLElement).closest('.nudge')) return;
   stopGlide();
   const x0 = e.clientX, cam0 = camX; let moved = false, vx = 0, lx = e.clientX, lt = performance.now();
   startDrag(e, {
@@ -464,7 +629,7 @@ stage.addEventListener('pointerdown', e => {
     onUp() {
       if (!moved) { if (selected) { selected = null; renderItems(store.get()); } return; }
       if (twoFinger) return;
-      let v = -vx * 16 / stageScale(); // units per frame
+      let v = -vx * 16 / stageScale();
       const coast = () => { if (Math.abs(v) < 0.3) return; setCam(camX + v); v *= 0.92; inertia = requestAnimationFrame(coast); };
       inertia = requestAnimationFrame(coast);
     },
@@ -489,4 +654,5 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
 if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js');
 (window as any).__store = store; // handy for debugging / tests
+(window as any).__items = Object.fromEntries(ITEMS.filter(i => i.img).map(i => [i.kind, { w: i.w, h: hOf(i), cat: i.cat, holdable: i.holdable, svg: i.img!.includes('.svg') }]));
 (window as any).__cam = { get: () => camX, set: setCam };

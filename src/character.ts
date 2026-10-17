@@ -6,6 +6,18 @@ export const SKINS = ['#ffe0c4', '#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#5
 export const HAIRS = ['#2b1d16', '#5b3a29', '#a0522d', '#f4d58d', '#ff8fab', '#8ecae6', '#b388d6', '#ff9f43'];
 export const CLOTHES = ['#ff7aa8', '#ffd166', '#5aa9e6', '#80ed99', '#c9a0dc', '#ff9f68', '#ffffff', '#5a3d5c'];
 export const HAIR_STYLES = 4;
+export const ACCESSORIES = 4; // none, bow, glasses, cap
+export const SIZES: Character['size'][] = ['little', 'kid', 'adult'];
+export const SIZE_SCALE: Record<Character['size'], number> = { little: 0.78, kid: 1, adult: 1.28 };
+/** Hand anchor points in the character's 100x160 viewBox (unflipped). */
+export const HANDS = { left: { x: 15, y: 113 }, right: { x: 85, y: 113 } } as const;
+
+function accessory(a: number, c: string) {
+  if (a === 1) return `<path d="M62 16 L76 8 L76 26 Z M62 16 L50 6 L48 24 Z" fill="#ff7aa8" stroke="${O}" stroke-width="3" stroke-linejoin="round"/><circle cx="62" cy="16" r="5" fill="#ffd166" stroke="${O}" stroke-width="3"/>`;
+  if (a === 2) return `<circle cx="40" cy="48" r="9" fill="#fff" fill-opacity=".35" stroke="${O}" stroke-width="3"/><circle cx="60" cy="48" r="9" fill="#fff" fill-opacity=".35" stroke="${O}" stroke-width="3"/><path d="M49 48 h2" stroke="${O}" stroke-width="3"/>`;
+  if (a === 3) return `<path d="M20 30 Q22 8 50 8 Q78 8 80 30 Z" fill="${c}" stroke="${O}" stroke-width="3.5" stroke-linejoin="round"/><path d="M60 28 Q84 26 92 32 Q80 36 60 34 Z" fill="${c}" stroke="${O}" stroke-width="3.5" stroke-linejoin="round"/><circle cx="50" cy="9" r="4" fill="#fff" stroke="${O}" stroke-width="3"/>`;
+  return '';
+}
 
 function hair(style: number, c: string, back: boolean) {
   if (back) {
@@ -18,7 +30,7 @@ function hair(style: number, c: string, back: boolean) {
   return `<path d="M21 46 Q18 12 50 12 Q82 12 79 46 Q72 30 58 28 Q50 36 36 30 Q26 34 21 46 Z" fill="${c}" ${s}/>`;
 }
 
-export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants'>) {
+export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants'> & { acc?: number }) {
   return `<svg viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">
   <ellipse cx="50" cy="156" rx="28" ry="4" fill="#000" opacity=".12"/>
   ${hair(c.hairStyle, c.hair, true)}
@@ -36,5 +48,7 @@ export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 
   <circle cx="41" cy="46.5" r="1.3" fill="#fff"/><circle cx="61" cy="46.5" r="1.3" fill="#fff"/>
   <ellipse cx="32" cy="58" rx="5" ry="3" fill="#ff8fab" opacity=".6"/><ellipse cx="68" cy="58" rx="5" ry="3" fill="#ff8fab" opacity=".6"/>
   <path d="M44 60 Q50 66 56 60" ${s} fill="none"/>
+  ${accessory(c.acc ?? 0, c.shirt)}
+  <circle cx="${HANDS.left.x}" cy="${HANDS.left.y}" r="6" fill="${c.skin}" ${s}/><circle cx="${HANDS.right.x}" cy="${HANDS.right.y}" r="6" fill="${c.skin}" ${s}/>
 </svg>`;
 }
