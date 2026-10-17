@@ -13,9 +13,17 @@ ALLOWED_ORIGIN = "https://andrewmunruh.github.io"
 name = "HOOD"
 class_name = "HoodDO"
 
+[[durable_objects.bindings]]
+name = "CODES"
+class_name = "CodeRegistryDO"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["HoodDO"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["CodeRegistryDO"]
 
 [observability]
 enabled = false

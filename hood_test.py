@@ -1,5 +1,5 @@
 # Multi-client neighborhood test: 3 simulated iPads against the local server.
-import asyncio, re, sys
+import asyncio, re, sys, random
 from playwright.async_api import async_playwright
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/'
 SHOT = 'screens/hood/'
@@ -14,7 +14,8 @@ async def adult(pg):
 async def join(pg, code, nick, bring):
     await pg.click('#btnHood'); await pg.click('[data-m="join"]')
     await pg.fill('#codeInput', code.lower()); await pg.click('#codeForm button')
-    await pg.click(f'.nicks button:text-is("{nick}")'); await pg.click('[data-m="bring"]' if bring else '[data-m="fresh"]')
+    await pg.click(f'.nicks button:has-text("{nick}")')
+    if bring is not None: await pg.click('[data-m="bring"]' if bring else '[data-m="fresh"]')
     await pg.wait_for_selector('body.view-street .house', timeout=8000)
 async def drag(pg, a, b, steps=12):
     await pg.mouse.move(*a); await pg.mouse.down(); await pg.mouse.move(*b, steps=steps); await pg.mouse.up(); await pg.wait_for_timeout(300)
@@ -37,18 +38,34 @@ async def main():
         await P.wait_for_selector('#newCode'); code = (await P.inner_text('#newCode')).strip()
         check('create neighborhood + invite code', bool(re.fullmatch(r'[A-Z0-9]{6}', code)), code)
         await P.screenshot(path=SHOT + '01-parent-created-code.png')
-        await P.click('[data-m="joinhere"]'); await P.click('.nicks button:text-is("Sunny Bunny")'); await P.click('[data-m="bring"]')
-        await P.wait_for_selector('body.view-street .house')
-        await join(K2, code, 'Zippy Fox', False)
-        await join(K3, code, 'Cozy Koala', True)
+        # ---- grown-up adds the kids' first names and picks a memorable code ----
+        await P.click('[data-m="setup"]'); await P.wait_for_selector('#pCode')
+        for n in ('Reagan', 'Quinn', 'Chloe'): await P.click(f'.sugg button:has-text("{n}")'); await P.wait_for_timeout(250)
+        await P.fill('#rosterInput', 'Sloane2'); await P.click('#rosterForm button'); await P.wait_for_timeout(250)
+        check('roster: suggestions added, non-name refused', await P.locator('.rName').count() == 3 and await P.locator('#pNote').count() == 1)
+        other = await P.evaluate("fetch(__hood_url() + '/api/create', {method:'POST'}).then(r => r.json())")
+        await P.fill('#codeEdit', other['code'].lower()); await P.click('[data-p="setcode"]'); await P.wait_for_timeout(300)
+        check('custom code already used by another street is refused', 'already used' in (await P.inner_text('#pNote')))
+        custom = 'Reagan' + str(random.randint(10, 9999))
+        await P.fill('#codeEdit', custom); await P.click('[data-p="setcode"]'); await P.wait_for_timeout(400)
+        code = custom.upper(); check('custom code set (stored upper-case)', (await P.inner_text('#pCode')).strip() == code, code)
+        await P.screenshot(path=SHOT + '00-parent-roster-and-code.png')
+        await P.click('.hoodSheet [data-m="close"]')
+        await join(P, custom.lower(), 'Reagan', True)
+        await join(K2, custom, 'Quinn', False)
+        await join(K3, custom.title(), 'Chloe', True)
         await P.wait_for_timeout(800)
         n_houses = await P.locator('#streetWorld .house').count(); check('3 houses on the street', n_houses == 3, str(n_houses))
         await P.screenshot(path=SHOT + '02-street-three-houses.png')
-        # nickname collision is rejected
+        check('house signs show first names', await P.locator('.sign:has-text("Quinn\'s House")').count() == 1)
+        # a name already signed in on one iPad can't be picked on another; names not on the list can't join
         K4 = await (await mk()).new_page(); await K4.goto(URL); await K4.wait_for_timeout(400)
         await K4.click('#btnHood'); await K4.click('[data-m="join"]'); await K4.fill('#codeInput', code); await K4.click('#codeForm button')
-        await K4.click('.nicks button:text-is("Zippy Fox")'); await K4.click('[data-m="fresh"]'); await K4.wait_for_timeout(800)
-        check('duplicate nickname refused', await K4.locator('.err:has-text("already")').count() == 1); await K4.context.close()
+        await K4.wait_for_selector('.nicks.roster')
+        check('claimed names disabled for a new device', await K4.locator('.nicks button:has-text("Quinn")').is_disabled() and await K4.locator('.nicks button[disabled]').count() == 3)
+        bad = await K4.evaluate("(async () => { const ws = new WebSocket(__hood_url().replace(/^http/,'ws') + '/ws/' + __lastLookupId); return await new Promise(r => { ws.onopen = () => ws.send(JSON.stringify({t:'join', nickname:'Quinn', look:{}})); ws.onmessage = e => r(JSON.parse(e.data)); }); })()")
+        check('server refuses a second device for a claimed name', bad.get('code') == 'nickname', str(bad))
+        await K4.context.close()
         # bad codes
         # ---- P goes home; K2 walks over and goes in ----
         await P.click('#streetWorld .house.mine'); await P.wait_for_timeout(600)
@@ -109,6 +126,12 @@ async def main():
         check('free typing off -> K2 presets only', await K2.locator('#chatInput').count() == 0 and await K2.locator('.presetsOnly').count() == 1)
         await K2.evaluate("__hood().say({kind:'text', v:'hello there'})"); await P.wait_for_timeout(300)
         await K2.click('[data-chat="close"]')
+        # reset Quinn's sign-in: her iPad leaves, then signs in again and gets her same house back
+        k2_house = await K2.evaluate("__hood().myHouseId()")
+        un = P.locator('[data-p="unclaim"][data-name="Quinn"]'); await un.click(); await P.locator('[data-p="unclaim"][data-name="Quinn"]').click(); await K2.wait_for_timeout(800)
+        check('reset claim signs that iPad out', (await K2.evaluate("__ui()"))['mode'] == 'solo')
+        await join(K2, code, 'Quinn', None)
+        check('re-sign-in keeps her house', await K2.evaluate("__hood().myHouseId()") == k2_house)
         k3_house = await K3.evaluate("__hood().myHouseId()")
         await P.fill(f'input[data-hid="{k3_house}"]', 'Koala Castle'); await P.click(f'[data-p="rename"][data-hid="{k3_house}"]'); await P.wait_for_timeout(500)
         check('rename visible to K3', await K3.locator('.sign:has-text("Koala Castle")').count() == 1)
@@ -125,8 +148,12 @@ async def main():
         # reload: P reconnects to the street automatically
         await P.reload(); await P.wait_for_timeout(1500)
         check('reload reconnects automatically', (await P.evaluate("__ui()"))['view'] == 'street')
-        await K2.click('#btnStreet'); await K2.wait_for_timeout(600)
+        if (await K2.evaluate("__ui()"))['view'] != 'street': await K2.click('#btnStreet')
+        await K2.wait_for_timeout(600)
         await K2.screenshot(path=SHOT + '10-K2-street-after-changes.png')
+        # brute force: wrong codes get throttled per IP (run last: it blocks this IP for a few minutes)
+        st = await K2.evaluate("(async () => { const out = []; for (let i = 0; i < 10; i++) out.push((await fetch(__hood_url() + '/api/hood/NOPE' + i + 'ZZ')).status); return out; })()")
+        check('wrong-code guessing is rate-limited', 429 in st, str(st))
         print('errors:', errs)
         print(f"\n{sum(res.values())}/{len(res)} checks passed")
         await b.close()

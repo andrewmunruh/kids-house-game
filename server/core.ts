@@ -4,14 +4,16 @@
 import { reduce, initialState, type GameState } from '../src/shared/state';
 import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, cleanPresence, cleanHouseName,
-  filterChat, isNear, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble,
+  filterChat, isNear, cleanFirstName, normCode, validInvite, MAX_ROSTER, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble,
 } from '../src/shared/hood';
 
 export interface KV { get<T>(k: string): Promise<T | undefined>; put(k: string, v: unknown): Promise<void>; delete(k: string): Promise<void> }
+/** Maps invite codes (case-insensitive, unique across streets) to permanent street ids. */
+export interface CodeRegistry { claim(code: string, id: string): Promise<boolean>; release(code: string, id: string): Promise<void> }
 export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number } }
 
 interface Player { pid: string; nickname: string; houseId: string; tokenHash: string; look: Look; joinedAt: number }
-interface Meta { code: string; createdAt: number; parentKeyHash: string; settings: { freeChat: boolean }; players: Record<string, Player>; houseOrder: string[]; nextStyle: number }
+interface Meta { id?: string; code: string; roster?: string[]; createdAt: number; parentKeyHash: string; settings: { freeChat: boolean }; players: Record<string, Player>; houseOrder: string[]; nextStyle: number }
 
 const enc = new TextEncoder();
 export async function sha256(s: string) { const d = await crypto.subtle.digest('SHA-256', enc.encode(s)); return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join(''); }
@@ -30,7 +32,7 @@ export class Neighborhood {
   private loaded: Promise<void> | null = null;
   private dirty = new Set<string>(); private flushT: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private kv: KV, private opts: { flushMs?: number } = {}) {}
+  constructor(private kv: KV, private opts: { flushMs?: number; registry?: CodeRegistry } = {}) {}
 
   load() { return (this.loaded ??= (async () => {
     this.meta = (await this.kv.get<Meta>('meta')) ?? null;
@@ -39,11 +41,11 @@ export class Neighborhood {
   get exists() { return !!this.meta; }
 
   /** Create a fresh neighborhood. Returns the parent key (shown once to the grown-up). */
-  async init(code: string): Promise<string> {
+  async init(code: string, id?: string): Promise<string> {
     await this.load();
     if (this.meta) throw new Error('exists');
     const parentKey = randomToken(9);
-    this.meta = { code, createdAt: Date.now(), parentKeyHash: await sha256(parentKey), settings: { freeChat: true }, players: {}, houseOrder: [], nextStyle: Math.floor(Math.random() * HOUSE_STYLES) };
+    this.meta = { id, code, roster: [], createdAt: Date.now(), parentKeyHash: await sha256(parentKey), settings: { freeChat: true }, players: {}, houseOrder: [], nextStyle: Math.floor(Math.random() * HOUSE_STYLES) };
     await this.kv.put('meta', this.meta);
     return parentKey;
   }
@@ -65,6 +67,10 @@ export class Neighborhood {
   // ---------- helpers ----------
   private pub(p: Player): PlayerPub { return { pid: p.pid, nickname: p.nickname, houseId: p.houseId, look: p.look, online: [...this.conns].some(c => c.pid === p.pid) }; }
   private players() { return Object.values(this.meta!.players).sort((a, b) => a.joinedAt - b.joinedAt).map(p => this.pub(p)); }
+  roster(): RosterEntry[] {
+    const ps = Object.values(this.meta?.players ?? {});
+    return (this.meta?.roster ?? []).map(name => { const p = ps.find(p => p.nickname === name); return { name, claimed: !!p && !!p.tokenHash, hasHouse: !!p }; });
+  }
   private metaOf(h: HouseFull): HouseMeta { const { state: _s, ...m } = h; return m; }
   private send(c: Conn, m: ServerMsg) { try { c.send(JSON.stringify(m)); } catch { /* socket gone */ } }
   private broadcast(m: ServerMsg, filter: (c: Conn) => boolean = c => !!c.pid) { const s = JSON.stringify(m); for (const c of this.conns) if (filter(c)) try { c.send(s); } catch { } }
@@ -109,21 +115,38 @@ export class Neighborhood {
     switch (m.t) {
       case 'hello': {
         const h = typeof m.token === 'string' ? await sha256(m.token) : '';
-        const p = Object.values(meta.players).find(p => p.tokenHash === h);
+        const p = h ? Object.values(meta.players).find(p => p.tokenHash === h) : undefined;
         if (!p) { this.send(c, { t: 'error', code: 'badtoken' }); return; }
         c.pid = p.pid; this.welcome(c); this.broadcast({ t: 'players', players: this.players() });
         return;
       }
       case 'join': {
         if (c.pid) return;
-        if (!NICKNAMES.includes(m.nickname)) { this.send(c, { t: 'error', code: 'nickname', msg: 'pick a nickname from the list' }); return; }
-        if (Object.values(meta.players).some(p => p.nickname === m.nickname)) { this.send(c, { t: 'error', code: 'nickname', msg: 'taken' }); return; }
+        const roster = meta.roster ?? [];
+        let nickname: string;
+        if (roster.length) {
+          // sign in with a first name from the grown-up's roster; one device per name
+          const want = String(m.nickname ?? '').toLowerCase(); const name = roster.find(n => n.toLowerCase() === want);
+          if (!name) { this.send(c, { t: 'error', code: 'nickname', msg: 'notOnList' }); return; }
+          const prev = Object.values(meta.players).find(p => p.nickname === name);
+          if (prev && prev.tokenHash) { this.send(c, { t: 'error', code: 'nickname', msg: 'taken' }); return; }
+          if (prev) { // claim was reset by a grown-up: this device takes over her player + house
+            const token = randomToken(); prev.tokenHash = await sha256(token); prev.look = cleanLook(m.look); this.save('meta');
+            c.pid = prev.pid; this.send(c, { t: 'joined', token, pid: prev.pid });
+            this.welcome(c); this.broadcast({ t: 'players', players: this.players() }); return;
+          }
+          nickname = name;
+        } else {
+          if (!NICKNAMES.includes(m.nickname)) { this.send(c, { t: 'error', code: 'nickname', msg: 'pick a nickname from the list' }); return; }
+          if (Object.values(meta.players).some(p => p.nickname === m.nickname)) { this.send(c, { t: 'error', code: 'nickname', msg: 'taken' }); return; }
+          nickname = m.nickname;
+        }
         if (Object.keys(meta.players).length >= MAX_PLAYERS) { this.send(c, { t: 'error', code: 'full' }); return; }
         const token = randomToken(), pid = 'p' + randomToken(5), houseId = 'h' + randomToken(5);
         const state = m.house ? cleanHouseState(m.house) : initialState();
         const slot = meta.houseOrder.length;
-        const house: HouseFull = { id: houseId, ownerId: pid, name: `${m.nickname}'s House`, locked: false, style: (meta.nextStyle + slot) % HOUSE_STYLES, slot, state };
-        meta.players[pid] = { pid, nickname: m.nickname, houseId, tokenHash: await sha256(token), look: cleanLook(m.look), joinedAt: Date.now() };
+        const house: HouseFull = { id: houseId, ownerId: pid, name: `${nickname}'s House`, locked: false, style: (meta.nextStyle + slot) % HOUSE_STYLES, slot, state };
+        meta.players[pid] = { pid, nickname, houseId, tokenHash: await sha256(token), look: cleanLook(m.look), joinedAt: Date.now() };
         meta.houseOrder.push(houseId); this.houses.set(houseId, house);
         this.save('meta'); this.save(houseId);
         c.pid = pid;
@@ -185,7 +208,36 @@ export class Neighborhood {
     const meta = this.meta!;
     if (typeof m.key !== 'string' || (await sha256(m.key)) !== meta.parentKeyHash) { this.send(c, { t: 'error', code: 'badkey' }); return; }
     c.parent = true;
+    let note: string | undefined;
+    const kick = (pid: string) => { for (const x of [...this.conns]) if (x.pid === pid) { this.send(x, { t: 'removed' }); x.pid = undefined; x.close(4000, 'removed'); this.conns.delete(x); } };
     switch (m.op) {
+      case 'rosterAdd': {
+        const name = cleanFirstName(m.name); const r = meta.roster ??= [];
+        if (!name) { note = 'badName'; break; }
+        if (r.some(n => n.toLowerCase() === name.toLowerCase())) break;
+        if (r.length >= MAX_ROSTER) { note = 'rosterFull'; break; }
+        r.push(name); this.save('meta'); break;
+      }
+      case 'rosterRemove': {
+        const r = meta.roster ?? []; const name = r.find(n => n === m.name); if (!name) break;
+        if (Object.values(meta.players).some(p => p.nickname === name)) { note = 'nameInUse'; break; }
+        meta.roster = r.filter(n => n !== name); this.save('meta'); break;
+      }
+      case 'unclaim': { // sign this name out of its device; the next device to pick the name gets her house back
+        const p = Object.values(meta.players).find(p => p.nickname === m.name && (meta.roster ?? []).includes(p.nickname)); if (!p) break;
+        p.tokenHash = ''; this.save('meta'); kick(p.pid);
+        this.presence.delete(p.pid); this.broadcast({ t: 'pres', pid: p.pid, p: null }); this.broadcast({ t: 'players', players: this.players() });
+        break;
+      }
+      case 'setCode': {
+        const code = normCode(m.code); const reg = this.opts.registry;
+        if (!validInvite(code)) { note = 'badCode'; break; }
+        if (code === meta.code) break;
+        if (!reg || !meta.id) { note = 'codeFixed'; break; }
+        if (!(await reg.claim(code, meta.id))) { note = 'codeTaken'; break; }
+        const old = meta.code; meta.code = code; await this.kv.put('meta', meta); await reg.release(old, meta.id);
+        break;
+      }
       case 'rename': { const h = this.houses.get(m.houseId), name = cleanHouseName(m.name); if (!h || !name) break; h.name = name; this.save(h.id); this.broadcast({ t: 'houseMeta', meta: this.metaOf(h) }); break; }
       case 'freeChat': { if (typeof m.on !== 'boolean') break; meta.settings.freeChat = m.on; this.save('meta'); this.broadcast({ t: 'settings', settings: meta.settings }); break; }
       case 'remove': {
@@ -193,13 +245,13 @@ export class Neighborhood {
         delete meta.players[p.pid]; this.houses.delete(p.houseId); meta.houseOrder = meta.houseOrder.filter(id => id !== p.houseId);
         meta.houseOrder.forEach((id, i) => { const h = this.houses.get(id); if (h && h.slot !== i) { h.slot = i; this.save(id); } });
         this.presence.delete(p.pid); this.save('meta'); this.save(p.houseId);
-        for (const x of [...this.conns]) if (x.pid === p.pid) { this.send(x, { t: 'removed' }); x.pid = undefined; x.close(4000, 'removed'); this.conns.delete(x); }
+        kick(p.pid);
         this.broadcast({ t: 'houseGone', houseId: p.houseId }); this.broadcast({ t: 'pres', pid: p.pid, p: null });
         this.broadcast({ t: 'players', players: this.players() });
         meta.houseOrder.forEach(id => { const h = this.houses.get(id); if (h) this.broadcast({ t: 'houseMeta', meta: this.metaOf(h) }); });
         break;
       }
     }
-    this.send(c, { t: 'parentInfo', code: meta.code, settings: meta.settings, players: this.players(), houses: meta.houseOrder.map(id => this.metaOf(this.houses.get(id)!)) });
+    this.send(c, { t: 'parentInfo', code: meta.code, settings: meta.settings, players: this.players(), houses: meta.houseOrder.map(id => this.metaOf(this.houses.get(id)!)), roster: this.roster(), note });
   }
 }

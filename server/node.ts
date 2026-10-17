@@ -6,8 +6,8 @@ import { createServer } from 'node:http';
 import { mkdirSync, readFileSync, writeFileSync, existsSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { Neighborhood, randomCode, type KV, type Conn } from './core';
-import { CODE_ALPHABET, CODE_LEN } from '../src/shared/hood';
+import { Neighborhood, randomCode, randomToken, type KV, type Conn, type CodeRegistry } from './core';
+import { CODE_ALPHABET, CODE_LEN, normCode, validInvite, validHoodId } from '../src/shared/hood';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const DATA = process.env.HOOD_DATA ?? join(process.cwd(), 'server', 'data');
@@ -23,14 +23,22 @@ function fileKV(code: string): KV {
     async delete(k) { delete cache[k]; persist(); },
   };
 }
+// invite code -> permanent street id (codes can be changed by the grown-up; ids never change)
+const REG_FILE = join(DATA, '_codes.json');
+const codes: Record<string, string> = existsSync(REG_FILE) ? JSON.parse(readFileSync(REG_FILE, 'utf8')) : {};
+const saveCodes = () => { writeFileSync(REG_FILE + '.tmp', JSON.stringify(codes)); renameSync(REG_FILE + '.tmp', REG_FILE); };
+const registry: CodeRegistry = {
+  async claim(code, id) { if (codes[code] && codes[code] !== id) return false; codes[code] = id; saveCodes(); return true; },
+  async release(code, id) { if (codes[code] === id) { delete codes[code]; saveCodes(); } },
+};
 const hoods = new Map<string, Neighborhood>();
-const hood = (code: string) => { let h = hoods.get(code); if (!h) { h = new Neighborhood(fileKV(code)); hoods.set(code, h); } return h; };
-const validCode = (c: string) => c.length === CODE_LEN && [...c].every(ch => CODE_ALPHABET.includes(ch));
-const exists = (c: string) => validCode(c) && (hoods.get(c)?.exists || existsSync(join(DATA, c + '.json')));
+const hood = (id: string) => { let h = hoods.get(id); if (!h) { h = new Neighborhood(fileKV(id), { registry }); hoods.set(id, h); } return h; };
+const existsId = (id: string) => validHoodId(id) && (hoods.get(id)?.exists || existsSync(join(DATA, id + '.json')));
 
-// tiny per-IP rate limit for creating neighborhoods / probing codes (kept in memory only)
+// per-IP limits (memory only): code lookups are throttled hard so invite codes can't be guessed
 const hits = new Map<string, number[]>();
-const limited = (ip: string, max: number) => { const now = Date.now(); const a = (hits.get(ip) ?? []).filter(t => now - t < 60_000); a.push(now); hits.set(ip, a); return a.length > max; };
+const limited = (key: string, max: number, windowMs = 60_000) => { const now = Date.now(); const a = (hits.get(key) ?? []).filter(t => now - t < windowMs); a.push(now); hits.set(key, a); return a.length > max; };
+const peek = (key: string, max: number, windowMs: number) => (hits.get(key) ?? []).filter(t => Date.now() - t < windowMs).length >= max;
 
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Access-Control-Allow-Headers': 'content-type' };
 const server = createServer(async (req, res) => {
@@ -40,23 +48,31 @@ const server = createServer(async (req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204, cors); res.end(); return; }
   if (url.pathname === '/api/health') return json(200, { ok: true });
   if (url.pathname === '/api/create' && req.method === 'POST') {
-    if (limited(ip, 5)) return json(429, { error: 'slow down' });
+    if (limited(ip + ':create', 5)) return json(429, { error: 'slow down' });
+    const id = randomToken(8);
     for (let i = 0; i < 20; i++) {
-      const code = randomCode(CODE_ALPHABET, CODE_LEN); if (exists(code)) continue;
-      const parentKey = await hood(code).init(code); return json(200, { code, parentKey });
+      const code = randomCode(CODE_ALPHABET, CODE_LEN); if (!(await registry.claim(code, id))) continue;
+      const parentKey = await hood(id).init(code, id); return json(200, { code, id, parentKey });
     }
     return json(500, { error: 'no code' });
   }
-  const m = url.pathname.match(/^\/api\/hood\/([A-Z0-9]+)$/);
-  if (m) { if (limited(ip, 30)) return json(429, { error: 'slow down' }); return json(200, { exists: exists(m[1]) }); }
+  const m = url.pathname.match(/^\/api\/hood\/([^/]+)$/);
+  if (m) {
+    // 20 lookups / 10 min, and at most 8 wrong codes / 10 min, per IP
+    if (peek(ip + ':miss', 8, 600_000) || limited(ip + ':look', 20, 600_000)) return json(429, { error: 'slow down' });
+    const code = normCode(decodeURIComponent(m[1])); const id = validInvite(code) ? codes[code] : undefined;
+    if (!id || !existsId(id)) { limited(ip + ':miss', 99, 600_000); return json(200, { exists: false }); }
+    const h = hood(id); await h.load();
+    return json(200, { exists: true, id, roster: h.roster() });
+  }
   json(404, { error: 'not found' });
 });
 
 const wss = new WebSocketServer({ noServer: true, maxPayload: 400_000 });
 server.on('upgrade', (req, socket, head) => {
-  const m = (req.url ?? '').match(/^\/ws\/([A-Z0-9]+)/);
+  const m = (req.url ?? '').match(/^\/ws\/([A-Za-z0-9]+)/);
   const ip = req.socket.remoteAddress ?? '';
-  if (!m || limited(ip + ':ws', 60) || !exists(m[1])) { socket.write('HTTP/1.1 404 Not Found\r\n\r\n'); socket.destroy(); return; }
+  if (!m || limited(ip + ':ws', 60) || !existsId(m[1])) { socket.write('HTTP/1.1 404 Not Found\r\n\r\n'); socket.destroy(); return; }
   wss.handleUpgrade(req, socket, head, (ws: WebSocket) => {
     const h = hood(m[1]);
     const conn: Conn = { send: s => ws.readyState === ws.OPEN && ws.send(s), close: (code, reason) => ws.close(code, reason) };

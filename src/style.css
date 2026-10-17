@@ -321,3 +321,18 @@ body.reconnecting::after { content: 'Reconnecting…'; position: fixed; top: 70p
 body.view-street .secrets { display: none; }
 .rf.secretTab { font-size: 18px; background: linear-gradient(135deg, #fff3b0, #ffe8f6); box-shadow: 0 2px 0 #f0b8da; }
 .rf.secretTab.on { border-color: var(--ink); }
+/* roster + custom code (grown-up screen) */
+.nicks.roster button { font-size: 22px; min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.nicks.roster button:disabled { opacity: .45; }
+.nicks.roster button small { font-size: 11px; font-weight: 800; opacity: .8; }
+.roster:not(.nicks) { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
+.rName { display: inline-flex; align-items: center; gap: 6px; background: #fff3f7; border: 2px solid #f0b8da; border-radius: 14px; padding: 4px 8px; }
+.rName.claimed { background: #e9f9ee; border-color: #8fd6a6; }
+.rName i { font-size: 11px; font-style: normal; opacity: .7; }
+.rName button { border-radius: 10px; padding: 2px 8px; background: #fff; border: 2px solid var(--ink); font-weight: 800; font-size: 12px; }
+.rName button.x { border: none; background: transparent; font-size: 18px; padding: 0 4px; }
+.pAdd { display: flex; gap: 8px; margin: 6px 0; }
+.pAdd input { flex: 1; font: inherit; font-size: 16px; padding: 8px 12px; border: 3px solid var(--ink); border-radius: 14px; }
+.pAdd button { border-radius: 14px; padding: 0 14px; background: #ff8fab; color: #fff; font-weight: 900; border: 3px solid var(--ink); }
+.sugg { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.sugg button { border-radius: 12px; padding: 4px 10px; background: #fff; border: 2px dashed #c9a0dc; font-weight: 800; }

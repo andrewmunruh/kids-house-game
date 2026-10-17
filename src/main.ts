@@ -1,7 +1,7 @@
 import './style.css';
 import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action } from './shared/state';
-import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, neighborhoodExists, type HoodConfig } from './net';
-import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_LEN, CODE_ALPHABET, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, type Presence, type Bubble, type Look } from './shared/hood';
+import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
+import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, type Presence, type Bubble, type Look } from './shared/hood';
 import { houseSVG, ICONS, toast, adultCheck } from './hood-ui';
 import { initEggs, foundSet, EGGS } from './eggs';
 import { ITEMS, ITEM_MAP, svgOf, hOf, type Category, type ItemDef } from './items';
@@ -923,7 +923,7 @@ $('streetWorld').addEventListener('click', e => {
 function goStreet() {
   if (!hood) return;
   const from = hood.houses.get(currentHouseId)?.meta ?? hood.houses.get(hood.myHouseId())?.meta;
-  const x = from ? slotX(from.slot) + 40 : 600;
+  const x = from ? slotX(from.slot) + 205 : 600; // stand beside the door, clear of the name sign
   setMyPres({ where: 'street', x, y: 540, flip: false });
   view = 'street'; $('street').classList.remove('hidden'); $('chatTray').classList.add('hidden');
   renderHoodChrome(); renderStreet();
@@ -963,7 +963,7 @@ function enterNeighborhood(client: HoodClient) {
   client.on('bubble', (pid: string, b: Bubble) => { if (hood === client) showBubble(pid, b); });
   client.on('sayFail', (r: string) => toast(r === 'presetsOnly' ? 'Typing is turned off: pick a bubble!' : FILTER_MSG[r] || "Couldn't send that"));
   client.on('settings', () => { if (!$('chatTray').classList.contains('hidden')) renderChatTray(); });
-  client.on('removed', () => { toast('A grown-up took this iPad off the street'); const c = client.cfg; saveHoodConfig({ url: c.url, code: c.code, parentKey: c.parentKey }); goSolo(); });
+  client.on('removed', () => { toast('A grown-up took this iPad off the street'); const c = client.cfg; saveHoodConfig({ url: c.url, code: c.code, id: c.id, parentKey: c.parentKey }); goSolo(); });
   client.on('status', (st: string) => document.body.classList.toggle('reconnecting', hood === client && st !== 'online'));
   client.on('welcome', () => { if (hood !== client) return; if (view === 'street') renderStreet(); else if (client.houses.has(currentHouseId)) renderAll(); else goStreet(); });
   goStreet();
@@ -1001,52 +1001,78 @@ function openHoodMenu() {
     });
 }
 async function createFlow(url: string) {
-  let res: { code: string; parentKey: string };
+  let res: { code: string; id: string; parentKey: string };
   try { res = await createNeighborhood(url); } catch { toast("Couldn't create a street right now"); return; }
-  saveHoodConfig({ url, code: res.code, parentKey: res.parentKey });
-  modal(`${X}<h2>Your street is ready!</h2><p class="hint">Kids join with this code:</p><div class="code" id="newCode">${res.code}</div>
+  saveHoodConfig({ url, code: res.code, id: res.id, parentKey: res.parentKey });
+  modal(`${X}<h2>Your street is ready!</h2><p class="hint">Kids join with this code (you can pick your own on the grown-up screen):</p><div class="code" id="newCode">${res.code}</div>
     <p class="hint small">Grown-up key (keep it private; it opens the grown-up screen on another device):<br><b class="key" id="parentKey">${res.parentKey}</b></p>
-    <div class="bigBtns"><button class="big go" data-m="joinhere">${ICONS.street}<span>Join on this iPad</span></button></div>`,
-    (t, close) => { if (t.closest('[data-m="joinhere"]')) { close(); pickNickname(url, res.code); } });
+    <div class="bigBtns"><button class="big grown" data-m="setup">${ICONS.shield}<span>Add kids' names &amp; code</span></button>
+    <button class="big go" data-m="joinhere">${ICONS.street}<span>Join on this iPad</span></button></div>`,
+    (t, close) => {
+      if (t.closest('[data-m="joinhere"]')) { close(); joinWithCode(url, res.code); }
+      if (t.closest('[data-m="setup"]')) { close(); parentScreen(); }
+    });
 }
 function askCode(url: string, err = '') {
   const m = modal(`${X}<h2>Join a street</h2><p class="hint">Type the code a grown-up gave you</p>
-    <form id="codeForm" class="codeForm"><input id="codeInput" maxlength="${CODE_LEN}" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABC234"/><button type="submit" class="go">Next</button></form>
+    <form id="codeForm" class="codeForm"><input id="codeInput" maxlength="${CODE_MAX}" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="CODE"/><button type="submit" class="go">Next</button></form>
     <p class="err">${esc(err)}</p>`, () => {});
   const inp = m.root.querySelector<HTMLInputElement>('#codeInput')!; setTimeout(() => inp.focus(), 50);
-  inp.addEventListener('input', () => { inp.value = inp.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
-  m.root.querySelector('#codeForm')!.addEventListener('submit', async e => {
-    e.preventDefault(); const code = inp.value.toUpperCase();
-    if (code.length !== CODE_LEN || [...code].some(c => !CODE_ALPHABET.includes(c))) { m.close(); askCode(url, 'That code looks wrong. Try again!'); return; }
-    let ok = false; try { ok = await neighborhoodExists(url, code); } catch { }
-    m.close(); ok ? pickNickname(url, code) : askCode(url, "Hmm, we couldn't find that street.");
+  inp.addEventListener('input', () => { inp.value = normCode(inp.value); });
+  m.root.querySelector('#codeForm')!.addEventListener('submit', e => {
+    e.preventDefault(); const code = normCode(inp.value);
+    if (!validInvite(code)) { m.close(); askCode(url, 'That code looks wrong. Try again!'); return; }
+    m.close(); joinWithCode(url, code);
   });
 }
-function pickNickname(url: string, code: string, err = '') {
-  modal(`${X}<h2>Pick your street name</h2>${err ? `<p class="err">${esc(err)}</p>` : ''}<div class="nicks">${NICKNAMES.map((n, i) => `<button data-nick="${i}">${esc(n)}</button>`).join('')}</div>`,
-    (t, close) => { const b = t.closest<HTMLElement>('[data-nick]'); if (!b) return; close(); bringHouse(url, code, NICKNAMES[+b.dataset.nick!]); }, 'wide');
+async function joinWithCode(url: string, code: string, err = '') {
+  let r; try { r = await lookupNeighborhood(url, code); } catch { askCode(url, "Couldn't reach the street. Try again!"); return; }
+  if ('slow' in r) { askCode(url, 'Too many tries. Ask a grown-up and try again in a few minutes.'); return; }
+  if (!r.exists) { askCode(url, "Hmm, we couldn't find that street."); return; }
+  (window as any).__lastLookupId = r.id;
+  pickNickname(url, code, r.id, r.roster, err);
 }
-function bringHouse(url: string, code: string, nickname: string) {
-  const s = local.get(); const meChar = s.characters[0];
+function pickNickname(url: string, code: string, id: string, roster: { name: string; claimed: boolean; hasHouse: boolean }[], err = '') {
+  if (roster.length) {
+    // sign in with the first name a grown-up added; a name already signed in on another iPad can't be picked
+    modal(`${X}<h2>Who are you?</h2>${err ? `<p class="err">${esc(err)}</p>` : '<p class="hint">Tap your name</p>'}<div class="nicks roster">${roster.map((r, i) =>
+      `<button data-nick="${i}" ${r.claimed ? 'disabled' : ''}>${esc(r.name)}${r.claimed ? '<small>signed in</small>' : ''}</button>`).join('')}</div>
+      <p class="hint small">Not on the list? Ask a grown-up to add your name.</p>`,
+      (t, close) => {
+        const b = t.closest<HTMLButtonElement>('[data-nick]'); if (!b || b.disabled) return; close();
+        const e = roster[+b.dataset.nick!];
+        e.hasHouse ? connectJoin(url, code, id, e.name, undefined) : bringHouse(url, code, id, e.name);
+      }, 'wide');
+    return;
+  }
+  modal(`${X}<h2>Pick your street name</h2>${err ? `<p class="err">${esc(err)}</p>` : ''}<div class="nicks">${NICKNAMES.map((n, i) => `<button data-nick="${i}">${esc(n)}</button>`).join('')}</div>`,
+    (t, close) => { const b = t.closest<HTMLElement>('[data-nick]'); if (!b) return; close(); bringHouse(url, code, id, NICKNAMES[+b.dataset.nick!]); }, 'wide');
+}
+function bringHouse(url: string, code: string, id: string, nickname: string) {
   modal(`${X}<h2>Hi, ${esc(nickname)}!</h2><p class="hint">What should your house on the street be?</p>
     <div class="bigBtns"><button class="big go" data-m="bring">${houseSVG(2)}<span>Bring my house</span></button>
     <button class="big" data-m="fresh">${houseSVG(5)}<span>Start a new one</span></button></div>`,
-    async (t, close) => {
-      const m = t.closest<HTMLElement>('[data-m]')?.dataset.m; if (!m) return; close();
-      // your first character becomes "you" on the street; the rest stay in the house
-      const look = cleanLook(meChar ?? {});
-      let house: GameState | undefined;
-      if (m === 'bring') { house = s; if (meChar) { const { reduce } = await import('./shared/state'); house = reduce(s, { type: 'char/delete', id: meChar.id }); } }
-      const prev = loadHoodConfig();
-      const cfg: HoodConfig = { url, code, parentKey: prev?.code === code ? prev.parentKey : undefined };
-      const c = new HoodClient(cfg); const r = await c.connect({ nickname, look, house });
-      if (r === 'ok') { saveHoodConfig(c.cfg); enterNeighborhood(c); toast(`Welcome to the street, ${nickname}!`); return; }
-      c.close();
-      if (r.startsWith('nickname')) pickNickname(url, code, 'Someone already has that name. Pick another!');
-      else toast(r === 'full' ? 'That street is full' : "Couldn't join right now");
-    });
+    (t, close) => { const m = t.closest<HTMLElement>('[data-m]')?.dataset.m; if (!m) return; close(); connectJoin(url, code, id, nickname, m === 'bring'); });
+}
+async function connectJoin(url: string, code: string, id: string, nickname: string, bring: boolean | undefined) {
+  const s = local.get(); const meChar = s.characters[0];
+  // your first character becomes "you" on the street; the rest stay in the house
+  const look = cleanLook(meChar ?? {});
+  let house: GameState | undefined;
+  if (bring) { house = s; if (meChar) { const { reduce } = await import('./shared/state'); house = reduce(s, { type: 'char/delete', id: meChar.id }); } }
+  const prev = loadHoodConfig();
+  const cfg: HoodConfig = { url, code, id, parentKey: prev?.id === id || prev?.code === code ? prev.parentKey : undefined };
+  const c = new HoodClient(cfg); const r = await c.connect({ nickname, look, house });
+  if (r === 'ok') { saveHoodConfig(c.cfg); enterNeighborhood(c); toast(`Welcome to the street, ${nickname}!`); return; }
+  c.close();
+  if (r.startsWith('nickname')) joinWithCode(url, code, r.endsWith('notOnList') ? 'That name is not on the list anymore.' : 'That name is already signed in on another iPad. Ask a grown-up!');
+  else toast(r === 'full' ? 'That street is full' : "Couldn't join right now");
 }
 $('btnParent').addEventListener('click', async () => { if (await adultCheck()) parentScreen(); });
+const PARENT_NOTES: Record<string, string> = {
+  codeTaken: 'That code is already used by another street. Try adding a number!', badCode: 'Codes are 4–16 letters or numbers.',
+  badName: 'Use a first name only (letters).', rosterFull: `Up to ${MAX_ROSTER} names.`, nameInUse: 'Remove that player first.', codeFixed: "This street's code can't be changed.",
+};
 async function parentScreen() {
   const cfg = loadHoodConfig();
   if (!cfg) return;
@@ -1059,27 +1085,49 @@ async function parentScreen() {
   let client = hood;
   if (!client) { client = new HoodClient({ ...cfg, token: undefined }); await client.connect(); }
   const c = client;
+  const val = (sel: string) => m.root.querySelector<HTMLInputElement>(sel)!.value;
   const m = modal(`${X}<h2>Grown-up screen</h2><div id="parentBody"><p class="hint">Loading…</p></div>`, async (t) => {
     const a = t.closest<HTMLElement>('[data-p]'); if (!a) return;
     const op = a.dataset.p;
     if (op === 'free') c.parent({ op: 'freeChat', on: a.dataset.on !== '1' });
-    if (op === 'rename') { const inp = m.root.querySelector<HTMLInputElement>(`input[data-hid="${a.dataset.hid}"]`)!; c.parent({ op: 'rename', houseId: a.dataset.hid, name: inp.value }); }
+    if (op === 'rename') c.parent({ op: 'rename', houseId: a.dataset.hid, name: val(`input[data-hid="${a.dataset.hid}"]`) });
+    if (op === 'add') c.parent({ op: 'rosterAdd', name: a.dataset.name ?? val('#rosterInput') });
+    if (op === 'unname') c.parent({ op: 'rosterRemove', name: a.dataset.name });
+    if (op === 'unclaim') { if (a.dataset.sure !== '1') { a.dataset.sure = '1'; a.textContent = 'Tap again'; return; } c.parent({ op: 'unclaim', name: a.dataset.name }); }
+    if (op === 'setcode') c.parent({ op: 'setCode', code: val('#codeEdit') });
     if (op === 'remove') { if (a.dataset.sure !== '1') { a.dataset.sure = '1'; a.textContent = 'Tap again to remove'; return; } c.parent({ op: 'remove', pid: a.dataset.pid }); }
     if (op === 'leave') { if (a.dataset.sure !== '1') { a.dataset.sure = '1'; a.textContent = 'Tap again: forget this street here'; return; } saveHoodConfig(null); m.close(); goSolo(); toast('This iPad left the street'); }
   }, 'wide parent');
+  m.root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).id; if (f === 'rosterForm') c.parent({ op: 'rosterAdd', name: val('#rosterInput') }); if (f === 'codeForm2') c.parent({ op: 'setCode', code: val('#codeEdit') }); });
   c.on('parentInfo', (info: any) => {
     const body = m.root.querySelector('#parentBody'); if (!body) return;
-    body.innerHTML = `<div class="pRow"><div><div class="label">Invite code</div><div class="code small" id="pCode">${esc(info.code)}</div></div>
+    // remember the current code on this device (sockets use the permanent id, so changing the code never kicks anyone)
+    const saved = loadHoodConfig(); if (saved && saved.code !== info.code) { saved.code = info.code; saveHoodConfig(saved); } c.cfg.code = info.code;
+    const roster: { name: string; claimed: boolean; hasHouse: boolean }[] = info.roster ?? [];
+    const names = new Set(roster.map(r => r.name.toLowerCase()));
+    const sugg = ROSTER_SUGGEST.filter(n => !names.has(n.toLowerCase()));
+    const firstName = roster[0]?.name ?? 'Reagan';
+    body.innerHTML = `${info.note ? `<p class="err" id="pNote">${esc(PARENT_NOTES[info.note] ?? info.note)}</p>` : ''}
+      <div class="pRow"><div><div class="label">Invite code</div><div class="code small" id="pCode">${esc(info.code)}</div></div>
         <div><div class="label">Free typing in chat</div><button class="toggle ${info.settings.freeChat ? 'on' : ''}" data-p="free" data-on="${info.settings.freeChat ? 1 : 0}" id="pFree">${info.settings.freeChat ? 'On' : 'Off (presets only)'}</button></div></div>
-      <div class="label">Houses</div>${info.houses.map((h: any) => `<div class="pHouse"><input data-hid="${h.id}" value="${esc(h.name)}" maxlength="24"/><button data-p="rename" data-hid="${h.id}">Rename</button></div>`).join('')}
+      <form class="pAdd" id="codeForm2"><input id="codeEdit" maxlength="${CODE_MAX}" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="e.g. ${esc(normCode(firstName))}${7}"/><button data-p="setcode" type="button">Use this code</button></form>
+      <p class="hint small">Tip: a word plus a number (like ${esc(normCode(firstName))}7) is easy to remember and harder to guess. Not case-sensitive.</p>
+      <div class="label">Kids' names (sign-in list)</div>
+      <div class="roster">${roster.map(r => `<span class="rName ${r.claimed ? 'claimed' : ''}"><b>${esc(r.name)}</b>${r.claimed
+        ? `<i>signed in</i><button data-p="unclaim" data-name="${esc(r.name)}">Reset</button>`
+        : r.hasHouse ? '<i>not signed in</i>' : `<button class="x" data-p="unname" data-name="${esc(r.name)}" aria-label="Remove name">×</button>`}</span>`).join('') || '<p class="hint">No names yet: kids pick a fun nickname instead.</p>'}</div>
+      <form class="pAdd" id="rosterForm"><input id="rosterInput" maxlength="20" autocomplete="off" placeholder="First name"/><button data-p="add" type="button">Add</button></form>
+      ${sugg.length ? `<div class="sugg">${sugg.map(n => `<button data-p="add" data-name="${n}">+ ${n}</button>`).join('')}</div>` : ''}
+      <div class="label">Houses</div>${info.houses.map((h: any) => `<div class="pHouse"><input data-hid="${h.id}" value="${esc(h.name)}" maxlength="24"/><button data-p="rename" data-hid="${h.id}">Rename</button></div>`).join('') || '<p class="hint">No houses yet.</p>'}
       <div class="label">Players</div>${info.players.map((p: any) => `<div class="pPlayer"><span class="dot ${p.online ? 'on' : ''}"></span>${esc(p.nickname)}<button class="danger" data-p="remove" data-pid="${p.pid}">Remove</button></div>`).join('') || '<p class="hint">Nobody has joined yet.</p>'}
-      <p class="hint small">No emails, real names or chat history are stored. Chat bubbles are only relayed to kids standing nearby.</p>
+      <p class="hint small">Only the first names you add here are stored: no emails, last names, or chat history. "Reset" signs a name out of its iPad so it can sign in again on another one (her house stays). Chat bubbles are only relayed to kids standing nearby.</p>
       <button class="danger wideBtn" data-p="leave">Forget this street on this device</button>`;
   });
   c.on('error', (code: string) => { if (code === 'badkey') { toast("That grown-up key didn't work"); cfg.parentKey = undefined; saveHoodConfig(cfg); m.close(); } });
   c.parent({ op: 'info' });
 }
 (window as any).__hood = () => hood;
+(window as any).__hood_url = () => hoodServerUrl();
 (window as any).__ui = () => ({ view, currentHouseId, mode: hood ? 'hood' : 'solo' });
 
 // ---------- start ----------

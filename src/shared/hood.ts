@@ -5,6 +5,15 @@ import { initialState, migrate, newCharacter, ROOM_W, ROOM_H, MAX_CHARS, type Ac
 export const MAX_PLAYERS = 12;
 export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L
 export const CODE_LEN = 6;
+// custom invite codes chosen by a grown-up: letters/digits, case-insensitive (stored upper-case)
+export const CODE_MIN = 4, CODE_MAX = 16;
+export const normCode = (raw: unknown) => String(raw ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+export const validInvite = (c: string) => c.length >= CODE_MIN && c.length <= CODE_MAX && /^[A-Z0-9]+$/.test(c);
+export const validHoodId = (id: string) => /^[A-Za-z0-9]{6,32}$/.test(id);
+// roster: first names only, set by a grown-up
+export const MAX_ROSTER = 12;
+export const ROSTER_SUGGEST = ['Cada', 'Chloe', 'Quinn', 'Reagan', 'Sloane'];
+export interface RosterEntry { name: string; claimed: boolean; hasHouse: boolean }
 export const STREET_SLOT_W = 520;
 export const streetWidth = (n: number) => Math.max(2400, 400 + n * STREET_SLOT_W + 400);
 export const slotX = (i: number) => 500 + i * STREET_SLOT_W;
@@ -171,7 +180,8 @@ export type ClientMsg =
   | { t: 'lock'; houseId: string; locked: boolean }
   | { t: 'say'; b: Bubble }
   | { t: 'parent'; key: string; op: 'info' } | { t: 'parent'; key: string; op: 'rename'; houseId: string; name: string }
-  | { t: 'parent'; key: string; op: 'remove'; pid: string } | { t: 'parent'; key: string; op: 'freeChat'; on: boolean };
+  | { t: 'parent'; key: string; op: 'remove'; pid: string } | { t: 'parent'; key: string; op: 'freeChat'; on: boolean }
+  | { t: 'parent'; key: string; op: 'rosterAdd' | 'rosterRemove' | 'unclaim'; name: string } | { t: 'parent'; key: string; op: 'setCode'; code: string };
 
 export type ServerMsg =
   | { t: 'joined'; token: string; pid: string }
@@ -184,10 +194,18 @@ export type ServerMsg =
   | { t: 'settings'; settings: { freeChat: boolean } }
   | { t: 'bubble'; pid: string; b: Bubble }
   | { t: 'sayFail'; reason: string }
-  | { t: 'parentInfo'; code: string; settings: { freeChat: boolean }; players: PlayerPub[]; houses: HouseMeta[] }
+  | { t: 'parentInfo'; code: string; settings: { freeChat: boolean }; players: PlayerPub[]; houses: HouseMeta[]; roster: RosterEntry[]; note?: string }
   | { t: 'error'; code: 'nohood' | 'badtoken' | 'nickname' | 'full' | 'badkey' | 'bad'; msg?: string }
   | { t: 'removed' };
 
 export function cleanHouseName(raw: unknown): string | null {
   const f = filterChat(raw); if (!f.ok || f.text.length > 24) return null; return f.text;
+}
+
+/** A first name for the roster: letters (any alphabet), spaces, hyphens, apostrophes; max 20 chars; filtered. */
+export function cleanFirstName(raw: unknown): string | null {
+  const t = String(raw ?? '').normalize('NFC').replace(/\s+/g, ' ').trim();
+  if (!/^\p{L}[\p{L}' -]{0,19}$/u.test(t)) return null;
+  const f = filterChat(t); if (!f.ok) return null;
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }

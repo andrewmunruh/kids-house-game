@@ -1,9 +1,10 @@
 // Client side of the neighborhood. Server-ordered actions are applied to `confirmed`; this kid's own
 // not-yet-confirmed actions sit in `pending` and are re-applied on top (optimistic UI that never diverges).
 import { reduce, type Action, type GameState, type RoomId } from './shared/state';
-import type { ClientMsg, ServerMsg, PlayerPub, HouseMeta, Presence, Bubble, Look } from './shared/hood';
+import type { ClientMsg, ServerMsg, PlayerPub, HouseMeta, Presence, Bubble, Look, RosterEntry } from './shared/hood';
 
-export interface HoodConfig { url: string; code: string; token?: string; pid?: string; parentKey?: string }
+/** `id` is the street's permanent id (sockets use it); `code` is the current invite code, shown to grown-ups. */
+export interface HoodConfig { url: string; code: string; id?: string; token?: string; pid?: string; parentKey?: string }
 const CFG_KEY = 'cozy-hood';
 export const loadHoodConfig = (): HoodConfig | null => { try { return JSON.parse(localStorage.getItem(CFG_KEY) ?? 'null'); } catch { return null; } };
 export const saveHoodConfig = (c: HoodConfig | null) => { c ? localStorage.setItem(CFG_KEY, JSON.stringify(c)) : localStorage.removeItem(CFG_KEY); };
@@ -17,11 +18,16 @@ export function hoodServerUrl(): string | null {
   if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return `http://${location.hostname}:8787`;
   return null;
 }
-export async function createNeighborhood(url: string): Promise<{ code: string; parentKey: string }> {
+export async function createNeighborhood(url: string): Promise<{ code: string; id: string; parentKey: string }> {
   const r = await fetch(url + '/api/create', { method: 'POST' }); if (!r.ok) throw new Error('create failed ' + r.status); return r.json();
 }
-export async function neighborhoodExists(url: string, code: string): Promise<boolean> {
-  const r = await fetch(`${url}/api/hood/${encodeURIComponent(code)}`); if (!r.ok) throw new Error('lookup failed'); return (await r.json()).exists === true;
+export type Lookup = { exists: false } | { exists: true; id: string; roster: RosterEntry[] } | { slow: true };
+/** Find a street by invite code (case-insensitive). The server throttles lookups per device/network. */
+export async function lookupNeighborhood(url: string, code: string): Promise<Lookup> {
+  const r = await fetch(`${url}/api/hood/${encodeURIComponent(code)}`);
+  if (r.status === 429) return { slow: true };
+  if (!r.ok) throw new Error('lookup failed');
+  return r.json();
 }
 
 type Pending = { cid: number; action: Action; sent: boolean };
@@ -50,7 +56,7 @@ export class HoodClient {
     this.closedByUs = false; this.status = 'connecting'; this.emit('status', this.status);
     return new Promise(resolve => {
       let settled = false; const done = (r: string) => { if (!settled) { settled = true; resolve(r); } };
-      const ws = new WebSocket(this.cfg.url.replace(/^http/, 'ws') + '/ws/' + encodeURIComponent(this.cfg.code));
+      const ws = new WebSocket(this.cfg.url.replace(/^http/, 'ws') + '/ws/' + encodeURIComponent(this.cfg.id ?? this.cfg.code));
       this.ws = ws;
       ws.onopen = () => {
         if (join && !this.cfg.token) this.send({ t: 'join', ...join });
