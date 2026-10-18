@@ -840,7 +840,9 @@ function bubbleText(b: Bubble): string { if (b.kind === 'text') return b.v; retu
 function showBubble(pid: string, b: Bubble) {
   const el0 = view === 'street' ? document.querySelector<HTMLElement>(`#mapFaces .mapFace[data-pid="${pid}"]`)
     : view === 'park' ? document.querySelector<HTMLElement>(`#pavatars .savatar[data-pid="${pid}"]`)
-    : view === 'ranch' ? document.querySelector<HTMLElement>(`#ravatars .savatar[data-pid="${pid}"]`) : avatarEls.get(pid);
+    : view === 'ranch' ? document.querySelector<HTMLElement>(`#ravatars .savatar[data-pid="${pid}"]`)
+    : view === 'gameroom' ? document.querySelector<HTMLElement>(`#gavatars .savatar[data-pid="${pid}"]`)
+    : avatarEls.get(pid);
   const targets = el0 ? [el0] : [];
   for (const el of targets) {
     el.querySelector('.bubble')?.remove();
@@ -1953,7 +1955,7 @@ setTimeout(showWhatsNew, 500);
 (window as any).__hood_url = () => hoodServerUrl();
 (window as any).__ui = () => ({ view, currentHouseId, mode: hood ? 'hood' : 'solo' });
 bindGameRoom({
-  hood: () => hood, view: () => view, solo: () => soloPark, myPres, setPres: setParkPres, toast, sfx, goMap,
+  hood: () => hood, view: () => view, solo: () => soloPark, myPres, setPres: setParkPres, toast, refreshNear: updateNear, sfx, goMap,
   soloLook: () => { const s = local.get(); return { look: cleanLook(s.characters[0] ?? {}), dog: s.dog ?? null }; },
 });
 

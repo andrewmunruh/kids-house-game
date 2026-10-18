@@ -18,6 +18,8 @@ export interface GRDeps {
   myPres: () => Presence | null;
   setPres: (p: Presence) => void;
   toast: (s: string) => void;
+  /** Chat's "who can hear you" count. Called whenever people in the room move. */
+  refreshNear: () => void;
   sfx: { click(): void; sparkle(): void; pop(): void; swish(): void; drop(): void; pick(): void };
   goMap: () => void;
   soloLook: () => { look: Look; dog: Dog | null };
@@ -102,6 +104,7 @@ export function renderGamePeople() {
     el.classList.toggle('flipped', w.flip); el.classList.toggle('away', w.away); el.classList.toggle('seated', w.seated);
   }
   box.querySelectorAll<HTMLElement>('.savatar').forEach(el => { if (!keep.has(el.dataset.pid!)) el.remove(); });
+  D.refreshNear();
   const h = D.hood();
   document.querySelectorAll<HTMLElement>('#grWorld .grChair').forEach(el => {
     const pid = h?.tables.get(+el.dataset.tb!)?.seats[+el.dataset.seat!];

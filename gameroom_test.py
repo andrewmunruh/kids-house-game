@@ -263,6 +263,21 @@ async def main():
                 await go(pg, 'gameroom')
             await P.wait_for_timeout(400)
             check('friends in the clubhouse hide the solo message', 'hidden' in ((await P.get_attribute('#grSolo', 'class')) or ''))
+            # Everyone walks in at the door, so they are near enough to talk. The bubble has to sit on her character.
+            k2pid = await K2.evaluate('__hood().pid')
+            await K2.click('#btnChat'); await K2.click('.phrases button >> nth=0'); await P.wait_for_timeout(500)
+            bub = await P.evaluate("""(pid) => {
+              const av = document.querySelector('#gavatars .savatar[data-pid="' + pid + '"]');
+              const b = av && av.querySelector('.bubble');
+              if (!av || !b) return null;
+              const ar = av.getBoundingClientRect(), br = b.getBoundingClientRect();
+              return { text: b.textContent, above: br.bottom <= ar.top + 12, over: br.left < ar.right - 8 && br.right > ar.left + 8 };
+            }""", k2pid)
+            check("clubhouse: a friend's chat bubble shows over her character", bub and bub['text'] == 'Hi!' and bub['above'] and bub['over'], str(bub))
+            await P.evaluate("""() => { const sc = document.getElementById('gameroom').clientHeight / 600; document.getElementById('grScroll').scrollLeft = Math.max(0, 280 * sc - innerWidth / 2); }""")
+            await P.wait_for_timeout(200)
+            await P.screenshot(path=SHOT + '02e-clubhouse-chat.png')
+            await K2.click('[data-chat="close"]')
             await P.evaluate("""() => { const sc = document.getElementById('gameroom').clientHeight / 600; document.getElementById('grScroll').scrollLeft = Math.max(0, 720 * sc - innerWidth / 2); }""")
             await P.wait_for_timeout(200)
             await P.screenshot(path=SHOT + '02c-gameroom-with-friends.png')
