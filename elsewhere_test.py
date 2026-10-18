@@ -11,7 +11,7 @@ COUNT = """
   let n = 0;
   window.__sockets = () => n;
   function W(url, protocols) {
-    n++;
+    if (String(url).indexOf('/ws/') !== -1) n++;
     return protocols === undefined ? new O(url) : new O(url, protocols);
   }
   W.prototype = O.prototype;
