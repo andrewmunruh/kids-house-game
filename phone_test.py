@@ -1,6 +1,7 @@
 # Phone layout. iPad sizes must not match the phone gate. Local preview only.
 import asyncio, os, sys
 from playwright.async_api import async_playwright
+from testnav import K
 
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
 SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/phone/'
@@ -90,7 +91,8 @@ async def phone_pass(b, w, h, save):
     await ctx.close()
 
     ctx = await b.new_context(viewport={'width': w, 'height': h}, has_touch=True, is_mobile=True, device_scale_factor=1)
-    await ctx.add_init_script("localStorage.setItem('cozy-whatsnew','999')")
+    # Preview builds prefix every key (PFX=preview:). Production leaves PFX empty.
+    await ctx.add_init_script(f"localStorage.setItem('{K('cozy-whatsnew')}','999')")
     pg = await ctx.new_page()
     pg.on('pageerror', lambda e: check(f'{tag} no page error', False, str(e)))
     await pg.goto(URL, wait_until='networkidle')
@@ -113,6 +115,7 @@ async def phone_pass(b, w, h, save):
                gapR: Math.round(s.right - c.right), gapL: Math.round(c.left - s.left), cw: Math.round(c.width) };
     }""")
     check(f'{tag} character fully in the room', char['inside'] and char['cw'] > 24, str(char))
+    if portrait: await check_framed(pg, tag, 'house')
     if save: await shot(pg, f'house-{tag}')
 
     # Full own-house tool row (lock, chat, and the rest).
@@ -222,6 +225,7 @@ async def phone_pass(b, w, h, save):
     await pg.wait_for_selector('body.view-park .parkScene')
     info = await layout(pg)
     check(f'{tag} park fits', tops_ok(info) == [] and info['scrollW'] <= info['vw'] + 1)
+    if portrait: await check_framed(pg, tag, 'park')
     if save: await shot(pg, f'park-{tag}')
     await pg.click('#btnMap')
     await pg.wait_for_selector('body.view-map .mapSpot')
@@ -229,6 +233,7 @@ async def phone_pass(b, w, h, save):
     await pg.wait_for_selector('body.view-ranch .ranchScene')
     info = await layout(pg)
     check(f'{tag} ranch fits', tops_ok(info) == [] and info['scrollW'] <= info['vw'] + 1)
+    if portrait: await check_framed(pg, tag, 'ranch')
     if save: await shot(pg, f'ranch-{tag}')
     await pg.click('.barnDoor')
     await pg.wait_for_selector('body.in-barn .barnScene')
@@ -256,6 +261,7 @@ async def phone_pass(b, w, h, save):
     }""")
     check(f'{tag} clubhouse fits', tops_ok(info) == [] and info['scrollW'] <= info['vw'] + 1 and club['soloIn'] and club['page'], str(club))
     check(f'{tag} clubhouse character on screen', club['kid'], str(club))
+    if portrait: await check_framed(pg, tag, 'gameroom')
     if save: await shot(pg, f'clubhouse-{tag}')
 
     def inside(b):
@@ -325,10 +331,44 @@ async def phone_pass(b, w, h, save):
     await pg.evaluate("() => document.getElementById('elsewhere').classList.add('hidden')")
     await ctx.close()
 
+async def check_framed(pg, tag, scene):
+    """Portrait: shove her off the right edge, then her body and name tag must come back inside the viewport."""
+    await pg.evaluate("""(scene) => {
+      const kid = scene === 'house' ? document.querySelector('#layer .char')
+        : document.querySelector(scene === 'park' ? '#pavatars .savatar.mine, #pavatars .savatar'
+        : scene === 'ranch' ? '#ravatars .savatar.mine, #ravatars .savatar'
+        : '#gavatars .savatar.mine, #gavatars .savatar');
+      if (!kid.querySelector('.nametag')) {
+        const d = document.createElement('div'); d.className = 'nametag'; d.textContent = 'Sunny Bunny'; kid.appendChild(d);
+      }
+      if (scene === 'house') window.__cam.set(0);
+      else document.getElementById(scene === 'park' ? 'parkScroll' : scene === 'ranch' ? 'ranchScroll' : 'grScroll').scrollLeft = 0;
+      window.__phoneShowKids();
+    }""", scene)
+    await pg.wait_for_timeout(80)
+    data = await pg.evaluate("""(scene) => {
+      const kid = scene === 'house' ? document.querySelector('#layer .char')
+        : document.querySelector(scene === 'park' ? '#pavatars .savatar.mine, #pavatars .savatar'
+        : scene === 'ranch' ? '#ravatars .savatar.mine, #ravatars .savatar'
+        : '#gavatars .savatar.mine, #gavatars .savatar');
+      const name = kid && kid.querySelector('.nametag');
+      const port = (scene === 'house' ? document.querySelector('.stage')
+        : document.getElementById(scene === 'park' ? 'parkScroll' : scene === 'ranch' ? 'ranchScroll' : 'grScroll')).getBoundingClientRect();
+      const box = el => { const b = el.getBoundingClientRect(); return {l:b.left, t:b.top, r:b.right, b:b.bottom, w:b.width, h:b.height}; };
+      const kb = kid && box(kid), tb = name && box(name);
+      const vw = innerWidth, vh = innerHeight;
+      const inside = (b, minH) => !!(b && b.w > 20 && b.h > minH
+        && b.l >= -1 && b.t >= -1 && b.r <= vw + 1 && b.b <= vh + 1
+        && b.l >= port.left - 1 && b.r <= port.right + 1 && b.t >= port.top - 1 && b.b <= port.bottom + 1);
+      const round = b => b && {l:Math.round(b.l), t:Math.round(b.t), r:Math.round(b.r), b:Math.round(b.b), w:Math.round(b.w)};
+      return {ok: inside(kb, 40) && inside(tb, 12), kid: round(kb), tag: round(tb), text: name && name.textContent, vw, vh};
+    }""", scene)
+    check(f'{tag} {scene} character and name tag inside portrait viewport', data['ok'], str(data))
+
 async def ipad_pass(b, w, h):
     tag = f'ipad {w}x{h}'
     ctx = await b.new_context(viewport={'width': w, 'height': h}, has_touch=True, device_scale_factor=1)
-    await ctx.add_init_script("localStorage.setItem('cozy-whatsnew','999')")
+    await ctx.add_init_script(f"localStorage.setItem('{K('cozy-whatsnew')}','999')")
     pg = await ctx.new_page()
     await pg.goto(URL, wait_until='networkidle')
     await pg.wait_for_selector('#stage .char')

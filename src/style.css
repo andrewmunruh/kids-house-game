@@ -186,7 +186,7 @@ body.mode-hood:not(.view-street) .houseTag { display: block !important; }
 body.reconnecting::after { content: 'Reconnecting…'; position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #fff3b0; border: 3px solid var(--ink); border-radius: 14px; padding: 4px 12px; font-weight: 800; z-index: 40000; }
 
 /* avatars */
-.char.avatar .nametag, .savatar .nametag { position: absolute; left: 50%; top: -6px; transform: translate(-50%, -100%); white-space: nowrap; background: #fff; border: 3px solid var(--ink); border-radius: 12px;
+.char .nametag, .savatar .nametag { position: absolute; left: 50%; top: -6px; transform: translate(-50%, -100%); white-space: nowrap; background: #fff; border: 3px solid var(--ink); border-radius: 12px;
   padding: 1px 9px; font-size: 15px; font-weight: 900; pointer-events: none; }
 .char.avatar.mine .nametag, .savatar.mine .nametag { background: #fff3b0; }
 .char.avatar { pointer-events: none; }

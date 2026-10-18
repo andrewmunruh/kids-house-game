@@ -211,27 +211,73 @@ function fit() {
   if (document.body.classList.contains('phone')) stage.style.setProperty('--fit', String(sc));
   if (camX > maxCam()) setCam(camX);
   else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
-  // Phone portrait narrows the window after the camera was aimed at a wider view, which
-  // can leave her past the right edge. Nudge only on a phone, and only when she is clipped.
-  if (document.body.classList.contains('phone') && view === 'house') {
-    const kid = store.get().characters.find(ch => ch.room === store.get().currentRoom);
-    if (kid) {
-      const half = CHAR_W * charScale(kid) / 2 + 36;
-      if (kid.x + half > camX + VIEW_W) setCam(kid.x + half - VIEW_W);
-      else if (kid.x - half < camX) setCam(kid.x - half);
-    }
-  }
+  // Phone portrait narrows the window after the camera was aimed at a wider view.
+  phoneShowKids();
   if (view === 'ranch') requestAnimationFrame(frameRanchSign);
   clampPhoneBubbles();
 }
-/** On a phone, scroll a sideways scene just enough that the kid is fully on screen. No-op on iPad. */
-function phoneFrameKid(scroll: HTMLElement, worldX: number, sc: number) {
+/**
+ * Phone only. After layout, pan so the kid and her name tag are fully inside the
+ * visible scene. Measures the real boxes (a name tag is wider than her body and is
+ * not scaled with the room). iPad never has body.phone, so this never moves the camera.
+ */
+function phoneShowKids(tries = 0) {
   if (!document.body.classList.contains('phone')) return;
-  const half = CHAR_W * sc * 0.95 / 2 + 16;
-  const left = worldX * sc - half, right = worldX * sc + half;
-  const viewR = scroll.scrollLeft + scroll.clientWidth;
-  if (right > viewR - 4) scroll.scrollLeft = Math.max(0, right - scroll.clientWidth + 8);
-  else if (left < scroll.scrollLeft + 4) scroll.scrollLeft = Math.max(0, left - 8);
+  if (view === 'house') { phoneShowHouseKid(); return; }
+  const id = view === 'park' ? 'parkScroll' : view === 'ranch' ? 'ranchScroll' : view === 'gameroom' ? 'grScroll' : '';
+  if (!id) return;
+  const scroll = document.getElementById(id);
+  if (!scroll || scroll.clientWidth < 20) {
+    if (tries < 8) requestAnimationFrame(() => phoneShowKids(tries + 1));
+    return;
+  }
+  const kid = scroll.querySelector<HTMLElement>('.savatar.mine') ?? scroll.querySelector<HTMLElement>('.savatar');
+  if (!kid) {
+    if (tries < 8) requestAnimationFrame(() => phoneShowKids(tries + 1));
+    return;
+  }
+  const moved = nudgeScroll(scroll, [kid, ...kid.querySelectorAll<HTMLElement>('.nametag')]);
+  if (moved && tries < 8) requestAnimationFrame(() => phoneShowKids(tries + 1));
+  else if (view === 'ranch' && !inBarn) keepDoorHintOnScreen();
+}
+function nudgeScroll(scroll: HTMLElement, nodes: HTMLElement[]) {
+  const pad = 8;
+  const port = scroll.getBoundingClientRect();
+  const rightLimit = Math.min(port.right, window.innerWidth) - pad;
+  const leftLimit = Math.max(port.left, 0) + pad;
+  let overflowR = 0, overflowL = 0;
+  for (const el of nodes) {
+    const b = el.getBoundingClientRect();
+    if (b.width < 2 || b.height < 2) continue;
+    overflowR = Math.max(overflowR, b.right - rightLimit);
+    overflowL = Math.max(overflowL, leftLimit - b.left);
+  }
+  if (overflowR <= 1 && overflowL <= 1) return false;
+  const before = scroll.scrollLeft;
+  if (overflowR > 1 && overflowL > 1) scroll.scrollLeft -= overflowL;
+  else if (overflowR > 1) scroll.scrollLeft += overflowR;
+  else scroll.scrollLeft -= overflowL;
+  return Math.abs(scroll.scrollLeft - before) > 0.5;
+}
+function phoneShowHouseKid() {
+  const kid = document.querySelector<HTMLElement>('#layer .char.avatar.mine') ?? document.querySelector<HTMLElement>('#layer .char');
+  if (!kid) return;
+  const sc = stageScale() || 1;
+  const stageBox = stage.getBoundingClientRect();
+  const pad = 8;
+  const rightLimit = Math.min(stageBox.right, window.innerWidth) - pad;
+  const leftLimit = Math.max(stageBox.left, 0) + pad;
+  let overflowR = 0, overflowL = 0;
+  for (const el of [kid, ...kid.querySelectorAll<HTMLElement>('.nametag')]) {
+    const b = el.getBoundingClientRect();
+    if (b.width < 2 || b.height < 2) continue;
+    overflowR = Math.max(overflowR, b.right - rightLimit);
+    overflowL = Math.max(overflowL, leftLimit - b.left);
+  }
+  if (overflowR <= 1 && overflowL <= 1) return;
+  if (overflowR > 1 && overflowL > 1) setCam(camX - overflowL / sc);
+  else if (overflowR > 1) setCam(camX + overflowR / sc);
+  else setCam(camX - overflowL / sc);
 }
 window.addEventListener('resize', fit);
 phoneMQ.addEventListener('change', fit);
@@ -385,6 +431,7 @@ function renderAll() {
   const focusX = me && me.where === 'house' ? me.x : first?.x;
   stopGlide(); setCam(cams[s.currentRoom] ?? clampCam(focusX !== undefined ? focusX - VIEW_W / 2 : V1_OFFSET));
   renderAvatars(); renderHoodChrome();
+  if (document.body.classList.contains('phone') && view === 'house') requestAnimationFrame(() => phoneShowHouseKid());
 }
 
 store.subscribe((s, a) => {
@@ -805,6 +852,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorke
 (window as any).__store = store; // handy for debugging / tests
 (window as any).__items = Object.fromEntries(ITEMS.filter(i => i.img).map(i => [i.kind, { w: i.w, h: hOf(i), cat: i.cat, holdable: i.holdable, svg: i.img!.includes('.svg') }]));
 (window as any).__cam = { get: () => camX, set: setCam };
+(window as any).__phoneShowKids = () => phoneShowKids();
 
 
 // =====================================================================================
@@ -1119,12 +1167,12 @@ function goToFriend(pid: string) {
     else if ((pl.kind === 'park' || pl.kind === 'ranch' || pl.kind === 'barn') && me.where === pl.kind) {
       setParkPres({ ...me, x, y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, p.y)), flip: x > p.x } as Presence);
       const sc = pl.kind === 'park' ? parkScale() : ranchScale(), scroll = $(pl.kind === 'park' ? 'parkScroll' : 'ranchScroll');
-      requestAnimationFrame(() => { scroll.scrollLeft = p.x * sc - scroll.clientWidth / 2; });
+      requestAnimationFrame(() => { scroll.scrollLeft = p.x * sc - scroll.clientWidth / 2; phoneShowKids(); });
     } else if (pl.kind === 'gameroom' && me.where === 'gameroom') {
       const seat = mySeat();
       if (!seat) setParkPres({ where: 'gameroom', x, y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, p.y)), flip: x > p.x });
       const sc = grScale(), scroll = $('grScroll'), fx = seat?.x ?? p.x;
-      requestAnimationFrame(() => { scroll.scrollLeft = fx * sc - scroll.clientWidth / 2; });
+      requestAnimationFrame(() => { scroll.scrollLeft = fx * sc - scroll.clientWidth / 2; phoneShowKids(); });
     }
     toast(`You found ${name}! 💕`);
   }, 420);
@@ -1172,7 +1220,14 @@ $('btnHome').addEventListener('click', () => { if (view === 'house' && (!hood ||
 $('phoneOk').addEventListener('click', () => { $('phoneNote').classList.add('hidden'); sfx.click(); });
 $('elsewhereGo').addEventListener('click', () => { sfx.click(); void hood?.connect(); });
 $('btnSolo').addEventListener('click', () => { goSolo(); toast('Playing in your own house 🏠'); });
-window.addEventListener('resize', () => { if (view === 'street') renderMap(true); if (view === 'park') renderPark(); if (view === 'ranch') renderRanch(); if (view === 'gameroom') renderGameRoom(); });
+window.addEventListener('resize', () => {
+  if (view === 'street') renderMap(true);
+  if (view === 'park') renderPark();
+  if (view === 'ranch') renderRanch();
+  if (view === 'gameroom') renderGameRoom();
+  // A phone viewport applied after she was framed for a wider window leaves scroll at 0.
+  phoneShowKids();
+});
 
 // ---------- connecting ----------
 function enterNeighborhood(client: HoodClient) {
@@ -1209,7 +1264,7 @@ function enterNeighborhood(client: HoodClient) {
     tableApi()?.refresh();
   });
   client.on('tblFail', (tb: number, reason: string) => { if (hood === client) tableApi()?.fail(tb, reason); });
-  client.on('welcome', () => { if (hood !== client) return; if (view === 'street') renderMap(true); else if (view === 'park' || view === 'ranch') { const p = myPres(); if (p) setMyPres(p); view === 'park' ? renderPark() : renderRanch(); } else if (view === 'gameroom') { const p = myPres(); if (p) setMyPres(p); renderGameRoom(); tableApi()?.refresh(); } else if (client.houses.has(currentHouseId)) renderAll(); else goMap(); });
+  client.on('welcome', () => { if (hood !== client) return; if (view === 'street') renderMap(true); else if (view === 'park' || view === 'ranch') { const p = myPres(); if (p) setMyPres(p); view === 'park' ? renderPark() : renderRanch(); phoneShowKids(); } else if (view === 'gameroom') { const p = myPres(); if (p) setMyPres(p); renderGameRoom(); phoneShowKids(); tableApi()?.refresh(); } else if (client.houses.has(currentHouseId)) renderAll(); else goMap(); });
   goMap();
 }
 async function initHood() {
@@ -1400,6 +1455,7 @@ function renderPark() {
     + `<button class="pspot gate" data-act="exit" aria-label="Back to the street" style="left:${px(25)};top:${px(240)};width:${px(180)};height:${px(260)}"></button>`
     + `<div class="ripples" id="ripples"></div><button class="ball" id="ball" aria-label="Ball">${ballSVG}</button><div class="savatars" id="pavatars"></div>`;
   placeBall(); renderParkAvatars();
+  phoneShowKids();
 }
 const SWING_MS = 2400;
 function renderParkAvatars() {
@@ -1483,7 +1539,7 @@ function goPark() {
   const p: Presence = { where: 'park', x: 290, y: 548, flip: false };
   if (hood) setMyPres(p); else soloPark = p;
   $('streetTitle').textContent = 'The Park'; renderHoodChrome(); renderPark();
-  requestAnimationFrame(() => { const scroll = $('parkScroll'); scroll.scrollLeft = 0; phoneFrameKid(scroll, p.x, parkScale()); });
+  requestAnimationFrame(() => { const scroll = $('parkScroll'); scroll.scrollLeft = 0; phoneShowKids(); });
   sfx.sparkle();
 }
 function leavePark() { goMap(); }
@@ -1499,7 +1555,7 @@ function goGameRoom() {
   requestAnimationFrame(() => {
     const sc = grScale(), scroll = $('grScroll');
     scroll.scrollLeft = Math.max(0, ((seat?.x ?? 520) * sc) - scroll.clientWidth / 2);
-    phoneFrameKid(scroll, seat?.x ?? p.x, sc);
+    phoneShowKids();
   });
   sceneIn($('gameroom')); sfx.sparkle();
 }
@@ -1866,7 +1922,6 @@ function goRanch(barn = false) {
   requestAnimationFrame(() => {
     const scroll = $('ranchScroll'), sc = ranchScale();
     scroll.scrollLeft = fromBarn ? Math.max(0, BARN_DOOR_X * sc - scroll.clientWidth / 2) : 0;
-    phoneFrameKid(scroll, p.x, sc);
     frameRanchSign();
   });
   setTimeout(frameRanchSign, 650);
@@ -1884,7 +1939,7 @@ function renderRanch() {
       + ANIMALS.map((_, i) => `<button class="animal" data-animal="${i}" aria-label="${ANIMAL_INFO[i].name}" style="${box(BARN_ANIMAL_X[i], ANIMAL_Y + 30, 128, 107)}">${animalSVG(i)}</button>`).join('')
       + [300, 1244].map(x0 => (['carrot', 'apple', 'hay'] as const).map((f, i) => `<button class="bucket" data-feed="${f}" aria-label="${f} bucket" style="${box(x0 + i * 56, 592, 54, 62)}">${bucketSVG(f)}</button>`).join('')).join('') // by the door + in the middle
       + `<div class="rfx" id="rfx"></div><div class="savatars" id="ravatars"></div>`;
-    renderRanchAvatars(); return;
+    renderRanchAvatars(); phoneShowKids(); return;
   }
   w.innerHTML = ranchSceneSVG()
     + paddockFenceSVG().replace('<svg ', `<svg style="z-index:${depthZ(FENCE_FOOT)}" `)
@@ -1897,6 +1952,7 @@ function renderRanch() {
     + Array.from({ length: PLOTS }, (_, i) => `<button class="plot" data-plot="${i}" aria-label="Garden plot" style="${box(PLOT_X(i), 594, 66, 86)}"></button>`).join('')
     + `<div class="rfx" id="rfx"></div><div class="savatars" id="ravatars"></div>`;
   renderPlots(true); renderRanchAvatars();
+  phoneShowKids();
 }
 const plotKey: string[] = [];
 function renderPlots(force = false) {
@@ -2195,6 +2251,7 @@ function frameRanchSign() {
     const maxForGirl = me && me.where === 'ranch' ? Math.max(0, me.x * sc - 60 * sc - pad) : need;
     scroll.scrollLeft = Math.min(need, maxForGirl);
   }
+  phoneShowKids();
   keepDoorHintOnScreen();
 }
 function keepDoorHintOnScreen() {
