@@ -575,11 +575,17 @@ async def check_zoo_hint(pg, tag):
 async def check_secrets(pg, tag, short):
     pill = await read_secrets(pg)
     if short:
-        check(f'{tag} Surprises pill sits in a side gutter',
-              pill['on'] and not pill['coversCenter'] and pill['side'], str(pill))
+        # 844×300, 667×280, 932×340: the gutter is narrower than the label, so the
+        # compact pill has to clear the stage entirely and stay a 44px target.
+        check(f'{tag} Surprises pill sits fully outside the room',
+              pill['on'] and not pill['overlap'] and pill['compact'] and not pill['chrome']
+              and pill['side'] and pill['pill']['w'] >= 44 and pill['pill']['h'] >= 44,
+              str(pill))
     else:
         check(f'{tag} Surprises pill stays centred on a taller phone',
-              pill['on'] and pill['centered'], str(pill))
+              pill['on'] and pill['centered'] and not pill['compact'] and not pill['chrome']
+              and 'Surprises' in pill.get('text', '') and pill['pill']['w'] >= 140,
+              str(pill))
 
 async def check_wait_fade(pg, tag):
     await inject_slay_hand(pg, 4, 'wait')

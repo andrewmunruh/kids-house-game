@@ -786,9 +786,27 @@ body.view-street .stage { visibility: hidden; }
   body.phone .barnDoor .doorHint { font-size: max(12px, min(24px, calc(19px * var(--sc)))); }
 }
 /* Very short phone landscape letterboxes the room. A centred Surprises pill covers the
-   top of the wall, so it moves into the right gutter. Taller landscape phones keep it centred. */
+   top of the wall, so it moves into the right gutter. Taller landscape phones keep it centred.
+   When that gutter is narrower than the label, .compact is a 44px stack that fits beside
+   the stage. A gutter under 44px cannot hold it, so .secrets-chrome parks it in the top row. */
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 360px) {
   body.phone .secrets { top: 6px; bottom: auto; left: auto; right: max(4px, env(safe-area-inset-right)); transform: none; }
+  body.phone .secrets.compact {
+    top: 2px; right: 0; left: auto; bottom: auto; transform: none;
+    width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 2px 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    line-height: 1; overflow: hidden; border-radius: 12px;
+  }
+  body.phone .secrets.compact .secWord {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  body.phone .secrets.compact .secGift { font-size: 16px; }
+  body.phone .secrets.compact .secCount { font-size: 11px; letter-spacing: -0.03em; }
+  body.phone.secrets-chrome .secrets {
+    position: static; top: auto; right: auto; left: auto; bottom: auto; transform: none;
+    flex: 0 0 44px; width: 44px; height: 44px; margin: 0 0 0 2px;
+  }
 }
 
 /* ===================== glam clubhouse / Game Room ===================== */

@@ -242,6 +242,36 @@ function fit() {
   if (view === 'ranch') requestAnimationFrame(frameRanchSign);
   clampPhoneBubbles();
   if (phone && view === 'ranch') layoutPaddock();
+  placeSecretsPill();
+}
+/**
+ * Short phone landscape letterboxes the room. The full Surprises pill is wider than
+ * that side gutter, so it becomes a 44px stack of the gift and the count. A gutter
+ * under 44px cannot hold even that, so the pill joins the top row. iPad never has
+ * body.phone, and taller landscape phones keep the centred label.
+ */
+function placeSecretsPill() {
+  const el = $('secrets');
+  const wrap = $('stageWrap');
+  const tools = document.querySelector('.tools');
+  const short = document.body.classList.contains('phone')
+    && !document.body.classList.contains('phone-portrait')
+    && window.matchMedia('(orientation: landscape) and (max-height: 360px)').matches;
+  el.classList.remove('compact');
+  document.body.classList.remove('secrets-chrome');
+  if (el.parentElement !== wrap) wrap.appendChild(el);
+  if (!short || !tools) return;
+  const full = el.getBoundingClientRect().width;
+  const stageBox = stage.getBoundingClientRect();
+  const gutter = window.innerWidth - stageBox.right;
+  if (gutter >= full + 2) return;
+  el.classList.add('compact');
+  const box = el.getBoundingClientRect();
+  const hits = box.left < stageBox.right - 0.5 && box.right > stageBox.left + 0.5
+    && box.top < stageBox.bottom - 0.5 && box.bottom > stageBox.top + 0.5;
+  if (!hits && gutter >= 44) return;
+  document.body.classList.add('secrets-chrome');
+  if (el.parentElement !== tools) tools.appendChild(el);
 }
 /**
  * Phone only. After layout, pan so the kid and her name tag are fully inside the
@@ -2370,7 +2400,13 @@ bindGameRoom({
 // ---------- start ----------
 renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
 // ---------- hidden surprises ----------
-const renderSecrets = () => { $('secrets').textContent = `🎁 Surprises: ${foundSet().size}/${EGGS.length}`; };
+const renderSecrets = () => {
+  const n = foundSet().size, total = EGGS.length;
+  const el = $('secrets');
+  el.innerHTML = `<span class="secGift">🎁</span><span class="secWord"> Surprises: </span><span class="secCount">${n}/${total}</span>`;
+  el.setAttribute('aria-label', `Surprises, ${n} of ${total}`);
+  placeSecretsPill();
+};
 
 /** Keep the petting-zoo label on screen. Scroll a little if the girl still fits, then slide the label. */
 function frameRanchSign() {

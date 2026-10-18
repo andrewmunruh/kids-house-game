@@ -172,12 +172,21 @@ async def read_secrets(pg):
       const stage = document.querySelector('.stage').getBoundingClientRect();
       const cx = stage.left + stage.width / 2;
       const y = stage.top + 14;
+      const el = document.getElementById('secrets');
       const mid = (pill.left + pill.right) / 2;
+      const ox = Math.min(pill.right, stage.right) - Math.max(pill.left, stage.left);
+      const oy = Math.min(pill.bottom, stage.bottom) - Math.max(pill.top, stage.top);
       return {
         on: pill.width > 20 && pill.height > 16 && pill.left >= -1 && pill.top >= -1 && pill.right <= innerWidth + 1 && pill.bottom <= innerHeight + 1,
         coversCenter: pill.left <= cx && pill.right >= cx && pill.top <= y + 8 && pill.bottom >= stage.top - 1,
         side: mid > innerWidth * 0.62,
         centered: Math.abs(mid - innerWidth / 2) < 36,
+        overlap: ox > 0.5 && oy > 0.5,
+        overlapBox: {w: Math.round(Math.max(0, ox)), h: Math.round(Math.max(0, oy))},
+        gutter: Math.round(innerWidth - stage.right),
+        text: (el.textContent || '').replace(/\\s+/g, ' ').trim(),
+        compact: el.classList.contains('compact'),
+        chrome: document.body.classList.contains('secrets-chrome'),
         mid: Math.round(mid), vw: innerWidth,
         pill: {x: Math.round(pill.x), y: Math.round(pill.y), w: Math.round(pill.width), h: Math.round(pill.height)},
       };
