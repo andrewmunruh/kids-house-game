@@ -124,7 +124,8 @@ app.innerHTML = `
 <div class="chatTray hidden" id="chatTray"></div>
 <div class="sheet hidden" id="sheet"><div class="card" id="card"></div></div>
 <div class="fx" id="fx"></div>
-<div class="phoneNote" id="phoneNote"><div class="card"><h2>Best on an iPad</h2><p>This cozy house is made for an iPad. Open it there, and turn the iPad sideways if you can.</p><button class="phoneOk" id="phoneOk" type="button">OK!</button></div></div>`;
+<div class="phoneNote" id="phoneNote"><div class="card"><h2>Best on an iPad</h2><p>This cozy house is made for an iPad. Open it there, and turn the iPad sideways if you can.</p><button class="phoneOk" id="phoneOk" type="button">OK!</button></div></div>
+<div class="elsewhere hidden" id="elsewhere"><div class="card"><h2>You're playing on another screen</h2><p>This screen can rest. Your house is safe.</p><button class="playHere" id="elsewhereGo" type="button">Tap to play here!</button></div></div>`;
 
 const $ = (id: string) => document.getElementById(id)!;
 // preview builds (separate URL, separate server, prefixed saves) wear a little ribbon so nobody mixes them up
@@ -1089,13 +1090,14 @@ function enterHouse(houseId: string, room: RoomId = 'living') {
   useStore(st); sceneIn($('stageWrap')); sfx.sparkle();
 }
 function goSolo() {
-  hood?.close(); hood = null; houseStores = new Map(); view = 'house'; currentHouseId = ''; soloPark = null; fetchSt = null; walkTarget = null; inBarn = false;
+  hood?.close(); hood = null; houseStores = new Map(); view = 'house'; currentHouseId = ''; soloPark = null; fetchSt = null; walkTarget = null; inBarn = false; $('elsewhere').classList.add('hidden');
   hideScenes();
   useStore(local); renderHoodChrome();
 }
 $('btnMap').addEventListener('click', () => { if (view === 'street') { sfx.pop(); return; } goMap(); });
 $('btnHome').addEventListener('click', () => { if (view === 'house' && (!hood || currentHouseId === hood.myHouseId())) { sfx.pop(); return; } goHome(); });
 $('phoneOk').addEventListener('click', () => { $('phoneNote').classList.add('hidden'); sfx.click(); });
+$('elsewhereGo').addEventListener('click', () => { sfx.click(); void hood?.connect(); });
 $('btnSolo').addEventListener('click', () => { goSolo(); toast('Playing in your own house 🏠'); });
 window.addEventListener('resize', () => { if (view === 'street') renderMap(true); if (view === 'park') renderPark(); if (view === 'ranch') renderRanch(); if (view === 'gameroom') renderGameRoom(); });
 
@@ -1118,7 +1120,12 @@ function enterNeighborhood(client: HoodClient) {
   client.on('sayFail', (r: string) => toast(r === 'presetsOnly' ? 'Typing is turned off: pick a bubble!' : FILTER_MSG[r] || "Couldn't send that"));
   client.on('settings', () => { if (!$('chatTray').classList.contains('hidden')) renderChatTray(); });
   client.on('removed', () => { toast('A grown-up took this iPad off the street'); const c = client.cfg; saveHoodConfig({ url: c.url, code: c.code, id: c.id, parentKey: c.parentKey }); goSolo(); });
-  client.on('status', (st: string) => document.body.classList.toggle('reconnecting', hood === client && st !== 'online'));
+  client.on('status', (st: string) => {
+    if (hood !== client) return;
+    document.body.classList.toggle('reconnecting', st !== 'online' && !client.replaced);
+    if (st === 'online' || st === 'connecting') $('elsewhere').classList.add('hidden');
+  });
+  client.on('replaced', () => { if (hood === client) $('elsewhere').classList.remove('hidden'); });
   client.on('table', () => {
     if (hood !== client) return;
     if (view === 'gameroom') {

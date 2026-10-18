@@ -46,13 +46,15 @@ export class HoodClient {
   houses = new Map<string, HouseRec>();
   presence = new Map<string, Presence>();
   status: 'connecting' | 'online' | 'offline' = 'offline';
+  /** The server closed this socket because the same sign-in connected somewhere else. Do not reconnect on our own. */
+  replaced = false;
   /** Rainbow Ranch garden (shared per street) + server clock offset so growth looks the same on every iPad. */
   ranch: { plots: (Plot | null)[]; skew: number } = { plots: [], skew: 0 };
   /** Game Room tables. Each `view` is already personalized (your hand only). `receivedAt` is local, so away time can keep growing between messages. */
   tables = new Map<number, TablePub & { receivedAt?: number }>();
   private handlers = new Map<string, Handler[]>();
   private cid = 1; private flushT = 0; private presT = 0; private lastPres: Presence | null = null; private presDirty = false;
-  private closedByUs = false; private retry = 0; private retryT = 0; private epoch = 0;
+  private closedByUs = false; private retry = 0; private retryT = 0; private epoch = 0; private stableT = 0;
   /** One-shots (chat, lock, grown-up actions) sent while the socket is down. Capped; flushed after welcome, after presence. */
   private outbox: ClientMsg[] = [];
 
@@ -78,21 +80,27 @@ export class HoodClient {
   }
   /** One timer. 400ms, 800ms, 1.6s … capped at 15s. Cancelled by close() so a left street stays disconnected. */
   private scheduleRetry() {
-    if (this.closedByUs || !this.cfg.token || this.retryT) return;
+    if (this.closedByUs || this.replaced || !this.cfg.token || this.retryT) return;
     const epoch = this.epoch;
     const delay = Math.min(15000, 400 * 2 ** Math.min(this.retry, 6));
     this.retry++;
     this.retryT = window.setTimeout(() => {
       this.retryT = 0;
-      if (epoch !== this.epoch || this.closedByUs || !this.cfg.token) return;
+      if (epoch !== this.epoch || this.closedByUs || this.replaced || !this.cfg.token) return;
       void this.connect();
     }, delay);
   }
+  /** A welcome that dies immediately must not snap the backoff back to 400ms. Only a socket that stays up counts as stable. */
+  private armStable() {
+    if (this.stableT) clearTimeout(this.stableT);
+    this.stableT = window.setTimeout(() => { this.stableT = 0; this.retry = 0; }, 10_000);
+  }
+  private clearStable() { if (this.stableT) { clearTimeout(this.stableT); this.stableT = 0; } }
 
   /** Open the socket. Resolves on welcome (or with an error code). Reconnects automatically afterwards. */
   connect(join?: { nickname: string; look: Look; house?: unknown; dog?: Dog | null }): Promise<'ok' | string> {
     if (this.retryT) { clearTimeout(this.retryT); this.retryT = 0; }
-    this.closedByUs = false; this.status = 'connecting'; this.emit('status', this.status);
+    this.closedByUs = false; this.replaced = false; this.status = 'connecting'; this.emit('status', this.status);
     const prev = this.ws;
     return new Promise(resolve => {
       let settled = false; const done = (r: string) => { if (!settled) { settled = true; resolve(r); } };
@@ -104,17 +112,21 @@ export class HoodClient {
         else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL });
         else done('notoken');
       };
-      ws.onmessage = e => { const m: ServerMsg = JSON.parse(e.data); this.handle(m); if (m.t === 'welcome') { this.retry = 0; done('ok'); } if (m.t === 'error') done(m.code + (m.msg ? ':' + m.msg : '')); if (m.t === 'removed') done('removed'); };
-      ws.onclose = () => {
+      ws.onmessage = e => { const m: ServerMsg = JSON.parse(e.data); this.handle(m); if (m.t === 'welcome') { this.armStable(); done('ok'); } if (m.t === 'error') done(m.code + (m.msg ? ':' + m.msg : '')); if (m.t === 'removed') done('removed'); };
+      ws.onclose = (ev: CloseEvent) => {
         if (this.ws !== ws) return;
-        this.ws = null; this.status = 'offline'; this.emit('status', this.status); done('closed');
+        this.clearStable();
+        this.ws = null; this.status = 'offline'; done('closed');
+        // 4000 is "replaced": the same sign-in is live on another screen. Retrying would just kick that screen, and it would kick us back.
+        if (ev.code === 4000) { this.replaced = true; this.emit('status', this.status); this.emit('replaced'); return; }
+        this.emit('status', this.status);
         this.scheduleRetry();
       };
       ws.onerror = () => {};
     });
   }
   close() {
-    this.closedByUs = true; this.epoch++; this.outbox = [];
+    this.closedByUs = true; this.replaced = false; this.epoch++; this.outbox = []; this.clearStable();
     if (this.retryT) { clearTimeout(this.retryT); this.retryT = 0; }
     if (this.presT) { clearTimeout(this.presT); this.presT = 0; }
     try { this.ws?.close(); } catch { /* already closed */ }
