@@ -11,6 +11,8 @@ async def main():
         c0 = await pg.evaluate("__cam.get()")
         await pg.mouse.move(300,150); await pg.mouse.down(); await pg.mouse.move(800,160, steps=12); await pg.mouse.up(); await pg.wait_for_timeout(900)
         info = await pg.evaluate("({ver: __store.get().version, rooms: document.querySelectorAll('.tab').length, chars: document.querySelectorAll('.char').length, packItems: Object.keys(__items).length, imgsBroken: [...document.querySelectorAll('img')].filter(i=>i.complete && !i.naturalWidth).length})")
+        # Image-backed pack items. Cozy Cottage raises the catalog from 218 to 254.
+        # This script reads the deployed site, which still reports 218 until that build ships.
         await pg.click('[data-room="bedroom"]'); await pg.click('[data-rf="bedroom"]'); await pg.wait_for_timeout(800)
         broken = await pg.evaluate("[...document.querySelectorAll('img')].filter(i=>i.complete && !i.naturalWidth).map(i=>i.src.slice(-40))")
         print('status', r.status, info, 'cam', c0, '->', round(await pg.evaluate("__cam.get()")), 'broken imgs (bedroom drawer):', broken, 'http errors:', bad, 'errors:', errs)

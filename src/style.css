@@ -50,7 +50,7 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .bin.show { transform: scale(1); }
 .bin.hot { transform: scale(1.3) rotate(-10deg); background: #ffadad; }
 
-.drawer { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 12px; height: auto; }
+.drawer { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 12px; height: auto; min-width: 0; }
 .drawerTop { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .cats { display: contents; }
 .cat { position: relative; background: #fff; border-radius: 14px; padding: 4px; border: 3px solid transparent; box-shadow: 0 3px 0 #e6c9d8; width: 52px; height: 52px; flex: 0 0 auto; }
@@ -97,6 +97,15 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 #mmDots b { width: 10px; height: 10px; margin: -5px; background: #ff7aa8; border: 2px solid #fff; }
 .mmView { position: absolute; top: 0; bottom: 0; border: 3px solid #fff; border-radius: 9px; background: rgba(255,255,255,.25); box-shadow: 0 0 0 2px var(--ink); }
 .rooms { display: contents; }
+/* 1024-wide iPad has about 80px left on the tab row. A new pack tab scrolls inside
+   the row instead of sticking out or adding a second row (which would shrink the room).
+   Portrait 820 still wraps, the way it already did. Phones keep their own scroller. */
+@media (min-width: 900px) {
+  .drawerTop { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; min-width: 0; touch-action: pan-x; scrollbar-width: none; }
+  .drawerTop::-webkit-scrollbar { display: none; }
+  .rooms { display: flex; flex: 0 0 auto; }
+  .cats { display: flex; flex: 0 0 auto; flex-wrap: nowrap; gap: 6px; }
+}
 .rf { border-radius: 16px; background: #fff; font-weight: 800; font-size: 15px; box-shadow: 0 3px 0 #e6c9d8; border: 3px solid transparent; min-height: 52px; min-width: 52px; padding: 0 14px; }
 .rf.on { background: #fff3b0; border-color: var(--ink); }
 .packimg { display: block; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; pointer-events: none; -webkit-user-drag: none; }

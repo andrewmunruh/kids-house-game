@@ -9,6 +9,8 @@ async def main():
         pg.on('response', lambda r: r.status >= 400 and bad.append((r.status, r.url)))
         await pg.goto(URL); await pg.evaluate("localStorage.clear()"); await pg.reload(); await pg.wait_for_timeout(800)
         n = await pg.evaluate("Object.keys(__items).length"); print('image items loaded:', n)
+        # 218 image items, plus 36 in the Cozy Cottage pack.
+        if n != 254: raise SystemExit(f'expected 254 pack items, got {n}')
         print('tabs:', await pg.locator('.cat').evaluate_all("e=>e.map(x=>x.dataset.cat)"))
         # walk every tab under "All" and check every drawer image decodes
         broken = []; total = 0
@@ -23,7 +25,11 @@ async def main():
         await pg.click('.cat[data-cat="pack:glossy"]'); await pg.wait_for_timeout(600)
         await pg.screenshot(path='screens/18-pack-tab-glossy-salon.png')
         await pg.click('#btnPaint'); await pg.wait_for_timeout(500)
-        print('wall tiles:', await pg.locator('.dot.tile[data-act="wtile"]').count(), 'floor tiles:', await pg.locator('.dot.tile[data-act="ftile"]').count())
+        walls = await pg.locator('.dot.tile[data-act="wtile"]').count()
+        floors = await pg.locator('.dot.tile[data-act="ftile"]').count()
+        print('wall tiles:', walls, 'floor tiles:', floors)
+        # 9 wallpapers + 6 floors, plus Cozy Cottage's 6 wallpapers and 4 floors.
+        if walls != 15 or floors != 10: raise SystemExit(f'expected 15 wall / 10 floor tiles, got {walls} / {floors}')
         await pg.click('.dot.tile[data-v="glossy/pink-hearts"]'); await pg.click('.dot.tile[data-v="glossy/pink-check-floor"]'); await pg.wait_for_timeout(500)
         await pg.screenshot(path='screens/19-paint-panel-pack-patterns.png')
         await pg.click('.close'); await pg.wait_for_timeout(500)
@@ -35,7 +41,7 @@ async def main():
         things = pg.locator('.shelf .thing')
         for i, (x, y) in enumerate([(300, 520), (520, 540), (760, 520)]):
             bb = await things.nth(i).bounding_box(); await pg.mouse.move(bb['x']+40, bb['y']+40); await pg.mouse.down(); await pg.mouse.move(x, y, steps=8); await pg.mouse.up(); await pg.wait_for_timeout(250)
-        await pg.click('[data-cat="decor"]'); await pg.click('[data-rf="bedroom"]'); await pg.wait_for_timeout(300)
+        await pg.click('[data-cat="decor"]'); await pg.wait_for_timeout(300)
         wl = pg.locator('.shelf .thing[aria-label="Pin Board"]')
         if await wl.count():
             await wl.scroll_into_view_if_needed(); bb = await wl.bounding_box()

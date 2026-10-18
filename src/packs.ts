@@ -8,7 +8,7 @@
 import type { ItemDef } from './items';
 
 const SIZE_W: Record<string, number> = { small: 80, medium: 150, large: 260 };
-export const PACK_NAMES: Record<string, string> = { 'welcome-home': 'Welcome Home', 'sunny-vibes': 'Sunny Vibes', glossy: 'Glossy' };
+export const PACK_NAMES: Record<string, string> = { 'welcome-home': 'Welcome Home', 'sunny-vibes': 'Sunny Vibes', glossy: 'Glossy', cottage: 'Cozy Cottage' };
 export const packLabel = (p: string) => PACK_NAMES[p] ?? p.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
 export interface PackEntry { slug: string; name?: string; room?: string; category?: string; size?: string; pack?: string; type?: string; holdable?: boolean;

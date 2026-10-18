@@ -153,5 +153,85 @@
     "type": "floor",
     "pack": "nursery",
     "svg": "nursery/pastel-planks.svg"
+  },
+  {
+    "slug": "cc-lilac-gingham",
+    "name": "Lilac Gingham",
+    "type": "wallpaper",
+    "pack": "cottage",
+    "svg": "cottage/cc-lilac-gingham.svg",
+    "png": "cottage/cc-lilac-gingham.png"
+  },
+  {
+    "slug": "cc-peach-scallops",
+    "name": "Peach Scallops",
+    "type": "wallpaper",
+    "pack": "cottage",
+    "svg": "cottage/cc-peach-scallops.svg",
+    "png": "cottage/cc-peach-scallops.png"
+  },
+  {
+    "slug": "cc-mint-florals",
+    "name": "Mint Florals",
+    "type": "wallpaper",
+    "pack": "cottage",
+    "svg": "cottage/cc-mint-florals.svg",
+    "png": "cottage/cc-mint-florals.png"
+  },
+  {
+    "slug": "cc-pink-plaid",
+    "name": "Pink Plaid",
+    "type": "wallpaper",
+    "pack": "cottage",
+    "svg": "cottage/cc-pink-plaid.svg",
+    "png": "cottage/cc-pink-plaid.png"
+  },
+  {
+    "slug": "cc-butter-polka",
+    "name": "Butter Polka",
+    "type": "wallpaper",
+    "pack": "cottage",
+    "svg": "cottage/cc-butter-polka.svg",
+    "png": "cottage/cc-butter-polka.png"
+  },
+  {
+    "slug": "cc-lavender-lattice",
+    "name": "Lavender Lattice",
+    "type": "wallpaper",
+    "pack": "cottage",
+    "svg": "cottage/cc-lavender-lattice.svg",
+    "png": "cottage/cc-lavender-lattice.png"
+  },
+  {
+    "slug": "cc-rose-herringbone",
+    "name": "Rose Herringbone",
+    "type": "floor",
+    "pack": "cottage",
+    "svg": "cottage/cc-rose-herringbone.svg",
+    "png": "cottage/cc-rose-herringbone.png"
+  },
+  {
+    "slug": "cc-cream-hex",
+    "name": "Cream Hex Tiles",
+    "type": "floor",
+    "pack": "cottage",
+    "svg": "cottage/cc-cream-hex.svg",
+    "png": "cottage/cc-cream-hex.png"
+  },
+  {
+    "slug": "cc-rag-planks",
+    "name": "Pastel Rag Rug",
+    "type": "floor",
+    "pack": "cottage",
+    "svg": "cottage/cc-rag-planks.svg",
+    "png": "cottage/cc-rag-planks.png"
+  },
+  {
+    "slug": "cc-mint-checks",
+    "name": "Mint Checks",
+    "type": "floor",
+    "pack": "cottage",
+    "svg": "cottage/cc-mint-checks.svg",
+    "png": "cottage/cc-mint-checks.png"
   }
 ]
