@@ -12,7 +12,7 @@ import { cleanBasket, cleanPlots, cleanRanchOp, ranchApply, BASKET_ITEM, type Ba
 export interface KV { get<T>(k: string): Promise<T | undefined>; put(k: string, v: unknown): Promise<void>; delete(k: string): Promise<void> }
 /** Maps invite codes (case-insensitive, unique across streets) to permanent street ids. */
 export interface CodeRegistry { claim(code: string, id: string): Promise<boolean>; release(code: string, id: string): Promise<void> }
-export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number }
+export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number }
 
 interface Player { pid: string; nickname: string; houseId: string; tokenHash: string; look: Look; joinedAt: number; dog?: Dog | null; basket?: Basket }
 /** One table in the Game Room. Seats are kept by player id, so a kid who reconnects is still sitting there with her cards. */
@@ -261,6 +261,7 @@ export class Neighborhood {
     switch (m.t) {
       case 'hello': {
         c.v = typeof m.v === 'number' ? m.v : 1;
+        c.pet = m.pet === 1 ? 1 : 0;
         const h = typeof m.token === 'string' ? await sha256(m.token) : '';
         const p = h ? Object.values(meta.players).find(p => p.tokenHash === h) : undefined;
         if (!p) { this.send(c, { t: 'error', code: 'badtoken' }); return; }
@@ -270,6 +271,7 @@ export class Neighborhood {
       case 'join': {
         if (c.pid) return;
         c.v = typeof m.v === 'number' ? m.v : 1;
+        c.pet = m.pet === 1 ? 1 : 0;
         const roster = meta.roster ?? [];
         let nickname: string;
         if (roster.length) {
@@ -315,8 +317,9 @@ export class Neighborhood {
         if (!h) return nack('nohouse', false);
         if (h.locked && h.ownerId !== me.pid) return nack('locked');
         const a = cleanAction(m.action); if (!a) return nack('invalid');
-        const petAct = a.type.startsWith('cat/');
-        if (petAct && h.ownerId !== me.pid) return nack('notyours'); // only she can adopt / move her own cat
+        const catAct = a.type.startsWith('cat/');
+        const kennelAct = a.type === 'dog/kennel';
+        if ((catAct || kennelAct) && h.ownerId !== me.pid) return nack('notyours'); // only she can adopt her cat, or kennel her own dog
         // An old stored house may still be missing a room if it was loaded before this process filled it.
         // Fill first so reduce never throws, and so a living-room edit cannot save a copy that dropped the nursery.
         const ready = ensureRooms(h.state);
@@ -324,8 +327,11 @@ export class Neighborhood {
         if (next === h.state) return nack('noop');
         if (JSON.stringify(next).length > MAX_HOUSE_JSON) return nack('toobig');
         h.state = next; this.save(h.id);
-        // clients older than the pets update would not understand cat actions: they just don't see the cat until they reload
-        this.broadcast({ t: 'act', houseId: h.id, by: me.pid, cid, action: a }, x => !!x.pid && (!petAct || (x.v ?? 1) >= PROTO_PETS || x === c));
+        // Cat acts stay off clients older than pets. dog/kennel stays off clients that did not say pet:1:
+        // an old reducer has no default and would wipe the house if it saw an unknown action.
+        this.broadcast({ t: 'act', houseId: h.id, by: me.pid, cid, action: a }, x => !!x.pid
+          && (!catAct || (x.v ?? 1) >= PROTO_PETS || x === c)
+          && (!kennelAct || (x.pet ?? 0) >= 1 || x === c));
         return;
       }
       case 'pres': {

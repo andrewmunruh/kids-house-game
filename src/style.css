@@ -403,6 +403,10 @@ body.mode-hood.view-park #btnChat { display: block !important; }
 .pet.spin .inner { animation: spin .8s ease-in-out; }
 .pet.hop .inner { animation: hop .35s ease-out 3; }
 .pet.happy .inner { animation: hop .4s ease-out 2; }
+.pet.pet-cat.play .inner { animation: hop .5s ease-in-out infinite; }
+.pet.pet-cat.leap .inner { animation: towerLeap .7s ease-out; }
+.pet.kenneled.rest .tail { animation: none; }
+.kennelBtn { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); min-width: 44px; min-height: 44px; padding: 4px 10px; font: inherit; font-size: 14px; font-weight: 800; border-radius: 14px; border: 3px solid var(--ink); background: #fff3b0; color: var(--ink); pointer-events: auto; z-index: 2; }
 @keyframes sway { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(10deg); } }
 @keyframes wag { from { transform: rotate(-16deg); } to { transform: rotate(18deg); } }
 @keyframes legA { from { transform: rotate(-22deg); } to { transform: rotate(22deg); } }
@@ -411,6 +415,7 @@ body.mode-hood.view-park #btnChat { display: block !important; }
 @keyframes groom { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-5deg) translateY(2%); } }
 @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 @keyframes hop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-22%); } }
+@keyframes towerLeap { 0% { transform: translateY(16px) scale(.92); } 45% { transform: translateY(-26px) scale(1.06); } 100% { transform: translateY(0) scale(1); } }
 .pet .heart { position: absolute; bottom: 60%; font-size: 26px; font-weight: 900; pointer-events: none; animation: heartUp 1.6s ease-out forwards; opacity: 0; }
 @keyframes heartUp { 0% { transform: translateY(0) scale(.5); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-110px) scale(1.2); opacity: 0; } }
 .pet .zzz { position: absolute; right: 8%; top: -10%; pointer-events: none; font-weight: 900; color: var(--ink); }
@@ -439,7 +444,7 @@ body.mode-hood.view-park #btnChat { display: block !important; }
 .petBtns { display: flex; gap: 10px; margin-top: 14px; align-items: center; flex-wrap: wrap; }
 .petBtns .go { font-size: 26px; font-weight: 900; min-height: 56px; padding: 12px 36px; border-radius: 24px; background: #b9f6ca; border: 4px solid var(--ink); box-shadow: 0 6px 0 #5a3d5c55; }
 .petBtns .go:active { transform: scale(.95); }
-.petBtns .danger, .petBtns #callCat { min-height: 48px; padding: 8px 16px; border-radius: 18px; }
+.petBtns .danger, .petBtns #callCat, .petBtns #kennelDog { min-height: 48px; padding: 8px 16px; border-radius: 18px; }
 .pets .err { color: #d0425b; font-weight: 800; margin: 4px 0; }
 body.view-park #btnParent, body.view-park #btnSolo, body.view-gameroom #btnParent, body.view-gameroom #btnSolo { display: none !important; }
 body.mode-hood.view-gameroom #btnChat { display: block !important; }
@@ -722,6 +727,7 @@ body.view-street .stage { visibility: hidden; }
   body.phone .rName button { min-width: 44px; min-height: 44px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
   body.phone .rName button.x { min-width: 44px; min-height: 44px; font-size: 22px; padding: 0; }
   body.phone .petName, body.phone .pHouse input, body.phone .pAdd input, body.phone .typed input { font-size: 16px; min-height: 44px; max-width: 100%; }
+  body.phone .kennelBtn { min-width: calc(44px / var(--fit, 1)); min-height: calc(44px / var(--fit, 1)); font-size: calc(14px / var(--fit, 1)); padding: calc(4px / var(--fit, 1)) calc(10px / var(--fit, 1)); }
   body.phone .petName { width: 100%; }
   /* sheets: welcome, paint, pets, characters, neighborhood, grown-up */
   body.phone .sheet { overflow: auto; align-items: safe center; justify-content: safe center;
