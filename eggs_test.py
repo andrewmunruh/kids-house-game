@@ -1,7 +1,9 @@
-import asyncio, sys
+import asyncio, os, sys
 from playwright.async_api import async_playwright
 from testnav import PFX, SKIP_WN, K
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
+EGG_DIR = os.environ.get('EGGS_SHOTS', 'screens')
+os.makedirs(EGG_DIR, exist_ok=True)
 EGGS = [('Cada','Living Room',3,'L'),('Sloane','Living Room',3,'R'),('Chloe','Bedroom',5,'R'),('Quinn','Kitchen',4,'L'),('Reagan','Salon',5,'R')]
 async def main():
     async with async_playwright() as p:
@@ -22,13 +24,13 @@ async def main():
             mid = len((await pg.evaluate('__eggs()'))['found'])
             for _ in range(taps-1): await spot.click(); await pg.wait_for_timeout(120)
             await pg.wait_for_timeout(450)
-            if i in (0, 2): await pg.screenshot(path=f'screens/egg-{i+1}-reveal.png')
+            if i in (0, 2): await pg.screenshot(path=os.path.join(EGG_DIR, f'egg-{i+1}-reveal.png'))
             after = await pg.evaluate('__eggs()')
             print(name, 'ok' if before==i and mid==i and name in after['found'] else 'FAIL', await pg.inner_text('#secrets'))
             await pg.wait_for_timeout(3000)
         await pg.click('[data-cat="secrets"]'); await pg.wait_for_timeout(400)
         print('secret drawer items:', await pg.locator('.shelf .thing').count())
-        await pg.screenshot(path='screens/egg-secret-drawer.png')
+        await pg.screenshot(path=os.path.join(EGG_DIR, 'egg-secret-drawer.png'))
         await pg.reload(); await pg.wait_for_timeout(800); print('after reload:', await pg.inner_text('#secrets'))
         print('errors:', errs); await b.close()
 asyncio.run(main())

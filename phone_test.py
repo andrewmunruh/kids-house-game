@@ -106,6 +106,13 @@ async def phone_pass(b, w, h, save):
           and info['shelf']['h'] >= 60 and info['shelf']['y'] >= 0 and info['shelf']['b'] <= h + 1,
           f"shelf h {info['shelf']['h']:.0f}")
     check(f'{tag} room is not a sliver', info['stage']['h'] >= 140 and info['wrap']['h'] >= 160, f"stage {info['stage']['h']:.0f} wrap {info['wrap']['h']:.0f}")
+    char = await pg.evaluate("""() => {
+      const c = document.querySelector('#layer .char').getBoundingClientRect();
+      const s = document.querySelector('.stage').getBoundingClientRect();
+      return { inside: c.left >= s.left + 6 && c.right <= s.right - 6 && c.top >= s.top - 1 && c.bottom <= s.bottom + 1,
+               gapR: Math.round(s.right - c.right), gapL: Math.round(c.left - s.left), cw: Math.round(c.width) };
+    }""")
+    check(f'{tag} character fully in the room', char['inside'] and char['cw'] > 24, str(char))
     if save: await shot(pg, f'house-{tag}')
 
     # Full own-house tool row (lock, chat, and the rest).
@@ -228,6 +235,94 @@ async def phone_pass(b, w, h, save):
     info = await layout(pg)
     check(f'{tag} barn fits', tops_ok(info) == [] and info['scrollW'] <= info['vw'] + 1)
     if save: await shot(pg, f'barn-{tag}')
+
+    await pg.click('#btnMap')
+    await pg.wait_for_selector('body.view-map .mapSpot')
+    await pg.click('[data-go="gameroom"]')
+    await pg.wait_for_selector('body.view-gameroom .grScene')
+    await pg.wait_for_timeout(400)
+    info = await layout(pg)
+    club = await pg.evaluate("""() => {
+      const kid = document.querySelector('#gavatars .savatar');
+      const port = document.getElementById('grScroll').getBoundingClientRect();
+      const k = kid ? kid.getBoundingClientRect() : null;
+      const solo = document.getElementById('grSolo').getBoundingClientRect();
+      const page = document.documentElement.scrollWidth <= innerWidth + 1;
+      return {
+        kid: !!(k && k.width > 20 && k.left >= port.left - 1 && k.right <= port.right + 1 && k.top >= port.top - 2 && k.bottom <= port.bottom + 2),
+        soloIn: solo.width > 0 && solo.left >= -1 && solo.right <= innerWidth + 1 && solo.bottom <= innerHeight + 1,
+        page, kw: k && Math.round(k.width), gapR: k && Math.round(port.right - k.right)
+      };
+    }""")
+    check(f'{tag} clubhouse fits', tops_ok(info) == [] and info['scrollW'] <= info['vw'] + 1 and club['soloIn'] and club['page'], str(club))
+    check(f'{tag} clubhouse character on screen', club['kid'], str(club))
+    if save: await shot(pg, f'clubhouse-{tag}')
+
+    def inside(b):
+        return b and b['x'] >= -1 and b['y'] >= -1 and b['r'] <= w + 1 and b['b'] <= h + 1
+
+    await pg.evaluate("""() => {
+      const root = document.getElementById('tableOverlay');
+      root.classList.remove('hidden');
+      const cards = Array.from({length: 8}, (_, i) => `<button type="button" class="slayCard ${i % 2 ? 'can' : 'dim'}" style="background:#fff;border:3px solid #5a3d5c;border-radius:12px">C</button>`).join('');
+      root.innerHTML = `<div class="tblCard game-slay"><div class="tblTop"><h2>Slay</h2></div>
+        <div class="slayFelt"><div class="whose yours">Your turn!</div>
+        <div class="slayOpps"><div class="slayOpp"><b>Mia</b><span class="cnt">7</span></div></div>
+        <div class="slayPile"><button type="button" class="slayDeck"></button><div class="slayDiscard"></div><div class="nowColor"></div></div>
+        <div id="slayHand" class="slayHand isTurn">${cards}</div>
+        <button type="button" id="slayCall" class="slayCall">SLAY!</button></div>
+        <div class="tblBar"><button type="button" id="tblBack">Back to room</button><button type="button" id="tblLeave">Leave table</button></div></div>`;
+    }""")
+    await pg.wait_for_timeout(50)
+    slay = await pg.evaluate("""() => {
+      const r = el => { const b = el.getBoundingClientRect(); return {x:b.x,y:b.y,w:b.width,h:b.height,r:b.right,b:b.bottom}; };
+      const hand = document.getElementById('slayHand');
+      const card = hand.querySelector('.slayCard');
+      const back = document.getElementById('tblBack');
+      const leave = document.getElementById('tblLeave');
+      const tf = getComputedStyle(card).transform;
+      return { hand: r(hand), card: r(card), back: r(back), leave: r(leave),
+        scrolls: hand.scrollWidth > hand.clientWidth + 2, wrap: getComputedStyle(hand).flexWrap,
+        transform: tf, page: document.documentElement.scrollWidth };
+    }""")
+    slay_in = inside(slay['hand']) and inside(slay['back']) and inside(slay['leave']) and slay['card']['w'] >= 44 and slay['card']['h'] >= 44 and slay['back']['h'] >= 44 and slay['leave']['h'] >= 44 and slay['page'] <= w + 1
+    if portrait:
+        slay_ok = slay_in and slay['scrolls'] and slay['wrap'] == 'nowrap'
+    else:
+        slay_ok = slay_in and slay['transform'] not in ('none', 'matrix(1, 0, 0, 1, 0, 0)')
+    check(f'{tag} slay hand and table buttons fit', slay_ok, str(slay))
+    if save: await shot(pg, f'slay-{tag}')
+
+    await pg.evaluate("""() => {
+      const cols = Array.from({length: 7}, (_, c) => `<button type="button" class="fourCol" data-col="${c}">${Array.from({length: 6}, () => '<span class="fourCell"></span>').join('')}<span class="dropHint">▼</span></button>`).join('');
+      document.getElementById('tableOverlay').innerHTML = `<div class="tblCard game-four"><div class="tblTop"><h2>Four in a Row</h2></div>
+        <div class="fourPlay"><div class="whose yours">Your turn!</div>
+        <div class="fourChips"><div class="playerChip"><b>You ♥</b></div><div class="playerChip"><b>Mia ★</b></div></div>
+        <p class="fourLegend">You are pink hearts</p><div class="fourBoard" id="fourBoard">${cols}</div></div>
+        <div class="tblBar"><button type="button" id="tblBack">Back to room</button><button type="button" id="tblLeave">Leave table</button></div></div>`;
+    }""")
+    await pg.wait_for_timeout(50)
+    four = await pg.evaluate("""() => {
+      const r = el => { const b = el.getBoundingClientRect(); return {x:b.x,y:b.y,w:b.width,h:b.height,r:b.right,b:b.bottom}; };
+      const board = document.getElementById('fourBoard');
+      const back = document.getElementById('tblBack');
+      const leave = document.getElementById('tblLeave');
+      return { board: r(board), back: r(back), leave: r(leave), cols: board.querySelectorAll('.fourCol').length,
+        page: document.documentElement.scrollWidth, boardScroll: board.scrollWidth };
+    }""")
+    four_ok = inside(four['board']) and inside(four['back']) and inside(four['leave']) and four['cols'] == 7 and four['back']['h'] >= 44 and four['leave']['w'] >= 44 and four['page'] <= w + 1 and four['boardScroll'] <= four['board']['w'] + 2
+    check(f'{tag} four in a row board and buttons fit', four_ok, str(four))
+
+    await pg.evaluate("""() => { document.getElementById('tableOverlay').classList.add('hidden'); document.getElementById('tableOverlay').innerHTML = ''; document.getElementById('elsewhere').classList.remove('hidden'); }""")
+    else_card = await pg.evaluate("""() => {
+      const card = document.querySelector('#elsewhere .card');
+      const btn = document.getElementById('elsewhereGo');
+      const r = card.getBoundingClientRect(), b = btn.getBoundingClientRect();
+      return { x: r.x, y: r.y, r: r.right, b: r.bottom, bw: b.width, bh: b.height, page: document.documentElement.scrollWidth };
+    }""")
+    check(f'{tag} another-screen card fits', inside(else_card) and else_card['bh'] >= 44 and else_card['page'] <= w + 1, str(else_card))
+    if save and portrait: await shot(pg, f'elsewhere-{tag}')
+    await pg.evaluate("() => document.getElementById('elsewhere').classList.add('hidden')")
     await ctx.close()
 
 async def ipad_pass(b, w, h):
