@@ -19,6 +19,7 @@
     "test:eggs": "/workspace/.pwvenv/bin/python eggs_test.py",
     "test:phone": "/workspace/.pwvenv/bin/python phone_test.py",
     "test:ranch": "/workspace/.pwvenv/bin/python ranch_test.py",
+    "test:ride": "/workspace/.pwvenv/bin/python ride_pose_test.py",
     "test:whatsnew": "/workspace/.pwvenv/bin/python whatsnew_test.py"
   },
   "devDependencies": {
