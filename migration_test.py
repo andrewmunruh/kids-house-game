@@ -160,7 +160,9 @@ async def main():
                 except Exception:
                     await pg.screenshot(path=f'/tmp/migB{i}.png'); print('DBG', i, await pg.evaluate("document.body.className"), await pg.evaluate("[...document.scripts].map(s=>s.src).join(',')"), await pg.evaluate("localStorage.getItem('cozy-hood')")); raise
             await P.wait_for_timeout(1500)
-            check('updated iPads see the What\'s new popup once', all([await pg.locator('.whatsNew').count() == 1 for pg in (P, K2, K3)]))
+            expect_wn = 1 if int(WN_LATEST) > int(WN_OLD) else 0  # a release with no new What's new entry must not show the popup
+            check("updated iPads see the What's new popup once" if expect_wn else "no What's new popup when the version did not change",
+                  all([await pg.locator('.whatsNew').count() == expect_wn for pg in (P, K2, K3)]), f'old v{WN_OLD} -> new v{WN_LATEST}')
             for pg in (P, K2, K3): await pg.wait_for_timeout(500); await pg.evaluate("document.querySelector('#wnGo')?.click()"); await pg.wait_for_timeout(300)
             check('phase B runs the new build: every iPad reconnects on its own and lands on the map', await P.locator('#btnMap').count() == 1 and all([await pg.evaluate("document.body.classList.contains('view-map')") for pg in (P, K2, K3)]))
             ids_b = [await pg.evaluate("[__hood().pid, __hood().myHouseId()]") for pg in (P, K2, K3)]
