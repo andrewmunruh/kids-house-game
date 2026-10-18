@@ -1944,18 +1944,35 @@ function rideLegHTML(pants: string) {
     `<path class="${cls} cloth" d="${d}" fill="none" stroke="${pants}" stroke-width="${inner}" stroke-linecap="round"/>`;
   return `<svg class="rideleg" viewBox="0 0 160 130">${tube('thigh', 'M66 56 L102 66', 13, 8)}${tube('shin', 'M102 68 L106 104', 12, 7.2)}<circle class="knee" cx="102" cy="67" r="6.2" fill="${pants}" stroke="${ink}" stroke-width="3.5"/><ellipse class="shoe" cx="116" cy="106" rx="11" ry="5.2" fill="${ink}"/></svg>`;
 }
-/** Portrait phones only. Smaller stalls, spread across the paddock so ground taps land between horses. */
+/** Portrait phones only. Fewer stalls, about a kid tall, so the ground between them stays walkable. */
 function phonePaddock() {
   return document.body.classList.contains('phone') && document.body.classList.contains('phone-portrait') && !inBarn;
 }
+/** Chestnut, Midnight, and the rainbow pony. A horse she is already riding stays out too. */
+function shownHorseIds(): number[] {
+  if (!phonePaddock()) return HORSE_X.map((_, i) => i);
+  const ids = [0, 2, 4];
+  for (const w of parkPeople('ranch')) {
+    const ride = w.p.ride;
+    if (ride !== undefined && ids.indexOf(ride) < 0) ids.push(ride);
+  }
+  return ids;
+}
 function horseHome(i: number) {
   if (!phonePaddock()) return HORSE_X[i];
-  const n = HORSE_X.length;
-  const x0 = 2436, x1 = 3044; // inside the fence (2400–3080), with a gap between each horse
-  return Math.round(x0 + (x1 - x0) * i / (n - 1));
+  const shown = shownHorseIds();
+  const idx = shown.indexOf(i);
+  const n = shown.length;
+  const slot = idx < 0 ? 0 : idx;
+  const half = horseSize().w / 2;
+  const x0 = 2400 + half + 18, x1 = 3080 - half - 18; // inside the fence posts
+  if (n <= 1) return Math.round((x0 + x1) / 2);
+  return Math.round(x0 + (x1 - x0) * slot / (n - 1));
 }
 function horseSize() {
-  return phonePaddock() ? { w: 78, h: 64 } : { w: 150, h: 122 };
+  // 131×106 is the 160×130 horse. At ranch scale ~1.32 (a tall portrait phone) that is ~140px,
+  // about as tall as the kid in the house, so mounting does not jump up from a tiny pony.
+  return phonePaddock() ? { w: 131, h: 106 } : { w: 150, h: 122 };
 }
 function placeHorseEl(el: HTMLElement, x: number, y: number) {
   const sc = ranchScale();
@@ -1967,9 +1984,11 @@ function placeHorseEl(el: HTMLElement, x: number, y: number) {
 /** After a rotate, restall horses that are still in the paddock. iPad never has body.phone. */
 function layoutPaddock() {
   if (view !== 'ranch' || inBarn || !document.body.classList.contains('phone')) return;
+  const show = new Set(shownHorseIds());
   document.querySelectorAll<HTMLElement>('#ranchWorld .horse').forEach(el => {
     const i = +el.dataset.horse!;
-    if (trotting.has(i) || el.classList.contains('away')) return;
+    el.classList.toggle('stallOff', phonePaddock() && !show.has(i));
+    if (!show.has(i) || trotting.has(i) || el.classList.contains('away')) return;
     placeHorseEl(el, horseHome(i), HORSE_Y);
   });
 }
@@ -2057,7 +2076,7 @@ function renderRanch() {
     + `<button class="rprop henHouse" data-r="egg" aria-label="Hen house" style="${box(715, 482, 180, 170)}">${henHouseSVG}</button>`
     + `<button class="rprop tractor" data-r="honk" aria-label="Tractor" style="${box(900, 580, 170, 130)}">${tractorSVG}</button>`
     + `<button class="rprop appleTree" data-r="apple" aria-label="Apple tree" style="${box(2085, 482, 240, 300)}">${appleTreeSVG}</button>`
-    + HORSES.map((_, i) => { const hs = horseSize(); return `<button class="horse" data-horse="${i}" aria-label="${HORSE_COATS[i].name} horse" style="${box(horseHome(i), HORSE_Y, hs.w, hs.h)}">${horseSVG(i)}</button>`; }).join('')
+    + HORSES.map((_, i) => { const hs = horseSize(); const off = phonePaddock() && shownHorseIds().indexOf(i) < 0 ? ' stallOff' : ''; return `<button class="horse${off}" data-horse="${i}" aria-label="${HORSE_COATS[i].name} horse" style="${box(horseHome(i), HORSE_Y, hs.w, hs.h)}">${horseSVG(i)}</button>`; }).join('')
     + Array.from({ length: PLOTS }, (_, i) => `<button class="plot" data-plot="${i}" aria-label="Garden plot" style="${box(PLOT_X(i), 594, 66, 86)}"></button>`).join('')
     + `<div class="rfx" id="rfx"></div><div class="savatars" id="ravatars"></div>`;
   renderPlots(true); renderRanchAvatars();
@@ -2111,6 +2130,12 @@ function renderRanchAvatars() {
     el.style.zIndex = depthZ(w.p.y); el.classList.toggle('flipped', w.p.flip);
   }
   box.querySelectorAll<HTMLElement>('.savatar').forEach(el => { if (!keep.has(el.dataset.pid!)) el.remove(); });
+  if (document.body.classList.contains('phone')) {
+    const show = new Set(shownHorseIds());
+    document.querySelectorAll<HTMLElement>('#ranchWorld .horse').forEach(el => {
+      el.classList.toggle('stallOff', phonePaddock() && !show.has(+el.dataset.horse!));
+    });
+  }
   document.querySelectorAll<HTMLElement>('#ranchWorld .horse').forEach(h => {
     const id = +h.dataset.horse!;
     if (!ridden.has(id)) h.classList.remove('away');

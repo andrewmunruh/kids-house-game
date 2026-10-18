@@ -483,6 +483,14 @@ body.view-ranch #btnParent, body.view-ranch #btnSolo { display: none !important;
 .ranchWorld .munch .head, .mount.munch .head { animation: munch .25s ease-in-out 5 !important; }
 @keyframes munch { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(14deg) translateY(4%); } }
 .ranchWorld .horse.away { opacity: 0; pointer-events: none; transition: opacity .2s; }
+/* Portrait phones only (body.phone is never set on an iPad). Two stalls stay out of the
+   paddock so the bigger horses leave ground to walk on. A tap on empty horse-box
+   pixels falls through to the ground; the painted horse still mounts. */
+body.phone.phone-portrait .ranchWorld .horse.stallOff { display: none; }
+body.phone.phone-portrait .ranchWorld .horse { pointer-events: none; }
+body.phone.phone-portrait .ranchWorld .horse svg * { pointer-events: visiblePainted; }
+body.phone.phone-portrait .ranchWorld .horse.away svg *,
+body.phone.phone-portrait .ranchWorld .horse.stallOff svg * { pointer-events: none; }
 .ranchWorld .heart, .mount .heart { position: absolute; bottom: 60%; font-size: 26px; font-weight: 900; pointer-events: none; animation: heartUp 1.6s ease-out forwards; opacity: 0; z-index: 3; }
 .ranchWorld .abubble, .mount .abubble { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); white-space: nowrap; font-size: 17px; z-index: 6; }
 .feedHover { filter: drop-shadow(0 0 10px #ffd43b) drop-shadow(0 0 4px #fff); }
@@ -774,6 +782,13 @@ body.view-street .stage { visibility: hidden; }
   body.phone .whatsNew .card:has(.wnList.many) { padding: 8px 10px; }
   body.phone .whatsNew .card:has(.wnList.many) .wnTitle { font-size: 18px !important; margin: 0 0 4px !important; }
   body.phone .whatsNew .card:has(.wnList.many) .wnGo { margin-top: 6px; padding: 6px 16px; font-size: 18px; min-height: 44px; }
+  /* The ranch label scales with the short scene and was ~11px. Keep it readable. */
+  body.phone .barnDoor .doorHint { font-size: max(12px, min(24px, calc(19px * var(--sc)))); }
+}
+/* Very short phone landscape letterboxes the room. A centred Surprises pill covers the
+   top of the wall, so it moves into the right gutter. Taller landscape phones keep it centred. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 360px) {
+  body.phone .secrets { top: 6px; bottom: auto; left: auto; right: max(4px, env(safe-area-inset-right)); transform: none; }
 }
 
 /* ===================== glam clubhouse / Game Room ===================== */
@@ -873,6 +888,9 @@ body.view-street .stage { visibility: hidden; }
 .slayHand:has(.slayCard:nth-child(9)) { padding-top: 58px; }
 .slayHand:has(.slayCard:nth-child(9)) .slayCard { margin-top: -46px; }
 .slayCard { flex: 0 0 90px; width: 90px; height: 130px; padding: 0; background: none; box-shadow: none; border-radius: 16px; }
+/* Not your turn: the earlier fade. Colors stay, the hand just sits back. */
+.slayCard.wait, .slayCard.wait:disabled { opacity: .42; }
+/* Your turn, but this card cannot be played: grey, with a dark edge so the number stays readable. */
 .slayCard.dim { opacity: 1; background: #e4dcec; border: 3px solid #3d3150; border-radius: 16px; }
 .slayCard.dim svg :is(rect, ellipse, path, circle, polygon) { filter: grayscale(.88) saturate(.16) brightness(1.04); }
 .slayCard.dim svg text { fill: #241828; stroke: #fff; }
@@ -914,6 +932,11 @@ body.view-street .stage { visibility: hidden; }
 .fourCell.just { animation: pieceDrop .38s cubic-bezier(.2,1.4,.4,1); }
 @keyframes pieceDrop { from { transform: translateY(-36px) scale(.7); opacity: .15; } to { transform: none; opacity: 1; } }
 .dropHint { height: 22px; font-weight: 900; font-size: 18px; color: #e0558a; }
+/* iPad portrait (820×1180) only. Phones are narrower than 700px, landscape iPads are wider.
+   Flexible spacers share the leftover height, and shrink away when the hand is tall. */
+@media (min-width: 700px) and (max-width: 900px) and (min-height: 1000px) {
+  .tblCard.game-slay::before, .tblCard.game-slay::after { content: ''; flex: 1 1 0; min-height: 0; }
+}
 @media (max-width: 860px) {
   .tblTop h2 { font-size: 24px; }
   .slayDeck, .slayDiscard { width: 66px; height: 96px; }

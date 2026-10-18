@@ -1,7 +1,10 @@
 # Phone layout. iPad sizes must not match the phone gate. Local preview only.
 import asyncio, os, sys
 from playwright.async_api import async_playwright
-from testnav import K, NOTE_VS_TABLE_JS, SLAY_PINK_3, about_slay_card, dim_card_contrast
+from testnav import (
+    K, NOTE_VS_TABLE_JS, SLAY_PINK_3, about_slay_card, dim_card_contrast, face_chroma,
+    inject_slay_hand, read_slay_hand, read_wait_style, read_secrets, read_door_hint, read_paddock,
+)
 
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
 SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/phone/'
@@ -125,6 +128,7 @@ async def phone_pass(b, w, h, save):
     if portrait: await check_framed(pg, tag, 'house')
     if (w, h) == (375, 667): await check_portrait_kid(pg, tag)
     if not portrait: await stage_fill(pg, tag, w, h)
+    if not portrait: await check_secrets(pg, tag, short=False)
     if w in (375, 667): await living_room_one_line(pg, tag)
     if save: await shot(pg, f'house-{tag}')
 
@@ -251,7 +255,10 @@ async def phone_pass(b, w, h, save):
     info = await layout(pg)
     check(f'{tag} ranch fits', tops_ok(info) == [] and info['scrollW'] <= info['vw'] + 1)
     if portrait: await check_framed(pg, tag, 'ranch')
-    if (w, h) == (375, 667): await check_paddock(pg, tag)
+    if portrait and (w, h) in ((375, 667), (390, 844)):
+        await check_paddock(pg, tag, tall=(w, h) == (390, 844))
+    if not portrait:
+        await check_zoo_hint(pg, tag)
     if save: await shot(pg, f'ranch-{tag}')
     await pg.click('.barnDoor')
     await pg.wait_for_selector('body.in-barn .barnScene')
@@ -316,6 +323,8 @@ async def phone_pass(b, w, h, save):
         slay_ok = slay_in and slay['transform'] not in ('none', 'matrix(1, 0, 0, 1, 0, 0)')
     check(f'{tag} slay hand and table buttons fit', slay_ok, str(slay))
     if save: await shot(pg, f'slay-{tag}')
+    await check_wait_fade(pg, tag)
+    await check_long_hand(pg, tag, two_row=False)
 
     await pg.evaluate("""() => {
       const cols = Array.from({length: 7}, (_, c) => `<button type="button" class="fourCol" data-col="${c}">${Array.from({length: 6}, () => '<span class="fourCell"></span>').join('')}<span class="dropHint">▼</span></button>`).join('');
@@ -535,30 +544,68 @@ async def check_portrait_kid(pg, tag):
           data.get('legsOnPill') == 0 and data.get('tagOnArrow') == 0 and data.get('gap', -1) >= 4 and data.get('offCenter', 99) <= 28,
           str(data))
 
-async def check_paddock(pg, tag):
-    """Portrait ranch: horses are smaller and spread, so most walkable taps miss them."""
-    data = await pg.evaluate("""() => {
-      const sc = document.getElementById('ranchScroll');
-      const horses = [...document.querySelectorAll('#ranchWorld .horse')];
-      const mid = horses[2];
-      sc.scrollLeft = mid.offsetLeft - sc.clientWidth / 2 + mid.offsetWidth / 2;
-      const port = sc.getBoundingClientRect();
-      let horse = 0, open = 0;
-      const y0 = port.top + port.height * 0.72;
-      const y1 = Math.min(port.bottom - 4, innerHeight - 1);
-      for (let x = port.left + 8; x < port.right - 8; x += 16) {
-        for (let y = y0; y < y1; y += 14) {
-          const el = document.elementFromPoint(x, y);
-          if (el && el.closest('.horse')) horse++; else open++;
-        }
-      }
-      const boxes = horses.map(el => el.getBoundingClientRect()).sort((a, b) => a.left - b.left);
-      let minGap = 999;
-      for (let i = 1; i < boxes.length; i++) minGap = Math.min(minGap, boxes[i].left - boxes[i - 1].right);
-      return {horse, open, minGap: Math.round(minGap), widths: boxes.map(b => Math.round(b.width)),
-        ratio: Math.round(100 * open / Math.max(1, horse + open))};
-    }""")
-    check(f'{tag} paddock leaves walkable ground', data['open'] > data['horse'] and data['minGap'] >= 8 and max(data['widths']) < 120, str(data))
+async def check_paddock(pg, tag, tall=False):
+    """Portrait ranch: horses about a kid tall, with ground left to walk on."""
+    data = await read_paddock(pg)
+    heights = data.get('heights') or []
+    if tall:
+        tall_ok = bool(heights) and min(heights) >= 128 and max(heights) <= 155
+    else:
+        tall_ok = bool(heights) and min(heights) >= 100 and max(heights) <= 130
+    check(f'{tag} paddock horses are about kid height and leave room to walk',
+          data.get('dom') == 5 and data.get('n') == 3 and data.get('open', 0) > data.get('horse', 0)
+          and data.get('minGap', 0) >= 8 and tall_ok and data.get('mounts'),
+          str(data))
+    moved = False
+    tap = data.get('tap')
+    if tap and data.get('me'):
+        await pg.mouse.click(tap['x'], tap['y'])
+        await pg.wait_for_timeout(700)
+        after = await pg.evaluate("() => { const m = __ranch().me; return m && {x: m.x, ride: m.ride == null ? null : m.ride}; }")
+        moved = bool(after) and abs(after['x'] - data['me']['x']) > 12 and after['ride'] is None
+    check(f'{tag} a ground tap near a horse walks the kid', moved, str({'tap': tap, 'from': data.get('me')}))
+
+async def check_zoo_hint(pg, tag):
+    await pg.wait_for_timeout(700)
+    hint = await read_door_hint(pg)
+    check(f'{tag} petting zoo label is at least 12px',
+          hint.get('fs', 0) >= 12 and hint.get('on') and 'Petting zoo' in (hint.get('text') or ''),
+          str(hint))
+
+async def check_secrets(pg, tag, short):
+    pill = await read_secrets(pg)
+    if short:
+        check(f'{tag} Surprises pill sits in a side gutter',
+              pill['on'] and not pill['coversCenter'] and pill['side'], str(pill))
+    else:
+        check(f'{tag} Surprises pill stays centred on a taller phone',
+              pill['on'] and pill['centered'], str(pill))
+
+async def check_wait_fade(pg, tag):
+    await inject_slay_hand(pg, 4, 'wait')
+    await pg.wait_for_timeout(40)
+    st = await read_wait_style(pg)
+    png = await pg.locator('#slayHand .slayCard.wait').first.screenshot()
+    chroma, rgb = face_chroma(png)
+    check(f'{tag} waiting Slay cards keep their colors',
+          st.get('allWait') and 0.35 <= st.get('opacity', 0) <= 0.55
+          and 'grayscale' not in (st.get('filter') or '') and chroma >= 25,
+          f'chroma={chroma} rgb={rgb} {st}')
+
+async def check_long_hand(pg, tag, two_row, center=False):
+    await inject_slay_hand(pg, 10, 'turn')
+    await pg.wait_for_timeout(40)
+    hand = await read_slay_hand(pg)
+    rows_ok = hand['rows'] == 2 if two_row else hand['rows'] == 1 and abs(hand['margin']) < 1
+    check(f'{tag} 9+ card Slay hand can be tapped and SLAY! stays on the table',
+          hand['n'] == 10 and hand['bad'] == [] and hand['callIn'] and hand['callHit'] and rows_ok,
+          str(hand))
+    if two_row and center:
+        check(f'{tag} Slay table uses the tall panel',
+              hand['above'] > 80 and hand['below'] > 80 and abs(hand['above'] - hand['below']) < 80,
+              str(hand))
+    elif two_row:
+        check(f'{tag} landscape Slay table stays at the top', hand['above'] < 48, str(hand))
 
 async def short_chrome_pass(b, w, h):
     """Safari-chrome heights: welcome button, stage fill (≥2× at 844×300), tools stay tappable."""
@@ -593,6 +640,12 @@ async def short_chrome_pass(b, w, h):
       return {inside: c.left >= s.left - 1 && c.right <= s.right + 1 && c.bottom <= s.bottom + 1, cw: Math.round(c.width)};
     }""")
     check(f'{tag} character still readable in the room', char['inside'] and char['cw'] >= 24, str(char))
+    await check_secrets(pg, tag, short=True)
+    await pg.click('#btnMap')
+    await pg.wait_for_selector('body.view-map .mapSpot')
+    await pg.click('[data-go="ranch"]')
+    await pg.wait_for_selector('body.view-ranch .ranchScene')
+    await check_zoo_hint(pg, tag)
     await ctx.close()
 
 async def ipad_pass(b, w, h):
@@ -638,6 +691,8 @@ async def ipad_pass(b, w, h):
     check(f'{tag} dim Slay card text contrast is at least 3:1',
           ratio >= 3 and dim_style['opacity'] >= 0.9 and dim_style['border'] >= 2 and 'grayscale' in dim_style['filter'],
           f'{ratio:.2f} ink={ink} face={face} {dim_style}')
+    await check_wait_fade(pg, tag)
+    await check_long_hand(pg, tag, two_row=True, center=(w, h) == (820, 1180))
     await ctx.close()
 
 async def main():

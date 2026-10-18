@@ -39,6 +39,22 @@ def contrast_ratio(a, b):
     hi, lo = max(L(a), L(b)), min(L(a), L(b))
     return (hi + 0.05) / (lo + 0.05)
 
+def face_chroma(png):
+    """How colored the upper card face is. Grey is near 0; a pink Slay card stays high."""
+    im = Image.open(io.BytesIO(png)).convert('RGB')
+    w, h = im.size
+    pix = im.load()
+    rs = gs = bs = n = 0
+    y0, y1 = int(h * 0.14), max(int(h * 0.14) + 1, int(h * 0.42))
+    x0, x1 = int(w * 0.16), max(int(w * 0.16) + 1, int(w * 0.84))
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            r, g, b = pix[x, y]
+            rs += r; gs += g; bs += b; n += 1
+    n = max(1, n)
+    r, g, b = rs // n, gs // n, bs // n
+    return max(r, g, b) - min(r, g, b), (r, g, b)
+
 def dim_card_contrast(png):
     """Contrast of the numeral ink against the card face, from a rendered dim card."""
     im = Image.open(io.BytesIO(png)).convert('RGB')
@@ -72,3 +88,165 @@ NOTE_VS_TABLE_JS = """() => {
   const lb = lobby.getBoundingClientRect();
   return { overlap: hit(lb) || seats.some(hit), gap: a.top - lb.bottom };
 }"""
+
+async def inject_slay_hand(pg, n, mode):
+    """Drop a fake Slay hand into the overlay. mode is 'wait' or 'turn'."""
+    await pg.evaluate("""({svg, n, mode}) => {
+      const root = document.getElementById('tableOverlay');
+      root.classList.remove('hidden');
+      const cards = Array.from({length: n}, (_, i) => {
+        const cls = mode === 'wait' ? 'slayCard wait' : (i % 2 ? 'slayCard can' : 'slayCard dim');
+        const dis = cls.includes('can') ? '' : 'disabled';
+        return `<button type="button" class="${cls}" data-card="${i}" ${dis}>${svg}</button>`;
+      }).join('');
+      const whose = mode === 'wait' ? '<div class="whose">Mia\\'s turn</div>' : '<div class="whose yours">Your turn!</div>';
+      root.innerHTML = `<div class="tblCard game-slay"><div class="tblTop"><h2>Slay</h2></div>
+        <div id="tblStage"><div class="slayFelt">${whose}
+        <div class="slayOpps"><div class="slayOpp"><b>Mia</b><span class="cnt">7</span></div><div class="slayOpp"><b>Lou</b><span class="cnt">6</span></div></div>
+        <div class="slayPile"><button type="button" class="slayDeck" disabled></button><div class="slayDiscard">${svg}</div><div class="nowColor" style="background:#ff7eb3"></div></div>
+        <div id="slayHand" class="slayHand ${mode === 'wait' ? '' : 'isTurn'}">${cards}</div>
+        <button type="button" id="slayCall" class="slayCall" disabled>SLAY!</button></div></div>
+        <div class="tblBar"><button type="button" id="tblBack">Back to room</button><button type="button" id="tblLeave">Leave table</button></div></div>`;
+    }""", {'svg': SLAY_PINK_3, 'n': n, 'mode': mode})
+
+async def read_slay_hand(pg):
+    """Clip, tap, row count, and how the table sits in a tall portrait panel."""
+    return await pg.evaluate("""() => {
+      const table = document.querySelector('.tblCard').getBoundingClientRect();
+      const hand = document.getElementById('slayHand');
+      const call = document.getElementById('slayCall').getBoundingClientRect();
+      const phone = document.body.classList.contains('phone');
+      const cards = [...hand.querySelectorAll('.slayCard')];
+      const hitCard = (el) => {
+        const b = el.getBoundingClientRect();
+        const x = Math.min(innerWidth - 2, Math.max(1, b.left + b.width / 2));
+        const y = Math.min(innerHeight - 2, Math.max(1, b.top + b.height * 0.42));
+        const hit = document.elementFromPoint(x, y);
+        const id = hit && hit.closest('.slayCard') ? hit.closest('.slayCard').dataset.card : null;
+        const visH = Math.min(b.bottom, table.bottom) - Math.max(b.top, table.top);
+        const visW = Math.min(b.right, table.right) - Math.max(b.left, table.left);
+        return {id: el.dataset.card, own: id === el.dataset.card, clipped: visH < b.height - 2 || visW < b.width - 2, top: Math.round(b.top)};
+      };
+      let measured;
+      if (phone) {
+        measured = [];
+        for (const el of cards) {
+          hand.scrollLeft = Math.max(0, el.offsetLeft - hand.clientWidth / 2 + el.offsetWidth / 2);
+          measured.push(hitCard(el));
+        }
+        hand.scrollLeft = 0;
+      } else measured = cards.map(hitCard);
+      const tops = measured.map(m => m.top);
+      const cx = Math.min(innerWidth - 2, Math.max(1, call.left + call.width / 2));
+      const cy = Math.min(innerHeight - 2, Math.max(1, call.top + call.height / 2));
+      const ch = document.elementFromPoint(cx, cy);
+      const top = document.querySelector('.tblTop').getBoundingClientRect();
+      const bar = document.querySelector('.tblBar').getBoundingClientRect();
+      const margin = cards.length ? parseFloat(getComputedStyle(cards[0]).marginTop) : 0;
+      return {
+        n: cards.length,
+        bad: measured.filter(m => !m.own || m.clipped).map(m => m.id + (m.clipped ? ':clip' : ':tap')),
+        rows: Math.max(...tops) - Math.min(...tops) > 40 ? 2 : 1,
+        margin,
+        callIn: call.top >= table.top - 1 && call.bottom <= table.bottom + 1 && call.top >= -1 && call.bottom <= innerHeight + 1,
+        callHit: !!(ch && ch.closest('#slayCall')),
+        above: Math.round(top.top - table.top),
+        below: Math.round(table.bottom - bar.bottom),
+      };
+    }""")
+
+async def read_wait_style(pg):
+    return await pg.evaluate("""() => {
+      const el = document.querySelector('#slayHand .slayCard.wait');
+      if (!el) return {missing: true};
+      const s = getComputedStyle(el);
+      const shape = el.querySelector('svg rect, svg path, svg circle');
+      const allWait = [...document.querySelectorAll('#slayHand .slayCard')].every(c => c.classList.contains('wait') && !c.classList.contains('dim'));
+      return {opacity: Number(s.opacity), filter: shape ? getComputedStyle(shape).filter : s.filter, allWait};
+    }""")
+
+async def read_secrets(pg):
+    """Where the Surprises pill sits relative to the top centre of the wall."""
+    return await pg.evaluate("""() => {
+      const pill = document.getElementById('secrets').getBoundingClientRect();
+      const stage = document.querySelector('.stage').getBoundingClientRect();
+      const cx = stage.left + stage.width / 2;
+      const y = stage.top + 14;
+      const mid = (pill.left + pill.right) / 2;
+      return {
+        on: pill.width > 20 && pill.height > 16 && pill.left >= -1 && pill.top >= -1 && pill.right <= innerWidth + 1 && pill.bottom <= innerHeight + 1,
+        coversCenter: pill.left <= cx && pill.right >= cx && pill.top <= y + 8 && pill.bottom >= stage.top - 1,
+        side: mid > innerWidth * 0.62,
+        centered: Math.abs(mid - innerWidth / 2) < 36,
+        mid: Math.round(mid), vw: innerWidth,
+        pill: {x: Math.round(pill.x), y: Math.round(pill.y), w: Math.round(pill.width), h: Math.round(pill.height)},
+      };
+    }""")
+
+async def read_door_hint(pg):
+    return await pg.evaluate("""() => {
+      const el = document.querySelector('.barnDoor .doorHint');
+      if (!el) return {missing: true};
+      const b = el.getBoundingClientRect();
+      return {
+        fs: parseFloat(getComputedStyle(el).fontSize),
+        text: (el.textContent || '').trim(),
+        on: b.width > 20 && b.left >= -1 && b.top >= -1 && b.right <= innerWidth + 1 && b.bottom <= innerHeight + 1,
+        w: Math.round(b.width), h: Math.round(b.height),
+      };
+    }""")
+
+async def read_paddock(pg):
+    """Portrait-phone horses: size, gaps, a mount point, and a ground tap that is not the horse."""
+    return await pg.evaluate("""() => {
+      const scEl = document.getElementById('ranchScroll');
+      const all = [...document.querySelectorAll('#ranchWorld .horse')];
+      const horses = all.filter(el => getComputedStyle(el).display !== 'none');
+      if (!horses.length) return {dom: all.length, n: 0};
+      const mid = horses[Math.floor(horses.length / 2)];
+      scEl.scrollLeft = mid.offsetLeft - scEl.clientWidth / 2 + mid.offsetWidth / 2;
+      const port = scEl.getBoundingClientRect();
+      let horse = 0, open = 0;
+      const y0 = port.top + port.height * 0.72;
+      const y1 = Math.min(port.bottom - 4, innerHeight - 1);
+      for (let x = port.left + 8; x < port.right - 8; x += 16) {
+        for (let y = y0; y < y1; y += 14) {
+          const el = document.elementFromPoint(x, y);
+          if (el && el.closest('.horse')) horse++; else open++;
+        }
+      }
+      const boxes = horses.map(el => el.getBoundingClientRect()).sort((a, b) => a.left - b.left);
+      let minGap = 999;
+      for (let i = 1; i < boxes.length; i++) minGap = Math.min(minGap, boxes[i].left - boxes[i - 1].right);
+      const b = mid.getBoundingClientRect();
+      const mountHit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height * 0.45);
+      const blocked = (el) => !!(el && el.closest('.horse, .animal, .rprop, .savatar, .pet, .plot, .bucket, .fallenApple, .basketChip, .top, .drawer'));
+      let clear = null;
+      for (let x = b.left + 4; x < b.right - 4 && !clear; x += 8) {
+        for (let y = b.top + 4; y < b.bottom - 4; y += 8) {
+          const el = document.elementFromPoint(x, y);
+          if (!blocked(el) && el && el.closest('#ranchWorld')) { clear = {x, y}; break; }
+        }
+      }
+      const candidates = [
+        [Math.min(innerWidth - 8, b.right + 18), b.bottom - 8],
+        [Math.max(8, b.left - 18), b.bottom - 8],
+        [b.left + b.width / 2, Math.min(innerHeight - 8, b.bottom + 16)],
+      ];
+      let ground = null;
+      for (const [x, y] of candidates) {
+        if (x < 4 || y < 4 || x > innerWidth - 4 || y > innerHeight - 4) continue;
+        const el = document.elementFromPoint(x, y);
+        if (blocked(el) || !el || !el.closest('#ranchWorld')) continue;
+        ground = {x, y};
+        break;
+      }
+      const me = window.__ranch && __ranch().me;
+      return {
+        dom: all.length, n: horses.length, horse, open, minGap: Math.round(minGap),
+        heights: boxes.map(r => Math.round(r.height)), widths: boxes.map(r => Math.round(r.width)),
+        mounts: !!(mountHit && mountHit.closest('.horse')),
+        tap: clear || ground, clear: !!clear,
+        me: me && {x: me.x, ride: me.ride == null ? null : me.ride},
+      };
+    }""")

@@ -120,8 +120,11 @@ function render(host: HTMLElement, ctx: PlayCtx) {
     ${pendingId !== null ? `<div id="crownPick" class="crownPick"><p>Pick a color for your Crown!</p><div class="crownRow">${PAL.map((p, i) => `<button type="button" data-color="${i}" aria-label="${p.name}" style="background:${p.fill}"><span>${p.name}</span></button>`).join('')}</div></div>` : ''}
     <div id="slayHand" class="slayHand ${yours ? 'isTurn' : ''}">${sorted.map(c => {
       const ok = yours && table.phase === 'play' && playable(c, v);
+      // Waiting out a turn fades the colors (they stay pink, lilac, aqua, gold).
+      // On your turn, a card you cannot play is the grey "dim" one.
+      const state = ok ? 'can' : yours ? 'dim' : 'wait';
       const word = typeof c.v === 'number' ? PAL[c.c].name + ' ' + c.v : (c.v === 'wild' ? 'Crown' : c.v === 'w4' ? 'Crown plus 4' : c.v === 'd2' ? 'plus 2' : c.v === 'rev' ? 'Flip' : 'Nope');
-      return `<button type="button" class="slayCard ${ok ? 'can' : 'dim'} ${c.id === v.drawn ? 'justDrew' : ''} ${c.id === pendingId ? 'picked' : ''}" data-card="${c.id}" data-c="${c.c}" data-v="${c.v}" aria-label="${esc(word)}" ${ok ? '' : 'disabled'}>${cardSVG(c)}</button>`;
+      return `<button type="button" class="slayCard ${state} ${c.id === v.drawn ? 'justDrew' : ''} ${c.id === pendingId ? 'picked' : ''}" data-card="${c.id}" data-c="${c.c}" data-v="${c.v}" aria-label="${esc(word)}" ${ok ? '' : 'disabled'}>${cardSVG(c)}</button>`;
     }).join('')}</div>
     ${playing && you !== null ? `<button type="button" id="slayCall" class="slayCall ${slayOk ? 'ready' : ''}" ${slayOk ? '' : 'disabled'}>SLAY!</button>` : ''}
     <button type="button" id="slayPass" class="slayPass ${passOk ? '' : 'hidden'}" ${passOk ? '' : 'disabled'}>Pass</button>

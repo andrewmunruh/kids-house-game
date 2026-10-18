@@ -3,7 +3,10 @@
 import asyncio, os, shutil, sys, traceback
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
-from testnav import SKIP_WN, to_map, go, local_page, NOTE_VS_TABLE_JS, about_slay_card, dim_card_contrast
+from testnav import (
+    SKIP_WN, K, to_map, go, local_page, NOTE_VS_TABLE_JS, about_slay_card, dim_card_contrast, face_chroma,
+    inject_slay_hand, read_slay_hand, read_wait_style, read_secrets, read_door_hint, read_paddock,
+)
 
 URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/gameroom/'
@@ -194,6 +197,114 @@ def four_col(board, me):
             return c
     return None
 
+async def dismiss_note(pg):
+    if await pg.locator('#phoneOk').is_visible():
+        await pg.click('#phoneOk', force=True)
+
+async def check_wait_fade(pg, tag):
+    await inject_slay_hand(pg, 4, 'wait')
+    await pg.wait_for_timeout(40)
+    st = await read_wait_style(pg)
+    png = await pg.locator('#slayHand .slayCard.wait').first.screenshot()
+    chroma, rgb = face_chroma(png)
+    check(f'{tag} waiting Slay cards keep their colors',
+          st.get('allWait') and 0.35 <= st.get('opacity', 0) <= 0.55
+          and 'grayscale' not in (st.get('filter') or '') and chroma >= 25,
+          f'chroma={chroma} rgb={rgb} {st}')
+
+async def check_long_hand(pg, tag, two_row, center=False):
+    await inject_slay_hand(pg, 10, 'turn')
+    await pg.wait_for_timeout(40)
+    hand = await read_slay_hand(pg)
+    rows_ok = hand['rows'] == 2 if two_row else hand['rows'] == 1 and abs(hand['margin']) < 1
+    check(f'{tag} 9+ card Slay hand can be tapped and SLAY! stays on the table',
+          hand['n'] == 10 and hand['bad'] == [] and hand['callIn'] and hand['callHit'] and rows_ok,
+          str(hand))
+    if two_row and center:
+        check(f'{tag} Slay table uses the tall panel',
+              hand['above'] > 80 and hand['below'] > 80 and abs(hand['above'] - hand['below']) < 80,
+              str(hand))
+    elif two_row:
+        check(f'{tag} landscape Slay table stays at the top', hand['above'] < 48, str(hand))
+
+async def polish_pass(b):
+    """Layout checks that do not belong inside the three-iPad game."""
+    for w, h in ((1024, 768), (1180, 820), (820, 1180)):
+        ctx = await b.new_context(viewport={'width': w, 'height': h}, has_touch=True, device_scale_factor=1)
+        await ctx.add_init_script(SKIP_WN)
+        pg = await ctx.new_page()
+        await pg.goto(URL, wait_until='networkidle')
+        await pg.wait_for_selector('#stage .char')
+        tag = f'{w}x{h}'
+        await check_wait_fade(pg, tag)
+        await check_long_hand(pg, tag, two_row=True, center=(w, h) == (820, 1180))
+        await ctx.close()
+
+    async def phone(w, h):
+        ctx = await b.new_context(viewport={'width': w, 'height': h}, has_touch=True, is_mobile=True, device_scale_factor=1)
+        await ctx.add_init_script(f"localStorage.setItem('{K('cozy-whatsnew')}','999')")
+        pg = await ctx.new_page()
+        await pg.goto(URL, wait_until='networkidle')
+        await pg.wait_for_selector('#stage .char')
+        await dismiss_note(pg)
+        return ctx, pg
+
+    tag = '390x844'
+    ctx, pg = await phone(390, 844)
+    await pg.click('#btnMap')
+    await pg.wait_for_selector('body.view-map .mapSpot')
+    await pg.click('[data-go="ranch"]')
+    await pg.wait_for_selector('body.view-ranch .ranchScene')
+    await pg.wait_for_timeout(300)
+    data = await read_paddock(pg)
+    heights = data.get('heights') or []
+    check(f'{tag} paddock horses are about kid height and leave room to walk',
+          data.get('dom') == 5 and data.get('n') == 3 and data.get('open', 0) > data.get('horse', 0)
+          and data.get('minGap', 0) >= 8 and bool(heights) and min(heights) >= 128 and max(heights) <= 155 and data.get('mounts'),
+          str(data))
+    moved = False
+    tap = data.get('tap')
+    if tap and data.get('me'):
+        await pg.mouse.click(tap['x'], tap['y'])
+        await pg.wait_for_timeout(700)
+        after = await pg.evaluate("() => { const m = __ranch().me; return m && {x: m.x, ride: m.ride == null ? null : m.ride}; }")
+        moved = bool(after) and abs(after['x'] - data['me']['x']) > 12 and after['ride'] is None
+    check(f'{tag} a ground tap near a horse walks the kid', moved, str({'tap': tap, 'from': data.get('me')}))
+    await check_wait_fade(pg, tag)
+    await check_long_hand(pg, tag, two_row=False)
+    await ctx.close()
+
+    tag = '844x390'
+    ctx, pg = await phone(844, 390)
+    pill = await read_secrets(pg)
+    check(f'{tag} Surprises pill stays centred on a taller phone', pill['on'] and pill['centered'], str(pill))
+    await pg.click('#btnMap')
+    await pg.wait_for_selector('body.view-map .mapSpot')
+    await pg.click('[data-go="ranch"]')
+    await pg.wait_for_selector('body.view-ranch .ranchScene')
+    await pg.wait_for_timeout(700)
+    hint = await read_door_hint(pg)
+    check(f'{tag} petting zoo label is at least 12px',
+          hint.get('fs', 0) >= 12 and hint.get('on') and 'Petting zoo' in (hint.get('text') or ''), str(hint))
+    await check_wait_fade(pg, tag)
+    await check_long_hand(pg, tag, two_row=False)
+    await ctx.close()
+
+    for w, h in ((844, 300), (667, 280)):
+        tag = f'{w}x{h}'
+        ctx, pg = await phone(w, h)
+        pill = await read_secrets(pg)
+        check(f'{tag} Surprises pill sits in a side gutter', pill['on'] and not pill['coversCenter'] and pill['side'], str(pill))
+        await pg.click('#btnMap')
+        await pg.wait_for_selector('body.view-map .mapSpot')
+        await pg.click('[data-go="ranch"]')
+        await pg.wait_for_selector('body.view-ranch .ranchScene')
+        await pg.wait_for_timeout(700)
+        hint = await read_door_hint(pg)
+        check(f'{tag} petting zoo label is at least 12px',
+              hint.get('fs', 0) >= 12 and hint.get('on') and 'Petting zoo' in (hint.get('text') or ''), str(hint))
+        await ctx.close()
+
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
@@ -215,6 +326,7 @@ async def main():
             await pg.goto(URL)
             await pg.wait_for_timeout(500)
         try:
+            await polish_pass(b)
             # ---------- solo clubhouse ----------
             await to_map(P)
             check('solo map shows the clubhouse', await P.locator('[data-go="gameroom"]').count() == 1 and 'Clubhouse' in await P.inner_text('#mapWorld'))
@@ -349,6 +461,22 @@ async def main():
             check('dim Slay card text contrast is at least 3:1',
                   ratio >= 3 and dim_style['opacity'] >= 0.9 and dim_style['border'] >= 2 and 'grayscale' in dim_style['filter'],
                   f'{ratio:.2f} ink={ink} face={face} {dim_style}')
+            waiter = None
+            for pg in pages:
+                s = await snap(pg, 0)
+                if s and s.get('view') and s.get('you') is not None and s['view'].get('turn') != s['you']:
+                    waiter = pg
+                    break
+            check('a kid is waiting out the Slay turn', waiter is not None)
+            if waiter:
+                await waiter.wait_for_selector('#slayHand .slayCard.wait')
+                st = await read_wait_style(waiter)
+                png = await waiter.locator('#slayHand .slayCard.wait').first.screenshot()
+                chroma, rgb = face_chroma(png)
+                check('waiting Slay hand keeps card colors in the live game',
+                      st.get('allWait') and st.get('opacity', 0) >= 0.35 and st.get('opacity', 1) <= 0.55
+                      and 'grayscale' not in (st.get('filter') or '') and chroma >= 15,
+                      f'chroma={chroma} rgb={rgb} {st}')
             await P.screenshot(path=SHOT + '04-slay-midgame.png')
             for w, h in ((1180, 820), (820, 1180)):
                 await P.set_viewport_size({'width': w, 'height': h})
