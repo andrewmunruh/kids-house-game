@@ -1908,7 +1908,8 @@ function tickKennels() {
   if (spot) {
     seen.add(spot.key);
     const look = kennelLook(spot.dog.name, Date.now());
-    const y = spot.item.y - (look === 'peek' ? 36 : 8);
+    // Sit in the doorway: feet on the floor of the opening, peeking lifts the head over the arch.
+    const y = spot.item.y - (look === 'peek' ? 24 : 2);
     let r = kennelRuns.get(spot.key);
     if (!r || !r.el.isConnected) {
       r?.el.remove();
@@ -1927,7 +1928,7 @@ function tickKennels() {
     r.el.dataset.name = spot.dog.name;
     r.el.classList.toggle('rest', look === 'rest'); r.el.classList.toggle('peek', look === 'peek');
     r.x = spot.item.x; r.y = y;
-    placeEl(r.el, spot.item.x, y, 84, 64); r.el.style.zIndex = String(4000 + Math.round(y));
+    placeEl(r.el, spot.item.x, y, 100, 77); r.el.style.zIndex = String(1000 + spot.item.z + 1);
     syncKennelBtn(r.el, spot.key, true);
   }
   for (const [k, r] of kennelRuns) if (!seen.has(k)) { r.el.remove(); kennelRuns.delete(k); }
@@ -1980,7 +1981,7 @@ function tickCat() {
   const pin = (window as any).__pinCat as { x: number } | null;
   const pinned = !!(pin && Number.isFinite(pin.x));
   const foot = !pinned && perch && tower ? towerFootY(tower.y, th, perch as 1 | 2) : CAT_Y;
-  placeEl(catEl, pinned ? pin!.x : x, foot, !pinned && perch ? 96 : 150, !pinned && perch ? 78 : 128);
+  placeEl(catEl, pinned ? pin!.x : x, foot, !pinned && perch ? 110 : 150, !pinned && perch ? 92 : 128);
   catEl.style.zIndex = String(4000 + Math.round(foot));
   catSpot = { x: pinned ? pin!.x : x, perch, leap: leaping };
 }

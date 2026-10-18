@@ -114,7 +114,7 @@ const SEG = 18; // seconds per little "activity"
 export type CatMood = 'walk' | 'sit' | 'nap' | 'groom' | 'play';
 export type CatSpot = { x: number; mood: CatMood; flip: boolean; perch: 0 | 1 | 2 };
 /** How far up a cat tower (as a fraction of its height) each platform sits. Matches the tower art. */
-export const TOWER_LIFT = { 1: 0.52, 2: 0.76 } as const;
+export const TOWER_LIFT = { 1: 0.35, 2: 0.60 } as const;
 export function towerFootY(itemY: number, itemH: number, perch: 1 | 2) {
   return itemY - itemH * TOWER_LIFT[perch];
 }
