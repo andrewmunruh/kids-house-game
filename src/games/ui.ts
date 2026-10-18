@@ -143,11 +143,11 @@ export function createTableUI(deps: TableDeps): TableApi {
       <div class="tblBar">
         ${canStart ? '<button type="button" id="tblStart">Start</button>' : ''}
         ${waitingHost ? '<p class="tblWait">Waiting for the host…</p>' : ''}
-        ${needFriend ? '<p class="tblWait" id="needFriend">Play with friends on your street</p>' : ''}
         ${showNudge ? '<button type="button" id="tblNudge">Play for her</button>' : ''}
         <button type="button" id="tblBack">Back to room</button>
         <button type="button" id="tblLeave">Leave table</button>
       </div>
+      ${needFriend ? '<p class="tblWait" id="needFriend">Play with friends on your street</p>' : ''}
     </div>`;
     const stage = root.querySelector<HTMLElement>('#tblStage')!;
     if (table.phase === 'lobby' || !table.view) stage.innerHTML = lobbyHTML(table, h, me);
