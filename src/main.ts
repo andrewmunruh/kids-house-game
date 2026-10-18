@@ -190,19 +190,45 @@ function syncChrome() {
   const px = document.body.classList.contains('phone') ? box.bottom : box.height;
   document.documentElement.style.setProperty('--chrome-h', Math.ceil(px) + 'px');
 }
+/** Phone landscape only. Size #app from the visual viewport (Safari chrome), not 100vh. */
+function applyPhoneViewport() {
+  const root = document.documentElement;
+  const appEl = document.getElementById('app')!;
+  const land = document.body.classList.contains('phone') && !document.body.classList.contains('phone-portrait');
+  if (!land) {
+    appEl.style.top = ''; appEl.style.height = ''; appEl.style.bottom = '';
+    root.style.removeProperty('--vvh'); root.style.removeProperty('--vvt');
+    return;
+  }
+  const vv = window.visualViewport;
+  const h = Math.round(vv ? vv.height : window.innerHeight);
+  const top = Math.round(vv ? vv.offsetTop : 0);
+  root.style.setProperty('--vvh', h + 'px');
+  root.style.setProperty('--vvt', top + 'px');
+  appEl.style.top = top + 'px';
+  appEl.style.height = h + 'px';
+  appEl.style.bottom = 'auto';
+}
 function fit() {
   syncPhone();
+  applyPhoneViewport();
   syncChrome();
   const wrap = $('stageWrap');
+  const phone = document.body.classList.contains('phone');
   // iPad keeps the original test. On a phone, a tall tool row can make the stage almost square;
   // still frame it as portrait so the room fills the screen instead of shrinking to a wide sliver.
-  const portrait = document.body.classList.contains('phone')
+  const portrait = phone
     ? wrap.clientHeight > wrap.clientWidth * 0.85
     : wrap.clientHeight > wrap.clientWidth + 40;
   if (portrait) {
     // Match the free space's shape so the room scales up and fills the height.
     const aspect = wrap.clientWidth / Math.max(1, wrap.clientHeight);
     VIEW_W = Math.round(Math.max(480, Math.min(860, H * aspect)));
+  } else if (phone) {
+    // Landscape phone: the free box is short and wide. Open the window to that shape
+    // (never wider than the room, never stretched) so the stage uses the width and the height.
+    const aspect = wrap.clientWidth / Math.max(1, wrap.clientHeight);
+    VIEW_W = Math.round(Math.max(480, Math.min(W, H * aspect)));
   } else VIEW_W = 1000;
   stage.style.width = VIEW_W + 'px';
   stage.style.height = H + 'px';
@@ -215,6 +241,7 @@ function fit() {
   phoneShowKids();
   if (view === 'ranch') requestAnimationFrame(frameRanchSign);
   clampPhoneBubbles();
+  if (phone && view === 'ranch') layoutPaddock();
 }
 /**
  * Phone only. After layout, pan so the kid and her name tag are fully inside the
@@ -265,14 +292,34 @@ function phoneShowHouseKid() {
   const sc = stageScale() || 1;
   const stageBox = stage.getBoundingClientRect();
   const pad = 8;
-  const rightLimit = Math.min(stageBox.right, window.innerWidth) - pad;
-  const leftLimit = Math.max(stageBox.left, 0) + pad;
-  let overflowR = 0, overflowL = 0;
-  for (const el of [kid, ...kid.querySelectorAll<HTMLElement>('.nametag')]) {
+  let rightLimit = Math.min(stageBox.right, window.innerWidth) - pad;
+  let leftLimit = Math.max(stageBox.left, 0) + pad;
+  // The ‹ › arrows sit on the stage edges. Keep her body and name tag out of them.
+  for (const id of ['nudgeL', 'nudgeR'] as const) {
+    const n = $(id);
+    if (!n || n.classList.contains('off') || n.offsetParent === null) continue;
+    const b = n.getBoundingClientRect();
+    if (b.width < 2 || b.height < 2) continue;
+    if (id === 'nudgeL') leftLimit = Math.max(leftLimit, b.right + 6);
+    else rightLimit = Math.min(rightLimit, b.left - 6);
+  }
+  if (rightLimit - leftLimit < 48) {
+    rightLimit = Math.min(stageBox.right, window.innerWidth) - pad;
+    leftLimit = Math.max(stageBox.left, 0) + pad;
+  }
+  const nodes = [kid, ...kid.querySelectorAll<HTMLElement>('.nametag')];
+  let overflowR = 0, overflowL = 0, minL = Infinity, maxR = -Infinity;
+  for (const el of nodes) {
     const b = el.getBoundingClientRect();
     if (b.width < 2 || b.height < 2) continue;
     overflowR = Math.max(overflowR, b.right - rightLimit);
     overflowL = Math.max(overflowL, leftLimit - b.left);
+    minL = Math.min(minL, b.left); maxR = Math.max(maxR, b.right);
+  }
+  // Portrait: she starts right of centre, so her name tag crowds ›. Centre her in the gap between the arrows.
+  if (document.body.classList.contains('phone-portrait') && minL < Infinity) {
+    const delta = (minL + maxR) / 2 - (leftLimit + rightLimit) / 2;
+    if (Math.abs(delta) > 3) { setCam(camX + delta / sc); return; }
   }
   if (overflowR <= 1 && overflowL <= 1) return;
   if (overflowR > 1 && overflowL > 1) setCam(camX - overflowL / sc);
@@ -286,16 +333,21 @@ phoneMQ.addEventListener('change', fit);
 // and covers Map. iPad sizes never match PHONE_MQ, so this never calls fit() there.
 let phoneFitKey = '';
 let phoneFitting = false;
-function fitPhone() {
-  if (phoneFitting || !phoneMQ.matches) return;
+function phoneFitSnapshot() {
   const wrap = $('stageWrap');
   const topBar = document.querySelector('.top');
   const toolRow = document.querySelector('.tools');
   const box = (el: Element | null) => el ? el.clientWidth + 'x' + el.clientHeight : '0';
-  const key = box(wrap) + ' ' + box(topBar) + ' ' + box(toolRow);
+  const vv = window.visualViewport;
+  const vvKey = vv ? Math.round(vv.offsetTop) + 'x' + Math.round(vv.height) + 'x' + Math.round(vv.width) : '';
+  return vvKey + ' ' + box(wrap) + ' ' + box(topBar) + ' ' + box(toolRow);
+}
+function fitPhone() {
+  if (phoneFitting || !phoneMQ.matches) return;
+  const key = phoneFitSnapshot();
   if (key === phoneFitKey) return;
   phoneFitting = true;
-  try { fit(); phoneFitKey = box(wrap) + ' ' + box(topBar) + ' ' + box(toolRow); }
+  try { fit(); phoneFitKey = phoneFitSnapshot(); }
   finally { phoneFitting = false; }
 }
 if (typeof ResizeObserver !== 'undefined') {
@@ -305,6 +357,11 @@ if (typeof ResizeObserver !== 'undefined') {
   ro.observe($('stageWrap'));
   const toolRow = document.querySelector('.tools');
   if (toolRow) ro.observe(toolRow);
+}
+// Safari shows and hides its tab bar without a window resize. Feed that into the same refit.
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => fitPhone());
+  window.visualViewport.addEventListener('scroll', () => fitPhone());
 }
 stage.addEventListener('scroll', () => { stage.scrollLeft = 0; stage.scrollTop = 0; });
 const toRoom = (cx: number, cy: number) => {
@@ -1887,17 +1944,42 @@ function rideLegHTML(pants: string) {
     `<path class="${cls} cloth" d="${d}" fill="none" stroke="${pants}" stroke-width="${inner}" stroke-linecap="round"/>`;
   return `<svg class="rideleg" viewBox="0 0 160 130">${tube('thigh', 'M66 56 L102 66', 13, 8)}${tube('shin', 'M102 68 L106 104', 12, 7.2)}<circle class="knee" cx="102" cy="67" r="6.2" fill="${pants}" stroke="${ink}" stroke-width="3.5"/><ellipse class="shoe" cx="116" cy="106" rx="11" ry="5.2" fill="${ink}"/></svg>`;
 }
+/** Portrait phones only. Smaller stalls, spread across the paddock so ground taps land between horses. */
+function phonePaddock() {
+  return document.body.classList.contains('phone') && document.body.classList.contains('phone-portrait') && !inBarn;
+}
+function horseHome(i: number) {
+  if (!phonePaddock()) return HORSE_X[i];
+  const n = HORSE_X.length;
+  const x0 = 2436, x1 = 3044; // inside the fence (2400–3080), with a gap between each horse
+  return Math.round(x0 + (x1 - x0) * i / (n - 1));
+}
+function horseSize() {
+  return phonePaddock() ? { w: 78, h: 64 } : { w: 150, h: 122 };
+}
 function placeHorseEl(el: HTMLElement, x: number, y: number) {
   const sc = ranchScale();
-  el.style.left = (x - 75) * sc + 'px'; el.style.top = (y - 122) * sc + 'px'; el.style.zIndex = depthZ(y);
+  const { w, h } = horseSize();
+  el.style.left = (x - w / 2) * sc + 'px'; el.style.top = (y - h) * sc + 'px';
+  el.style.width = w * sc + 'px'; el.style.height = h * sc + 'px';
+  el.style.zIndex = depthZ(y);
+}
+/** After a rotate, restall horses that are still in the paddock. iPad never has body.phone. */
+function layoutPaddock() {
+  if (view !== 'ranch' || inBarn || !document.body.classList.contains('phone')) return;
+  document.querySelectorAll<HTMLElement>('#ranchWorld .horse').forEach(el => {
+    const i = +el.dataset.horse!;
+    if (trotting.has(i) || el.classList.contains('away')) return;
+    placeHorseEl(el, horseHome(i), HORSE_Y);
+  });
 }
 function beginTrot(h: number, x: number, y: number) {
-  if (trotting.has(h) || Math.hypot(x - HORSE_X[h], y - HORSE_Y) < 26) return;
+  if (trotting.has(h) || Math.hypot(x - horseHome(h), y - HORSE_Y) < 26) return;
   trotting.set(h, { x, y });
   const el = document.querySelector<HTMLElement>(`#ranchWorld .horse[data-horse="${h}"]`);
   if (!el) return;
   el.classList.add('trotting'); el.classList.remove('away');
-  el.classList.toggle('flipped', HORSE_X[h] < x);
+  el.classList.toggle('flipped', horseHome(h) < x);
   placeHorseEl(el, x, y);
 }
 function dismountSpot(x: number, y: number, flip: boolean) {
@@ -1975,7 +2057,7 @@ function renderRanch() {
     + `<button class="rprop henHouse" data-r="egg" aria-label="Hen house" style="${box(715, 482, 180, 170)}">${henHouseSVG}</button>`
     + `<button class="rprop tractor" data-r="honk" aria-label="Tractor" style="${box(900, 580, 170, 130)}">${tractorSVG}</button>`
     + `<button class="rprop appleTree" data-r="apple" aria-label="Apple tree" style="${box(2085, 482, 240, 300)}">${appleTreeSVG}</button>`
-    + HORSES.map((_, i) => `<button class="horse" data-horse="${i}" aria-label="${HORSE_COATS[i].name} horse" style="${box(HORSE_X[i], HORSE_Y, 150, 122)}">${horseSVG(i)}</button>`).join('')
+    + HORSES.map((_, i) => { const hs = horseSize(); return `<button class="horse" data-horse="${i}" aria-label="${HORSE_COATS[i].name} horse" style="${box(horseHome(i), HORSE_Y, hs.w, hs.h)}">${horseSVG(i)}</button>`; }).join('')
     + Array.from({ length: PLOTS }, (_, i) => `<button class="plot" data-plot="${i}" aria-label="Garden plot" style="${box(PLOT_X(i), 594, 66, 86)}"></button>`).join('')
     + `<div class="rfx" id="rfx"></div><div class="savatars" id="ravatars"></div>`;
   renderPlots(true); renderRanchAvatars();
@@ -2044,12 +2126,12 @@ function mount(h: number) {
   if (rider && !rider.mine) { toast('Someone is riding!'); sfx.pop(); return; }
   if (me.ride !== undefined) {
     if (rider?.mine || me.ride === h) { hopOff(); return; }
-    goWalk(HORSE_X[h], Math.min(RANCH_Y1, HORSE_Y + 8)); // already riding: gallop over, don't swap horses
+    goWalk(horseHome(h), Math.min(RANCH_Y1, HORSE_Y + 8)); // already riding: gallop over, don't swap horses
     return;
   }
   walkQueue = [];
   trotting.delete(h);
-  setParkPres({ where: 'ranch', x: HORSE_X[h], y: Math.min(RANCH_Y1, HORSE_Y + 8), flip: false, ride: h }); sfx.neigh();
+  setParkPres({ where: 'ranch', x: horseHome(h), y: Math.min(RANCH_Y1, HORSE_Y + 8), flip: false, ride: h }); sfx.neigh();
   toast(`You're riding ${HORSE_COATS[h].name}! Tap the ground to gallop 🐴`);
 }
 function hopOff() {
@@ -2205,8 +2287,8 @@ function tickRanch(now: number, dt: number) {
   for (const [h, tr] of trotting) {
     const el = document.querySelector<HTMLElement>(`#ranchWorld .horse[data-horse="${h}"]`);
     if (!el || el.classList.contains('away')) { trotting.delete(h); continue; }
-    const dx = HORSE_X[h] - tr.x, dy = HORSE_Y - tr.y, d = Math.hypot(dx, dy);
-    if (d < 8) { trotting.delete(h); el.classList.remove('trotting', 'flipped'); placeHorseEl(el, HORSE_X[h], HORSE_Y); continue; }
+    const dx = horseHome(h) - tr.x, dy = HORSE_Y - tr.y, d = Math.hypot(dx, dy);
+    if (d < 8) { trotting.delete(h); el.classList.remove('trotting', 'flipped'); placeHorseEl(el, horseHome(h), HORSE_Y); continue; }
     const step = Math.min(d, 460 * dt);
     tr.x += dx / d * step; tr.y += dy / d * step;
     el.classList.add('trotting'); el.classList.toggle('flipped', dx < 0);
