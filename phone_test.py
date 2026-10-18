@@ -115,11 +115,16 @@ async def phone_pass(b, w, h, save):
                gapR: Math.round(s.right - c.right), gapL: Math.round(c.left - s.left), cw: Math.round(c.width) };
     }""")
     check(f'{tag} character fully in the room', char['inside'] and char['cw'] > 24, str(char))
+    if (w, h) == (375, 667): await room_clears_tools(pg, tag, 'house')
     if portrait: await check_framed(pg, tag, 'house')
     if save: await shot(pg, f'house-{tag}')
 
-    # Full own-house tool row (lock, chat, and the rest).
-    await pg.evaluate("() => { document.body.classList.add('mode-hood','own-house'); window.dispatchEvent(new Event('resize')); }")
+    # Full own-house tool row (lock, chat, and the rest). Those buttons wrap onto
+    # their own line at 375px and used to leave the room at the previous size.
+    await pg.evaluate("() => { document.body.classList.add('mode-hood','own-house'); }")
+    await pg.wait_for_timeout(80)
+    if (w, h) == (375, 667): await room_clears_tools(pg, tag, 'own-house tool row')
+    await pg.evaluate("() => window.dispatchEvent(new Event('resize'))")
     await pg.wait_for_timeout(40)
     info = await layout(pg)
     bad = tops_ok(info)
@@ -329,7 +334,47 @@ async def phone_pass(b, w, h, save):
     check(f'{tag} another-screen card fits', inside(else_card) and else_card['bh'] >= 44 and else_card['page'] <= w + 1, str(else_card))
     if save and portrait: await shot(pg, f'elsewhere-{tag}')
     await pg.evaluate("() => document.getElementById('elsewhere').classList.add('hidden')")
+    if (w, h) == (375, 667):
+        # Already in the clubhouse. Rotate away from home, then come back.
+        await rotate_away_and_home(pg, tag, 'clubhouse')
+        await pg.click('#btnMap', force=True)
+        await pg.wait_for_selector('body.view-map .mapSpot')
+        await pg.click('[data-go="ranch"]', force=True)
+        await pg.wait_for_selector('body.view-ranch .ranchScene')
+        await rotate_away_and_home(pg, tag, 'ranch')
     await ctx.close()
+
+async def room_clears_tools(pg, tag, label):
+    """The room panel must not cover the round tool row, and Map must be fully tappable."""
+    data = await pg.evaluate("""() => {
+      const stage = document.querySelector('.stage').getBoundingClientRect();
+      const tools = document.querySelector('.tools').getBoundingClientRect();
+      const map = document.getElementById('btnMap').getBoundingClientRect();
+      const ix = Math.max(0, Math.min(stage.right, tools.right) - Math.max(stage.left, tools.left));
+      const iy = Math.max(0, Math.min(stage.bottom, tools.bottom) - Math.max(stage.top, tools.top));
+      const overlap = ix > 0.5 && iy > 0.5 ? iy : 0;
+      const vw = innerWidth, vh = innerHeight;
+      const onScreen = map.width >= 44 && map.height >= 44 && map.left >= -1 && map.top >= -1
+        && map.right <= vw + 1 && map.bottom <= vh + 1;
+      // Round buttons: the square's corners sit outside the circle, so sample the disc.
+      const pts = [[map.left + map.width / 2, map.top + 6], [map.left + map.width / 2, map.bottom - 6],
+        [map.left + 6, map.top + map.height / 2], [map.right - 6, map.top + map.height / 2],
+        [map.left + map.width / 2, map.top + map.height / 2]];
+      const tap = pts.every(([x, y]) => { const hit = document.elementFromPoint(x, y); return !!(hit && hit.closest('#btnMap')); });
+      return {overlap: Math.round(overlap), onScreen, tap, stageTop: Math.round(stage.top), toolsBottom: Math.round(tools.bottom)};
+    }""")
+    check(f'{tag} {label}: room clears tools and Map is tappable', data['overlap'] == 0 and data['onScreen'] and data['tap'], str(data))
+
+async def rotate_away_and_home(pg, tag, where):
+    await pg.set_viewport_size({'width': 667, 'height': 375})
+    await pg.wait_for_timeout(150)
+    await pg.set_viewport_size({'width': 375, 'height': 667})
+    await pg.wait_for_timeout(200)
+    await dismiss_note(pg)
+    await pg.click('#btnHome', force=True)
+    await pg.wait_for_selector('.tab', state='visible')
+    await pg.wait_for_timeout(80)
+    await room_clears_tools(pg, tag, f'home after {where} rotate')
 
 async def check_framed(pg, tag, scene):
     """Portrait: shove her off the right edge, then her body and name tag must come back inside the viewport."""

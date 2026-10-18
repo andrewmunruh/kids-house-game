@@ -281,6 +281,31 @@ function phoneShowHouseKid() {
 }
 window.addEventListener('resize', fit);
 phoneMQ.addEventListener('change', fit);
+// Phone only. Coming home brings the room tabs back, and the own-house buttons can
+// wrap the tool row, both without a window resize — the room then keeps the old scale
+// and covers Map. iPad sizes never match PHONE_MQ, so this never calls fit() there.
+let phoneFitKey = '';
+let phoneFitting = false;
+function fitPhone() {
+  if (phoneFitting || !phoneMQ.matches) return;
+  const wrap = $('stageWrap');
+  const topBar = document.querySelector('.top');
+  const toolRow = document.querySelector('.tools');
+  const box = (el: Element | null) => el ? el.clientWidth + 'x' + el.clientHeight : '0';
+  const key = box(wrap) + ' ' + box(topBar) + ' ' + box(toolRow);
+  if (key === phoneFitKey) return;
+  phoneFitting = true;
+  try { fit(); phoneFitKey = box(wrap) + ' ' + box(topBar) + ' ' + box(toolRow); }
+  finally { phoneFitting = false; }
+}
+if (typeof ResizeObserver !== 'undefined') {
+  const ro = new ResizeObserver(() => fitPhone());
+  const topBar = document.querySelector('.top');
+  if (topBar) ro.observe(topBar);
+  ro.observe($('stageWrap'));
+  const toolRow = document.querySelector('.tools');
+  if (toolRow) ro.observe(toolRow);
+}
 stage.addEventListener('scroll', () => { stage.scrollLeft = 0; stage.scrollTop = 0; });
 const toRoom = (cx: number, cy: number) => {
   const r = stage.getBoundingClientRect();
@@ -1199,6 +1224,7 @@ function goMap() {
 function goHome() {
   if (hood) { const id = hood.myHouseId(); if (id && hood.houses.has(id)) enterHouse(id); return; }
   hideScenes(); view = 'house'; soloPark = null; renderHoodChrome(); renderAll(); sceneIn($('stageWrap')); sfx.sparkle();
+  fitPhone();
 }
 function enterHouse(houseId: string, room: RoomId = 'living') {
   if (!hood || !hood.houses.has(houseId)) return;
@@ -1209,6 +1235,7 @@ function enterHouse(houseId: string, room: RoomId = 'living') {
   setMyPres({ where: 'house', houseId, room, x: 900 + Math.random() * 300, y: 540, flip: false });
   hideScenes();
   useStore(st); sceneIn($('stageWrap')); sfx.sparkle();
+  fitPhone();
 }
 function goSolo() {
   hood?.close(); hood = null; houseStores = new Map(); view = 'house'; currentHouseId = ''; soloPark = null; fetchSt = null; walkQueue = []; inBarn = false; $('elsewhere').classList.add('hidden');
