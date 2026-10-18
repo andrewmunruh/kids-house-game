@@ -110,9 +110,12 @@ app.innerHTML = `
   <div class="secrets" id="secrets"></div>
 </div>
 <div class="drawer">
-  <div class="drawerTop">
-    <div class="rooms" id="roomFilter"></div>
-    <div class="cats" id="cats"></div>
+  <div class="drawerBar" id="drawerBar">
+    <div class="drawerTop">
+      <div class="rooms" id="roomFilter"></div>
+      <div class="cats" id="cats"></div>
+    </div>
+    <div class="chipCue" id="chipCue" aria-hidden="true">›</div>
   </div>
   <div class="shelf" id="shelf"></div>
 </div>
@@ -838,7 +841,16 @@ function renderDrawer() {
     b.innerHTML = svgOf(d); shelf.appendChild(b); attachShelfDrag(b, d);
   }
   shelf.scrollLeft = 0;
+  updateChipCue();
 }
+function updateChipCue() {
+  const row = document.querySelector<HTMLElement>('.drawerTop');
+  const bar = document.getElementById('drawerBar');
+  if (!row || !bar) return;
+  bar.classList.toggle('more', row.scrollWidth - row.clientWidth - row.scrollLeft > 6);
+}
+document.querySelector('.drawerTop')!.addEventListener('scroll', updateChipCue, { passive: true });
+window.addEventListener('resize', updateChipCue);
 
 // ---------- panels ----------
 function swatches(list: string[], cur: string, act: string) {

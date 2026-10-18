@@ -63,11 +63,40 @@ SNAP = """(() => { const h = __hood(); if (!h) return null;
   return { pid: h.pid, myHouse: h.myHouseId(), houses, players, plots: h.ranch ? h.ranch.plots : null, settings: h.settings }; })()"""
 LS = "Object.fromEntries(Object.keys(localStorage).sort().map(k => [k, localStorage.getItem(k)]))"
 OLD_ROOMS = ('living', 'bedroom', 'kitchen', 'salon')
+BOTH_ROOMS = ('living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard')
 STARTER_KINDS = ['cloud-rug', 'crib', 'crib-mobile', 'rocker']
 def items_of(snap, rooms=None):
     return {hid: sorted((r, i['id'], i['kind'], round(i['x']), round(i['y'])) for r, room in h['view']['rooms'].items() if rooms is None or r in rooms for i in room['items']) for hid, h in snap['houses'].items()}
-def old_view(snap):
-    return {hid: {r: h['view']['rooms'][r] for r in OLD_ROOMS} for hid, h in snap['houses'].items()}
+def house_body(view):
+    """Every house field except rooms. A missing kennel link is the same as null."""
+    body = {k: v for k, v in view.items() if k != 'rooms'}
+    body['dogKennel'] = body.get('dogKennel') or None
+    return body
+def cat_towers(view):
+    found = []
+    for room, data in (view.get('rooms') or {}).items():
+        for i in data.get('items') or []:
+            if i.get('kind') == 'cat-tower':
+                found.append((room, i.get('id'), round(i.get('x') or 0), round(i.get('y') or 0), i.get('z'), bool(i.get('flip')), i.get('scale')))
+    return sorted(found, key=str)
+def strict_house(a, b):
+    """Shared rooms (including nursery and backyard when both sides have them), characters, cat, pets, kennel, and every other field."""
+    ba, bb = house_body(a), house_body(b)
+    fields = []
+    for k in sorted(set(ba) | set(bb)):
+        av = ba.get('dogKennel') if k == 'dogKennel' else ba.get(k, None)
+        bv = bb.get('dogKennel') if k == 'dogKennel' else bb.get(k, None)
+        if k == 'dogKennel':
+            av, bv = av or None, bv or None
+        if k not in ba or k not in bb or av != bv:
+            fields.append(k)
+    ar, br = a.get('rooms') or {}, b.get('rooms') or {}
+    shared = [r for r in BOTH_ROOMS if r in ar and r in br]
+    rooms = [r for r in shared if ar[r] != br[r]]
+    if set(OLD_ROOMS) - set(shared):
+        rooms.append('missing-original')
+    towers = cat_towers(a) != cat_towers(b)
+    return fields, rooms, towers, shared
 def disk_room_names(folder):
     out = {}
     for fn in os.listdir(folder):
@@ -182,11 +211,20 @@ async def main():
             check('street membership + sign-in: same player ids and same houses on every iPad', ids_a == ids_b, json.dumps(ids_b))
             snap_b = await P.evaluate(SNAP)
             check('every house is identical (name, owner, style, slot, lock)', {k: v['meta'] for k, v in snap_a['houses'].items()} == {k: v['meta'] for k, v in snap_b['houses'].items()})
-            check('the four original rooms are identical, and each house gained a nursery',
-                  old_view(snap_a) == old_view(snap_b)
-                  and all(h['view']['rooms'].get('nursery') and [i['kind'] for i in h['view']['rooms']['nursery']['items']] == STARTER_KINDS and h['view']['rooms'].get('backyard', {}).get('items') == [] for h in snap_b['houses'].values())
-                  and all('nursery' not in h['view']['rooms'] for h in snap_a['houses'].values()),
-                  f'{n_items_a} original items')
+            room_notes = []
+            rooms_ok = True
+            for hid, ha in snap_a['houses'].items():
+                fields, rooms, towers, shared = strict_house(ha['view'], snap_b['houses'][hid]['view'])
+                if fields or rooms or towers or set(OLD_ROOMS) - set(shared):
+                    rooms_ok = False
+                    room_notes.append(f'{hid}: fields={fields} rooms={rooms} towers={towers}')
+            gained = all(
+                h['view']['rooms'].get('nursery') and [i['kind'] for i in h['view']['rooms']['nursery']['items']] == STARTER_KINDS
+                and h['view']['rooms'].get('backyard', {}).get('items') == []
+                and (h['view'].get('dogKennel') or None) is None
+                for h in snap_b['houses'].values()) and all('nursery' not in h['view']['rooms'] and 'backyard' not in h['view']['rooms'] for h in snap_a['houses'].values())
+            check('every room is identical (items, positions, flips, paint, characters, cats, pets, kennel, cat tower)',
+                  rooms_ok and gained, ('; '.join(room_notes) + f' {n_items_a} items').strip())
             check('every kid identical (name, look, dog, basket, house)', snap_a['players'] == snap_b['players'])
             check('shared garden identical', snap_a['plots'] == snap_b['plots'])
             check('settings identical', snap_a['settings'] == snap_b['settings'])

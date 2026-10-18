@@ -5,6 +5,8 @@ import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plo
 export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon' | 'nursery' | 'backyard';
 /** Display order is the client's tab list. Backyard is a room id only until its scene ships. */
 export const ROOM_IDS: RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard'];
+/** Rooms with a tab. A save pointing at anything else opens the living room. */
+export const TAB_ROOMS: readonly RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery'];
 /** Room size in world units. v1 rooms were 1000 wide; v2 rooms are 2.4x wider. */
 export const ROOM_W = 2400, ROOM_H = 600, V1_ROOM_W = 1000;
 /** v1 layouts are re-centred in the wider room so nothing a child built moves relative to anything else. */
@@ -264,7 +266,27 @@ export function migrate(raw: any): GameState {
     .map((c: any, i: number) => newCharacter({ ...c, id: String(c.id ?? 'c' + (i + 1)), held: { left: c.held?.left ?? null, right: c.held?.right ?? null } }));
   const next = ensureRooms({ ...base, ...s, rooms: { ...base.rooms, ...s.rooms }, characters });
   const dogKennel = validKennel(next);
-  return dogKennel === next.dogKennel ? next : { ...next, dogKennel };
+  const withKennel = dogKennel === next.dogKennel ? next : { ...next, dogKennel };
+  return showKnownRoom(withKennel);
+}
+
+/**
+ * A future room (or the backyard, which has no scene yet) has no tab.
+ * Open the living room instead, and bring a kid who was standing in that
+ * unknown room with her so she is not invisible.
+ */
+function showKnownRoom(s: GameState): GameState {
+  const current = s.currentRoom as string;
+  const onTab = (TAB_ROOMS as readonly string[]).includes(current);
+  const known = (room: string) => (ROOM_IDS as readonly string[]).includes(room);
+  let moved = false;
+  const characters = s.characters.map(c => {
+    const room = c.room as string;
+    if (!known(room) || (!onTab && room === current)) { moved = true; return { ...c, room: 'living' as RoomId }; }
+    return c;
+  });
+  if (onTab && !moved) return s;
+  return { ...s, currentRoom: onTab ? s.currentRoom : 'living', characters };
 }
 type Listener = (s: GameState, a: Action) => void;
 

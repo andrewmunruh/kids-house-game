@@ -1,5 +1,6 @@
 // Nursery + backyard: missing rooms are filled without overwriting a stored room,
 // edits to both rooms are accepted, and an old client's save cannot drop them.
+import { readFileSync } from 'node:fs';
 import { Neighborhood, type KV, type Conn } from '../server/core';
 import { NICKNAMES, PROTOCOL, cleanAction, cleanFx, cleanHouseState, cleanPresence } from '../src/shared/hood';
 import { ensureRooms, initialState, migrate, reduce, type GameState } from '../src/shared/state';
@@ -176,6 +177,47 @@ async function main() {
   await hoodK.flush();
   const diskK = kennelMem.get('house:' + khid).state;
   check('an old client edit keeps the kennel on the server', diskK.dogKennel?.item === 'keep-kennel' && diskK.rooms.living.wallpaper === '#112233' && diskK.rooms.living.items.some((i: { id: string }) => i.id === 'keep-kennel') && diskK.dog == null);
+
+  const futureKid = { ...initialState().characters[0], room: 'attic' as GameState['currentRoom'] };
+  const future = migrate({ ...initialState(), currentRoom: 'attic', characters: [futureKid] });
+  check('an unknown room opens the living room with the kid', future.currentRoom === 'living' && future.characters[0].room === 'living' && future.version === 3);
+  const yardKid = migrate({ ...initialState(), currentRoom: 'backyard', characters: [{ ...initialState().characters[0], room: 'backyard' }] });
+  check('a backyard save opens the living room and brings the kid', yardKid.currentRoom === 'living' && yardKid.characters[0].room === 'living');
+  const stayed = migrate({ ...initialState(), currentRoom: 'nursery' });
+  check('a known room is left alone', stayed.currentRoom === 'nursery' && stayed.characters[0].room === 'living');
+
+  // Nursery shelf: pack items with no room used to default to "any" and leak in.
+  // "any" may only be generic decor. Room-specific pieces keep the shelf they belong on.
+  const manifest = JSON.parse(readFileSync(new URL('../assets/items/manifest.json', import.meta.url), 'utf8')) as { slug: string; name: string; room?: string; category?: string; tag?: string; type?: string; pack?: string }[];
+  const patterns = JSON.parse(readFileSync(new URL('../assets/patterns/manifest.json', import.meta.url), 'utf8')) as { name: string; type?: string }[];
+  const genericDecor = (e: { name?: string; category?: string; tag?: string }) => {
+    const tag = String(e.tag || '').toLowerCase(), cat = String(e.category || '').toLowerCase(), name = String(e.name || '').toLowerCase();
+    if (cat === 'plants' || tag === 'plant' || tag === 'plants') return true;
+    if (['rug', 'lighting', 'light', 'lamp', 'curtain', 'curtains'].includes(tag)) return true;
+    if (cat === 'furniture' && /shelf|bookshelf/.test(name)) return true;
+    if (cat === 'decor' && /rug|lamp|light|plant|art|shelf|curtain|clock|cushion|wreath|lantern|board|book/.test(name)) return true;
+    return false;
+  };
+  const packItems = manifest.filter(e => e.type !== 'wallpaper' && e.type !== 'floor');
+  const nurseryShelf = packItems.filter(e => !e.room || e.room === 'any' || e.room === 'nursery');
+  const leaked = nurseryShelf.filter(e => e.room !== 'nursery' && !genericDecor(e));
+  check('nursery shelf is nursery items plus generic decor', leaked.length === 0 && nurseryShelf.length > 0, leaked.map(e => e.name).join(', '));
+  const banned = ['Kitchen Counter', 'Mini Fridge', 'Bubble Bath', 'Fire Pit', 'Gaming Chair'];
+  check('room-specific pack items stay off the nursery shelf', banned.every(n => !nurseryShelf.some(e => e.name === n)));
+  check('those items still sit on the shelf where they belong',
+    packItems.find(e => e.name === 'Kitchen Counter')?.room === 'kitchen'
+    && packItems.find(e => e.name === 'Mini Fridge')?.room === 'kitchen'
+    && packItems.find(e => e.name === 'Bubble Bath')?.room === 'bedroom'
+    && packItems.find(e => e.name === 'Fire Pit')?.room === 'backyard'
+    && packItems.find(e => e.name === 'Gaming Chair')?.room === 'bedroom'
+    && packItems.find(e => e.slug === 'comfy-armchair')?.room === 'living'
+    && packItems.find(e => e.slug === 'cc-light-vanity')?.room === 'salon');
+  const codeNames = [...(readFileSync(new URL('../src/items.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/nursery.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/eggs.ts', import.meta.url), 'utf8')).matchAll(/name:\s*'([^']+)'/g)].map(m => m[1]);
+  const display = [...packItems.map(e => e.name), ...patterns.map(e => e.name), ...codeNames];
+  const seen = new Map<string, number>();
+  for (const n of display) seen.set(n, (seen.get(n) ?? 0) + 1);
+  const dup = [...seen.entries()].filter(([, n]) => n > 1).map(([name]) => name);
+  check('item, wallpaper and floor names are unique', dup.length === 0 && display.includes('Jewelry Box') && display.includes('Mint Gingham Floor') && display.includes('Mint Checks'), dup.join(', '));
 
   console.log(`${pass} passed`);
 }

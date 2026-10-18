@@ -36,15 +36,13 @@ const fourArt = `<svg viewBox="0 0 120 100"><rect x="10" y="16" width="100" heig
   <path d="M36 58 C28 48 18 50 24 60 C28 68 36 74 36 74 C36 74 44 68 48 60 C54 50 44 48 36 58 Z" fill="#ff4d94" stroke="${O}" stroke-width="2"/>
   <path d="M78 28 L82 40 H94 L84 48 L88 60 L78 52 L68 60 L72 48 L62 40 H74 Z" fill="#66d9e8" stroke="${O}" stroke-width="2"/></svg>`;
 const cribArt = `<svg viewBox="0 0 48 48"><rect x="6" y="18" width="36" height="22" rx="6" fill="#fff" stroke="${O}" stroke-width="3"/><path d="M6 26 H42 M14 18 V40 M22 18 V40 M30 18 V40 M36 18 V40" stroke="${O}" stroke-width="2.4"/><rect x="4" y="12" width="40" height="8" rx="4" fill="#9ad7f5" stroke="${O}" stroke-width="3"/><ellipse cx="20" cy="32" rx="5" ry="3" fill="#ffe0ec"/><ellipse cx="30" cy="32" rx="5" ry="3" fill="#c9e7ff"/></svg>`;
-const nurseryArt = `<svg viewBox="0 0 120 100"><rect x="8" y="18" width="104" height="70" rx="16" fill="#d6f3ff" stroke="${O}" stroke-width="4"/><path d="M8 58 H112" stroke="${O}" stroke-width="3"/><rect x="8" y="58" width="104" height="30" rx="0" fill="#f3ddc4"/><rect x="8" y="58" width="104" height="30" fill="#f3ddc4"/><rect x="8" y="78" width="104" height="10" rx="8" fill="#f3ddc4" stroke="${O}" stroke-width="4"/>
-  <rect x="22" y="36" width="36" height="22" rx="5" fill="#fff" stroke="${O}" stroke-width="3"/><path d="M22 44 H58 M30 36 V58 M40 36 V58 M50 36 V58" stroke="${O}" stroke-width="2"/>
-  <path d="M78 62 Q90 48 102 62" fill="none" stroke="${O}" stroke-width="3"/><path d="M84 60 H96 V48 H84 Z" fill="#e4ccf2" stroke="${O}" stroke-width="3"/>
-  <circle cx="40" cy="28" r="6" fill="#fff" stroke="${O}" stroke-width="2"/><circle cx="28" cy="26" r="4" fill="#ffd166" stroke="${O}" stroke-width="2"/></svg>`;
+const cottageArt = `<svg viewBox="0 0 120 100"><ellipse cx="60" cy="72" rx="50" ry="20" fill="#ffc2d4" stroke="${O}" stroke-width="4"/><ellipse cx="60" cy="72" rx="32" ry="11" fill="#fff" stroke="${O}" stroke-width="3"/><path d="M60 58 C50 46 36 48 42 60 C48 70 60 78 60 78 C60 78 72 70 78 60 C84 48 70 46 60 58 Z" fill="#ff4d94" stroke="${O}" stroke-width="3"/><path d="M22 40 Q28 28 36 36" fill="none" stroke="#7dce8a" stroke-width="4" stroke-linecap="round"/><circle cx="22" cy="38" r="5" fill="#ffd166" stroke="${O}" stroke-width="2"/></svg>`;
+const kennelArt = `<svg viewBox="0 0 120 100"><path d="M16 50 L60 14 L104 50" fill="#ff8fab" stroke="${O}" stroke-width="4" stroke-linejoin="round"/><rect x="26" y="48" width="68" height="40" rx="10" fill="#fff6ea" stroke="${O}" stroke-width="4"/><path d="M42 88 V60 Q60 44 78 60 V88" fill="#ffe8c7" stroke="${O}" stroke-width="3"/><circle cx="82" cy="64" r="7" fill="#bde0fe" stroke="${O}" stroke-width="3"/><circle cx="80" cy="62" r="2" fill="#fff"/></svg>`;
 export const CHANGELOG: ChangeEntry[] = [
   { v: 7, title: 'New Nursery!', lines: [
-    { art: wrap(cribArt), text: 'A new <b>Nursery</b> room, right after the Salon!' },
-    { art: wrap(cribArt), text: 'A <b>crib</b>, a <b>rocker</b>, and a mobile are waiting.' },
-    { art: wrap(nurseryArt), text: 'Cloud <b>wallpapers</b> and soft <b>floors</b> to paint.' },
+    { art: wrap(cribArt), text: 'A new <b>Nursery</b> room, with a <b>crib</b> and a rocker!' },
+    { art: wrap(cottageArt), text: 'The <b>Cozy Cottage</b> furniture pack is in your drawer!' },
+    { art: wrap(kennelArt), text: 'A <b>dog kennel</b> and a <b>cat tower</b> for your pets!' },
   ] },
   { v: 6, title: 'The clubhouse is open!', lines: [
     { art: wrap(clubArt), text: 'A glam <b>clubhouse</b> on the map!' },

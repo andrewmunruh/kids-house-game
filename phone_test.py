@@ -149,13 +149,22 @@ async def pet_targets(pg, tag, save, w, h):
     if (w, h) == (390, 844):
         await pg.locator('.sheet:not(.hidden) .close').first.click()
         await pg.wait_for_function("() => !document.querySelector('.sheet:not(.hidden)')")
-        await pg.evaluate("""() => __store.dispatch({type:'cat/set', cat:{name:'Mochi', coat:2, room:__store.get().currentRoom, x:680}})""")
+        # Far apart so each shot is of one pet, not the same frame of both.
+        await pg.evaluate("""() => {
+          const s = __store, room = s.get().currentRoom;
+          s.dispatch({type:'item/move', room, id:'phone-kennel', x:280, y:520});
+          s.dispatch({type:'item/move', room, id:'phone-tower', x:1900, y:530});
+          s.dispatch({type:'cat/set', cat:{name:'Mochi', coat:2, room, x:1900}});
+          __cam.set(280 - 180);
+        }""")
+        await pg.wait_for_timeout(250)
+        await shot(pg, 'kennel-dog-iphone')
         for _ in range(25):
             cat = await pg.evaluate('__pets().cat')
             if cat and cat.get('perch') in (1, 2): break
             await pg.wait_for_timeout(200)
-        await shot(pg, 'kennel-dog-iphone')
-        await pg.evaluate("""() => { const el = document.querySelector('.item[data-kind="cat-tower"]'); if (el) el.scrollIntoView({block:'center', inline:'center'}); }""")
+        await pg.evaluate("__cam.set(1900 - 180)")
+        await pg.wait_for_timeout(200)
         await shot(pg, 'cat-tower-iphone')
         await pg.click('#btnPets')
         await pg.click('.petTabs [data-pt="dog"]')
@@ -803,6 +812,34 @@ async def ipad_pass(b, w, h):
     await pg.evaluate("() => { document.body.classList.add('mode-hood','own-house'); }")
     await pg.wait_for_timeout(40)
     await tabs_fit(pg, f'{tag} own-house')
+    if (w, h) == (820, 1180):
+        mini = await pg.evaluate("""() => {
+          const b = document.querySelector('.minimap').getBoundingClientRect();
+          const tools = [...document.querySelectorAll('.tools .round')].filter(el => el.offsetParent).map(el => el.id);
+          return { w: Math.round(b.width), h: Math.round(b.height), tools };
+        }""")
+        check('ipad 820x1180 minimap is at least 100px wide', mini['w'] >= 100 and mini['h'] >= 44, str(mini))
+        check('ipad 820x1180 street shows seven tools and Map', len(mini['tools']) == 7 and 'btnMap' in mini['tools'], str(mini['tools']))
+    if (w, h) == (1024, 768):
+        chips = await pg.evaluate("""async () => {
+          const row = document.querySelector('.drawerTop');
+          const bar = document.getElementById('drawerBar');
+          const chip = [...document.querySelectorAll('.cat.pack')].find(el => (el.textContent || '').includes('Cozy Cottage'));
+          const cueOn = () => bar.classList.contains('more') && getComputedStyle(document.getElementById('chipCue')).display !== 'none';
+          const rb = row.getBoundingClientRect(), cb = chip.getBoundingClientRect();
+          const clipped = cb.right > rb.right + 1 || cb.left < rb.left - 1;
+          const before = cueOn();
+          row.scrollLeft = row.scrollWidth;
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+          const atEnd = !cueOn();
+          const cb2 = chip.getBoundingClientRect();
+          const visibleEnd = cb2.right <= rb.right + 2 && cb2.left >= rb.left - 2;
+          row.scrollLeft = 0;
+          return { clipped, before, atEnd, visibleEnd, chip: Math.round(cb.width), row: Math.round(rb.width) };
+        }""")
+        fits = not chips['clipped']
+        check('ipad 1024 drawer chips fit or show a scroll cue', fits or (chips['before'] and chips['clipped']), str(chips))
+        check('ipad 1024 scroll cue disappears at the end', fits or (chips['atEnd'] and chips['visibleEnd']), str(chips))
     await pg.evaluate("() => { document.body.classList.remove('mode-hood','own-house'); }")
     await pg.evaluate("""(svg) => {
       const root = document.getElementById('tableOverlay');
