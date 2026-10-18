@@ -648,7 +648,7 @@ body.view-street .stage { visibility: hidden; }
   body.phone #app { overflow: hidden; max-width: 100%; }
   body.phone .top { flex: 0 0 auto; max-width: 100%; min-width: 0; align-items: center; padding: 4px 6px; gap: 4px; }
   body.phone .tabs { min-width: 0; gap: 4px; }
-  body.phone .tab { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 2px 4px; font-size: 13px; line-height: 1.05; white-space: normal; text-align: center; }
+  body.phone .tab { flex: 1 1 auto; min-width: max-content; min-height: 44px; padding: 0 6px; font-size: 12px; line-height: 1; white-space: nowrap; text-align: center; }
   body.phone .tools { flex: 0 0 auto; gap: 4px; min-width: 0; }
   body.phone .round { width: 44px; height: 44px; flex: 0 0 44px; padding: 6px; }
   body.phone .minimap { height: 44px; min-width: 64px; }
@@ -683,6 +683,9 @@ body.view-street .stage { visibility: hidden; }
   body.phone .codeForm { flex-wrap: wrap; }
   body.phone .codeForm input { font-size: 22px; width: 100%; max-width: 100%; letter-spacing: 3px; min-height: 44px; }
   body.phone .codeForm button, body.phone .typed button, body.phone .pHouse button, body.phone .pAdd button { min-height: 44px; min-width: 44px; }
+  /* Grown-up roster: the × (was ~19×24) and Reset (was ~52×24) need a real tap target. */
+  body.phone .rName button { min-width: 44px; min-height: 44px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
+  body.phone .rName button.x { min-width: 44px; min-height: 44px; font-size: 22px; padding: 0; }
   body.phone .petName, body.phone .pHouse input, body.phone .pAdd input, body.phone .typed input { font-size: 16px; min-height: 44px; max-width: 100%; }
   body.phone .petName { width: 100%; }
   /* sheets: welcome, paint, pets, characters, neighborhood, grown-up */
@@ -717,6 +720,11 @@ body.view-street .stage { visibility: hidden; }
   body.phone .wnLine p { font-size: 16px; }
   body.phone .wnArt { width: 64px; height: 52px; }
   body.phone .wnGo { font-size: 22px; padding: 10px 22px; min-height: 48px; }
+  /* Map labels scale with the tiny phone map (~6–8px). Keep them readable. */
+  body.phone .mapSign { font-size: max(11px, calc(15px * var(--sc))); max-width: min(46vw, 168px); padding: 1px 6px; line-height: 1.35; }
+  body.phone .mapSign.place { font-size: max(11px, calc(17px * var(--sc))); max-width: none; }
+  /* Surprises sits on the floor and covers her legs. Park it on the top edge instead. */
+  body.phone .secrets { top: 8px; bottom: auto; left: 50%; right: auto; transform: translateX(-50%); }
   body.phone .wnList.many .wnLine p { font-size: 16px; }
   body.phone .chatTray { left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom));
     max-height: min(68vh, calc(100dvh - var(--chrome-h, 48px) - 12px)); overflow: auto; }
@@ -735,17 +743,37 @@ body.view-street .stage { visibility: hidden; }
   body.phone .thing { flex-basis: 76px; width: 76px; height: 76px; }
 }
 
-/* Landscape phone: one chrome row, short drawer, the room keeps the spare height. */
+/* Landscape phone: one chrome row, a short drawer, arrows and Surprises on the edges,
+   so the room can grow into the width. 100dvh / --vvh, never 100vh (Safari's tab bar). */
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
-  body.phone .top { flex-wrap: nowrap; padding: 2px 4px; }
-  body.phone .tabs { flex: 1 1 auto; order: 0; }
-  body.phone .tab { font-size: 12px; padding: 0 2px; }
-  body.phone .minimap { flex: 0 1 108px; width: 96px; order: 0; max-width: none; }
-  body.phone .tools { order: 0; margin-left: 0; }
-  body.phone .drawer { padding: 2px 6px 4px; }
-  body.phone .shelf { height: 64px; padding: 4px 8px; }
-  body.phone .thing { flex-basis: 52px; width: 52px; height: 52px; padding: 4px; }
+  body.phone #app { top: var(--vvt, 0px); height: var(--vvh, 100dvh); bottom: auto; }
+  body.phone .top { flex-wrap: nowrap; padding: 2px 2px 0; gap: 2px; }
+  body.phone .tabs { flex: 1 1 auto; order: 0; min-width: 0; }
+  body.phone .tab { font-size: 12px; padding: 0 5px; }
+  body.phone .tab.on { transform: none; }
+  body.phone .minimap { flex: 0 1 48px; width: 48px; min-width: 44px; height: 44px; order: 0; max-width: none; }
+  body.phone .tools { order: 0; margin-left: 0; gap: 2px; }
+  body.phone .drawer { padding: 0 4px; gap: 0; }
+  body.phone .drawerTop { gap: 4px; }
+  body.phone .shelf { height: 48px; padding: 0 6px; border-width: 2px; }
+  body.phone .thing { flex-basis: 44px; width: 44px; height: 44px; padding: 2px; }
+  body.phone .stageWrap { margin: 0 2px; }
+  body.phone .nudge { top: 50%; }
   body.phone .phoneNote { display: none !important; }
+  /* What's New: pin Let's play so it stays on screen when Safari chrome shortens the page. */
+  body.phone .whatsNew { padding: 4px; align-items: center; }
+  body.phone .whatsNew .card { display: flex; flex-direction: column; overflow: hidden; padding: 8px 10px 8px;
+    max-height: calc(100dvh - 8px); max-height: calc(var(--vvh, 100dvh) - 8px); }
+  body.phone .whatsNew .wnBadge { position: static; transform: none; width: 32px; height: 32px; margin: 0 auto 2px; padding: 4px; animation: none; }
+  body.phone .whatsNew .wnTitle { font-size: 18px !important; margin: 0 0 4px !important; padding-right: 0; }
+  body.phone .whatsNew .wnList { flex: 1 1 auto; min-height: 0; overflow: auto; gap: 4px; }
+  body.phone .whatsNew .wnLine { padding: 2px 6px; gap: 6px; }
+  body.phone .whatsNew .wnArt { width: 36px; height: 28px; }
+  body.phone .whatsNew .wnLine p, body.phone .whatsNew .wnList.many .wnLine p { font-size: 14px; }
+  body.phone .whatsNew .wnGo { flex: 0 0 auto; margin-top: 6px; min-height: 44px; font-size: 18px; padding: 6px 16px; }
+  body.phone .whatsNew .card:has(.wnList.many) { padding: 8px 10px; }
+  body.phone .whatsNew .card:has(.wnList.many) .wnTitle { font-size: 18px !important; margin: 0 0 4px !important; }
+  body.phone .whatsNew .card:has(.wnList.many) .wnGo { margin-top: 6px; padding: 6px 16px; font-size: 18px; min-height: 44px; }
 }
 
 /* ===================== glam clubhouse / Game Room ===================== */

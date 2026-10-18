@@ -6,7 +6,11 @@ from testnav import K
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
 SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/phone/'
 os.makedirs(SHOT, exist_ok=True)
-PHONES = [(390, 844), (844, 390), (375, 667), (667, 375)]
+PHONES = [(390, 844), (844, 390), (375, 667), (667, 375), (932, 430)]
+# Short heights stand in for iPhone landscape with Safari's tab bar showing.
+SHORT = [(844, 300), (667, 280), (932, 340)]
+# Stage area on ac722af at 844×300 before this pass (210×126).
+OLD_STAGE_AREA_844x300 = 210 * 126
 IPADS = [(1180, 820), (1024, 768), (820, 1180)]
 res = {}
 
@@ -77,6 +81,7 @@ async def phone_pass(b, w, h, save):
     if await pg.locator('.whatsNew .card').count():
         c = await card_ok(pg)
         check(f'{tag} welcome card fits', c['ok'], str(c))
+        if h <= w: await lets_play_visible(pg, tag)
         if save: await shot(pg, f'welcome-{tag}')
         await pg.click('#wnGo', force=True)
         await pg.wait_for_timeout(200)
@@ -104,8 +109,9 @@ async def phone_pass(b, w, h, save):
     check(f'{tag} no horizontal overflow', info['scrollW'] <= info['vw'] + 1, f"scroll {info['scrollW']}")
     bad = tops_ok(info)
     check(f'{tag} top buttons on screen and >= 44', bad == [], str(bad))
+    min_shelf = 90 if portrait else 44
     check(f'{tag} drawer and shelf on screen', info['drawer']['x'] >= -1 and info['drawer']['r'] <= w + 1 and info['drawer']['b'] <= h + 1
-          and info['shelf']['h'] >= 60 and info['shelf']['y'] >= 0 and info['shelf']['b'] <= h + 1,
+          and info['shelf']['h'] >= min_shelf and info['shelf']['y'] >= 0 and info['shelf']['b'] <= h + 1,
           f"shelf h {info['shelf']['h']:.0f}")
     check(f'{tag} room is not a sliver', info['stage']['h'] >= 140 and info['wrap']['h'] >= 160, f"stage {info['stage']['h']:.0f} wrap {info['wrap']['h']:.0f}")
     char = await pg.evaluate("""() => {
@@ -117,6 +123,9 @@ async def phone_pass(b, w, h, save):
     check(f'{tag} character fully in the room', char['inside'] and char['cw'] > 24, str(char))
     if (w, h) == (375, 667): await room_clears_tools(pg, tag, 'house')
     if portrait: await check_framed(pg, tag, 'house')
+    if (w, h) == (375, 667): await check_portrait_kid(pg, tag)
+    if not portrait: await stage_fill(pg, tag, w, h)
+    if w in (375, 667): await living_room_one_line(pg, tag)
     if save: await shot(pg, f'house-{tag}')
 
     # Full own-house tool row (lock, chat, and the rest). Those buttons wrap onto
@@ -179,6 +188,7 @@ async def phone_pass(b, w, h, save):
     if save: await shot(pg, f'grownup-{tag}')
     await pg.click('.adult [data-k="x"]')
     await pg.wait_for_function("() => !document.querySelector('.sheet:not(.hidden)')")
+    await roster_targets(pg, tag)
 
     await pg.evaluate("""() => {
       const t = document.getElementById('chatTray');
@@ -225,6 +235,8 @@ async def phone_pass(b, w, h, save):
     }""")
     check(f'{tag} map chrome fits', bad == [] and info['scrollW'] <= info['vw'] + 1, str(bad))
     check(f'{tag} map house tap target reaches 44', house['w'] + 16 >= 44 and house['h'] + 16 >= 44 and house['slop'], str(house))
+    signs = await pg.evaluate("""() => [...document.querySelectorAll('.mapSign')].map(el => parseFloat(getComputedStyle(el).fontSize))""")
+    check(f'{tag} map signs at least 11px', len(signs) >= 3 and min(signs) >= 11, str([round(s, 1) for s in signs]))
     if save: await shot(pg, f'map-{tag}')
     await pg.click('[data-go="park"]')
     await pg.wait_for_selector('body.view-park .parkScene')
@@ -239,6 +251,7 @@ async def phone_pass(b, w, h, save):
     info = await layout(pg)
     check(f'{tag} ranch fits', tops_ok(info) == [] and info['scrollW'] <= info['vw'] + 1)
     if portrait: await check_framed(pg, tag, 'ranch')
+    if (w, h) == (375, 667): await check_paddock(pg, tag)
     if save: await shot(pg, f'ranch-{tag}')
     await pg.click('.barnDoor')
     await pg.wait_for_selector('body.in-barn .barnScene')
@@ -410,6 +423,178 @@ async def check_framed(pg, tag, scene):
     }""", scene)
     check(f'{tag} {scene} character and name tag inside portrait viewport', data['ok'], str(data))
 
+async def lets_play_visible(pg, tag):
+    """The Let's play button is in the viewport, not scrolled below the card."""
+    data = await pg.evaluate("""() => {
+      const btn = document.getElementById('wnGo');
+      if (!btn) return {ok: false, why: 'no button'};
+      const b = btn.getBoundingClientRect();
+      const card = btn.closest('.card').getBoundingClientRect();
+      return {ok: b.height >= 44 && b.width >= 44 && b.top >= -1 && b.bottom <= innerHeight + 1
+          && b.left >= -1 && b.right <= innerWidth + 1
+          && b.top >= card.top - 1 && b.bottom <= card.bottom + 1,
+        top: Math.round(b.top), bot: Math.round(b.bottom), h: Math.round(b.height), ih: innerHeight,
+        cardBot: Math.round(card.bottom)};
+    }""")
+    check(f"{tag} Let's play is visible without scrolling", data['ok'], str(data))
+
+async def stage_fill(pg, tag, w, h):
+    """Landscape stage uses the free box, and every on-screen tool stays 44px and unclipped."""
+    data = await pg.evaluate("""() => {
+      const stage = document.querySelector('.stage').getBoundingClientRect();
+      const wrap = document.querySelector('.stageWrap').getBoundingClientRect();
+      const bad = [];
+      const tools = [...document.querySelectorAll('.top .tab, .top .round, .top .minimap, .drawer .cat, .drawer .rf, .shelf .thing, .nudge')]
+        .filter(el => el.offsetParent && !el.classList.contains('off') && getComputedStyle(el).visibility !== 'hidden');
+      for (const el of tools) {
+        const b = el.getBoundingClientRect();
+        const name = el.id || (el.getAttribute('aria-label') || el.className || '').toString().slice(0, 24);
+        const scroller = el.classList.contains('thing') || el.classList.contains('cat') || el.classList.contains('rf');
+        if (b.width < 1 || b.height < 1) continue;
+        if (scroller && (b.right < 4 || b.left > innerWidth - 4)) continue;
+        const horiz = b.left < -1 || b.right > innerWidth + 1;
+        const vert = b.top < -1 || b.bottom > innerHeight + 1;
+        if (scroller && horiz) continue;
+        if (b.width < 44 || b.height < 44) bad.push('small ' + name + ' ' + Math.round(b.width) + 'x' + Math.round(b.height));
+        if (vert || horiz) bad.push('clip ' + name);
+      }
+      const shelf = document.querySelector('.shelf').getBoundingClientRect();
+      const drawer = document.querySelector('.drawer').getBoundingClientRect();
+      const top = document.querySelector('.top').getBoundingClientRect();
+      if (shelf.top < -1 || shelf.bottom > innerHeight + 1) bad.push('shelf clip');
+      if (drawer.bottom > innerHeight + 1 || top.top < -1) bad.push('chrome clip');
+      return {sw: stage.width, sh: stage.height, ww: wrap.width, wh: wrap.height,
+        fillW: stage.width / wrap.width, fillH: stage.height / wrap.height, area: stage.width * stage.height, bad};
+    }""")
+    fill = data['fillW'] >= 0.85 or data['fillH'] >= 0.85
+    check(f'{tag} stage fills the free box', fill and data['bad'] == [],
+          f"stage {data['sw']:.0f}x{data['sh']:.0f} fill {data['fillW']:.2f}/{data['fillH']:.2f} {data['bad']}")
+    if (w, h) == (844, 300):
+        check(f'{tag} stage is about 2x the old Safari-chrome size', data['area'] >= OLD_STAGE_AREA_844x300 * 2,
+              f"area {data['area']:.0f} old {OLD_STAGE_AREA_844x300}")
+
+async def living_room_one_line(pg, tag):
+    data = await pg.evaluate("""() => {
+      const tab = [...document.querySelectorAll('.tab')].find(t => (t.textContent || '').trim() === 'Living Room');
+      if (!tab) return {ok: false};
+      const range = document.createRange();
+      range.selectNodeContents(tab);
+      const lines = range.getClientRects().length;
+      const b = tab.getBoundingClientRect();
+      return {lines, sw: tab.scrollWidth, cw: tab.clientWidth, w: Math.round(b.width), h: Math.round(b.height),
+        on: b.left >= -1 && b.right <= innerWidth + 1 && b.top >= -1 && b.bottom <= innerHeight + 1};
+    }""")
+    check(f'{tag} Living Room stays on one line', data.get('lines') == 1 and data.get('sw', 9) <= data.get('cw', 0) + 1 and data.get('on'), str(data))
+
+async def roster_targets(pg, tag):
+    data = await pg.evaluate("""() => {
+      const sheet = document.getElementById('sheet');
+      const card = document.getElementById('card');
+      const prev = sheet.className;
+      sheet.className = 'sheet parent';
+      card.className = 'card adultCard';
+      card.innerHTML = `<h2>Grown-up screen</h2><div class="roster">
+        <span class="rName claimed"><b>Cada</b><i>signed in</i><button data-p="unclaim">Reset</button></span>
+        <span class="rName"><b>Chloe</b><button class="x" aria-label="Remove name">×</button></span>
+        <span class="rName"><b>Quinn</b><button class="x" aria-label="Remove name">×</button></span>
+      </div>`;
+      const box = el => { const b = el.getBoundingClientRect(); return {w: Math.round(b.width), h: Math.round(b.height)}; };
+      const reset = box(card.querySelector('[data-p="unclaim"]'));
+      const xs = [...card.querySelectorAll('button.x')].map(box);
+      sheet.className = 'sheet hidden';
+      card.className = 'card';
+      card.innerHTML = '';
+      return {reset, xs};
+    }""")
+    ok = data['reset']['w'] >= 44 and data['reset']['h'] >= 44 and len(data['xs']) == 2 and all(x['w'] >= 44 and x['h'] >= 44 for x in data['xs'])
+    check(f'{tag} roster Reset and remove are 44px', ok, str(data))
+
+async def check_portrait_kid(pg, tag):
+    """375×667: she is centred between the arrows, legs clear of Surprises, name tag clear of ›."""
+    await pg.evaluate("() => window.__phoneShowKids()")
+    await pg.wait_for_timeout(40)
+    data = await pg.evaluate("""() => {
+      const kid = document.querySelector('#layer .char');
+      const name = kid && kid.querySelector('.nametag');
+      if (!kid || !name) return {ok: false};
+      const kb = kid.getBoundingClientRect(), tb = name.getBoundingClientRect();
+      const pill = document.getElementById('secrets').getBoundingClientRect();
+      const nr = document.getElementById('nudgeR').getBoundingClientRect();
+      const nl = document.getElementById('nudgeL').getBoundingClientRect();
+      const stage = document.querySelector('.stage').getBoundingClientRect();
+      const area = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+        * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+      const legs = {left: kb.left, right: kb.right, top: kb.top + kb.height * 0.55, bottom: kb.bottom};
+      const safeL = Math.max(stage.left, nl.right);
+      const safeR = Math.min(stage.right, nr.left);
+      const mid = (Math.min(kb.left, tb.left) + Math.max(kb.right, tb.right)) / 2;
+      return {legsOnPill: Math.round(area(legs, pill)), tagOnArrow: Math.round(area(tb, nr)),
+        gap: Math.round(nr.left - tb.right), offCenter: Math.round(Math.abs(mid - (safeL + safeR) / 2))};
+    }""")
+    check(f'{tag} portrait room centres on the kid',
+          data.get('legsOnPill') == 0 and data.get('tagOnArrow') == 0 and data.get('gap', -1) >= 4 and data.get('offCenter', 99) <= 28,
+          str(data))
+
+async def check_paddock(pg, tag):
+    """Portrait ranch: horses are smaller and spread, so most walkable taps miss them."""
+    data = await pg.evaluate("""() => {
+      const sc = document.getElementById('ranchScroll');
+      const horses = [...document.querySelectorAll('#ranchWorld .horse')];
+      const mid = horses[2];
+      sc.scrollLeft = mid.offsetLeft - sc.clientWidth / 2 + mid.offsetWidth / 2;
+      const port = sc.getBoundingClientRect();
+      let horse = 0, open = 0;
+      const y0 = port.top + port.height * 0.72;
+      const y1 = Math.min(port.bottom - 4, innerHeight - 1);
+      for (let x = port.left + 8; x < port.right - 8; x += 16) {
+        for (let y = y0; y < y1; y += 14) {
+          const el = document.elementFromPoint(x, y);
+          if (el && el.closest('.horse')) horse++; else open++;
+        }
+      }
+      const boxes = horses.map(el => el.getBoundingClientRect()).sort((a, b) => a.left - b.left);
+      let minGap = 999;
+      for (let i = 1; i < boxes.length; i++) minGap = Math.min(minGap, boxes[i].left - boxes[i - 1].right);
+      return {horse, open, minGap: Math.round(minGap), widths: boxes.map(b => Math.round(b.width)),
+        ratio: Math.round(100 * open / Math.max(1, horse + open))};
+    }""")
+    check(f'{tag} paddock leaves walkable ground', data['open'] > data['horse'] and data['minGap'] >= 8 and max(data['widths']) < 120, str(data))
+
+async def short_chrome_pass(b, w, h):
+    """Safari-chrome heights: welcome button, stage fill (≥2× at 844×300), tools stay tappable."""
+    tag = f'{w}x{h}'
+    ctx = await b.new_context(viewport={'width': w, 'height': h}, has_touch=True, is_mobile=True, device_scale_factor=1)
+    pg = await ctx.new_page()
+    await pg.goto(URL, wait_until='domcontentloaded')
+    try:
+        await pg.wait_for_selector('.whatsNew .card', timeout=4000)
+    except Exception:
+        pass
+    if await pg.locator('.whatsNew .card').count():
+        await lets_play_visible(pg, tag)
+    else:
+        check(f"{tag} Let's play is visible without scrolling", False, 'welcome did not show')
+    await ctx.close()
+
+    ctx = await b.new_context(viewport={'width': w, 'height': h}, has_touch=True, is_mobile=True, device_scale_factor=1)
+    await ctx.add_init_script(f"localStorage.setItem('{K('cozy-whatsnew')}','999')")
+    pg = await ctx.new_page()
+    await pg.goto(URL, wait_until='networkidle')
+    await pg.wait_for_selector('#stage .char')
+    await dismiss_note(pg)
+    await pg.wait_for_timeout(60)
+    info = await layout(pg)
+    check(f'{tag} phone gate on', info['phone'] and not info['portrait'])
+    await stage_fill(pg, tag, w, h)
+    if w in (375, 667): await living_room_one_line(pg, tag)
+    char = await pg.evaluate("""() => {
+      const c = document.querySelector('#layer .char').getBoundingClientRect();
+      const s = document.querySelector('.stage').getBoundingClientRect();
+      return {inside: c.left >= s.left - 1 && c.right <= s.right + 1 && c.bottom <= s.bottom + 1, cw: Math.round(c.width)};
+    }""")
+    check(f'{tag} character still readable in the room', char['inside'] and char['cw'] >= 24, str(char))
+    await ctx.close()
+
 async def ipad_pass(b, w, h):
     tag = f'ipad {w}x{h}'
     ctx = await b.new_context(viewport={'width': w, 'height': h}, has_touch=True, device_scale_factor=1)
@@ -429,6 +614,8 @@ async def main():
         for w, h in PHONES:
             save = (w, h) in ((390, 844), (844, 390))
             await phone_pass(b, w, h, save)
+        for w, h in SHORT:
+            await short_chrome_pass(b, w, h)
         await b.close()
     failed = [k for k, v in res.items() if not v]
     print(f'\n{len(res) - len(failed)}/{len(res)} passed', flush=True)
