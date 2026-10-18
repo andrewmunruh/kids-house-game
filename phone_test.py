@@ -58,6 +58,46 @@ def tops_ok(info):
             bad.append('small:' + t['id'] + f" {t['w']:.0f}x{t['h']:.0f}")
     return bad
 
+async def tabs_fit(pg, tag):
+    """Five room tabs on one row, each a 44px target, clear of the minimap. Map stays on screen."""
+    data = await pg.evaluate("""() => {
+      const vis = el => !!(el && el.offsetParent);
+      const tabs = [...document.querySelectorAll('.tab')].filter(vis);
+      const mini = document.querySelector('.minimap');
+      const mb = vis(mini) ? mini.getBoundingClientRect() : null;
+      const boxes = tabs.map(el => {
+        const b = el.getBoundingClientRect();
+        return {name: (el.textContent || '').trim(), x: b.x, y: b.y, r: b.right, b: b.bottom, w: b.width, h: b.height,
+          clipped: el.scrollWidth > el.clientWidth + 1};
+      });
+      const tools = [...document.querySelectorAll('.tools .round')].filter(vis).map(el => {
+        const b = el.getBoundingClientRect();
+        return {id: el.id, x: b.x, r: b.right, y: b.y, b: b.bottom, w: b.width, h: b.height};
+      });
+      const overlap = (a, box) => {
+        if (!box) return false;
+        const ox = Math.min(a.r, box.right) - Math.max(a.x, box.left);
+        const oy = Math.min(a.b, box.bottom) - Math.max(a.y, box.top);
+        return ox > 1 && oy > 1;
+      };
+      const ys = boxes.map(t => t.y);
+      return {n: boxes.length, names: boxes.map(t => t.name), boxes,
+        oneRow: boxes.length > 0 && Math.max(...ys) - Math.min(...ys) < 10,
+        overlap: boxes.some(t => overlap(t, mb)), tools, vw: innerWidth, vh: innerHeight,
+        mini: mb && {w: mb.width, h: mb.height}};
+    }""")
+    names = data['names']
+    small = [t['name'] for t in data['boxes'] if t['w'] < 44 or t['h'] < 44]
+    clipped = [t['name'] for t in data['boxes'] if t['clipped']]
+    off = [t['name'] for t in data['boxes'] if t['x'] < -1 or t['r'] > data['vw'] + 1 or t['y'] < -1 or t['b'] > data['vh'] + 1]
+    tools_bad = [t['id'] for t in data['tools'] if t['w'] < 44 or t['h'] < 44 or t['x'] < -1 or t['r'] > data['vw'] + 1]
+    check(f'{tag} five tabs on one row, 44px, clear of the minimap',
+          data['n'] == 5 and names[-1] == 'Nursery' and 'Living Room' in names and data['oneRow']
+          and not small and not clipped and not off and not data['overlap']
+          and not tools_bad and any(t['id'] == 'btnMap' for t in data['tools']),
+          str({'names': names, 'small': small, 'clipped': clipped, 'off': off, 'overlap': data['overlap'], 'tools': tools_bad,
+               'boxes': [{k: round(t[k]) if isinstance(t[k], float) else t[k] for k in ('name', 'x', 'w', 'r')} for t in data['boxes']]}))
+
 async def card_ok(pg):
     return await pg.evaluate("""() => {
       const card = document.querySelector('.sheet:not(.hidden) .card');
@@ -112,6 +152,7 @@ async def phone_pass(b, w, h, save):
     check(f'{tag} no horizontal overflow', info['scrollW'] <= info['vw'] + 1, f"scroll {info['scrollW']}")
     bad = tops_ok(info)
     check(f'{tag} top buttons on screen and >= 44', bad == [], str(bad))
+    await tabs_fit(pg, f'{tag} solo')
     min_shelf = 90 if portrait else 44
     check(f'{tag} drawer and shelf on screen', info['drawer']['x'] >= -1 and info['drawer']['r'] <= w + 1 and info['drawer']['b'] <= h + 1
           and info['shelf']['h'] >= min_shelf and info['shelf']['y'] >= 0 and info['shelf']['b'] <= h + 1,
@@ -143,6 +184,7 @@ async def phone_pass(b, w, h, save):
     bad = tops_ok(info)
     ids = [t['id'] for t in info['top']]
     check(f'{tag} own-house tools fit', bad == [] and 'btnLock' in ids and 'btnChat' in ids and 'btnMap' in ids, str(bad or ids))
+    await tabs_fit(pg, f'{tag} own-house')
 
     await pg.evaluate("""() => {
       const c = document.querySelector('#layer .char');
@@ -564,6 +606,32 @@ async def check_paddock(pg, tag, tall=False):
         after = await pg.evaluate("() => { const m = __ranch().me; return m && {x: m.x, ride: m.ride == null ? null : m.ride}; }")
         moved = bool(after) and abs(after['x'] - data['me']['x']) > 12 and after['ride'] is None
     check(f'{tag} a ground tap near a horse walks the kid', moved, str({'tap': tap, 'from': data.get('me')}))
+    idle = await pg.evaluate("""() => {
+      const horses = [...document.querySelectorAll('#ranchWorld .horse')].filter(el => getComputedStyle(el).display !== 'none' && !el.classList.contains('stallOff'));
+      const h = horses[0]; if (!h) return null;
+      const sc = document.getElementById('ranchScroll');
+      sc.scrollLeft = h.offsetLeft - sc.clientWidth / 2 + h.offsetWidth / 2;
+      const b = h.getBoundingClientRect();
+      return {w: b.width, h: b.height, x: b.left + b.width / 2, y: b.top + b.height * 0.45};
+    }""")
+    mounted = None
+    if idle:
+        await pg.mouse.click(idle['x'], idle['y'])
+        await pg.wait_for_timeout(400)
+        mounted = await pg.evaluate("""() => {
+          const m = document.querySelector('#ravatars .mount');
+          if (!m) return null;
+          const b = m.getBoundingClientRect();
+          return {w: b.width, h: b.height};
+        }""")
+        hop = pg.locator('#btnHopOff')
+        if await hop.count():
+            await hop.click(force=True)
+            await pg.wait_for_timeout(200)
+    ratio = (mounted['w'] / idle['w']) if idle and mounted else 0
+    check(f'{tag} mounted horse stays close to the idle horse',
+          idle and mounted and 1.05 <= ratio <= 1.35 and mounted['h'] / idle['h'] <= 1.35,
+          str({'idle': idle, 'mounted': mounted, 'ratio': round(ratio, 3)}))
 
 async def check_zoo_hint(pg, tag):
     await pg.wait_for_timeout(700)
@@ -577,10 +645,12 @@ async def check_secrets(pg, tag, short):
     if short:
         # 844×300, 667×280, 932×340: the gutter is narrower than the label, so the
         # compact pill has to clear the stage entirely and stay a 44px target.
+        count_px = await pg.evaluate("() => parseFloat(getComputedStyle(document.querySelector('#secrets .secCount')).fontSize)")
         check(f'{tag} Surprises pill sits fully outside the room',
               pill['on'] and not pill['overlap'] and pill['compact'] and not pill['chrome']
               and pill['side'] and pill['pill']['w'] >= 44 and pill['pill']['h'] >= 44,
               str(pill))
+        check(f'{tag} compact Surprises count is 12–13px', 12 <= count_px <= 13.5, str(count_px))
     else:
         check(f'{tag} Surprises pill stays centred on a taller phone',
               pill['on'] and pill['centered'] and not pill['compact'] and not pill['chrome']
@@ -638,8 +708,14 @@ async def short_chrome_pass(b, w, h):
     await pg.wait_for_timeout(60)
     info = await layout(pg)
     check(f'{tag} phone gate on', info['phone'] and not info['portrait'])
+    await tabs_fit(pg, f'{tag} solo')
     await stage_fill(pg, tag, w, h)
     if w in (375, 667): await living_room_one_line(pg, tag)
+    await pg.evaluate("() => { document.body.classList.add('mode-hood','own-house'); }")
+    await pg.wait_for_timeout(40)
+    await tabs_fit(pg, f'{tag} own-house')
+    await pg.evaluate("() => { document.body.classList.remove('mode-hood','own-house'); window.dispatchEvent(new Event('resize')); }")
+    await pg.wait_for_timeout(40)
     char = await pg.evaluate("""() => {
       const c = document.querySelector('#layer .char').getBoundingClientRect();
       const s = document.querySelector('.stage').getBoundingClientRect();
@@ -663,6 +739,11 @@ async def ipad_pass(b, w, h):
     await pg.wait_for_selector('#stage .char')
     info = await layout(pg)
     check(f'{tag} is not a phone', not info['phone'] and not info['note'] and info['scrollW'] <= info['vw'] + 1)
+    await tabs_fit(pg, f'{tag} solo')
+    await pg.evaluate("() => { document.body.classList.add('mode-hood','own-house'); }")
+    await pg.wait_for_timeout(40)
+    await tabs_fit(pg, f'{tag} own-house')
+    await pg.evaluate("() => { document.body.classList.remove('mode-hood','own-house'); }")
     await pg.evaluate("""(svg) => {
       const root = document.getElementById('tableOverlay');
       root.classList.remove('hidden');

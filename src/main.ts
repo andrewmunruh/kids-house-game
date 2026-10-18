@@ -39,6 +39,7 @@ const ROOMS: { id: RoomId; name: string; color: string }[] = [
   { id: 'bedroom', name: 'Bedroom', color: '#b388d6' },
   { id: 'kitchen', name: 'Kitchen', color: '#5cc985' },
   { id: 'salon', name: 'Salon', color: '#f0a0d8' },
+  { id: 'nursery', name: 'Nursery', color: '#9ad7f5' },
 ];
 const roomColor = (r: string) => ROOMS.find(x => x.id === r)?.color ?? '#ccc';
 
@@ -1914,6 +1915,9 @@ const depthZ = (foot: number) => String(100 + Math.round(foot));
 // The paddock horse is 150×122. Mounted, the horse grows and the kid shrinks so she looks like a rider.
 const RIDE_HORSE_W = 220;
 const RIDE_HORSE_H = RIDE_HORSE_W * 130 / 160;
+/** Portrait-phone idle horse is 131×106. A 220-wide mount jumps to about 290×236px. */
+const PHONE_RIDE_W = 156;
+const PHONE_RIDE_H = PHONE_RIDE_W * 130 / 160;
 const RIDE_RIDER_SCALE = 0.6;
 const SHIRT_STROKE = 3.5, SADDLE_STROKE = 3;
 const POND_PAD = 10;
@@ -2143,7 +2147,8 @@ function renderRanchAvatars() {
     if (ride !== undefined) {
       ridden.add(ride); if (w.mine) meRiding = true;
       lastRideAt.set(ride, { x: w.p.x, y: w.p.y });
-      const mw = RIDE_HORSE_W * sc, mh = RIDE_HORSE_H * sc; const m = el.querySelector<HTMLElement>('.mount')!;
+      const rw = phonePaddock() ? PHONE_RIDE_W : RIDE_HORSE_W, rh = phonePaddock() ? PHONE_RIDE_H : RIDE_HORSE_H;
+      const mw = rw * sc, mh = rh * sc; const m = el.querySelector<HTMLElement>('.mount')!;
       m.style.width = mw + 'px'; m.style.height = mh + 'px'; m.style.left = (wd - mw) / 2 + 'px'; m.style.top = (h - mh) + 'px';
       const hemY = Number(el.querySelector('.shirt')?.getAttribute('data-hem') ?? 126);
       const sadY = Number(m.querySelector('.saddle')?.getAttribute('data-top') ?? 43);

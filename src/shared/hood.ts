@@ -2,7 +2,7 @@
 // Nothing here touches the DOM or Node APIs, so it runs in browsers, Node and Cloudflare Workers.
 import { RANCH_W, BARN_W, RANCH_Y0, RANCH_Y1, HORSES, ANIMALS, FOODS, type Basket, type Plot, type RanchOp } from './ranch';
 import { GAMEROOM_W, type TablePub, type TableOp } from './games/index';
-import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, ROOM_W, ROOM_H, MAX_CHARS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
+import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, ROOM_W, ROOM_H, MAX_CHARS, ROOM_IDS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
 
 export const MAX_PLAYERS = 12;
 export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L
@@ -77,7 +77,7 @@ export const FILTER_MSG: Record<string, string> = {
 };
 
 // ---------- validation (server-authoritative; also used when importing a local house) ----------
-const ROOMS: RoomId[] = ['living', 'bedroom', 'kitchen', 'salon'];
+const ROOMS: RoomId[] = ROOM_IDS;
 const isRoom = (r: unknown): r is RoomId => ROOMS.includes(r as RoomId);
 const num = (v: unknown, lo: number, hi: number): number | null => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : null);
 const str = (v: unknown, re: RegExp, max = 80): string | null => (typeof v === 'string' && v.length <= max && re.test(v) ? v : null);
@@ -117,7 +117,7 @@ function cleanCharacter(c: any): Character | null {
 }
 
 // ---------- pets ----------
-export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Older clients never receive messages they can't apply.
+export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery and backyard ride along: old clients keep unknown rooms and simply do not draw them.
 export const PROTO_PETS = 2, PROTO_RANCH = 3, PROTO_GAMES = 4;
 export const CAT_NAMES = ['Mittens', 'Luna', 'Biscuit', 'Pumpkin', 'Whiskers', 'Mochi', 'Pepper', 'Noodle', 'Ginger', 'Socks'];
 export const DOG_NAMES = ['Buddy', 'Coco', 'Max', 'Daisy', 'Peanut', 'Rocket', 'Bella', 'Waffles', 'Scout', 'Honey'];

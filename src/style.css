@@ -613,6 +613,24 @@ body.is-preview .shelf { width: auto; margin-right: 96px; }
 
 /* ---------- polish: portrait, tap targets, home, phone note ---------- */
 .minimap { flex: 0 0 auto; min-width: 128px; width: 180px; height: 48px; }
+/* Five room tabs. 1180 stays roomy (the spare gap absorbs Nursery).
+   1024 would push Map off; 820 would lay Nursery over the minimap. */
+@media (max-width: 1100px) and (min-width: 901px) {
+  body:not(.phone) .top { padding: 8px 10px 4px; gap: 8px; }
+  body:not(.phone) .tabs { gap: 4px; flex: 0 1 auto; min-width: 0; }
+  body:not(.phone) .tab { padding: 8px 9px; font-size: 15px; }
+  body:not(.phone) .minimap { width: 120px; min-width: 100px; flex: 0 1 120px; }
+  body:not(.phone) .tools { gap: 5px; flex: 0 0 auto; }
+}
+@media (max-width: 900px) and (min-height: 700px) {
+  /* 820×1180 with lock + chat: five labels, a 44px minimap, and seven 44px tools. */
+  body:not(.phone) .top { padding: 4px 6px 2px; gap: 4px; }
+  body:not(.phone) .tabs { gap: 3px; flex: 0 1 auto; min-width: 0; }
+  body:not(.phone) .tab { padding: 6px 6px; font-size: 13px; min-height: 44px; }
+  body:not(.phone) .minimap { width: 48px; min-width: 44px; flex: 0 1 48px; height: 44px; }
+  body:not(.phone) .tools { gap: 3px; flex: 0 0 auto; }
+  body:not(.phone) .round { width: 44px; height: 44px; padding: 6px; }
+}
 .homeBtn { display: none !important; }
 body.view-street .homeBtn { display: block !important; }
 body.view-street .stage { visibility: hidden; }
@@ -789,6 +807,16 @@ body.view-street .stage { visibility: hidden; }
    top of the wall, so it moves into the right gutter. Taller landscape phones keep it centred.
    When that gutter is narrower than the label, .compact is a 44px stack that fits beside
    the stage. A gutter under 44px cannot hold it, so .secrets-chrome parks it in the top row. */
+/* 667×375: five tabs were touching the minimap. A few pixels of gap and padding free the row.
+   Lock and chat do not fit on that same row, so on a street they wrap under the tabs. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) and (max-width: 700px) {
+  body.phone .tabs { gap: 3px; }
+  body.phone .tab { padding: 0 4px; }
+  body.phone.mode-hood .top { flex-wrap: wrap; row-gap: 2px; }
+  body.phone.mode-hood .tabs { flex: 1 1 auto; }
+  body.phone.mode-hood .minimap { flex: 0 0 48px; }
+  body.phone.mode-hood .tools { flex: 1 0 100%; justify-content: flex-end; }
+}
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 360px) {
   body.phone .secrets { top: 6px; bottom: auto; left: auto; right: max(4px, env(safe-area-inset-right)); transform: none; }
   body.phone .secrets.compact {
@@ -802,7 +830,7 @@ body.view-street .stage { visibility: hidden; }
     clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
   }
   body.phone .secrets.compact .secGift { font-size: 16px; }
-  body.phone .secrets.compact .secCount { font-size: 11px; letter-spacing: -0.03em; }
+  body.phone .secrets.compact .secCount { font-size: 13px; letter-spacing: -0.02em; }
   body.phone.secrets-chrome .secrets {
     position: static; top: auto; right: auto; left: auto; bottom: auto; transform: none;
     flex: 0 0 44px; width: 44px; height: 44px; margin: 0 0 0 2px;
@@ -954,6 +982,9 @@ body.view-street .stage { visibility: hidden; }
    Flexible spacers share the leftover height, and shrink away when the hand is tall. */
 @media (min-width: 700px) and (max-width: 900px) and (min-height: 1000px) {
   .tblCard.game-slay::before, .tblCard.game-slay::after { content: ''; flex: 1 1 0; min-height: 0; }
+  /* 10 cards wrap 7+3 here. The tucked row used to cover the row above it. */
+  .slayHand:has(.slayCard:nth-child(9)) { padding-top: 8px; row-gap: 14px; align-content: center; }
+  .slayHand:has(.slayCard:nth-child(9)) .slayCard { margin-top: 0; }
 }
 @media (max-width: 860px) {
   .tblTop h2 { font-size: 24px; }
