@@ -206,7 +206,13 @@ async def run(P, K2, K3, mk, errs, check):
         if (await K2.evaluate("__ui()")).get('currentHouseId') != pid_home:
             await to_map(K2); await K2.click(f'#mapWorld .mapHouse[data-go="house:{pid_home}"]'); await K2.wait_for_timeout(900)
         await P.evaluate("""() => {
-          const h = __hood(), id = h.myHouseId(), cid = h.view(id).characters[0].id;
+          const h = __hood(), id = h.myHouseId();
+          // Bringing a one-character house deletes that kid (they become "you"), so the house can arrive empty.
+          let cid = h.view(id).characters[0] && h.view(id).characters[0].id;
+          if (!cid) {
+            cid = 'nur-kid';
+            h.dispatch(id, {type:'char/add', char:{id:cid, skin:'#f1c27d', hair:'#5b3a29', hairStyle:2, shirt:'#ff7aa8', pants:'#5aa9e6', size:'kid', acc:0, room:'living', x:900, y:540, flip:false, held:{left:null, right:null}}});
+          }
           h.dispatch(id, {type:'item/add', room:'nursery', item:{id:'nur-sync', kind:'crib', x:500, y:480, flip:false}});
           h.dispatch(id, {type:'room/wallTile', room:'nursery', tile:'nursery/cloud-sky'});
           h.dispatch(id, {type:'cat/set', cat:{name:'Pip', coat:1, room:'nursery', x:600}});

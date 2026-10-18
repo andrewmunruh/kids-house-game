@@ -807,10 +807,15 @@ body.view-street .stage { visibility: hidden; }
    top of the wall, so it moves into the right gutter. Taller landscape phones keep it centred.
    When that gutter is narrower than the label, .compact is a 44px stack that fits beside
    the stage. A gutter under 44px cannot hold it, so .secrets-chrome parks it in the top row. */
-/* 667×375: five tabs were touching the minimap. A few pixels of gap and padding free the row. */
-@media (pointer: coarse) and (orientation: landscape) and (max-height: 380px) and (max-width: 700px) {
+/* 667×375: five tabs were touching the minimap. A few pixels of gap and padding free the row.
+   Lock and chat do not fit on that same row, so on a street they wrap under the tabs. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) and (max-width: 700px) {
   body.phone .tabs { gap: 3px; }
   body.phone .tab { padding: 0 4px; }
+  body.phone.mode-hood .top { flex-wrap: wrap; row-gap: 2px; }
+  body.phone.mode-hood .tabs { flex: 1 1 auto; }
+  body.phone.mode-hood .minimap { flex: 0 0 48px; }
+  body.phone.mode-hood .tools { flex: 1 0 100%; justify-content: flex-end; }
 }
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 360px) {
   body.phone .secrets { top: 6px; bottom: auto; left: auto; right: max(4px, env(safe-area-inset-right)); transform: none; }

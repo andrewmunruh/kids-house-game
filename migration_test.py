@@ -219,7 +219,7 @@ async def main():
             check('an old stored house stays without a nursery on disk until the first edit', all('nursery' not in names and 'backyard' not in names for names in disk_room_names(M + '/data-new').values()) and disk_room_names(M + '/data-new') == disk_room_names(M + '/data'))
             # solo save from the old build, opened by the new build (not signed in)
             solo_ctx = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
-            await solo_ctx.add_init_script("localStorage.setItem('cozy-whatsnew','999'); localStorage.setItem('cozy-house', " + json.dumps(json.dumps(solo_a)) + ");")
+            await solo_ctx.add_init_script("if (!sessionStorage.getItem('solo-set')) { sessionStorage.setItem('solo-set','1'); localStorage.setItem('cozy-whatsnew','999'); localStorage.setItem('cozy-house', " + json.dumps(json.dumps(solo_a)) + "); }")
             solo = await solo_ctx.new_page(); solo.on('pageerror', lambda e: errs.append('solo ' + str(e)))
             await solo.goto(f'{BASE}/kids-house-game/?hood=http://localhost:{PORT_HOOD}'); await solo.wait_for_selector('#stage .char'); await solo.wait_for_timeout(400)
             solo_now = await solo.evaluate("""() => { const s = __store.get(); return { v: s.version, old: Object.fromEntries(['living','bedroom','kitchen','salon'].map(r => [r, s.rooms[r].items.map(i => i.id)])), nursery: s.rooms.nursery.items.map(i => i.kind), tabs: [...document.querySelectorAll('.tab')].map(t => t.textContent.trim()) }; }""")

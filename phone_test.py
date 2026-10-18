@@ -714,7 +714,8 @@ async def short_chrome_pass(b, w, h):
     await pg.evaluate("() => { document.body.classList.add('mode-hood','own-house'); }")
     await pg.wait_for_timeout(40)
     await tabs_fit(pg, f'{tag} own-house')
-    await pg.evaluate("() => { document.body.classList.remove('mode-hood','own-house'); }")
+    await pg.evaluate("() => { document.body.classList.remove('mode-hood','own-house'); window.dispatchEvent(new Event('resize')); }")
+    await pg.wait_for_timeout(40)
     char = await pg.evaluate("""() => {
       const c = document.querySelector('#layer .char').getBoundingClientRect();
       const s = document.querySelector('.stage').getBoundingClientRect();
