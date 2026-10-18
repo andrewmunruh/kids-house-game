@@ -3,7 +3,7 @@ import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapTreesSVG, parkMin
 import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
 import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, cleanPetName, CAT_NAMES, DOG_NAMES, PARK_W, PARK_SPOTS, SLIDE, DOG_AREA, type Presence, type Bubble, type Look, type Fx } from './shared/hood';
-import { catSVG, dogSVG, catAt, CAT_COATS, DOG_BREEDS } from './pets';
+import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } from './pets';
 import { parkSceneSVG, swingSVG, ballSVG, treeIcon, pawIcon, gateIcon, streetGateSVG, PARK_H, SWING_BAR } from './park';
 import { houseSVG, ICONS, toast, adultCheck } from './hood-ui';
 import { initEggs, foundSet, EGGS } from './eggs';
@@ -467,6 +467,18 @@ function placeEl(el: HTMLElement, x: number, y: number, w: number, h: number) {
   el.style.height = h / H * 100 + '%';
 }
 
+/** Phone stage is CSS-scaled, so the kennel and tower grow until the tap box is 44px. iPad keeps the drawn size. */
+function placedBox(def: ItemDef, scale: number) {
+  let w = def.w * scale, h = hOf(def) * scale;
+  if ((def.kind === 'kennel' || def.kind === 'cat-tower') && document.body.classList.contains('phone')) {
+    const sc = Math.max(0.2, stageScale() || 1);
+    const minW = 44 * W / (Math.max(1, VIEW_W) * sc);
+    const minH = 44 / sc;
+    if (w < minW) w = minW;
+    if (h < minH) h = minH;
+  }
+  return { w, h };
+}
 function renderItems(s: GameState) {
   const room = s.rooms[s.currentRoom];
   const seen = new Set<string>();
@@ -481,7 +493,9 @@ function renderItems(s: GameState) {
       layer.appendChild(el);
       el.addEventListener('pointerdown', e => beginItemDrag(el!, e));
     }
-    placeEl(el, it.x, it.y, def.w * it.scale, hOf(def) * it.scale);
+    el.dataset.kind = it.kind;
+    const box = placedBox(def, it.scale);
+    placeEl(el, it.x, it.y, box.w, box.h);
     el.style.zIndex = String(1000 + it.z);
     el.classList.toggle('flipped', it.flip);
     el.classList.toggle('sel', selected === it.id);
@@ -650,7 +664,7 @@ function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
       el.classList.remove('lifted'); bin.classList.remove('show', 'hot'); showHoldTarget(null);
       if (moved && overBin(ev.clientX, ev.clientY)) { selected = null; store.dispatch({ type: 'item/delete', room, id }); poof(ev.clientX, ev.clientY); return; }
       if (moved && target) { holdInto(target, id); return; }
-      if (moved) sfx.drop(); else sfx.click();
+      if (moved) sfx.drop(); else { sfx.click(); onPlaceTap(id); }
       bounce(el); renderItems(store.get());
     },
   });
@@ -1735,6 +1749,7 @@ let lastTick = performance.now();
 function tickDogs(now: number, dt: number) {
   const seen = new Set<string>();
   for (const o of dogOwners()) {
+    if (isKenneled(o.key)) continue;
     seen.add(o.key);
     let r = dogRuns.get(o.key);
     const side = o.flip ? 1 : -1;
@@ -1764,10 +1779,16 @@ function tickDogs(now: number, dt: number) {
     else { r.idle += dt; if (!tricking && r.idle > 0.3 && Math.abs(o.x - r.x) > 4) r.flip = o.x < r.x; }
     const pose = tricking && r.sitTrick ? 'sit' : moving ? 'stand' : r.idle > 0.9 ? 'sit' : 'stand';
     const look = pose + o.dog.breed;
-    if (r.pose + r.look !== pose + look) { const b = r.el.querySelector('.bubble'); r.el.innerHTML = `<div class="inner">${dogSVG(o.dog.breed, pose as 'stand' | 'sit')}</div>`; if (b) r.el.appendChild(b); r.pose = pose; r.look = look; }
+    if (r.pose + r.look !== pose + look) {
+      const keep = [...r.el.querySelectorAll('.bubble, .kennelBtn')];
+      r.el.innerHTML = `<div class="inner">${dogSVG(o.dog.breed, pose as 'stand' | 'sit')}</div>`;
+      for (const node of keep) r.el.appendChild(node);
+      r.pose = pose; r.look = look;
+    }
     r.el.dataset.name = o.dog.name;
     r.el.classList.toggle('walking', moving); r.el.classList.toggle('flipped', r.flip);
     o.place(r.el, r.x, r.y, 92 * o.scale, 71 * o.scale); r.el.style.zIndex = o.z(r.y + 1);
+    syncKennelBtn(r.el, o.key, false);
   }
   for (const [k, r] of dogRuns) if (!seen.has(k)) { r.el.remove(); dogRuns.delete(k); }
 }
@@ -1793,20 +1814,156 @@ function attachDogTap(el: HTMLElement, key: string) {
   });
 }
 
+// ---------- kennel: the house owner's dog can rest instead of following ----------
+function kennelItem(state: GameState | null | undefined): PlacedItem | null {
+  const id = state?.dogKennel?.item;
+  if (!id || !state) return null;
+  for (const room of Object.values(state.rooms)) {
+    const it = room.items.find(i => i.id === id && i.kind === 'kennel');
+    if (it) return it;
+  }
+  return null;
+}
+function ownerHouse(key: string): GameState | null {
+  if (key === 'solo') return local.get();
+  if (!hood) return null;
+  const hid = hood.players.get(key)?.houseId;
+  return hid ? hood.view(hid) : null;
+}
+function isKenneled(key: string) { return !!kennelItem(ownerHouse(key)); }
+function myHouseState(): GameState | null {
+  if (hood) { const id = hood.myHouseId(); return id ? hood.view(id) : null; }
+  return local.get();
+}
+function kennelSpot(): { key: string; dog: Dog; item: PlacedItem } | null {
+  if (view !== 'house') return null;
+  const s = store.get();
+  const item = kennelItem(s);
+  if (!item || !s.rooms[s.currentRoom]?.items.some(i => i.id === item.id)) return null;
+  if (hood && inner !== local) {
+    const owner = hood.houses.get(currentHouseId)?.meta.ownerId;
+    const dog = owner ? hood.players.get(owner)?.dog ?? null : null;
+    if (!owner || !dog) return null;
+    return { key: owner, dog, item };
+  }
+  if (!s.dog) return null;
+  return { key: 'solo', dog: s.dog, item };
+}
+function pickKennel(): PlacedItem | null {
+  const s = myHouseState(); if (!s) return null;
+  const here = inMyHouse() ? store.get().currentRoom : null;
+  let best: PlacedItem | null = null, roomBest: PlacedItem | null = null;
+  for (const [rid, room] of Object.entries(s.rooms)) {
+    for (const it of room.items) if (it.kind === 'kennel') {
+      if (!best || it.z >= best.z) best = it;
+      if (rid === here && (!roomBest || it.z >= roomBest.z)) roomBest = it;
+    }
+  }
+  return roomBest ?? best;
+}
+function setKennel(item: string | null) {
+  if (!myDog()) { toast('Adopt a dog first!'); return; }
+  catDispatch({ type: 'dog/kennel', item });
+  if (item) { sfx.pop(); toast('Rest well, puppy!'); } else { sfx.woof(); toast('Come on, puppy!'); }
+}
+function toggleKennel(itemId?: string) {
+  if (!myDog()) { toast('Adopt a dog first!'); return; }
+  const cur = kennelItem(myHouseState());
+  if (itemId === undefined) {
+    if (cur) { setKennel(null); return; }
+    const pick = pickKennel();
+    if (!pick) { toast('Put a dog kennel down first!'); return; }
+    setKennel(pick.id); return;
+  }
+  if (cur?.id === itemId) setKennel(null); else setKennel(itemId);
+}
+function onPlaceTap(id: string) {
+  const s = store.get();
+  const it = s.rooms[s.currentRoom]?.items.find(i => i.id === id); if (!it) return;
+  if (it.kind === 'kennel') { if (inMyHouse()) toggleKennel(it.id); return; }
+  if (it.kind === 'cat-tower') tapTower();
+}
+function syncKennelBtn(el: HTMLElement, key: string, inside: boolean) {
+  const mine = hood ? key === hood.pid : key === 'solo';
+  let b = el.querySelector<HTMLButtonElement>('.kennelBtn');
+  if (!mine) { b?.remove(); return; }
+  if (!b) {
+    b = document.createElement('button'); b.type = 'button'; b.className = 'kennelBtn';
+    b.addEventListener('pointerdown', ev => { ev.stopPropagation(); ev.preventDefault(); });
+    b.addEventListener('click', ev => { ev.stopPropagation(); ev.preventDefault(); toggleKennel(); });
+    el.appendChild(b);
+  }
+  b.textContent = inside ? 'Out' : 'Kennel';
+}
+function petBubble(el: HTMLElement, text: string) {
+  el.querySelector('.bubble')?.remove();
+  const b = document.createElement('div'); b.className = 'bubble petBubble'; b.textContent = text; el.appendChild(b); clampPhoneBubbles();
+  setTimeout(() => b.classList.add('out'), 1300); setTimeout(() => b.remove(), 1700);
+}
+interface KennelRun { el: HTMLElement; pose: string; look: string; x: number; y: number }
+const kennelRuns = new Map<string, KennelRun>();
+function tickKennels() {
+  const seen = new Set<string>();
+  const spot = kennelSpot();
+  if (spot) {
+    seen.add(spot.key);
+    const look = kennelLook(spot.dog.name, Date.now());
+    const y = spot.item.y - (look === 'peek' ? 36 : 8);
+    let r = kennelRuns.get(spot.key);
+    if (!r || !r.el.isConnected) {
+      r?.el.remove();
+      const el = document.createElement('div');
+      el.className = 'pet pet-dog kenneled'; el.dataset.dog = 'kennel:' + spot.key; layer.appendChild(el);
+      el.addEventListener('pointerdown', ev => { if ((ev.target as HTMLElement).closest('.kennelBtn')) return; ev.stopPropagation(); ev.preventDefault(); });
+      el.addEventListener('click', ev => { if ((ev.target as HTMLElement).closest('.kennelBtn')) return; ev.stopPropagation(); petBubble(el, `${el.dataset.name ?? 'Puppy'} is resting`); });
+      r = { el, pose: '', look: '', x: spot.item.x, y }; kennelRuns.set(spot.key, r);
+    }
+    if (r.pose !== 'sit' || r.look !== look + spot.dog.breed) {
+      const keep = [...r.el.querySelectorAll('.bubble, .kennelBtn')];
+      r.el.innerHTML = `<div class="inner">${dogSVG(spot.dog.breed, 'sit')}</div>${look === 'rest' ? '<div class="zzz"><i>z</i><i>z</i><i>z</i></div>' : ''}`;
+      for (const node of keep) r.el.appendChild(node);
+      r.pose = 'sit'; r.look = look + spot.dog.breed;
+    }
+    r.el.dataset.name = spot.dog.name;
+    r.el.classList.toggle('rest', look === 'rest'); r.el.classList.toggle('peek', look === 'peek');
+    r.x = spot.item.x; r.y = y;
+    placeEl(r.el, spot.item.x, y, 84, 64); r.el.style.zIndex = String(4000 + Math.round(y));
+    syncKennelBtn(r.el, spot.key, true);
+  }
+  for (const [k, r] of kennelRuns) if (!seen.has(k)) { r.el.remove(); kennelRuns.delete(k); }
+}
+
 // ---------- the house cat (wanders + naps on its own; same on every iPad) ----------
-let catEl: HTMLElement | null = null, catKey = '';
+let catEl: HTMLElement | null = null, catKey = '', catPerch = 0, leapUntil = 0;
+let catSpot = { x: 0, perch: 0, leap: false };
 const CAT_Y = 562;
+function roomTower(s: GameState): PlacedItem | null {
+  const items = s.rooms[s.currentRoom]?.items.filter(i => i.kind === 'cat-tower') ?? [];
+  return items.reduce<PlacedItem | null>((a, b) => !a || b.z >= a.z ? b : a, null);
+}
+function tapTower() {
+  const s = store.get();
+  if (!s.cat || s.cat.room !== s.currentRoom || !roomTower(s)) return;
+  leapUntil = performance.now() + 900; sfx.boing(); hood?.fx({ k: 'leap' });
+}
 function tickCat() {
   const s = store.get(); const cat = view === 'house' ? s.cat : null;
-  if (!cat || cat.room !== s.currentRoom) { if (catEl) { catEl.remove(); catEl = null; } return; }
+  if (!cat || cat.room !== s.currentRoom) { if (catEl) { catEl.remove(); catEl = null; catKey = ''; catPerch = 0; } return; }
   if (!catEl || !catEl.isConnected) {
     catEl = document.createElement('div'); catEl.className = 'pet pet-cat'; layer.appendChild(catEl); catKey = '';
     catEl.addEventListener('pointerdown', ev => { ev.stopPropagation(); ev.preventDefault(); });
     catEl.addEventListener('click', ev => { ev.stopPropagation(); purr(); if (hood) hood.fx({ k: 'purr' }); });
   }
-  const b = catAt(cat, Date.now());
-  const pose = b.mood === 'walk' ? 'stand' : b.mood === 'nap' ? 'nap' : 'sit';
-  const key = pose + cat.coat;
+  const tower = roomTower(s);
+  const def = tower ? ITEM_MAP[tower.kind] : undefined;
+  const th = tower && def ? hOf(def) * tower.scale : 0;
+  const b = catAt(cat, Date.now(), tower ? { x: tower.x } : null);
+  const leaping = !!tower && performance.now() < leapUntil;
+  const perch = leaping ? 2 : b.perch;
+  const x = leaping && tower ? tower.x : b.x;
+  const mood = leaping ? 'play' : b.mood;
+  const pose = mood === 'walk' ? 'stand' : mood === 'nap' ? 'nap' : 'sit';
+  const key = pose + cat.coat + (perch ? 'p' : '');
   if (key !== catKey) {
     // Pose changes every few seconds. Keep the purr (bubble + hearts); replacing the
     // whole node used to throw the hearts away mid-animation.
@@ -1815,12 +1972,17 @@ function tickCat() {
     for (const node of keep) catEl.appendChild(node);
     catKey = key;
   }
-  catEl.dataset.name = cat.name; catEl.dataset.mood = b.mood;
-  catEl.classList.toggle('walking', b.mood === 'walk'); catEl.classList.toggle('groom', b.mood === 'groom'); catEl.classList.toggle('flipped', b.flip);
+  if (perch > 0 && catPerch === 0) { catEl.classList.add('hop'); const el = catEl; setTimeout(() => el.classList.remove('hop'), 420); }
+  catPerch = perch;
+  catEl.dataset.name = cat.name; catEl.dataset.mood = mood; catEl.dataset.perch = String(perch); catEl.dataset.leap = leaping ? '1' : '0';
+  catEl.classList.toggle('walking', mood === 'walk'); catEl.classList.toggle('groom', mood === 'groom'); catEl.classList.toggle('play', mood === 'play' && !leaping); catEl.classList.toggle('leap', leaping); catEl.classList.toggle('flipped', b.flip);
   // __pinCat holds her on a character's feet for tests. She stays under characters (5000 + y).
   const pin = (window as any).__pinCat as { x: number } | null;
-  placeEl(catEl, pin && Number.isFinite(pin.x) ? pin.x : b.x, CAT_Y, 150, 128);
-  catEl.style.zIndex = String(4000 + CAT_Y);
+  const pinned = !!(pin && Number.isFinite(pin.x));
+  const foot = !pinned && perch && tower ? towerFootY(tower.y, th, perch as 1 | 2) : CAT_Y;
+  placeEl(catEl, pinned ? pin!.x : x, foot, !pinned && perch ? 96 : 150, !pinned && perch ? 78 : 128);
+  catEl.style.zIndex = String(4000 + Math.round(foot));
+  catSpot = { x: pinned ? pin!.x : x, perch, leap: leaping };
 }
 function purr() {
   if (!catEl) return; sfx.purr(); setTimeout(() => sfx.meow(), 250);
@@ -1833,12 +1995,13 @@ function onFx(pid: string, fx: Fx) {
   if (fx.k === 'zoo' || fx.k === 'apple' || fx.k === 'honk' || fx.k === 'hen') { onRanchFx(fx); return; }
   if (fx.k === 'trick') doTrick(fx.owner, fx.v);
   else if (fx.k === 'purr') { if (view === 'house') purr(); }
+  else if (fx.k === 'leap') { if (view === 'house') leapUntil = performance.now() + 900; }
   else if (fx.k === 'ball') startFetch(pid, fx.x, fx.y);
   else if (fx.k === 'splash') splashAt(fx.x);
 }
 function petTick(now: number) {
   const dt = Math.min(0.05, Math.max(0, (now - lastTick) / 1000)); lastTick = now;
-  try { tickDogs(now, dt); tickCat(); tickRanch(now, dt); tickGameRoom(dt); } catch { /* never let an animation frame break the game */ }
+  try { tickDogs(now, dt); tickKennels(); tickCat(); tickRanch(now, dt); tickGameRoom(dt); } catch { /* never let an animation frame break the game */ }
   requestAnimationFrame(petTick);
 }
 
@@ -1876,8 +2039,10 @@ function openPets(tab: 'cat' | 'dog' = 'cat') {
       return;
     }
     if (act === 'callCat') { catDispatch({ type: 'cat/move', room: store.get().currentRoom, x: Math.max(200, Math.min(W - 200, camX + VIEW_W / 2)) }); sfx.meow(); close(); return; }
+    if (act === 'kennelDog') { toggleKennel(); close(); return; }
     if (act === 'bye') { if (!d.bye) { d.bye = true; render(); return; }
-      if (d.tab === 'cat') catDispatch({ type: 'cat/set', cat: null }); else if (hood) hood.setDog(null); else local.dispatch({ type: 'dog/set', dog: null });
+      if (d.tab === 'cat') catDispatch({ type: 'cat/set', cat: null });
+      else { catDispatch({ type: 'dog/kennel', item: null }); if (hood) hood.setDog(null); else local.dispatch({ type: 'dog/set', dog: null }); }
       close(); toast('They went to live with a kind friend 💛'); return; }
   }, 'wide pets');
   const card = m.root.querySelector('.card')!;
@@ -1897,13 +2062,17 @@ function openPets(tab: 'cat' | 'dog' = 'cat') {
       ${!isCat && !hood && chars.length > 1 ? `<div class="label">Who does your dog follow?</div><div class="walkers">${chars.map(c => `<button data-owner="${c.id}" class="${c.id === d.owner ? 'on' : ''}">${characterSVG(c)}</button>`).join('')}</div>` : ''}
       <div class="petBtns"><button class="go" data-pa="${isCat ? 'adoptCat' : 'adoptDog'}" id="adoptBtn">${have ? 'Save' : 'Adopt! 💛'}</button>
         ${isCat && cat0 && inMyHouse() ? '<button data-pa="callCat" id="callCat">Here, kitty!</button>' : ''}
+        ${!isCat && dog0 ? `<button data-pa="kennelDog" id="kennelDog">${kennelItem(myHouseState()) ? 'Come, puppy!' : 'Kennel'}</button>` : ''}
         ${have ? `<button class="danger" data-pa="bye">${d.bye ? 'Tap again to say goodbye' : 'Find a new home'}</button>` : ''}</div>`;
   }
   render();
 }
 $('btnPets').addEventListener('click', () => openPets(view === 'house' ? 'cat' : 'dog'));
 requestAnimationFrame(petTick);
-(window as any).__pets = () => ({ dogs: [...dogRuns.keys()], dogPos: Object.fromEntries([...dogRuns].map(([k, r]) => [k, { x: Math.round(r.x), y: Math.round(r.y) }])), cat: catEl ? { mood: catEl.dataset.mood, name: catEl.dataset.name } : null, fetch: fetchSt?.phase ?? null, ball: ballPos, view });
+(window as any).__pets = () => {
+  const spot = kennelSpot(); const run = spot ? kennelRuns.get(spot.key) : undefined;
+  return { dogs: [...dogRuns.keys()], dogPos: Object.fromEntries([...dogRuns].map(([k, r]) => [k, { x: Math.round(r.x), y: Math.round(r.y) }])), cat: catEl ? { mood: catEl.dataset.mood, name: catEl.dataset.name, perch: catSpot.perch, x: Math.round(catSpot.x), leap: catSpot.leap } : null, kennel: spot && run ? { x: Math.round(run.x), y: Math.round(run.y), pose: run.pose, name: spot.dog.name, item: spot.item.id } : null, dogKennel: store.get().dogKennel ?? null, fetch: fetchSt?.phase ?? null, ball: ballPos, view };
+};
 
 // =====================================================================================
 // Rainbow Ranch

@@ -1,7 +1,7 @@
 // Nursery + backyard: missing rooms are filled without overwriting a stored room,
 // edits to both rooms are accepted, and an old client's save cannot drop them.
 import { Neighborhood, type KV, type Conn } from '../server/core';
-import { NICKNAMES, PROTOCOL, cleanAction, cleanHouseState, cleanPresence } from '../src/shared/hood';
+import { NICKNAMES, PROTOCOL, cleanAction, cleanFx, cleanHouseState, cleanPresence } from '../src/shared/hood';
 import { ensureRooms, initialState, migrate, reduce, type GameState } from '../src/shared/state';
 
 const store = new Map<string, any>();
@@ -126,6 +126,56 @@ async function main() {
   // reduce on the filled state still applies a nursery edit (the path an old client receives).
   const next = reduce(mem, { type: 'item/add', room: 'nursery', item: { id: 'from-old', kind: 'rattle', x: 50, y: 500, flip: false, z: 1, scale: 1 } });
   check('reduce accepts a nursery edit once the room exists', next.rooms.nursery.items.some(i => i.id === 'from-old') && next.rooms.living.items.some(i => i.id === 'from-disk'));
+
+  const oldDog = initialState();
+  delete (oldDog as any).dogKennel;
+  oldDog.dog = { name: 'Rocket', breed: 1, owner: 'c1' };
+  const followed = migrate(oldDog);
+  check('old save loads with the dog following', followed.dog?.name === 'Rocket' && followed.dogKennel == null && followed.rooms.living.items.length === initialState().rooms.living.items.length);
+  const kennelItem = { id: 'k1', kind: 'kennel', x: 400, y: 500, flip: false, z: 1, scale: 1 };
+  const placed = reduce(followed, { type: 'item/add', room: 'living', item: kennelItem });
+  const kenneled = reduce(placed, { type: 'dog/kennel', item: 'k1' });
+  check('dog/kennel stores the kennel id', kenneled.dogKennel?.item === 'k1' && kenneled.dog?.name === 'Rocket');
+  const movedK = reduce(kenneled, { type: 'item/move', room: 'living', id: 'k1', x: 800, y: 520 });
+  check('moving the kennel keeps the dog inside', movedK.dogKennel?.item === 'k1' && movedK.rooms.living.items.find(i => i.id === 'k1')!.x === 800);
+  const deletedK = reduce(movedK, { type: 'item/delete', room: 'living', id: 'k1' });
+  check('deleting the kennel lets the dog follow', deletedK.dogKennel == null && deletedK.dog?.name === 'Rocket' && !deletedK.rooms.living.items.some(i => i.id === 'k1'));
+  const again = reduce(reduce(deletedK, { type: 'item/add', room: 'living', item: { ...kennelItem, id: 'k2' } }), { type: 'dog/kennel', item: 'k2' });
+  const heldK = reduce(again, { type: 'char/hold', id: 'c1', hand: 'left', room: 'living', itemId: 'k2' });
+  check('picking up the kennel lets the dog follow', heldK.dogKennel == null && heldK.characters[0].held.left?.id === 'k2' && heldK.dog?.name === 'Rocket');
+  const dangling = migrate({ ...followed, dogKennel: { item: 'missing' } });
+  check('a kennel id that is not in the house clears on migrate', dangling.dogKennel == null && dangling.dog?.name === 'Rocket');
+  check('cleanHouseState keeps a real kennel and drops a dangling id', cleanHouseState(kenneled).dogKennel?.item === 'k1' && cleanHouseState({ ...followed, dogKennel: { item: 'nope' } }).dogKennel == null);
+  check('cleanAction accepts dog/kennel and cleanFx accepts a leap', !!cleanAction({ type: 'dog/kennel', item: 'k1' }) && cleanAction({ type: 'dog/kennel', item: null })?.type === 'dog/kennel' && cleanAction({ type: 'dog/kennel', item: 'bad id' }) === null && cleanFx({ k: 'leap' })?.k === 'leap');
+  const keptByOld = oldClientMigrate(JSON.parse(JSON.stringify(kenneled)));
+  check('an old client keeps kennel state it does not understand', keptByOld.dogKennel?.item === 'k1' && keptByOld.dog?.name === 'Rocket' && keptByOld.rooms.living.items.some((i: { id: string }) => i.id === 'k1'));
+
+  const kennelMem = new Map<string, any>();
+  const kvK: KV = {
+    get: async k => kennelMem.has(k) ? JSON.parse(JSON.stringify(kennelMem.get(k))) : undefined,
+    put: async (k, v) => { kennelMem.set(k, JSON.parse(JSON.stringify(v))); },
+    delete: async k => { kennelMem.delete(k); },
+  };
+  const hoodK = new Neighborhood(kvK, { flushMs: 5 });
+  await hoodK.init('KENNEL1');
+  const owner = mk(), pal = mk();
+  await hoodK.onConnect(owner);
+  await hoodK.onMessage(owner, JSON.stringify({ t: 'join', nickname: NICKNAMES[4], look, v: 4, pet: 1 }));
+  const khid = [...hoodK.houses.keys()][0];
+  await hoodK.onConnect(pal);
+  await hoodK.onMessage(pal, JSON.stringify({ t: 'join', nickname: NICKNAMES[5], look, v: 4 }));
+  const sendK = (c: C, o: any) => { (c as any).budget = undefined; return hoodK.onMessage(c, JSON.stringify(o)); };
+  await sendK(owner, { t: 'act', houseId: khid, cid: 1, action: { type: 'item/add', room: 'living', item: { id: 'keep-kennel', kind: 'kennel', x: 500, y: 500, flip: false, z: 1, scale: 1 } } });
+  await sendK(owner, { t: 'act', houseId: khid, cid: 2, action: { type: 'dog/kennel', item: 'keep-kennel' } });
+  const ownerSaw = owner.inbox.some(m => m.t === 'act' && m.action?.type === 'dog/kennel');
+  const palSaw = pal.inbox.some(m => m.t === 'act' && m.action?.type === 'dog/kennel');
+  check('a pet client receives dog/kennel and an old client does not', ownerSaw && !palSaw);
+  await sendK(pal, { t: 'act', houseId: khid, cid: 3, action: { type: 'dog/kennel', item: null } });
+  check('a visitor cannot kennel someone else\'s dog', pal.last('nack')?.reason === 'notyours');
+  await sendK(pal, { t: 'act', houseId: khid, cid: 4, action: { type: 'room/wallpaper', room: 'living', color: '#112233' } });
+  await hoodK.flush();
+  const diskK = kennelMem.get('house:' + khid).state;
+  check('an old client edit keeps the kennel on the server', diskK.dogKennel?.item === 'keep-kennel' && diskK.rooms.living.wallpaper === '#112233' && diskK.rooms.living.items.some((i: { id: string }) => i.id === 'keep-kennel') && diskK.dog == null);
 
   console.log(`${pass} passed`);
 }

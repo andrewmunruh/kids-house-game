@@ -42,12 +42,28 @@ export const MAX_CHARS = 8;
 export interface Cat { name: string; coat: number; room: RoomId; x: number }
 /** A dog follows its walker (solo: a character id; neighborhood: the player, stored on the server instead). */
 export interface Dog { name: string; breed: number; owner?: string }
+/** The house owner's dog is resting in this placed kennel. Null means she follows her walker. */
+export interface DogKennel { item: string }
 export const CAT_COATS = 4, DOG_BREEDS = 5;
+const KENNEL_ID = /^[A-Za-z0-9:_\/.-]{1,80}$/;
+
+/** Keep a kennel link only when that placed kennel is still in the house. A missing kennel lets the dog follow again. */
+export function validKennel(s: { dogKennel?: unknown; rooms?: Record<string, { items?: { id?: string; kind?: string }[] | null }> | null }): DogKennel | null {
+  const k = s?.dogKennel as { item?: unknown } | null | undefined;
+  if (!k || typeof k !== 'object' || typeof k.item !== 'string' || !KENNEL_ID.test(k.item)) return null;
+  const rooms = s.rooms; if (!rooms) return null;
+  for (const room of Object.values(rooms)) {
+    if (room?.items?.some(i => i && i.id === k.item && i.kind === 'kennel')) return { item: k.item };
+  }
+  return null;
+}
+function kennelHere(s: GameState, id: string) { return validKennel({ dogKennel: { item: id }, rooms: s.rooms }) !== null; }
 
 export interface GameState {
   version: 3;
   cat?: Cat | null;          // optional: older saves simply have no pets
   dog?: Dog | null;
+  dogKennel?: DogKennel | null;
   basket?: Basket;           // Rainbow Ranch (solo play): her basket, garden plots, last egg time
   garden?: (Plot | null)[];
   lastEgg?: number;
@@ -80,6 +96,7 @@ export type Action =
   | { type: 'cat/set'; cat: Cat | null }
   | { type: 'cat/move'; room: RoomId; x: number }
   | { type: 'dog/set'; dog: Dog | null }
+  | { type: 'dog/kennel'; item: string | null }
   | { type: 'settings/sound'; on: boolean }
   | { type: 'game/reset' }
   | { type: 'ranch/op'; op: RanchOp; now: number };
@@ -113,6 +130,7 @@ export function initialState(): GameState {
       newCharacter({ id: 'c1', skin: '#f1c27d', hair: '#5b3a29', hairStyle: 2, shirt: '#ff7aa8', pants: '#5aa9e6', room: 'living', x: 330 + V1_OFFSET, y: 540 }),
     ],
     soundOn: true,
+    dogKennel: null,
   };
 }
 
@@ -167,7 +185,11 @@ export function reduce(s: GameState, a: Action): GameState {
     case 'item/flip': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, flip: !i.flip } : i) }));
     case 'item/front': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, z: maxZ(r) + 1 } : i) }));
     case 'item/back': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, z: minZ(r) - 1 } : i) }));
-    case 'item/delete': return mapItems(s, a.room, r => ({ ...r, items: r.items.filter(i => i.id !== a.id) }));
+    case 'item/delete': {
+      const gone = s.rooms[a.room]?.items.some(i => i.id === a.id && i.kind === 'kennel');
+      const next = mapItems(s, a.room, r => ({ ...r, items: r.items.filter(i => i.id !== a.id) }));
+      return gone && s.dogKennel?.item === a.id ? { ...next, dogKennel: null } : next;
+    }
     case 'room/wallpaper': return mapItems(s, a.room, r => ({ ...r, wallpaper: a.color }));
     case 'room/floor': return mapItems(s, a.room, r => ({ ...r, floor: a.color }));
     case 'room/pattern': return mapItems(s, a.room, r => ({ ...r, pattern: a.pattern, wallTile: null }));
@@ -187,7 +209,8 @@ export function reduce(s: GameState, a: Action): GameState {
       const c = s.characters.find(c => c.id === a.id); const it = s.rooms[a.room]?.items.find(i => i.id === a.itemId);
       if (!c || !it || c.held[a.hand] || c.room !== a.room) return s;
       const next = mapItems(s, a.room, r => ({ ...r, items: r.items.filter(i => i.id !== a.itemId) }));
-      return mapChar(next, a.id, ch => ({ ...ch, held: { ...ch.held, [a.hand]: it } }));
+      const held = mapChar(next, a.id, ch => ({ ...ch, held: { ...ch.held, [a.hand]: it } }));
+      return it.kind === 'kennel' && s.dogKennel?.item === a.itemId ? { ...held, dogKennel: null } : held;
     }
     case 'char/release': {
       const c = s.characters.find(c => c.id === a.id); const it = c?.held[a.hand]; if (!c || !it) return s;
@@ -197,6 +220,11 @@ export function reduce(s: GameState, a: Action): GameState {
     case 'cat/set': return { ...s, cat: a.cat };
     case 'cat/move': return s.cat && s.rooms[a.room] ? { ...s, cat: { ...s.cat, room: a.room, x: clamp(a.x, 100, ROOM_W - 100) } } : s;
     case 'dog/set': return { ...s, dog: a.dog };
+    case 'dog/kennel': {
+      if (a.item === null) return s.dogKennel ? { ...s, dogKennel: null } : s;
+      if (!kennelHere(s, a.item) || s.dogKennel?.item === a.item) return s;
+      return { ...s, dogKennel: { item: a.item } };
+    }
     case 'ranch/op': {
       const r = ranchApply(cleanPlots(s.garden), cleanBasket(s.basket), a.op, a.now, s.lastEgg ?? 0);
       if (typeof r === 'string') return s;
@@ -234,7 +262,9 @@ export function migrate(raw: any): GameState {
   const base = initialState();
   const characters = (Array.isArray(s.characters) ? s.characters : []).slice(0, MAX_CHARS)
     .map((c: any, i: number) => newCharacter({ ...c, id: String(c.id ?? 'c' + (i + 1)), held: { left: c.held?.left ?? null, right: c.held?.right ?? null } }));
-  return ensureRooms({ ...base, ...s, rooms: { ...base.rooms, ...s.rooms }, characters });
+  const next = ensureRooms({ ...base, ...s, rooms: { ...base.rooms, ...s.rooms }, characters });
+  const dogKennel = validKennel(next);
+  return dogKennel === next.dogKennel ? next : { ...next, dogKennel };
 }
 type Listener = (s: GameState, a: Action) => void;
 

@@ -2,7 +2,7 @@
 // Nothing here touches the DOM or Node APIs, so it runs in browsers, Node and Cloudflare Workers.
 import { RANCH_W, BARN_W, RANCH_Y0, RANCH_Y1, HORSES, ANIMALS, FOODS, type Basket, type Plot, type RanchOp } from './ranch';
 import { GAMEROOM_W, type TablePub, type TableOp } from './games/index';
-import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, ROOM_W, ROOM_H, MAX_CHARS, ROOM_IDS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
+import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, validKennel, ROOM_W, ROOM_H, MAX_CHARS, ROOM_IDS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
 
 export const MAX_PLAYERS = 12;
 export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L
@@ -117,7 +117,7 @@ function cleanCharacter(c: any): Character | null {
 }
 
 // ---------- pets ----------
-export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery and backyard ride along: old clients keep unknown rooms and simply do not draw them.
+export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, backyard, and dogKennel ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know.
 export const PROTO_PETS = 2, PROTO_RANCH = 3, PROTO_GAMES = 4;
 export const CAT_NAMES = ['Mittens', 'Luna', 'Biscuit', 'Pumpkin', 'Whiskers', 'Mochi', 'Pepper', 'Noodle', 'Ginger', 'Socks'];
 export const DOG_NAMES = ['Buddy', 'Coco', 'Max', 'Daisy', 'Peanut', 'Rocket', 'Bella', 'Waffles', 'Scout', 'Honey'];
@@ -159,6 +159,7 @@ export function cleanAction(a: any): Action | null {
     case 'char/release': { const id = str(a.id, ID_RE), x = num(a.x, 0, ROOM_W), y = num(a.y, 0, ROOM_H); return id && x !== null && y !== null && (a.hand === 'left' || a.hand === 'right') ? { type: a.type, id, hand: a.hand, x, y } : null; }
     case 'cat/set': { if (a.cat === null) return { type: a.type, cat: null }; const cat = cleanCat(a.cat); return cat ? { type: a.type, cat } : null; }
     case 'cat/move': { const x = num(a.x, 100, ROOM_W - 100); return isRoom(room) && x !== null ? { type: a.type, room, x } : null; }
+    case 'dog/kennel': { if (a.item === null) return { type: 'dog/kennel', item: null }; const id = str(a.item, ID_RE); return id ? { type: 'dog/kennel', item: id } : null; }
     default: return null; // room/switch, settings/sound, game/reset, dog/set (dogs live on the player) are local-only
   }
 }
@@ -179,7 +180,8 @@ export function cleanHouseState(raw: any): GameState {
   }
   const characters = (Array.isArray(s.characters) ? s.characters : []).slice(0, MAX_CHARS).map(cleanCharacter).filter(Boolean) as Character[];
   const cat = (s as any).cat ? cleanCat((s as any).cat) : null;
-  return { ...base, rooms, characters, currentRoom: 'living', soundOn: true, cat, dog: null };
+  const dogKennel = validKennel({ dogKennel: (s as any).dogKennel, rooms });
+  return { ...base, rooms, characters, currentRoom: 'living', soundOn: true, cat, dog: null, dogKennel };
 }
 
 // ---------- presence ----------
@@ -220,7 +222,7 @@ export function cleanPresence(p: any, houseExists: (id: string) => boolean): Pre
 export const sameSpot = (a: Presence, b: Presence) => a.where === b.where && (a.where !== 'house' || (a.houseId === b.houseId && a.room === b.room));
 
 // ---------- fx: short-lived effects relayed to kids in the same place (never stored) ----------
-export type Fx = { k: 'trick'; owner: string; v: number } | { k: 'purr' } | { k: 'ball'; x: number; y: number } | { k: 'splash'; x: number }
+export type Fx = { k: 'trick'; owner: string; v: number } | { k: 'purr' } | { k: 'leap' } | { k: 'ball'; x: number; y: number } | { k: 'splash'; x: number }
   | { k: 'zoo'; a: number; f: number } | { k: 'apple'; v: number } | { k: 'honk' } | { k: 'hen' };
 export const RANCH_FX = new Set(['zoo', 'apple', 'honk', 'hen']);
 /** Where a ranch effect may come from: the petting zoo is inside the barn (older clients still pet in the yard). */
@@ -229,6 +231,7 @@ export function cleanFx(f: any): Fx | null {
   if (!f || typeof f !== 'object') return null;
   if (f.k === 'trick') { const owner = str(f.owner, ID_RE), v = num(f.v, 0, 2); return owner && v !== null ? { k: 'trick', owner, v: Math.round(v) } : null; }
   if (f.k === 'purr') return { k: 'purr' };
+  if (f.k === 'leap') return { k: 'leap' };
   if (f.k === 'ball') { const x = num(f.x, DOG_AREA.x0, DOG_AREA.x1), y = num(f.y, DOG_AREA.y0, DOG_AREA.y1); return x !== null && y !== null ? { k: 'ball', x, y } : null; }
   if (f.k === 'splash') { const x = num(f.x, 0, PARK_W); return x !== null ? { k: 'splash', x } : null; }
   if (f.k === 'zoo') { const a = f.a, fd = f.f; return Number.isInteger(a) && a >= 0 && a < ANIMALS.length + HORSES.length && Number.isInteger(fd) && fd >= 0 && fd < FOODS.length ? { k: 'zoo', a, f: fd } : null; }
@@ -245,8 +248,8 @@ export interface HouseFull extends HouseMeta { state: GameState }
 export type Bubble = { kind: 'phrase' | 'emote'; v: number } | { kind: 'text'; v: string };
 
 export type ClientMsg =
-  | { t: 'hello'; token: string; v?: number }
-  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number }
+  | { t: 'hello'; token: string; v?: number; pet?: number }
+  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number }
   | { t: 'dog'; dog: Dog | null }
   | { t: 'fx'; fx: Fx }
   | { t: 'ranch'; o: RanchOp }

@@ -234,6 +234,25 @@ async def run(P, K2, K3, mk, errs, check):
         await P.wait_for_timeout(700)
         left, left2 = await nur_view(P), await nur_view(K2)
         await check('unknown room is refused and the nursery stays', 'attic-no' not in left['nur'] and 'nur-sync' in left['nur'] and 'nur-sync' in left2['nur'], str(left))
+        await P.evaluate("""() => __store.dispatch({type:'room/switch', room:'living'})""")
+        await K2.evaluate("""() => __store.dispatch({type:'room/switch', room:'living'})""")
+        await P.evaluate("""() => {
+          const h = __hood(), id = h.myHouseId();
+          h.setDog({name:'Rocket', breed:3});
+          h.dispatch(id, {type:'item/add', room:'living', item:{id:'hood-kennel', kind:'kennel', x:1100, y:520, flip:false, z:1, scale:1}});
+          h.dispatch(id, {type:'dog/kennel', item:'hood-kennel'});
+        }""")
+        pid = await P.evaluate('__hood().pid')
+        seen = None
+        for _ in range(25):
+            await P.wait_for_timeout(200)
+            seen = await K2.evaluate('__pets()')
+            if seen.get('kennel') and seen['kennel'].get('name') == 'Rocket': break
+        await check('a friend sees the kenneled dog', bool(seen and seen.get('kennel') and seen['kennel']['name'] == 'Rocket' and pid not in seen['dogs']), str(seen))
+        await P.evaluate("""() => { const h = __hood(); h.dispatch(h.myHouseId(), {type:'item/move', room:'living', id:'hood-kennel', x:1600, y:520}); }""")
+        await P.wait_for_timeout(800)
+        both = [await pg.evaluate('__pets().kennel') for pg in (P, K2)]
+        await check('the kennel moves with the dog inside', all(k and k.get('name') == 'Rocket' and abs(k['x'] - 1600) < 30 for k in both), str(both))
         # reload: P reconnects to the street automatically
         await P.reload(); await P.wait_for_timeout(1500)
         await check('reload reconnects automatically', (await P.evaluate("__ui()"))['view'] == 'street')

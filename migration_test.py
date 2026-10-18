@@ -225,6 +225,8 @@ async def main():
             solo_now = await solo.evaluate("""() => { const s = __store.get(); return { v: s.version, old: Object.fromEntries(['living','bedroom','kitchen','salon'].map(r => [r, s.rooms[r].items.map(i => i.id)])), nursery: s.rooms.nursery.items.map(i => i.kind), tabs: [...document.querySelectorAll('.tab')].map(t => t.textContent.trim()) }; }""")
             solo_old = {r: [i['id'] for i in solo_a['rooms'][r]['items']] for r in solo_a['rooms']}
             check('an old solo save gains a nursery with starter pieces and loses nothing', solo_now['v'] == 3 and solo_now['nursery'] == STARTER_KINDS and all(sorted(solo_now['old'][r]) == sorted(solo_old[r]) for r in solo_old) and solo_now['tabs'][-1] == 'Nursery')
+            follow = await solo.evaluate("""() => { const s = __store.get(); const p = __pets(); return { kennel: s.dogKennel || null, name: s.dog && s.dog.name, following: p.dogs.indexOf('solo') >= 0, shown: p.kennel }; }""")
+            check('an old save loads with the dog following', not follow['kennel'] and follow['name'] == 'Rocket' and follow['following'] and not follow['shown'], str(follow))
             await solo.evaluate("""() => __store.dispatch({type:'item/add', room:'nursery', item:{id:'solo-round', kind:'bunny-plush', x:420, y:500, flip:false}})""")
             await solo.wait_for_timeout(500); await solo.reload(); await solo.wait_for_selector('#stage .char'); await solo.wait_for_timeout(300)
             solo_back = await solo.evaluate("""() => { const s = JSON.parse(localStorage.getItem('cozy-house')); return { nursery: s.rooms.nursery.items.map(i => i.id), living: s.rooms.living.items.map(i => i.id) }; }""")
@@ -253,6 +255,11 @@ async def main():
                   disk_after and any(i['id'] == 'friend-nur' for i in disk_after['rooms']['nursery']['items'])
                   and [i['kind'] for i in disk_after['rooms']['nursery']['items'] if i['id'] != 'friend-nur'] == STARTER_KINDS
                   and all(sorted(i['id'] for i in disk_after['rooms'][r]['items']) == sorted(before_items[r]) for r in OLD_ROOMS))
+            # Kennel the dog on the new build, then an old client edits the same house.
+            await K2.evaluate("""() => { const h = __hood(), id = h.myHouseId();
+              h.dispatch(id, {type:'item/add', room:'living', item:{id:'keep-kennel', kind:'kennel', x:1100, y:520, flip:false, z:1, scale:1}});
+              h.dispatch(id, {type:'dog/kennel', item:'keep-kennel'}); }""")
+            await K2.wait_for_timeout(900)
             # old client (27cfcac) against this new server, visiting the house that now has a nursery
             serve_build('/tmp/prod-dist')
             old_errs = []
@@ -276,19 +283,22 @@ async def main():
                     if isinstance(v, dict) and v.get('id') == k2house and isinstance(v.get('state'), dict):
                         disk_old = v['state']
             check('old client edit syncs and the server copy keeps the nursery', k2_sees['edit'] and 'friend-nur' in k2_sees['nursery'] and disk_old and any(i['id'] == 'friend-nur' for i in disk_old['rooms']['nursery']['items']) and any(i['id'] == 'old-client-edit' for i in disk_old['rooms']['living']['items']) and not old_errs, str(k2_sees) + ' ' + '; '.join(old_errs[:2]))
+            check('old client round-trip keeps the kennel state', bool(disk_old and disk_old.get('dogKennel') and disk_old['dogKennel'].get('item') == 'keep-kennel' and any(i['id'] == 'keep-kennel' for i in disk_old['rooms']['living']['items']) and not old_errs), str(None if not disk_old else disk_old.get('dogKennel')))
             # rollback: old client opens a save that already contains a nursery
             rolled = json.loads(json.dumps(solo_a))
             rolled['rooms']['nursery'] = {'wallpaper': '#d6f3ff', 'floor': '#f3ddc4', 'pattern': 1, 'items': [{'id': 'keep-crib', 'kind': 'crib', 'x': 100, 'y': 200, 'flip': False, 'z': 1, 'scale': 1}]}
             rolled['rooms']['backyard'] = {'wallpaper': '#c5ecff', 'floor': '#b6e3a8', 'pattern': 0, 'items': [{'id': 'keep-yard', 'kind': 'plant', 'x': 80, 'y': 400, 'flip': False, 'z': 1, 'scale': 1}]}
             rolled['currentRoom'] = 'living'
+            rolled['dogKennel'] = {'item': 'keep-kennel'}
+            rolled['rooms']['living']['items'].append({'id': 'keep-kennel', 'kind': 'kennel', 'x': 400, 'y': 500, 'flip': False, 'z': 2, 'scale': 1})
             rb = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
             await rb.add_init_script("localStorage.setItem('cozy-whatsnew','6'); localStorage.setItem('cozy-house', " + json.dumps(json.dumps(rolled)) + ");")
             rpg = await rb.new_page(); rpg.on('pageerror', lambda e: old_errs.append('rollback ' + str(e)))
             await rpg.goto(f'{BASE}/kids-house-game/?hood=http://localhost:{PORT_HOOD}'); await rpg.wait_for_selector('#stage .char'); await rpg.wait_for_timeout(400)
             await rpg.evaluate("""() => __store.dispatch({type:'room/wallpaper', room:'living', color:'#ddeeff'})""")
             await rpg.wait_for_timeout(500)
-            kept = await rpg.evaluate("""() => { const s = JSON.parse(localStorage.getItem('cozy-house')); return { tabs: [...document.querySelectorAll('.tab')].length, nursery: (s.rooms.nursery.items || []).map(i => i.id), yard: (s.rooms.backyard.items || []).map(i => i.id), wall: s.rooms.living.wallpaper }; }""")
-            check('old client keeps a nursery that was already in the save', kept['tabs'] == 4 and kept['nursery'] == ['keep-crib'] and kept['yard'] == ['keep-yard'] and kept['wall'] == '#ddeeff' and not any(e.startswith('rollback') for e in old_errs), str(kept))
+            kept = await rpg.evaluate("""() => { const s = JSON.parse(localStorage.getItem('cozy-house')); return { tabs: [...document.querySelectorAll('.tab')].length, nursery: (s.rooms.nursery.items || []).map(i => i.id), yard: (s.rooms.backyard.items || []).map(i => i.id), wall: s.rooms.living.wallpaper, kennel: s.dogKennel || null, kennelItem: (s.rooms.living.items || []).some(i => i.id === 'keep-kennel') }; }""")
+            check('old client keeps a nursery that was already in the save', kept['tabs'] == 4 and kept['nursery'] == ['keep-crib'] and kept['yard'] == ['keep-yard'] and kept['wall'] == '#ddeeff' and kept['kennel'] and kept['kennel']['item'] == 'keep-kennel' and kept['kennelItem'] and not any(e.startswith('rollback') for e in old_errs), str(kept))
             await rb.close()
             serve_build('/tmp/new-dist')
             # ================= Phase C: preview build on the same origin =================

@@ -111,13 +111,36 @@ export function dogSVG(breed: number, pose: 'stand' | 'sit' = 'stand') {
 const hash = (s: string) => { let h = 2166136261; for (const ch of s) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
 const rnd = (seed: number, k: number) => { let x = (seed ^ Math.imul(k, 2654435761)) >>> 0; x ^= x >>> 15; x = Math.imul(x, 2246822507); x ^= x >>> 13; x = Math.imul(x, 3266489909); x ^= x >>> 16; return (x >>> 0) / 4294967296; };
 const SEG = 18; // seconds per little "activity"
-export type CatMood = 'walk' | 'sit' | 'nap' | 'groom';
-export function catAt(cat: Cat, nowMs: number): { x: number; mood: CatMood; flip: boolean } {
-  const seed = hash(cat.name + ':' + cat.coat + ':' + cat.room + ':' + Math.round(cat.x));
+export type CatMood = 'walk' | 'sit' | 'nap' | 'groom' | 'play';
+export type CatSpot = { x: number; mood: CatMood; flip: boolean; perch: 0 | 1 | 2 };
+/** How far up a cat tower (as a fraction of its height) each platform sits. Matches the tower art. */
+export const TOWER_LIFT = { 1: 0.52, 2: 0.76 } as const;
+export function towerFootY(itemY: number, itemH: number, perch: 1 | 2) {
+  return itemY - itemH * TOWER_LIFT[perch];
+}
+/** Resting or peeking, agreed by every iPad from the clock and the dog's name. */
+export function kennelLook(name: string, nowMs: number): 'rest' | 'peek' {
+  const seg = 2.8, k = Math.floor(nowMs / 1000 / seg);
+  return rnd(hash(name || 'pup'), k) < 0.62 ? 'rest' : 'peek';
+}
+export function catAt(cat: Cat, nowMs: number, tower?: { x: number } | null): CatSpot {
+  const seed = hash(cat.name + ':' + cat.coat + ':' + cat.room + ':' + Math.round(cat.x) + (tower ? ':t' + Math.round(tower.x) : ''));
   const t = nowMs / 1000, k = Math.floor(t / SEG), into = t - k * SEG;
-  const target = (i: number) => Math.max(160, Math.min(2240, cat.x + (rnd(seed, i) - 0.5) * 760));
-  const from = target(k - 1), to = target(k), dist = Math.abs(to - from), walkT = Math.min(5, dist / 110);
-  const r = rnd(seed + 7, k), mood: CatMood = r < 0.45 ? 'nap' : r < 0.75 ? 'sit' : 'groom';
-  if (into < walkT) return { x: from + (to - from) * (into / walkT), mood: 'walk', flip: to < from };
-  return { x: to, mood, flip: to < from };
+  if (!tower) {
+    const target = (i: number) => Math.max(160, Math.min(2240, cat.x + (rnd(seed, i) - 0.5) * 760));
+    const from = target(k - 1), to = target(k), dist = Math.abs(to - from), walkT = Math.min(5, dist / 110);
+    const r = rnd(seed + 7, k), mood: CatMood = r < 0.45 ? 'nap' : r < 0.75 ? 'sit' : 'groom';
+    if (into < walkT) return { x: from + (to - from) * (into / walkT), mood: 'walk', flip: to < from, perch: 0 };
+    return { x: to, mood, flip: to < from, perch: 0 };
+  }
+  // With a tower in her room she walks over, then sits, naps, or plays on a platform.
+  const home = Math.max(160, Math.min(2240, tower.x));
+  const perch: 1 | 2 = rnd(seed + 5, k) < 0.45 ? 2 : 1;
+  const from = Math.max(160, Math.min(2240, home + (rnd(seed, k) - 0.5) * 420));
+  const dist = Math.abs(home - from), walkT = Math.min(4.2, Math.max(0.6, dist / 160));
+  const flip = home < from;
+  if (into < walkT) return { x: from + (home - from) * (into / walkT), mood: 'walk', flip, perch: 0 };
+  const r = rnd(seed + 11, k);
+  const mood: CatMood = r < 0.34 ? 'nap' : r < 0.67 ? 'sit' : 'play';
+  return { x: home, mood, flip, perch };
 }

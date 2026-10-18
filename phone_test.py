@@ -111,6 +111,65 @@ async def card_ok(pg):
 async def shot(pg, name):
     await pg.screenshot(path=SHOT + name + '.png')
 
+async def pet_targets(pg, tag, save, w, h):
+    """Kennel, cat tower, and their buttons stay at least 44px on a phone."""
+    await pg.evaluate("""() => {
+      const s = __store;
+      const room = s.get().currentRoom;
+      const owner = s.get().characters[0].id;
+      s.dispatch({type:'dog/set', dog:{name:'Pip', breed:0, owner}});
+      s.dispatch({type:'item/add', room, item:{id:'phone-kennel', kind:'kennel', x:420, y:520, flip:false, z:1, scale:1}});
+      s.dispatch({type:'item/add', room, item:{id:'phone-tower', kind:'cat-tower', x:680, y:530, flip:false, z:2, scale:1}});
+      s.dispatch({type:'dog/kennel', item:'phone-kennel'});
+    }""")
+    await pg.wait_for_timeout(400)
+    await pg.click('.cat[data-cat="pets"]')
+    await pg.wait_for_timeout(80)
+    await pg.evaluate("""() => {
+      for (const name of ['Dog Kennel', 'Cat Tower']) document.querySelector('.shelf [aria-label="' + name + '"]')?.scrollIntoView({inline:'center', block:'nearest'});
+    }""")
+    boxes = await pg.evaluate("""() => {
+      const r = el => { if (!el) return null; const b = el.getBoundingClientRect(); return {w: Math.round(b.width), h: Math.round(b.height)}; };
+      return {
+        shelfKennel: r(document.querySelector('.shelf [aria-label="Dog Kennel"]')),
+        shelfTower: r(document.querySelector('.shelf [aria-label="Cat Tower"]')),
+        placedKennel: r(document.querySelector('.item[data-kind="kennel"]')),
+        placedTower: r(document.querySelector('.item[data-kind="cat-tower"]')),
+        out: r(document.querySelector('.kennelBtn')),
+      };
+    }""")
+    sized = lambda b: b and b['w'] >= 44 and b['h'] >= 44
+    check(f'{tag} kennel and cat tower are at least 44px', sized(boxes['shelfKennel']) and sized(boxes['shelfTower']) and sized(boxes['placedKennel']) and sized(boxes['placedTower']) and sized(boxes['out']), str(boxes))
+    await pg.click('#btnPets')
+    await pg.click('.petTabs [data-pt="dog"]')
+    await pg.wait_for_selector('#kennelDog')
+    await pg.evaluate("() => document.getElementById('kennelDog').scrollIntoView({block:'nearest'})")
+    btn = await pg.locator('#kennelDog').bounding_box()
+    check(f'{tag} kennel button is at least 44px', btn and btn['width'] >= 44 and btn['height'] >= 44, str(btn))
+    if (w, h) == (390, 844):
+        await pg.locator('.sheet:not(.hidden) .close').first.click()
+        await pg.wait_for_function("() => !document.querySelector('.sheet:not(.hidden)')")
+        await pg.evaluate("""() => __store.dispatch({type:'cat/set', cat:{name:'Mochi', coat:2, room:__store.get().currentRoom, x:680}})""")
+        for _ in range(25):
+            cat = await pg.evaluate('__pets().cat')
+            if cat and cat.get('perch') in (1, 2): break
+            await pg.wait_for_timeout(200)
+        await shot(pg, 'kennel-dog-iphone')
+        await pg.evaluate("""() => { const el = document.querySelector('.item[data-kind="cat-tower"]'); if (el) el.scrollIntoView({block:'center', inline:'center'}); }""")
+        await shot(pg, 'cat-tower-iphone')
+        await pg.click('#btnPets')
+        await pg.click('.petTabs [data-pt="dog"]')
+    await pg.locator('.sheet:not(.hidden) .close').first.click()
+    await pg.wait_for_function("() => !document.querySelector('.sheet:not(.hidden)')")
+    await pg.evaluate("""() => {
+      const s = __store, room = s.get().currentRoom;
+      s.dispatch({type:'dog/kennel', item:null});
+      s.dispatch({type:'item/delete', room, id:'phone-kennel'});
+      s.dispatch({type:'item/delete', room, id:'phone-tower'});
+      s.dispatch({type:'dog/set', dog:null});
+      s.dispatch({type:'cat/set', cat:null});
+    }""")
+
 async def phone_pass(b, w, h, save):
     tag = f'{w}x{h}'
     # Welcome + the turn-sideways hint, on a fresh save.
@@ -217,6 +276,7 @@ async def phone_pass(b, w, h, save):
         if save: await shot(pg, f'{name}-{tag}')
         await pg.locator('.sheet:not(.hidden) .close').first.click()
         await pg.wait_for_function("() => !document.querySelector('.sheet:not(.hidden)')")
+    await pet_targets(pg, tag, save, w, h)
     await pg.click('#btnHood')
     await pg.click('[data-m="join"]')
     await pg.wait_for_selector('#codeInput')
