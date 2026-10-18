@@ -67,12 +67,22 @@ export class HoodDO {
     if (url.pathname === '/roster') return Response.json({ exists: this.hood.exists, roster: this.hood.exists ? this.hood.roster() : [] });
     if (!this.hood.exists || req.headers.get('Upgrade') !== 'websocket') return new Response('not found', { status: 404 });
     const pair = new (globalThis as any).WebSocketPair(); const [client, server] = Object.values(pair) as any[];
+    // Non-hibernating accept(): the DO stays awake and in-memory conns stay valid. Hibernation (state.acceptWebSocket)
+    // would drop those listeners on sleep, so it is not used here. The runtime does not answer a client close on its
+    // own — until we close our side the browser stays in CLOSING and never fires onclose, so it never reconnects.
     server.accept();
-    const conn: Conn = { send: s => { try { server.send(s); } catch {} }, close: (c, r) => { try { server.close(c ?? 1000, r ?? ''); } catch {} } };
+    let finished = false;
+    const legal = (code?: number) => (code && code >= 1000 && code <= 4999 && code !== 1004 && code !== 1005 && code !== 1006 && code !== 1015 ? code : 1000);
+    const conn: Conn = { send: s => { try { server.send(s); } catch { /* peer already gone */ } }, close: (code, reason) => end(code, reason) };
     const ready = this.hood.onConnect(conn);
+    const end = (code?: number, reason?: string) => {
+      if (finished) return; finished = true;
+      try { server.close(legal(code), (reason ?? '').slice(0, 120)); } catch { /* already closing */ }
+      this.hood.onClose(conn); void this.hood.flush();
+    };
     server.addEventListener('message', async (e: MessageEvent) => { await ready; if (typeof e.data === 'string' && e.data.length < 400_000) this.hood.onMessage(conn, e.data); });
-    const bye = () => { this.hood.onClose(conn); void this.hood.flush(); };
-    server.addEventListener('close', bye); server.addEventListener('error', bye);
+    server.addEventListener('close', (e: CloseEvent) => end(e.code, e.reason));
+    server.addEventListener('error', () => end(1011, 'error'));
     return new Response(null, { status: 101, webSocket: client } as any);
   }
 }

@@ -6,6 +6,7 @@ import { catSVG, dogSVG } from './pets';
 import { treeIcon, pawIcon } from './park';
 import { animalSVG, horseSVG, eggSVG, plotSVG, rainbowIcon, RAINBOW } from './ranch';
 import { mapIcon, faceSVG } from './map';
+import { clubIcon } from './gameroom';
 import { characterSVG } from './character';
 
 export interface ChangeLine { art: string; text: string }
@@ -27,7 +28,19 @@ const ranchArt = `<svg viewBox="0 0 120 100">${RAINBOW.map((c, i) => `<path d="M
 const basketEggs = `<svg viewBox="0 0 120 100"><g transform="translate(22 8) scale(1.9)">${eggSVG.replace('<svg viewBox="0 0 40 40">', '').replace('</svg>', '')}</g><g transform="translate(52 22) scale(1.4)">${eggSVG.replace('<svg viewBox="0 0 40 40">', '').replace('</svg>', '')}</g></svg>`;
 const inner = (svg: string, x: number, y: number, s: number) => `<g transform="translate(${x} ${y}) scale(${s})">${svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')}</g>`;
 const faceArt = `<svg viewBox="0 0 120 100"><circle cx="60" cy="50" r="40" fill="#fff" stroke="${O}" stroke-width="4"/>${inner(faceSVG(characterSVG({ skin: '#f1c27d', hair: '#5b3a29', hairStyle: 2, shirt: '#ff7aa8', pants: '#5aa9e6' })).replace('viewBox="14 2 72 74"', 'viewBox="0 0 100 160"'), 26, 12, 0.68)}<circle cx="60" cy="50" r="40" fill="none" stroke="#ff6b9a" stroke-width="5"/></svg>`;
+const clubArt = `<svg viewBox="0 0 120 100"><rect x="8" y="28" width="104" height="64" rx="16" fill="#fff0f6" stroke="${O}" stroke-width="4"/><path d="M8 40 L60 12 L112 40" fill="#ff6b9a" stroke="${O}" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M60 58 C52 48 40 50 46 60 C50 68 60 74 60 74 C60 74 70 68 74 60 C80 50 68 48 60 58 Z" fill="#ff4d94" stroke="#fff" stroke-width="1.5"/>
+  ${[18, 34, 50, 66, 82, 98].map((x, i) => `<circle cx="${x}" cy="24" r="4" fill="${['#ff7eb3', '#ffd43b', '#66d9e8', '#d0bfff'][i % 4]}" stroke="${O}" stroke-width="1.5"/>`).join('')}</svg>`;
+const slayArt = `<svg viewBox="0 0 120 100"><rect x="28" y="8" width="64" height="84" rx="12" fill="#fff" stroke="${O}" stroke-width="4"/><rect x="28" y="8" width="64" height="84" rx="12" fill="none" stroke="#ff7eb3" stroke-width="6"/><path d="M48 36 L54 24 L60 34 L68 20 L76 34 L82 24 L88 36 Z" fill="#ffd43b" stroke="${O}" stroke-width="2" stroke-linejoin="round"/><text x="60" y="78" text-anchor="middle" font-size="22" font-weight="900" fill="#ff4d94" font-family="Nunito, ui-rounded, system-ui, sans-serif">SLAY</text></svg>`;
+const fourArt = `<svg viewBox="0 0 120 100"><rect x="10" y="16" width="100" height="72" rx="14" fill="#fff6fb" stroke="${O}" stroke-width="4"/>
+  <path d="M36 58 C28 48 18 50 24 60 C28 68 36 74 36 74 C36 74 44 68 48 60 C54 50 44 48 36 58 Z" fill="#ff4d94" stroke="${O}" stroke-width="2"/>
+  <path d="M78 28 L82 40 H94 L84 48 L88 60 L78 52 L68 60 L72 48 L62 40 H74 Z" fill="#66d9e8" stroke="${O}" stroke-width="2"/></svg>`;
 export const CHANGELOG: ChangeEntry[] = [
+  { v: 6, title: 'The clubhouse is open!', lines: [
+    { art: wrap(clubArt), text: 'A glam <b>clubhouse</b> on the map!' },
+    { art: wrap(slayArt), text: 'Play <b>Slay</b> with friends at a table!' },
+    { art: wrap(fourArt), text: 'Line up <b>hearts</b> or <b>stars</b>!' },
+  ] },
   { v: 5, title: 'Your house looks even cozier!', lines: [
     { art: wrap(brushArt), text: 'Wallpaper and floors show their <b>real patterns</b> when you paint!' },
     { art: wrap(catSVG(0, 'sit')), text: 'Your cat is <b>big and cozy</b>, just like the toy cat.' },
@@ -77,7 +90,7 @@ export function markSeen() { try { localStorage.setItem(SEEN_KEY, String(LATEST)
 export function whatsNewHTML(kind: 'welcome' | 'news', entries: ChangeEntry[]): string {
   const title = kind === 'welcome' ? WELCOME.title : entries[0].title;
   const lines = entries.flatMap(e => e.lines).slice(0, 5); // newest first, never a wall of text
-  return `<div class="wnBadge">${kind === 'welcome' ? pawIcon : entries[0].v >= 5 ? brushArt : entries[0].v >= 4 ? mapIcon : entries[0].v >= 3 ? rainbowIcon : treeIcon}</div>
+  return `<div class="wnBadge">${kind === 'welcome' ? pawIcon : entries[0].v >= 6 ? clubIcon : entries[0].v >= 5 ? brushArt : entries[0].v >= 4 ? mapIcon : entries[0].v >= 3 ? rainbowIcon : treeIcon}</div>
     <h2 class="wnTitle">${title}</h2>
     <div class="wnList ${lines.length > 3 ? 'many' : ''}">${lines.map((l, i) => `<div class="wnLine" style="animation-delay:${0.15 + i * 0.18}s">${l.art}<p>${l.text}</p></div>`).join('')}</div>
     <button class="wnGo" id="wnGo">Let's play!</button>`;

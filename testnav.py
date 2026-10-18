@@ -2,6 +2,10 @@
 # PFX="preview:" for the preview build (its keys are prefixed so it never touches the real save); "" for production.
 import os
 PFX = os.environ.get('PFX', '')
+def local_page():
+    """Default game URL. HOOD=http://localhost:8788 points the suite at `npm run worker:dev` (node server is :8787)."""
+    hood = os.environ.get('HOOD', 'http://localhost:8787').rstrip('/')
+    return f'http://localhost:4173/kids-house-game/?hood={hood}'
 SKIP_WN = f"localStorage.getItem('{PFX}cozy-whatsnew') || localStorage.setItem('{PFX}cozy-whatsnew', '999')"  # skip the What's new popup
 def K(k): return PFX + k
 async def to_map(pg):
@@ -13,5 +17,5 @@ async def go(pg, place):
     if place == 'barn':
         await go(pg, 'ranch'); await pg.click('.barnDoor'); await pg.wait_for_selector('body.in-barn #ranchWorld .barnScene'); await pg.wait_for_timeout(500); return
     await to_map(pg); await pg.click(f'[data-go="{place}"]')
-    sel = {'park': 'body.view-park #parkWorld .parkScene', 'ranch': 'body.view-ranch #ranchWorld .ranchScene'}.get(place, 'body:not(.view-street) #stage')
+    sel = {'park': 'body.view-park #parkWorld .parkScene', 'ranch': 'body.view-ranch #ranchWorld .ranchScene', 'gameroom': 'body.view-gameroom #grWorld .grScene'}.get(place, 'body:not(.view-street) #stage')
     await pg.wait_for_selector(sel, timeout=8000); await pg.wait_for_timeout(500)

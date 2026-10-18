@@ -1,6 +1,7 @@
 // Shared between client and server: protocol, presets, validation and the chat filter.
 // Nothing here touches the DOM or Node APIs, so it runs in browsers, Node and Cloudflare Workers.
 import { RANCH_W, BARN_W, RANCH_Y0, RANCH_Y1, HORSES, ANIMALS, FOODS, type Basket, type Plot, type RanchOp } from './ranch';
+import { GAMEROOM_W, type TablePub, type TableOp } from './games/index';
 import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, ROOM_W, ROOM_H, MAX_CHARS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
 
 export const MAX_PLAYERS = 12;
@@ -116,8 +117,8 @@ function cleanCharacter(c: any): Character | null {
 }
 
 // ---------- pets ----------
-export const PROTOCOL = 3; // 2 = pets, park, fx; 3 = Rainbow Ranch. Older clients never receive messages they can't apply.
-export const PROTO_PETS = 2, PROTO_RANCH = 3;
+export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Older clients never receive messages they can't apply.
+export const PROTO_PETS = 2, PROTO_RANCH = 3, PROTO_GAMES = 4;
 export const CAT_NAMES = ['Mittens', 'Luna', 'Biscuit', 'Pumpkin', 'Whiskers', 'Mochi', 'Pepper', 'Noodle', 'Ginger', 'Socks'];
 export const DOG_NAMES = ['Buddy', 'Coco', 'Max', 'Daisy', 'Peanut', 'Rocket', 'Bella', 'Waffles', 'Scout', 'Honey'];
 export function cleanPetName(raw: unknown): string | null {
@@ -193,9 +194,9 @@ export const PARK_SPOTS: ParkSpot[] = [
 ];
 export const SLIDE = { top: { x: 905, y: 330 }, bottom: { x: 1110, y: 545 }, ladder: 850 };
 export const DOG_AREA = { x0: 2440, x1: 2840, y0: 470, y1: 585 };
-export interface Presence { where: 'street' | 'house' | 'park' | 'ranch' | 'barn'; houseId?: string; room?: RoomId; x: number; y: number; flip: boolean; pose?: Pose; spot?: number; ride?: number }
+export interface Presence { where: 'street' | 'house' | 'park' | 'ranch' | 'barn' | 'gameroom'; houseId?: string; room?: RoomId; x: number; y: number; flip: boolean; pose?: Pose; spot?: number; ride?: number }
 export function cleanPresence(p: any, houseExists: (id: string) => boolean): Presence | null {
-  if (!p || (p.where !== 'street' && p.where !== 'house' && p.where !== 'park' && p.where !== 'ranch' && p.where !== 'barn')) return null;
+  if (!p || (p.where !== 'street' && p.where !== 'house' && p.where !== 'park' && p.where !== 'ranch' && p.where !== 'barn' && p.where !== 'gameroom')) return null;
   const x = num(p.x, 0, 20000), y = num(p.y, 0, ROOM_H); if (x === null || y === null) return null;
   if (p.where === 'street') return { where: 'street', x, y, flip: p.flip === true };
   if (p.where === 'ranch') {
@@ -204,6 +205,7 @@ export function cleanPresence(p: any, houseExists: (id: string) => boolean): Pre
     return out;
   }
   if (p.where === 'barn') return { where: 'barn', x: Math.max(40, Math.min(x, BARN_W - 40)), y: Math.max(RANCH_Y0, Math.min(y, RANCH_Y1)), flip: p.flip === true }; // no horses inside
+  if (p.where === 'gameroom') return { where: 'gameroom', x: Math.max(40, Math.min(x, GAMEROOM_W - 40)), y: Math.max(RANCH_Y0, Math.min(y, RANCH_Y1)), flip: p.flip === true };
   if (p.where === 'park') {
     const out: Presence = { where: 'park', x: Math.min(x, PARK_W), y, flip: p.flip === true };
     if (p.pose === 'slide') out.pose = 'slide';
@@ -253,13 +255,14 @@ export type ClientMsg =
   | { t: 'look'; look: Look }
   | { t: 'lock'; houseId: string; locked: boolean }
   | { t: 'say'; b: Bubble }
+  | ({ t: 'tbl' } & TableOp)
   | { t: 'parent'; key: string; op: 'info' } | { t: 'parent'; key: string; op: 'rename'; houseId: string; name: string }
   | { t: 'parent'; key: string; op: 'remove'; pid: string } | { t: 'parent'; key: string; op: 'freeChat'; on: boolean }
   | { t: 'parent'; key: string; op: 'rosterAdd' | 'rosterRemove' | 'unclaim'; name: string } | { t: 'parent'; key: string; op: 'setCode'; code: string };
 
 export type ServerMsg =
   | { t: 'joined'; token: string; pid: string }
-  | { t: 'welcome'; pid: string; settings: { freeChat: boolean }; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number } }
+  | { t: 'welcome'; pid: string; settings: { freeChat: boolean }; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[] }
   | { t: 'act'; houseId: string; by: string; cid: number; action: Action }
   | { t: 'nack'; houseId: string; cid: number; reason: string; state?: GameState }
   | { t: 'pres'; pid: string; p: Presence | null }
@@ -271,6 +274,8 @@ export type ServerMsg =
   | { t: 'ranch'; plots: (Plot | null)[]; now: number }
   | { t: 'ranchFail'; reason: string; plots: (Plot | null)[]; now: number }
   | { t: 'noride'; ride: number }
+  | { t: 'table'; table: TablePub }
+  | { t: 'tblFail'; tb: number; reason: string }
   | { t: 'sayFail'; reason: string }
   | { t: 'parentInfo'; code: string; settings: { freeChat: boolean }; players: PlayerPub[]; houses: HouseMeta[]; roster: RosterEntry[]; note?: string }
   | { t: 'error'; code: 'nohood' | 'badtoken' | 'nickname' | 'full' | 'badkey' | 'bad'; msg?: string }
@@ -280,10 +285,10 @@ export function cleanHouseName(raw: unknown): string | null {
   const f = filterChat(raw); if (!f.ok || f.text.length > 24) return null; return f.text;
 }
 
-/** A first name for the roster: letters (any alphabet), spaces, hyphens, apostrophes; max 20 chars; filtered. */
+/** A single first name: letters, hyphens, apostrophes. No spaces, so a last name cannot be stored. Already-saved names are left as they are. */
 export function cleanFirstName(raw: unknown): string | null {
   const t = String(raw ?? '').normalize('NFC').replace(/\s+/g, ' ').trim();
-  if (!/^\p{L}[\p{L}' -]{0,19}$/u.test(t)) return null;
+  if (!/^\p{L}[\p{L}'-]{0,19}$/u.test(t)) return null;
   const f = filterChat(t); if (!f.ok) return null;
   return t.charAt(0).toUpperCase() + t.slice(1);
 }

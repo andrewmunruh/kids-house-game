@@ -21,6 +21,12 @@ async def drag(pg, a, b, steps=14):
     await pg.mouse.move(*a); await pg.mouse.down(); await pg.mouse.move(*b, steps=steps); await pg.mouse.up(); await pg.wait_for_timeout(300)
 async def center(loc):
     b = await loc.bounding_box(); return (b['x'] + b['width'] / 2, b['y'] + b['height'] / 2)
+async def see_hearts(pg, timeout_ms=2500):
+    # Hearts last ~1.8s. Poll instead of one fixed sleep, so a slow purr relay still counts.
+    for _ in range(timeout_ms // 100):
+        if await pg.locator('.pet.pet-cat .heart').count() > 0: return True
+        await pg.wait_for_timeout(100)
+    return False
 async def adopt(pg, tab, swatch, name=None, typed=None):
     await pg.click('#btnPets'); await pg.wait_for_selector('.pets .petTabs')
     await pg.click(f'.petTabs [data-pt="{tab}"]')
@@ -52,6 +58,32 @@ async def main():
         d = await P.evaluate('__store.get().dog'); check('solo: dog adopted', d and d['name'] == 'Rocket' and d['breed'] == 3)
         pp = await pets(P); check('solo: cat + dog shown in the house', pp['cat'] is not None and 'solo' in pp['dogs'], json.dumps(pp))
         await P.screenshot(path=SHOT + '01-solo-house-cat-and-dog.png')
+        # The bigger cat's box covers a character's feet. Pin her there and drag the character.
+        cid = await P.evaluate("""() => {
+          const s = __store.get();
+          const c = s.characters.find(ch => ch.room === s.currentRoom) || s.characters[0];
+          window.__pinCat = { x: c.x };
+          return c.id;
+        }""")
+        await P.wait_for_timeout(300)
+        hit = await P.evaluate("""() => {
+          const ch = document.querySelector('#layer .char');
+          const cat = document.querySelector('.pet.pet-cat');
+          const cb = ch.getBoundingClientRect(), kb = cat.getBoundingClientRect();
+          const ix = Math.min(cb.right, kb.right) - Math.max(cb.left, kb.left);
+          const iy = Math.min(cb.bottom, kb.bottom) - Math.max(cb.top, kb.top);
+          const x = cb.left + cb.width / 2, y = cb.top + cb.height / 2;
+          const top = document.elementFromPoint(x, y);
+          return { ix, iy, charZ: +ch.style.zIndex, catZ: +cat.style.zIndex, onChar: !!(top && top.closest('.char')) };
+        }""")
+        check('cat overlapping her feet stays under the character', hit['ix'] > 40 and hit['iy'] > 40 and hit['charZ'] > hit['catZ'] and hit['onChar'], json.dumps(hit))
+        x0 = await P.evaluate(f"() => __store.get().characters.find(c => c.id === {json.dumps(cid)}).x")
+        ch = P.locator('#layer .char').first
+        c0 = await center(ch)
+        await drag(P, c0, (c0[0] + 250, c0[1]))
+        x1 = await P.evaluate(f"() => __store.get().characters.find(c => c.id === {json.dumps(cid)}).x")
+        check('dragging the character works while the cat overlaps her', x1 - x0 > 120, f'{x0} -> {x1}')
+        await P.evaluate('window.__pinCat = null')
         # cat behaves deterministically: two iPads with the same cat agree
         x1 = await P.evaluate("(() => { const c = __store.get().cat; return document.querySelector('.pet.pet-cat').style.left; })()")
         before = (await pets(P))['dogPos']['solo']
@@ -59,8 +91,8 @@ async def main():
         after = (await pets(P))['dogPos']['solo']; check('solo: dog heels after her character', after['x'] - before['x'] > 150, f'{before} -> {after}')
         await P.click('.pet.pet-dog'); await P.wait_for_timeout(300)
         check('dog trick on tap (sit bubble)', 'sits' in (await P.inner_text('.pet.pet-dog .bubble')))
-        await P.evaluate("document.querySelector('.pet.pet-cat').click()"); await P.wait_for_timeout(300)
-        check('cat purrs with hearts on tap', await P.locator('.pet.pet-cat .heart').count() > 0)
+        await P.evaluate("document.querySelector('.pet.pet-cat').click()")
+        check('cat purrs with hearts on tap', await see_hearts(P))
         await P.screenshot(path=SHOT + '02-solo-purr-and-trick.png')
         # ---------- solo park ----------
         await go(P, 'park'); await P.wait_for_timeout(400)
@@ -93,8 +125,8 @@ async def main():
         check('visitor sees her cat', (await pets(K2))['cat'] is not None and (await pets(K2))['cat']['name'] == 'Mochi')
         mood_p, mood_k = (await pets(P))['cat']['mood'], (await pets(K2))['cat']['mood']
         check('cat behaves the same on both iPads', mood_p == mood_k, f'{mood_p}/{mood_k}')
-        await K2.evaluate("document.querySelector('.pet.pet-cat').click()"); await P.wait_for_timeout(500)
-        check('visitor pets the cat -> owner sees hearts', await P.locator('.pet.pet-cat .heart').count() > 0)
+        await K2.evaluate("document.querySelector('.pet.pet-cat').click()")
+        check('visitor pets the cat -> owner sees hearts', await see_hearts(P))
         await K2.screenshot(path=SHOT + '06-visitor-sees-cat.png')
         # owner calls the cat
         await P.click('#btnPets'); await P.click('#callCat'); await P.wait_for_timeout(500)
