@@ -118,5 +118,40 @@
     "pack": "glossy",
     "svg": "glossy/lilac-terrazzo.svg",
     "png": "glossy/lilac-terrazzo.png"
+  },
+  {
+    "slug": "cloud-sky",
+    "name": "Cloud Sky",
+    "type": "wallpaper",
+    "pack": "nursery",
+    "svg": "nursery/cloud-sky.svg"
+  },
+  {
+    "slug": "tiny-hearts",
+    "name": "Tiny Hearts",
+    "type": "wallpaper",
+    "pack": "nursery",
+    "svg": "nursery/tiny-hearts.svg"
+  },
+  {
+    "slug": "star-sprinkle",
+    "name": "Star Sprinkle",
+    "type": "wallpaper",
+    "pack": "nursery",
+    "svg": "nursery/star-sprinkle.svg"
+  },
+  {
+    "slug": "soft-carpet",
+    "name": "Soft Carpet",
+    "type": "floor",
+    "pack": "nursery",
+    "svg": "nursery/soft-carpet.svg"
+  },
+  {
+    "slug": "pastel-planks",
+    "name": "Pastel Planks",
+    "type": "floor",
+    "pack": "nursery",
+    "svg": "nursery/pastel-planks.svg"
   }
 ]

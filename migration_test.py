@@ -62,8 +62,21 @@ SNAP = """(() => { const h = __hood(); if (!h) return null;
   const players = {}; for (const [pid, p] of h.players) players[pid] = { nickname: p.nickname, houseId: p.houseId, look: p.look, dog: p.dog ?? null, basket: p.basket ?? null };
   return { pid: h.pid, myHouse: h.myHouseId(), houses, players, plots: h.ranch ? h.ranch.plots : null, settings: h.settings }; })()"""
 LS = "Object.fromEntries(Object.keys(localStorage).sort().map(k => [k, localStorage.getItem(k)]))"
-def items_of(snap):
-    return {hid: sorted((r, i['id'], i['kind'], round(i['x']), round(i['y'])) for r, room in h['view']['rooms'].items() for i in room['items']) for hid, h in snap['houses'].items()}
+OLD_ROOMS = ('living', 'bedroom', 'kitchen', 'salon')
+STARTER_KINDS = ['cloud-rug', 'crib', 'crib-mobile', 'rocker']
+def items_of(snap, rooms=None):
+    return {hid: sorted((r, i['id'], i['kind'], round(i['x']), round(i['y'])) for r, room in h['view']['rooms'].items() if rooms is None or r in rooms for i in room['items']) for hid, h in snap['houses'].items()}
+def old_view(snap):
+    return {hid: {r: h['view']['rooms'][r] for r in OLD_ROOMS} for hid, h in snap['houses'].items()}
+def disk_room_names(folder):
+    out = {}
+    for fn in os.listdir(folder):
+        if not fn.endswith('.json') or fn.startswith('_'): continue
+        blob = json.load(open(f'{folder}/{fn}'))
+        for k, v in blob.items():
+            if isinstance(v, dict) and isinstance(v.get('state'), dict) and isinstance(v['state'].get('rooms'), dict):
+                out[k] = sorted(v['state']['rooms'])
+    return out
 
 async def main():
     shutil.rmtree(M, ignore_errors=True); os.makedirs(WWW); os.makedirs(M + '/data')
@@ -169,7 +182,11 @@ async def main():
             check('street membership + sign-in: same player ids and same houses on every iPad', ids_a == ids_b, json.dumps(ids_b))
             snap_b = await P.evaluate(SNAP)
             check('every house is identical (name, owner, style, slot, lock)', {k: v['meta'] for k, v in snap_a['houses'].items()} == {k: v['meta'] for k, v in snap_b['houses'].items()})
-            check('every room is identical (items, positions, flips, paint, characters, cats)', {k: v['view'] for k, v in snap_a['houses'].items()} == {k: v['view'] for k, v in snap_b['houses'].items()}, f'{n_items_a} items')
+            check('the four original rooms are identical, and each house gained a nursery',
+                  old_view(snap_a) == old_view(snap_b)
+                  and all(h['view']['rooms'].get('nursery') and [i['kind'] for i in h['view']['rooms']['nursery']['items']] == STARTER_KINDS and h['view']['rooms'].get('backyard', {}).get('items') == [] for h in snap_b['houses'].values())
+                  and all('nursery' not in h['view']['rooms'] for h in snap_a['houses'].values()),
+                  f'{n_items_a} original items')
             check('every kid identical (name, look, dog, basket, house)', snap_a['players'] == snap_b['players'])
             check('shared garden identical', snap_a['plots'] == snap_b['plots'])
             check('settings identical', snap_a['settings'] == snap_b['settings'])
@@ -184,18 +201,96 @@ async def main():
             check("map signs show each house's name from the roster (e.g. Quinn's House; a renamed house keeps its new name)", signs == sorted(["Reagan's House", "Quinn's House", 'Koala Castle']) and signs == sorted(h['meta']['name'] for h in snap_b['houses'].values()), json.dumps(signs))
             # play on the new build: houses render with their items; the parent screen still knows the roster
             await P.click('#mapWorld .mapHouse.mine'); await P.wait_for_timeout(900)
-            p_items = await P.evaluate("Object.values(__store.get().rooms).reduce((n, r) => n + r.items.length, 0)")
-            mine_a = sum(len(r['items']) for r in snap_a['houses'][ids_a[0][1]]['view']['rooms'].values())
-            check('her house opens from the map with all its items', p_items == mine_a and (await P.evaluate("__store.get().cat || {}")).get('name') == 'Mochi', f'{p_items}/{mine_a}')
+            opened = await P.evaluate("""() => { const rooms = __store.get().rooms; return { ids: Object.fromEntries(Object.entries(rooms).map(([k, r]) => [k, r.items.map(i => i.id)])), nursery: rooms.nursery.items.map(i => i.kind), cat: (__store.get().cat || {}).name }; }""")
+            mine_rooms = snap_a['houses'][ids_a[0][1]]['view']['rooms']
+            mine_ok = all(sorted(opened['ids'].get(r, [])) == sorted(i['id'] for i in mine_rooms[r]['items']) for r in OLD_ROOMS)
+            check('her house opens from the map with all its items', mine_ok and opened['nursery'] == STARTER_KINDS and opened['cat'] == 'Mochi', str({r: len(opened['ids'].get(r, [])) for r in list(OLD_ROOMS) + ['nursery']}))
             k2house = ids_a[1][1]
             await P.click('#btnMap'); await P.wait_for_timeout(500); await P.click(f'.mapHouse[data-go="house:{k2house}"]'); await P.wait_for_timeout(900)
-            check("a friend's decorated house opens from the map, all items there", sorted(await P.evaluate("Object.values(__store.get().rooms).flatMap(r => r.items.map(i => i.id))")) == sorted(i[1] for i in items_of(snap_a)[k2house]))
+            friend = await P.evaluate("""() => { const rooms = __store.get().rooms; return { old: Object.fromEntries(['living','bedroom','kitchen','salon'].map(r => [r, rooms[r].items.map(i => i.id)])), nursery: rooms.nursery.items.map(i => i.kind) }; }""")
+            friend_a = {r: [i[1] for i in items_of(snap_a)[k2house] if i[0] == r] for r in OLD_ROOMS}
+            check("a friend's decorated house opens from the map, all items there", all(sorted(friend['old'][r]) == sorted(friend_a[r]) for r in OLD_ROOMS) and friend['nursery'] == STARTER_KINDS)
             await P.click('#btnMap'); await P.wait_for_timeout(500)
             await P.click('#btnParent'); await adult(P); await P.wait_for_timeout(700)
             roster_b = sorted(await P.locator('.rName').all_inner_texts()) if await P.locator('.rName').count() else None
             check('roster + grown-up key still work (parent screen)', roster_a == roster_b and roster_b is not None, json.dumps(roster_b))
             await P.click('.hoodSheet [data-m="close"]')
             check('production data files were never modified (new server ran on a copy)', all(open(f'{M}/data/{f}').read() == v for f, v in files_a.items()))
+            check('an old stored house stays without a nursery on disk until the first edit', all('nursery' not in names and 'backyard' not in names for names in disk_room_names(M + '/data-new').values()) and disk_room_names(M + '/data-new') == disk_room_names(M + '/data'))
+            # solo save from the old build, opened by the new build (not signed in)
+            solo_ctx = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
+            await solo_ctx.add_init_script("localStorage.setItem('cozy-whatsnew','999'); localStorage.setItem('cozy-house', " + json.dumps(json.dumps(solo_a)) + ");")
+            solo = await solo_ctx.new_page(); solo.on('pageerror', lambda e: errs.append('solo ' + str(e)))
+            await solo.goto(f'{BASE}/kids-house-game/?hood=http://localhost:{PORT_HOOD}'); await solo.wait_for_selector('#stage .char'); await solo.wait_for_timeout(400)
+            solo_now = await solo.evaluate("""() => { const s = __store.get(); return { v: s.version, old: Object.fromEntries(['living','bedroom','kitchen','salon'].map(r => [r, s.rooms[r].items.map(i => i.id)])), nursery: s.rooms.nursery.items.map(i => i.kind), tabs: [...document.querySelectorAll('.tab')].map(t => t.textContent.trim()) }; }""")
+            solo_old = {r: [i['id'] for i in solo_a['rooms'][r]['items']] for r in solo_a['rooms']}
+            check('an old solo save gains a nursery with starter pieces and loses nothing', solo_now['v'] == 3 and solo_now['nursery'] == STARTER_KINDS and all(sorted(solo_now['old'][r]) == sorted(solo_old[r]) for r in solo_old) and solo_now['tabs'][-1] == 'Nursery')
+            await solo.evaluate("""() => __store.dispatch({type:'item/add', room:'nursery', item:{id:'solo-round', kind:'bunny-plush', x:420, y:500, flip:false}})""")
+            await solo.wait_for_timeout(500); await solo.reload(); await solo.wait_for_selector('#stage .char'); await solo.wait_for_timeout(300)
+            solo_back = await solo.evaluate("""() => { const s = JSON.parse(localStorage.getItem('cozy-house')); return { nursery: s.rooms.nursery.items.map(i => i.id), living: s.rooms.living.items.map(i => i.id) }; }""")
+            check('a nursery edit round-trips in the solo save', 'solo-round' in solo_back['nursery'] and all(i in solo_back['nursery'] for i in ('cloud-rug-0', 'crib-1', 'crib-mobile-2', 'rocker-3')) and sorted(solo_back['living']) == sorted(i['id'] for i in solo_a['rooms']['living']['items']))
+            await solo_ctx.close()
+            # street: first nursery edit writes the filled room, and the other iPad sees it
+            k2house = ids_a[1][1]
+            if not await P.evaluate("document.body.classList.contains('view-house') && __ui().currentHouseId === " + json.dumps(k2house)):
+                await P.click('#btnMap'); await P.wait_for_timeout(400); await P.click(f'.mapHouse[data-go="house:{k2house}"]'); await P.wait_for_timeout(800)
+            if (await K2.evaluate("__ui()")).get('currentHouseId') != k2house:
+                await K2.click('#btnMap'); await K2.wait_for_timeout(400); await K2.click('#mapWorld .mapHouse.mine'); await K2.wait_for_timeout(800)
+            before_items = {r: [i['id'] for i in snap_a['houses'][k2house]['view']['rooms'][r]['items']] for r in OLD_ROOMS}
+            await K2.evaluate("""() => { const h = __hood(), id = h.myHouseId(); h.dispatch(id, {type:'item/add', room:'nursery', item:{id:'friend-nur', kind:'night-light', x:300, y:460, flip:false}}); h.dispatch(id, {type:'room/wallTile', room:'nursery', tile:'nursery/cloud-sky'}); }""")
+            await K2.wait_for_timeout(800)
+            seen = await P.evaluate("""() => { const n = __store.get().rooms.nursery; return { ids: n.items.map(i => i.id), tile: n.wallTile }; }""")
+            check("a friend's nursery edit shows up on the other iPad", 'friend-nur' in seen['ids'] and seen['tile'] == 'nursery/cloud-sky' and all(i in seen['ids'] for i in ('cloud-rug-0', 'crib-1', 'crib-mobile-2', 'rocker-3')))
+            await K2.wait_for_timeout(400)
+            disk_after = None
+            for fn in os.listdir(M + '/data-new'):
+                if not fn.endswith('.json') or fn.startswith('_'): continue
+                blob = json.load(open(f'{M}/data-new/{fn}'))
+                for v in blob.values():
+                    if isinstance(v, dict) and v.get('id') == k2house and isinstance(v.get('state'), dict):
+                        disk_after = v['state']
+            check('the first edit writes the nursery onto the old stored house without dropping items',
+                  disk_after and any(i['id'] == 'friend-nur' for i in disk_after['rooms']['nursery']['items'])
+                  and [i['kind'] for i in disk_after['rooms']['nursery']['items'] if i['id'] != 'friend-nur'] == STARTER_KINDS
+                  and all(sorted(i['id'] for i in disk_after['rooms'][r]['items']) == sorted(before_items[r]) for r in OLD_ROOMS))
+            # old client (27cfcac) against this new server, visiting the house that now has a nursery
+            serve_build('/tmp/prod-dist')
+            old_errs = []
+            P.on('pageerror', lambda e: old_errs.append(str(e)))
+            await P.goto(URL); await P.wait_for_timeout(1500)
+            try: await P.wait_for_selector('body.view-map #mapWorld .mapHouse', timeout=10000)
+            except Exception:
+                await P.screenshot(path='/tmp/mig-old-client.png'); raise
+            old_tabs = await P.locator('.tab').all_inner_texts()
+            check('old client shows four tabs and does not draw the nursery', len(old_tabs) == 4 and not any('Nursery' in t for t in old_tabs), str(old_tabs))
+            await P.click(f'.mapHouse[data-go="house:{k2house}"]'); await P.wait_for_timeout(900)
+            await P.evaluate("""() => { const h = __hood(), id = """ + json.dumps(k2house) + """; const kind = Object.keys(__items)[0]; h.dispatch(id, {type:'item/add', room:'living', item:{id:'old-client-edit', kind, x:440, y:520, flip:false}}); }""")
+            await P.wait_for_timeout(900)
+            k2_sees = await K2.evaluate("""() => { const s = __hood().view(""" + json.dumps(k2house) + """); return { edit: s.rooms.living.items.some(i => i.id === 'old-client-edit'), nursery: s.rooms.nursery.items.map(i => i.id) }; }""")
+            await K2.wait_for_timeout(500)
+            disk_old = None
+            for fn in os.listdir(M + '/data-new'):
+                if not fn.endswith('.json') or fn.startswith('_'): continue
+                blob = json.load(open(f'{M}/data-new/{fn}'))
+                for v in blob.values():
+                    if isinstance(v, dict) and v.get('id') == k2house and isinstance(v.get('state'), dict):
+                        disk_old = v['state']
+            check('old client edit syncs and the server copy keeps the nursery', k2_sees['edit'] and 'friend-nur' in k2_sees['nursery'] and disk_old and any(i['id'] == 'friend-nur' for i in disk_old['rooms']['nursery']['items']) and any(i['id'] == 'old-client-edit' for i in disk_old['rooms']['living']['items']) and not old_errs, str(k2_sees) + ' ' + '; '.join(old_errs[:2]))
+            # rollback: old client opens a save that already contains a nursery
+            rolled = json.loads(json.dumps(solo_a))
+            rolled['rooms']['nursery'] = {'wallpaper': '#d6f3ff', 'floor': '#f3ddc4', 'pattern': 1, 'items': [{'id': 'keep-crib', 'kind': 'crib', 'x': 100, 'y': 200, 'flip': False, 'z': 1, 'scale': 1}]}
+            rolled['rooms']['backyard'] = {'wallpaper': '#c5ecff', 'floor': '#b6e3a8', 'pattern': 0, 'items': [{'id': 'keep-yard', 'kind': 'plant', 'x': 80, 'y': 400, 'flip': False, 'z': 1, 'scale': 1}]}
+            rolled['currentRoom'] = 'living'
+            rb = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
+            await rb.add_init_script("localStorage.setItem('cozy-whatsnew','6'); localStorage.setItem('cozy-house', " + json.dumps(json.dumps(rolled)) + ");")
+            rpg = await rb.new_page(); rpg.on('pageerror', lambda e: old_errs.append('rollback ' + str(e)))
+            await rpg.goto(f'{BASE}/kids-house-game/?hood=http://localhost:{PORT_HOOD}'); await rpg.wait_for_selector('#stage .char'); await rpg.wait_for_timeout(400)
+            await rpg.evaluate("""() => __store.dispatch({type:'room/wallpaper', room:'living', color:'#ddeeff'})""")
+            await rpg.wait_for_timeout(500)
+            kept = await rpg.evaluate("""() => { const s = JSON.parse(localStorage.getItem('cozy-house')); return { tabs: [...document.querySelectorAll('.tab')].length, nursery: (s.rooms.nursery.items || []).map(i => i.id), yard: (s.rooms.backyard.items || []).map(i => i.id), wall: s.rooms.living.wallpaper }; }""")
+            check('old client keeps a nursery that was already in the save', kept['tabs'] == 4 and kept['nursery'] == ['keep-crib'] and kept['yard'] == ['keep-yard'] and kept['wall'] == '#ddeeff' and not any(e.startswith('rollback') for e in old_errs), str(kept))
+            await rb.close()
+            serve_build('/tmp/new-dist')
             # ================= Phase C: preview build on the same origin =================
             stop(new); prev_srv = server(ROOT, M + '/data-preview', PORT_PREV); wait_port(PORT_PREV)
             ls_before = await P.evaluate(LS)

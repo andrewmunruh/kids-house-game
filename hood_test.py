@@ -199,6 +199,35 @@ async def run(P, K2, K3, mk, errs, check):
         await check('solo play still works after removal', len(await items(K3)) == n0 + 1, f'{n0} -> {len(await items(K3))} ' + str(await K3.evaluate("document.body.className")))
         await K3.screenshot(path=SHOT + '09-K3-removed-back-to-solo.png')
         await P.click('.hoodSheet [data-m="close"]')
+        # Nursery (and the hidden backyard) sync between two iPads. An unknown room is refused.
+        if (await P.evaluate("__ui()"))['view'] != 'house':
+            await to_map(P); await P.click('#mapWorld .mapHouse.mine'); await P.wait_for_timeout(800)
+        pid_home = await P.evaluate("__hood().myHouseId()")
+        if (await K2.evaluate("__ui()")).get('currentHouseId') != pid_home:
+            await to_map(K2); await K2.click(f'#mapWorld .mapHouse[data-go="house:{pid_home}"]'); await K2.wait_for_timeout(900)
+        await P.evaluate("""() => {
+          const h = __hood(), id = h.myHouseId(), cid = h.view(id).characters[0].id;
+          h.dispatch(id, {type:'item/add', room:'nursery', item:{id:'nur-sync', kind:'crib', x:500, y:480, flip:false}});
+          h.dispatch(id, {type:'room/wallTile', room:'nursery', tile:'nursery/cloud-sky'});
+          h.dispatch(id, {type:'cat/set', cat:{name:'Pip', coat:1, room:'nursery', x:600}});
+          h.dispatch(id, {type:'cat/move', room:'nursery', x:700});
+          h.dispatch(id, {type:'char/move', id: cid, room:'nursery', x:640, y:540});
+          h.dispatch(id, {type:'item/add', room:'backyard', item:{id:'yard-sync', kind:'plant', x:400, y:500, flip:false}});
+        }""")
+        await P.wait_for_timeout(900)
+        async def nur_view(pg):
+            return await pg.evaluate("""() => { const s = __store.get(); return {
+              nur: s.rooms.nursery.items.map(i => i.id), tile: s.rooms.nursery.wallTile,
+              cat: s.cat && s.cat.room, ch: s.characters[0].room, yard: s.rooms.backyard.items.map(i => i.id) }; }""")
+        sp, sk = await nur_view(P), await nur_view(K2)
+        await check('nursery edits sync between two iPads',
+                    'nur-sync' in sp['nur'] and 'nur-sync' in sk['nur'] and sp['tile'] == 'nursery/cloud-sky' and sk['tile'] == 'nursery/cloud-sky'
+                    and sp['cat'] == 'nursery' and sk['cat'] == 'nursery' and sp['ch'] == 'nursery' and sk['ch'] == 'nursery'
+                    and 'yard-sync' in sp['yard'] and 'yard-sync' in sk['yard'], str((sp, sk)))
+        await P.evaluate("""() => { const h = __hood(); h.dispatch(h.myHouseId(), {type:'item/add', room:'attic', item:{id:'attic-no', kind:'crib', x:100, y:100, flip:false}}); }""")
+        await P.wait_for_timeout(700)
+        left, left2 = await nur_view(P), await nur_view(K2)
+        await check('unknown room is refused and the nursery stays', 'attic-no' not in left['nur'] and 'nur-sync' in left['nur'] and 'nur-sync' in left2['nur'], str(left))
         # reload: P reconnects to the street automatically
         await P.reload(); await P.wait_for_timeout(1500)
         await check('reload reconnects automatically', (await P.evaluate("__ui()"))['view'] == 'street')

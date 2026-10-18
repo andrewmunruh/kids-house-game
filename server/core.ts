@@ -1,7 +1,7 @@
 // Platform-agnostic, server-authoritative neighborhood. One instance per invite code.
 // Adapters (server/node.ts, server/worker.ts) provide storage + sockets.
 // Privacy: no emails, names, IPs or chat are stored; chat is relayed to nearby players only and never logged.
-import { reduce, initialState, type GameState, type Dog } from '../src/shared/state';
+import { reduce, initialState, ensureRooms, type GameState, type Dog } from '../src/shared/state';
 import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, cleanPresence, cleanHouseName,
   filterChat, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, fxAllowedAt, PROTOCOL, PROTO_PETS, PROTO_RANCH, PROTO_GAMES, RANCH_FX, normCode, validInvite, MAX_ROSTER, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble,
@@ -55,7 +55,11 @@ export class Neighborhood {
     for (const tb of this.tables) if (tb.phase === 'play') for (const pid of tb.seats) if (pid && !this.awaySince.has(pid)) { this.awaySince.set(pid, now); seeded = true; }
     if (seeded) this.save('away');
     for (const pid of this.awaySince.keys()) this.armAwayPing(pid);
-    if (this.meta) for (const id of this.meta.houseOrder) { const h = await this.kv.get<HouseFull>('house:' + id); if (h) this.houses.set(id, h); }
+    // Missing rooms (nursery, backyard) are filled in memory only. Disk stays as stored until the next edit.
+    if (this.meta) for (const id of this.meta.houseOrder) {
+      const h = await this.kv.get<HouseFull>('house:' + id);
+      if (h) this.houses.set(id, h.state ? { ...h, state: ensureRooms(h.state) } : h);
+    }
   })()); }
   get exists() { return !!this.meta; }
 
@@ -313,7 +317,10 @@ export class Neighborhood {
         const a = cleanAction(m.action); if (!a) return nack('invalid');
         const petAct = a.type.startsWith('cat/');
         if (petAct && h.ownerId !== me.pid) return nack('notyours'); // only she can adopt / move her own cat
-        const next: GameState = reduce(h.state, a);
+        // An old stored house may still be missing a room if it was loaded before this process filled it.
+        // Fill first so reduce never throws, and so a living-room edit cannot save a copy that dropped the nursery.
+        const ready = ensureRooms(h.state);
+        const next: GameState = reduce(ready, a);
         if (next === h.state) return nack('noop');
         if (JSON.stringify(next).length > MAX_HOUSE_JSON) return nack('toobig');
         h.state = next; this.save(h.id);

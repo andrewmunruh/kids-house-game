@@ -2,10 +2,15 @@ import { storeKey } from './shared/storekey';
 // Client side of the neighborhood. Server-ordered actions are applied to `confirmed`; this kid's own
 // not-yet-confirmed actions sit in `pending` and are re-applied on top (optimistic UI that never diverges).
 import type { Plot, RanchOp } from './shared/ranch';
-import { reduce, type Action, type GameState, type RoomId } from './shared/state';
+import { reduce, migrate, type Action, type GameState, type RoomId } from './shared/state';
 import { PROTOCOL, type ClientMsg, type ServerMsg, type PlayerPub, type HouseMeta, type Presence, type Bubble, type Look, type RosterEntry, type Fx } from './shared/hood';
 import type { Dog } from './shared/state';
 import type { TableOp, TablePub } from './shared/games/index';
+
+/** Server houses are migrated like a local save: missing rooms gain the starter layout, existing rooms stay. */
+function adoptHouse(state: GameState): GameState {
+  try { return migrate(state); } catch { return state; }
+}
 
 /** `id` is the street's permanent id (sockets use it); `code` is the current invite code, shown to grown-ups. */
 export interface HoodConfig { url: string; code: string; id?: string; token?: string; pid?: string; parentKey?: string }
@@ -142,7 +147,8 @@ export class HoodClient {
         { const old = this.houses; this.houses = new Map();
           for (const h of m.houses) { const { state, ...meta } = h; const prev = old.get(h.id);
             // keep this kid's unsent edits across a reconnect; anything already sent was lost with the socket
-            this.houses.set(h.id, { meta, confirmed: state, pending: prev ? prev.pending.filter(p => !p.sent) : [], view: null }); } }
+            // migrate fills nursery/backyard when an older Worker stored a 4-room house
+            this.houses.set(h.id, { meta, confirmed: adoptHouse(state), pending: prev ? prev.pending.filter(p => !p.sent) : [], view: null }); } }
         this.presence = new Map(Object.entries(m.presence)); this.presence.delete(this.pid);
         if (m.ranch) this.ranch = { plots: m.ranch.plots, skew: m.ranch.now - Date.now() };
         { const next = new Map<number, TablePub & { receivedAt?: number }>();
@@ -157,7 +163,7 @@ export class HoodClient {
         break;
       case 'act': {
         const h = this.houses.get(m.houseId); if (!h) return;
-        h.confirmed = reduce(h.confirmed, m.action);
+        h.confirmed = reduce(adoptHouse(h.confirmed), m.action);
         const mine = m.by === this.pid && h.pending[0]?.cid === m.cid;
         if (mine) h.pending.shift();
         h.view = null;
@@ -166,12 +172,12 @@ export class HoodClient {
       }
       case 'nack': {
         const h = this.houses.get(m.houseId); if (!h) return;
-        h.pending = h.pending.filter(p => p.cid !== m.cid); if (m.state) h.confirmed = m.state; h.view = null;
+        h.pending = h.pending.filter(p => p.cid !== m.cid); if (m.state) h.confirmed = adoptHouse(m.state); h.view = null;
         this.emit('reset', m.houseId, m.reason); break;
       }
       case 'pres': if (m.pid !== this.pid) { m.p ? this.presence.set(m.pid, m.p) : this.presence.delete(m.pid); this.emit('pres', m.pid); } break;
       case 'players': this.players = new Map(m.players.map(p => [p.pid, p])); this.emit('players'); break;
-      case 'house': { const { state, ...meta } = m.house; this.houses.set(meta.id, { meta, confirmed: state, pending: [], view: null }); this.emit('houses'); break; }
+      case 'house': { const { state, ...meta } = m.house; this.houses.set(meta.id, { meta, confirmed: adoptHouse(state), pending: [], view: null }); this.emit('houses'); break; }
       case 'houseMeta': { const h = this.houses.get(m.meta.id); if (h) { h.meta = m.meta; this.emit('houses'); this.emit('houseMeta', m.meta.id); } break; }
       case 'houseGone': this.houses.delete(m.houseId); this.emit('houses'); this.emit('houseGone', m.houseId); break;
       case 'settings': this.settings = m.settings; this.emit('settings'); break;

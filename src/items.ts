@@ -1,5 +1,6 @@
 import { PACK_ITEMS } from './packs';
 import { SECRET_ITEMS } from './eggs';
+import { NURSERY_ITEMS } from './nursery';
 // Original rounded SVG art. Each item: viewBox 0 0 100 100, anchored bottom-center.
 export type Category = string; // built-ins: furniture | decor | plants | food | pets (packs may add more)
 export interface ItemDef { kind: string; name: string; cat: Category; w: number; h?: number; svg: string; wall?: boolean; img?: string; rooms?: string[]; pack?: string; holdable?: boolean; secret?: string }
@@ -64,6 +65,8 @@ const BUILTIN_ROOMS: Record<string, string[]> = {
   bookshelf: ['living', 'bedroom'], bed: ['bedroom'], teddy: ['bedroom'], stars: ['bedroom'], tub: ['bedroom'], balloon: ['any'], clock: ['any'],
   window: ['any'], ball: ['any'], vanity: ['salon'], stool: ['salon'], perfume: ['salon'], polish: ['salon'], hairdryer: ['salon'], mirror: ['salon', 'bedroom'], fridge: ['kitchen'], stove: ['kitchen'], table: ['kitchen', 'living'], chair: ['kitchen', 'living'],
 };
+for (const n of NURSERY_ITEMS) BUILTIN_ROOMS[n.kind] = ['nursery'];
+ITEMS.push(...NURSERY_ITEMS);
 for (const i of ITEMS) i.rooms = BUILTIN_ROOMS[i.kind] ?? (['food'].includes(i.cat) ? ['kitchen'] : ['any']);
 // Holdable by default: small/medium, non-wall, non-furniture items.
 const NOT_HOLDABLE = new Set(['rug', 'tv', 'tree']);

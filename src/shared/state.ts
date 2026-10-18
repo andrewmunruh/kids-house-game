@@ -2,7 +2,9 @@ import { storeKey } from './storekey';
 // All game state is plain serializable JSON. All changes go through `Action`s
 // so a future multiplayer server can validate/relay the same actions.
 import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plot, type RanchOp } from './ranch';
-export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon';
+export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon' | 'nursery' | 'backyard';
+/** Display order is the client's tab list. Backyard is a room id only until its scene ships. */
+export const ROOM_IDS: RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard'];
 /** Room size in world units. v1 rooms were 1000 wide; v2 rooms are 2.4x wider. */
 export const ROOM_W = 2400, ROOM_H = 600, V1_ROOM_W = 1000;
 /** v1 layouts are re-centred in the wider room so nothing a child built moves relative to anything else. */
@@ -101,6 +103,11 @@ export function initialState(): GameState {
         it('stool', 470, 545, 6), it('lamp', 200, 470, 7), it('flowers', 780, 480, 8), it('picture', 780, 200, 9), it('chair', -250, 490, 10), it('mirror', -250, 170, 11), it('plant', 1300, 480, 12)] },
       kitchen: { wallpaper: '#cdf3dc', floor: '#ffe7a8', pattern: 3, items: [
         it('fridge', 200, 470, 1), it('table', 520, 500, 2), it('cake', 520, 395, 3), it('stove', 800, 470, 4), it('chair', 380, 500, 5), it('chair', 660, 500, 6), it('juice', 470, 395, 7), it('plant', -300, 480, 8), it('fish', 1300, 480, 9)] },
+      // Same shape as the Salon: old saves gain these pieces, version stays 3.
+      nursery: { wallpaper: '#d6f3ff', floor: '#f3ddc4', pattern: 1, items: [
+        it('cloud-rug', 480, 545, 0), it('crib', 470, 480, 1), it('crib-mobile', 470, 155, 2), it('rocker', 780, 490, 3)] },
+      // Empty on purpose. The backyard scene ships later; the room key has to exist so edits are not dropped.
+      backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [] },
     },
     characters: [
       newCharacter({ id: 'c1', skin: '#f1c27d', hair: '#5b3a29', hairStyle: 2, shirt: '#ff7aa8', pants: '#5aa9e6', room: 'living', x: 330 + V1_OFFSET, y: 540 }),
@@ -123,7 +130,31 @@ function mapChar(s: GameState, id: string, f: (c: Character) => Character): Game
 }
 
 function mapItems(s: GameState, room: RoomId, f: (r: Room) => Room): GameState {
-  return { ...s, rooms: { ...s.rooms, [room]: f(s.rooms[room]) } };
+  const cur = s.rooms[room];
+  if (!cur) return s;
+  return { ...s, rooms: { ...s.rooms, [room]: f(cur) } };
+}
+
+/**
+ * Copy starter rooms that a save does not have yet. Rooms already stored are left
+ * byte-for-byte alone, including an emptied nursery or a backyard a kid has started.
+ */
+export function ensureRooms<T extends { rooms?: GameState['rooms'] | null }>(s: T): T {
+  if (!s || !s.rooms) return s;
+  const base = initialState().rooms;
+  const rooms = s.rooms;
+  let missing = false;
+  for (const id of ROOM_IDS) {
+    const cur = rooms[id] as Room | undefined;
+    if (!cur || typeof cur !== 'object' || !Array.isArray(cur.items)) missing = true;
+  }
+  if (!missing) return s;
+  const next = { ...rooms } as GameState['rooms'];
+  for (const id of ROOM_IDS) {
+    const cur = rooms[id] as Room | undefined;
+    if (!cur || typeof cur !== 'object' || !Array.isArray(cur.items)) next[id] = base[id];
+  }
+  return { ...s, rooms: next };
 }
 
 /** Pure reducer: (state, action) -> new state. Safe to run on server too. */
@@ -198,11 +229,12 @@ export function migrate(raw: any): GameState {
     delete s.character;
   }
   if (s.version !== 3) return initialState();
-  // Rooms added after a save was made (e.g. 'salon') come from the starter layout.
+  // Rooms added after a save was made (salon, nursery, backyard) come from the starter layout.
+  // Existing rooms win, so a kid's furniture is never replaced by the starter set.
   const base = initialState();
   const characters = (Array.isArray(s.characters) ? s.characters : []).slice(0, MAX_CHARS)
     .map((c: any, i: number) => newCharacter({ ...c, id: String(c.id ?? 'c' + (i + 1)), held: { left: c.held?.left ?? null, right: c.held?.right ?? null } }));
-  return { ...base, ...s, rooms: { ...base.rooms, ...s.rooms }, characters };
+  return ensureRooms({ ...base, ...s, rooms: { ...base.rooms, ...s.rooms }, characters });
 }
 type Listener = (s: GameState, a: Action) => void;
 
