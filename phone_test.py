@@ -1,7 +1,7 @@
 # Phone layout. iPad sizes must not match the phone gate. Local preview only.
 import asyncio, os, sys
 from playwright.async_api import async_playwright
-from testnav import K
+from testnav import K, NOTE_VS_TABLE_JS, SLAY_PINK_3, about_slay_card, dim_card_contrast
 
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
 SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/phone/'
@@ -419,6 +419,40 @@ async def ipad_pass(b, w, h):
     await pg.wait_for_selector('#stage .char')
     info = await layout(pg)
     check(f'{tag} is not a phone', not info['phone'] and not info['note'] and info['scrollW'] <= info['vw'] + 1)
+    await pg.evaluate("""(svg) => {
+      const root = document.getElementById('tableOverlay');
+      root.classList.remove('hidden');
+      const seats = [1,2,3,4,5,6].map(i => `<div class="lobbySeat ${i===1?'filled me':''}"><span>${i}</span><b>${i===1?'Cara':'Empty'}</b>${i===1?'<i>host</i><i>you</i>':''}</div>`).join('');
+      root.innerHTML = `<div class="tblCard game-slay"><div class="tblTop"><h2>Slay</h2></div>
+        <div id="tblStage"><div class="lobby">${seats}</div></div>
+        <div class="tblBar"><button type="button" id="tblBack">Back to room</button><button type="button" id="tblLeave">Leave table</button></div>
+        <p class="tblWait" id="needFriend">Play with friends on your street</p></div>`;
+    }""", SLAY_PINK_3)
+    await pg.wait_for_timeout(40)
+    note = await pg.evaluate(NOTE_VS_TABLE_JS)
+    check(f'{tag} play-with-friends note does not overlap the table', note.get('overlap') is False and note.get('gap', 0) >= 40, str(note))
+    await pg.evaluate("""(svg) => {
+      const cards = Array.from({length: 7}, (_, i) => `<button type="button" class="slayCard ${i % 2 ? 'can' : 'dim'}" ${i % 2 ? '' : 'disabled'}>${svg}</button>`).join('');
+      document.getElementById('tableOverlay').innerHTML = `<div class="tblCard game-slay"><div class="tblTop"><h2>Slay</h2></div>
+        <div id="tblStage"><div class="slayFelt"><div class="whose yours">Your turn!</div>
+        <div id="slayHand" class="slayHand isTurn">${cards}</div>
+        <button type="button" id="slayCall" class="slayCall">SLAY!</button></div></div>
+        <div class="tblBar"><button type="button" id="tblBack">Back to room</button><button type="button" id="tblLeave">Leave table</button></div></div>`;
+    }""", SLAY_PINK_3)
+    await pg.wait_for_timeout(40)
+    card = await pg.locator('#slayHand .slayCard.dim').first.bounding_box()
+    check(f'{tag} Slay hand cards are about 90x130', about_slay_card(card), str(card))
+    dim_style = await pg.evaluate("""() => {
+      const el = document.querySelector('#slayHand .slayCard.dim');
+      const s = getComputedStyle(el);
+      const shape = el.querySelector('svg rect');
+      return { opacity: Number(s.opacity), border: parseFloat(s.borderTopWidth), filter: shape ? getComputedStyle(shape).filter : '' };
+    }""")
+    png = await pg.locator('#slayHand .slayCard.dim').first.screenshot()
+    ratio, ink, face = dim_card_contrast(png)
+    check(f'{tag} dim Slay card text contrast is at least 3:1',
+          ratio >= 3 and dim_style['opacity'] >= 0.9 and dim_style['border'] >= 2 and 'grayscale' in dim_style['filter'],
+          f'{ratio:.2f} ink={ink} face={face} {dim_style}')
     await ctx.close()
 
 async def main():

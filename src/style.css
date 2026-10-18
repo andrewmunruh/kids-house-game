@@ -796,6 +796,9 @@ body.view-street .stage { visibility: hidden; }
 #tblStart { background: #b9f6ca; font-size: 26px; min-width: 160px; }
 #tblLeave { background: #ffe0e8; }
 .tblWait { margin: 0; font-weight: 900; font-size: 20px; color: #e0558a; }
+/* Below the seat row and the buttons, so it does not sit on the table. */
+#needFriend { align-self: center; margin: 16px auto 2px; padding: 8px 16px; text-align: center; max-width: min(520px, 100%);
+  background: #fff; border: 3px solid var(--ink); border-radius: 18px; box-shadow: 0 4px 0 rgba(90, 61, 92, .18); }
 .lobby { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .lobbySeat { min-width: 120px; min-height: 72px; border-radius: 18px; border: 3px solid var(--ink); background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 10px; font-weight: 800; }
 .lobbySeat.filled { background: #fff0f6; } .lobbySeat.me { background: #fff3b0; }
@@ -836,10 +839,15 @@ body.view-street .stage { visibility: hidden; }
 .slayDeck:disabled { opacity: .55; }
 .nowColor { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--ink); }
 .slayFelt, #tblStage { min-width: 0; max-width: 100%; }
-.slayHand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; overflow-x: auto; max-width: 100%; min-width: 0; min-height: 114px; padding: 4px 2px 8px; border-radius: 18px; }
+.slayHand { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; align-content: flex-end; gap: 8px; overflow: visible; max-width: 100%; min-width: 0; min-height: 148px; padding: 12px 2px 8px; border-radius: 18px; }
 .slayHand.isTurn { box-shadow: inset 0 0 0 4px #ffd43b; }
-.slayCard { flex: 0 0 74px; width: 74px; height: 106px; padding: 0; background: none; box-shadow: none; border-radius: 14px; }
-.slayCard.dim { opacity: .42; filter: saturate(.65) brightness(1.05); }
+/* A long hand tucks the next row up so the cards still sit on the table. */
+.slayHand:has(.slayCard:nth-child(9)) { padding-top: 58px; }
+.slayHand:has(.slayCard:nth-child(9)) .slayCard { margin-top: -46px; }
+.slayCard { flex: 0 0 90px; width: 90px; height: 130px; padding: 0; background: none; box-shadow: none; border-radius: 16px; }
+.slayCard.dim { opacity: 1; background: #e4dcec; border: 3px solid #3d3150; border-radius: 16px; }
+.slayCard.dim svg :is(rect, ellipse, path, circle, polygon) { filter: grayscale(.88) saturate(.16) brightness(1.04); }
+.slayCard.dim svg text { fill: #241828; stroke: #fff; }
 .slayCard.can { transform: translateY(-8px); filter: drop-shadow(0 7px 0 rgba(90,61,92,.28)) drop-shadow(0 0 8px rgba(255,255,255,.8)); }
 .slayCard.justDrew, .slayCard.picked { transform: translateY(-14px); filter: drop-shadow(0 0 8px #ffd43b); }
 .slayCard svg, .slayDeck svg, .slayDiscard svg { width: 100%; height: 100%; display: block; }
@@ -880,8 +888,7 @@ body.view-street .stage { visibility: hidden; }
 .dropHint { height: 22px; font-weight: 900; font-size: 18px; color: #e0558a; }
 @media (max-width: 860px) {
   .tblTop h2 { font-size: 24px; }
-  .slayCard, .slayDeck, .slayDiscard { width: 66px; height: 96px; }
-  .slayCard { flex-basis: 66px; }
+  .slayDeck, .slayDiscard { width: 66px; height: 96px; }
   .fourCell { width: 48px; height: 44px; }
   .fourCell svg { width: 32px; height: 32px; }
   .fourCol { min-width: 54px; }
@@ -904,7 +911,11 @@ body.view-street .stage { visibility: hidden; }
   body.phone .elsewhere h2 { font-size: 22px; }
   body.phone .playHere { min-height: 48px; font-size: 20px; width: 100%; }
   body.phone .grSolo { font-size: 16px; max-width: calc(100% - 16px); bottom: max(8px, env(safe-area-inset-bottom)); padding: 8px 12px; }
-  body.phone .slayHand { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; scrollbar-width: none; max-width: 100%; }
+  body.phone #needFriend { margin-top: 8px; font-size: 16px; padding: 6px 10px; }
+  body.phone .slayHand { flex-wrap: nowrap; justify-content: flex-start; align-items: flex-end; row-gap: 8px; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; scrollbar-width: none; max-width: 100%; min-height: 0; padding: 4px 2px 8px; }
+  body.phone .slayHand:has(.slayCard) { row-gap: 8px; }
+  body.phone .slayHand:has(.slayCard:nth-child(9)) { padding-top: 4px; }
+  body.phone .slayHand:has(.slayCard:nth-child(9)) .slayCard { margin-top: 0; }
   body.phone .slayHand::-webkit-scrollbar { display: none; }
   body.phone .slayCard { flex: 0 0 64px; width: 64px; height: 92px; }
   body.phone .slayDeck, body.phone .slayDiscard { width: 64px; height: 92px; }

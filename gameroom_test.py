@@ -3,7 +3,7 @@
 import asyncio, os, shutil, sys, traceback
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
-from testnav import SKIP_WN, to_map, go, local_page
+from testnav import SKIP_WN, to_map, go, local_page, NOTE_VS_TABLE_JS, about_slay_card, dim_card_contrast
 
 URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/gameroom/'
@@ -286,6 +286,13 @@ async def main():
             await sit(P, 0, 0)
             await P.wait_for_selector('#needFriend', timeout=4000)
             check('one kid at the table is asked to play with friends', (await P.inner_text('#needFriend')).strip() == 'Play with friends on your street')
+            for w, h in ((1024, 768), (1180, 820), (820, 1180)):
+                await P.set_viewport_size({'width': w, 'height': h})
+                await P.wait_for_timeout(180)
+                note = await P.evaluate(NOTE_VS_TABLE_JS)
+                check(f'{w}x{h} play-with-friends note does not overlap the table', note.get('overlap') is False and note.get('gap', 0) >= 40, str(note))
+            await P.set_viewport_size({'width': 1024, 'height': 768})
+            await P.wait_for_timeout(180)
             await P.screenshot(path=SHOT + '03-slay-lobby-waiting.png')
             await sit(K2, 0, 1)
             await sit(K3, 0, 2)
@@ -312,12 +319,43 @@ async def main():
                     raise TimeoutError('deal never arrived')
             await P.wait_for_selector('#slayHand .slayCard')
             await P.wait_for_selector('#slayCall')
-            hand_box = await P.locator('#slayHand .slayCard').first.bounding_box()
-            call_box = await P.locator('#slayCall').bounding_box()
-            check('Slay cards and the SLAY! button are big touch targets',
-                  hand_box and call_box and hand_box['width'] >= 60 and hand_box['height'] >= 90 and call_box['height'] >= 56 and call_box['width'] >= 180,
-                  str(hand_box) + ' ' + str(call_box))
+            async def slay_hand_size(tag):
+                hand_box = await P.locator('#slayHand .slayCard').first.bounding_box()
+                call_box = await P.locator('#slayCall').bounding_box()
+                check(f'{tag} Slay hand cards are about 90x130', about_slay_card(hand_box), str(hand_box))
+                check(f'{tag} SLAY! button stays a big touch target',
+                      call_box and call_box['height'] >= 56 and call_box['width'] >= 120, str(call_box))
+                return hand_box, call_box
+            hand_box, call_box = await slay_hand_size('1024x768')
+            dim = P.locator('#slayHand .slayCard.dim')
+            if await dim.count() == 0:
+                await P.evaluate("""() => {
+                  const src = document.querySelector('#slayHand .slayCard');
+                  const c = src.cloneNode(true);
+                  c.className = 'slayCard dim'; c.disabled = true; c.id = 'dimProbe';
+                  src.parentElement.appendChild(c);
+                }""")
+                dim = P.locator('#dimProbe')
+            dim_style = await P.evaluate("""() => {
+              const el = document.querySelector('#slayHand .slayCard.dim');
+              const s = getComputedStyle(el);
+              const shape = el.querySelector('svg rect, svg path, svg circle');
+              return { opacity: Number(s.opacity), border: parseFloat(s.borderTopWidth), filter: shape ? getComputedStyle(shape).filter : '' };
+            }""")
+            png = await dim.first.screenshot()
+            if await P.locator('#dimProbe').count():
+                await P.evaluate("() => document.getElementById('dimProbe')?.remove()")
+            ratio, ink, face = dim_card_contrast(png)
+            check('dim Slay card text contrast is at least 3:1',
+                  ratio >= 3 and dim_style['opacity'] >= 0.9 and dim_style['border'] >= 2 and 'grayscale' in dim_style['filter'],
+                  f'{ratio:.2f} ink={ink} face={face} {dim_style}')
             await P.screenshot(path=SHOT + '04-slay-midgame.png')
+            for w, h in ((1180, 820), (820, 1180)):
+                await P.set_viewport_size({'width': w, 'height': h})
+                await P.wait_for_timeout(200)
+                await slay_hand_size(f'{w}x{h}')
+            await P.set_viewport_size({'width': 1024, 'height': 768})
+            await P.wait_for_timeout(150)
             await hidden_hands(pages, 'dealt hands stay on their own iPad')
             await P.set_viewport_size({'width': 820, 'height': 1180})
             await P.wait_for_timeout(300)
