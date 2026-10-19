@@ -131,12 +131,12 @@ export function initialState(): GameState {
       nursery: { wallpaper: '#d6f3ff', floor: '#f3ddc4', pattern: 1, items: [
         it('cloud-rug', 480, 545, 0), it('crib', 470, 480, 1), it('crib-mobile', 470, 155, 2), it('rocker', 780, 490, 3)] },
       // Toilet and soaker fill the opening view, with room for her between them.
-      // A fern stand and a bath rug sit in the open middle. Ladder, shower, vanity, and fern continue to the right.
+      // A fern stand sits in the open middle. The scalloped mat is the floor piece; the round bath rug stays on the shelf.
       bathroom: { wallpaper: '#d7f6f8', floor: '#f3e0c8', pattern: 1, items: [
         it('puddle-mat', 260, 566, 0), it('rain-shower', 758, 460, 1), it('clawfoot-tub', 260, 530, 3),
         it('mirror-vanity', 909, 528, 2), it('little-toilet', 56, 552, 4), it('bath-cubby', 410, 230, 5),
         it('towel-ladder', 606, 468, 6), it('mist-fern', 1240, 490, 7),
-        it('fern-stand', 430, 498, 8), it('bath-rug', 448, 546, 9)] },
+        it('fern-stand', 430, 498, 8)] },
       // Empty on purpose. The backyard scene ships later; the room key has to exist so edits are not dropped.
       backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [] },
     },

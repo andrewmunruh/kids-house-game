@@ -89,7 +89,7 @@ async def main():
                     await pg.wait_for_timeout(40)
                 data = await pg.evaluate(CHECK)
                 tag = f'bathroom starter {w}x{h} {mode}'
-                check(tag + ' has the ten pieces', data['n'] == 10, str(data['n']))
+                check(tag + ' has the nine pieces', data['n'] == 9, str(data['n']))
                 check(tag + ' stays inside', data['problems'] == [], ' '.join(data['problems']))
             await ctx.close()
         await browser.close()

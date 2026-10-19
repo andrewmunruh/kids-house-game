@@ -26,6 +26,7 @@ import { catalogShows } from './roomfilter';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
+import { showerSuds, sudsZ, tubSuds, type Box } from './suds';
 import { emptyRoomStarters, syncScenery } from './scenery';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
@@ -2117,49 +2118,32 @@ function onPlayTap(el: HTMLElement, id: string) {
   if (g === 'open') { el.classList.toggle('opened'); return; }
   if (g === 'sit') sitAt(it);
 }
-/** Eight bubbles, all on screen at once. Percentages are of the item box. */
-const TUB_SUDS: ReadonlyArray<readonly [number, number, number, string, number]> = [
-  [8, 16, 18, '#ffb7d5', 0],
-  [26, 4, 20, '#9fd4ee', 0.04],
-  [46, 14, 19, '#b7ebc8', 0.08],
-  [64, 2, 18, '#ffe08a', 0.02],
-  [78, 18, 16, '#c9b6f2', 0.1],
-  [18, 32, 15, '#ffd6e4', 0.06],
-  [40, 28, 17, '#ffffff', 0.12],
-  [58, 26, 16, '#d7f3ff', 0.05],
-];
-const SHOWER_SUDS: ReadonlyArray<readonly [number, number, number, string, number]> = [
-  [6, 22, 32, '#ffb7d5', 0],
-  [38, 14, 30, '#9fd4ee', 0.04],
-  [14, 36, 28, '#b7ebc8', 0.08],
-  [46, 30, 26, '#ffe08a', 0.02],
-  [8, 48, 30, '#c9b6f2', 0.1],
-  [40, 46, 28, '#ffd6e4', 0.06],
-  [22, 18, 24, '#ffffff', 0.12],
-  [34, 58, 26, '#d7f3ff', 0.05],
-];
 function splashItem(el: HTMLElement) {
   el.classList.remove('splashing'); void el.offsetWidth; el.classList.add('splashing');
   blowSuds(el);
-  window.setTimeout(() => el.classList.remove('splashing'), 1650);
+  window.setTimeout(() => el.classList.remove('splashing'), 1800);
 }
-/** Drawn on the room layer, above the kid, so a tap on her still shows the bubbles. */
+function roomBox(el: HTMLElement): Box {
+  return { l: el.offsetLeft, t: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight };
+}
+/** In front of the tub, spawned beside her head so the flight never crosses her face. */
 function blowSuds(el: HTMLElement) {
   const id = el.dataset.id ?? '';
   layer.querySelectorAll<HTMLElement>('.suds').forEach(n => { if (n.dataset.for === id) n.remove(); });
-  const spots = el.dataset.kind === 'rain-shower' ? SHOWER_SUDS : TUB_SUDS;
+  const fixture = roomBox(el);
+  const kids: Box[] = [];
+  layer.querySelectorAll<HTMLElement>('.char').forEach(ch => kids.push(roomBox(ch)));
+  const spots = el.dataset.kind === 'rain-shower' ? showerSuds(fixture, kids) : tubSuds(fixture, kids);
   const box = document.createElement('div');
   box.className = 'suds';
   box.dataset.for = id;
-  box.style.left = el.style.left;
-  box.style.top = el.style.top;
-  box.style.width = el.style.width;
-  box.style.height = el.style.height;
-  box.style.zIndex = '7200';
-  box.innerHTML = spots.map(([x, y, s, c, d]) =>
-    `<i style="left:${x}%;top:${y}%;width:${s}%;background:${c};animation-delay:${d}s"></i>`).join('');
+  box.style.zIndex = String(sudsZ(Number(el.style.zIndex) || 1000));
+  box.innerHTML = spots.map(s => {
+    const dx = s.x1 - s.x0, dy = s.y1 - s.y0;
+    return `<i style="left:${s.x0 - s.s / 2}px;top:${s.y0 - s.s / 2}px;width:${s.s}px;height:${s.s}px;background:${s.color};--dx:${dx}px;--dy:${dy}px;animation-delay:${s.delay}s"></i>`;
+  }).join('');
   layer.appendChild(box);
-  window.setTimeout(() => box.remove(), 1650);
+  window.setTimeout(() => box.remove(), 1800);
 }
 /** A tap on the kid standing in front of the soaker blows the same bubbles as tapping the tub. */
 function splashTubInFront(x: number, y: number) {
