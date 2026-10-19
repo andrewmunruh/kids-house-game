@@ -280,6 +280,8 @@ async def main():
               __hood().dispatch(id, { type:'char/update', id:'c1', patch: Object.assign({ size:'kid' }, legacy, { look2 }) });
             }""", b1house)
             await B1.wait_for_function("""(id) => { const c = (__hood().view(id).characters || []).find(x => x.id === 'c1'); return c && c.look2 && c.look2.hair === 'puffs'; }""", arg=b1house, timeout=8000)
+            # wait for the server round-trip: the fbd04db page must have received the B1 update before it edits (else last-writer-wins reorders)
+            await B0.wait_for_function("""(id) => { const c = ((__hood().view(id) || {}).characters || []).find(x => x.id === 'c1'); return c && c.shirt === '#ff7aa8'; }""", arg=b1house, timeout=8000, polling=250)
             await B0.evaluate("""(id) => {
               __hood().dispatch(id, { type:'char/update', id:'c1', patch: { skin:'#f1c27d', hair:'#2b1d16', hairStyle:2, shirt:'#80ed99', pants:'#5aa9e6', size:'kid', acc:1 } });
             }""", b1house)
