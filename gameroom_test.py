@@ -3,8 +3,8 @@
 import asyncio, os, shutil, sys, traceback
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
-from testnav import tap, (
-    SKIP_WN, K, to_map, go, local_page, NOTE_VS_TABLE_JS, about_slay_card, dim_card_contrast, face_chroma,
+from testnav import (
+    tap, SKIP_WN, K, to_map, go, local_page, NOTE_VS_TABLE_JS, about_slay_card, dim_card_contrast, face_chroma,
     inject_slay_hand, read_slay_hand, read_wait_style, read_secrets, read_door_hint, read_paddock,
 )
 

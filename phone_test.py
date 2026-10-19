@@ -1,8 +1,8 @@
 # Phone layout. iPad sizes must not match the phone gate. Local preview only.
 import asyncio, os, sys
 from playwright.async_api import async_playwright
-from testnav import tap, (
-    K, NOTE_VS_TABLE_JS, SLAY_PINK_3, about_slay_card, dim_card_contrast, face_chroma,
+from testnav import (
+    tap, K, NOTE_VS_TABLE_JS, SLAY_PINK_3, about_slay_card, dim_card_contrast, face_chroma,
     inject_slay_hand, read_slay_hand, read_wait_style, read_secrets, read_door_hint, read_paddock,
 )
 

@@ -444,7 +444,7 @@ function syncMinimap() {
   const show = inHouse && (portrait ? decorate : (decorate || wider));
   document.body.classList.toggle('show-minimap', show);
 }
-const TAB_ICO = `<svg class="tabIco" viewBox="0 0 16 12" aria-hidden="true"><path d="M1 6 L8 1 L15 6 V11 H1 Z" fill="currentColor"/></svg>`;
+const TAB_ICO = `<svg class="tabIco" width="14" height="12" viewBox="0 0 16 12" aria-hidden="true"><path d="M1 6 L8 1 L15 6 V11 H1 Z" fill="currentColor"/></svg>`;
 function tabsCompact() {
   // Phones narrower than 700px use the short names so five tabs, Menu, and Map share one row at 13px.
   // iPad keeps the full names: the Menu freed the row, and 12px type is below the floor.

@@ -1098,6 +1098,7 @@ body.view-street .stage { visibility: hidden; }
 }
 
 /* ===================== Menu (declutter) ===================== */
+.tabIco { width: 14px; height: 12px; display: inline-block; vertical-align: -1px; }
 .round { position: relative; }
 .badge { display: none; position: absolute; top: 0; right: 0; min-width: 18px; height: 18px; padding: 0 4px;
   border-radius: 9px; background: #ff6b9a; color: #fff; font-size: 13px; font-weight: 900; line-height: 18px; text-align: center;
