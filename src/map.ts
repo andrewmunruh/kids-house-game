@@ -50,7 +50,7 @@ export function mapTreesSVG(spots: { x: number; y: number; r: number }[], onRoad
 }
 
 /** The park from above-ish: lawn, swing set, slide, a tree. */
-export const parkMiniSVG = `<svg viewBox="0 0 200 170"><ellipse cx="100" cy="100" rx="94" ry="62" fill="#7fd68a" ${st()}/>
+export const parkMiniSVG = `<svg viewBox="0 0 200 170"><ellipse class="parkLawn" cx="100" cy="100" rx="94" ry="62" fill="#7fd68a" ${st()}/>
   <ellipse cx="62" cy="120" rx="30" ry="14" fill="#8ecae6" ${st(3)}/>
   <path d="M96 60 L80 120 M96 60 L112 120 M150 60 L134 120 M150 60 L166 120 M92 60 H154" fill="none" stroke="#ff6b6b" stroke-width="7" stroke-linecap="round"/><path d="M96 60 L80 120 M96 60 L112 120 M150 60 L134 120 M150 60 L166 120 M92 60 H154" fill="none" ${st(2)}/>
   <path d="M112 62 V100 M134 62 V100" ${st(2.5)}/><rect x="104" y="98" width="16" height="7" rx="3" fill="#ffd43b" ${st(2.5)}/><rect x="126" y="98" width="16" height="7" rx="3" fill="#74c0fc" ${st(2.5)}/>
@@ -59,7 +59,7 @@ export const parkMiniSVG = `<svg viewBox="0 0 200 170"><ellipse cx="100" cy="100
 </svg>`;
 
 /** Rainbow Ranch from above-ish: a rainbow, the red barn, a fence and a pony. */
-export const ranchMiniSVG = `<svg viewBox="0 0 220 180"><ellipse cx="110" cy="132" rx="104" ry="44" fill="#a6e3a0" ${st()}/>
+export const ranchMiniSVG = `<svg viewBox="0 0 220 180"><ellipse class="ranchGrass" cx="110" cy="132" rx="104" ry="44" fill="#a6e3a0" ${st()}/>
   ${RAINBOW.map((c, i) => `<path d="M${20 + i * 7} 120 A${90 - i * 7} ${84 - i * 7} 0 0 1 ${200 - i * 7} 120" fill="none" stroke="${c}" stroke-width="7"/>`).join('')}
   <path d="M60 140 V82 L80 58 H140 L160 82 V140 Z" fill="#ef5b5b" ${st(4)}/>
   <path d="M56 84 L80 54 H140 L164 84" fill="none" stroke="${O}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>

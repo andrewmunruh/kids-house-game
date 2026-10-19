@@ -26,6 +26,8 @@
   --sky-glow-hot: rgba(255, 220, 120, 0);
   --sky-glow-wash: rgba(255, 170, 70, 0);
   --sky-glow-map: rgba(255, 196, 110, 0);
+  /* Same hue as the soft glow, alpha 0, so the falloff does not fade toward black. */
+  --sky-glow-clear: rgba(255, 186, 80, 0);
   --sky-map-tint: #ffffff;
   --sky-vig: rgba(12, 10, 32, 0);
 }
@@ -44,8 +46,8 @@ html, body { background: var(--sky-body); }
   background: radial-gradient(circle at 50% 40%, var(--sky-field-a), var(--sky-field-b));
 }
 
-/* The room shell tints by multiply, about 40% toward the indigo, so walls and floor
-   go blue instead of grey. Furniture, kids, and name tags stay in .layer, above this.
+/* One night tint for the whole room. It sits on the wall and floor. Item padding is
+   transparent, so the same tint shows through every bounding box. No per-item wash.
    mix-blend-mode is one composite, not a filter. */
 .world::after,
 .ranchWorld::before,
@@ -97,7 +99,7 @@ html[data-sky="golden"] .layer > .char::before {
   width: 175%;
   height: 20%;
   pointer-events: none;
-  background: radial-gradient(ellipse at 84% 42%, rgba(120, 46, 8, 0.5) 0%, rgba(120, 46, 8, 0.2) 40%, transparent 72%);
+  background: radial-gradient(ellipse at 84% 42%, rgba(120, 46, 8, 0.5) 0%, rgba(120, 46, 8, 0.2) 40%, rgba(120, 46, 8, 0) 72%);
   transform: skewX(-46deg);
 }
 
@@ -180,16 +182,16 @@ html.sky-live .grWorld::before {
   content: '';
   position: absolute;
   pointer-events: none;
-  background: radial-gradient(circle, var(--sky-glow-hot) 0%, var(--sky-glow-soft) 40%, transparent 72%);
+  background: radial-gradient(circle, var(--sky-glow-hot) 0%, var(--sky-glow-soft) 36%, var(--sky-glow-clear) 70%);
 }
 .item.is-light::before {
   left: 50%;
   top: 34%;
-  width: 150%;
-  height: 130%;
-  transform: translate(-50%, -36%);
+  width: 220%;
+  height: 200%;
+  transform: translate(-50%, -42%);
   z-index: 0;
-  background: radial-gradient(circle, var(--sky-glow-hot) 0%, var(--sky-glow-soft) 26%, transparent 58%);
+  background: radial-gradient(circle, var(--sky-glow-hot) 0%, var(--sky-glow-soft) 18%, var(--sky-glow-clear) 46%);
 }
 .item.is-light > .inner { position: relative; z-index: 1; }
 .item.is-light[data-kind="window"]::before,
@@ -337,17 +339,10 @@ html[data-sky="dawn"] .mapSign:not(.place) {
   font-size: 13px;
 }
 
-/* Kids and furniture pick up a little of the night blue. The name tag sits outside .inner. */
-html[data-sky="night"] .item > .inner,
-html[data-sky="night"] .char > .inner { position: relative; }
-html[data-sky="night"] .item > .inner::after,
-html[data-sky="night"] .char > .inner::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(42, 48, 110, 0.18);
-  pointer-events: none;
-}
+/* Park lawn and ranch grass sit above the map tint, so give them their own night green.
+   Labels are separate nodes and stay on the light pill. */
+html[data-sky="night"] .parkLawn { fill: #3e6d5c; }
+html[data-sky="night"] .ranchGrass { fill: #356556; }
 
 /* Single mount points. In a house they sit in the decorate row (the top bar has no
    gap once Lock and Chat show). On the map the row is covered, so the sun/moon

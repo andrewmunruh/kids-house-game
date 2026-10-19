@@ -54,6 +54,7 @@ export function mountSkyToggle(host: HTMLElement): SkyHandle {
     // Plain rgba so Safari 16 can paint them. Hot centers stay nearly solid so the pool still reads through a dim room.
     root.style.setProperty('--sky-glow-soft', `rgba(255, 186, 80, ${(g * 0.72).toFixed(3)})`);
     root.style.setProperty('--sky-glow-hot', `rgba(255, 220, 120, ${(g * 0.96).toFixed(3)})`);
+    root.style.setProperty('--sky-glow-clear', 'rgba(255, 186, 80, 0)');
     root.style.setProperty('--sky-glow-wash', `rgba(255, 170, 70, ${(g * 0.55).toFixed(3)})`);
     root.style.setProperty('--sky-glow-map', `rgba(255, 196, 110, ${(g * 0.7).toFixed(3)})`);
     const sh = look.phase === 'golden' ? 0.82 : look.phase === 'dawn' ? 0.22 : 0;
