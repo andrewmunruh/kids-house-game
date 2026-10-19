@@ -53,6 +53,56 @@ const EMAIL_RE = /\S+\s*(@|\(at\)|\sat\s)\s*\S+\s*(\.|\sdot\s)\s*\w{2,}/i;
 const HANDLE_RE = /@\w/;
 const ADDRESS_RE = /\b\d{1,6}\s+([a-z]+\s+){0,3}(street|st|road|rd|avenue|ave|lane|ln|drive|dr|court|ct|blvd|boulevard|way|place|pl|circle|cir|terrace|parkway|pkwy|highway|hwy|apt|apartment|unit)\b/i;
 
+const HELL_SAFE = /hello|shell|help|helmet|helicopter|helen|bushel/;
+const CONTRACTION = new Set(['ll', 're', 've', 'nt']);
+function collapseRuns(w: string): string {
+  return w.replace(/(.)\1+/g, '$1');
+}
+/** Whole-word hell / dumbass, including spaced, dotted, leet, and stretched spellings. hello, help, and dummy stay. */
+function explicitWords(raw: string): boolean {
+  const hellLeet: Record<string, string> = { '0': 'o', '1': 'l', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's', '!': 'i', '+': 't' };
+  const norm = raw.toLowerCase().replace(/[013457@$!+]/g, c => hellLeet[c] ?? c);
+  const hellToken = (w: string) => {
+    const c = collapseRuns(w);
+    if (HELL_SAFE.test(w) || HELL_SAFE.test(c)) return false;
+    let i = 0;
+    while ((i = c.indexOf('hel', i)) >= 0) {
+      const before = i > 0 ? c[i - 1] : '';
+      const after = c[i + 3] || '';
+      if (after !== 'o' && after !== 'p' && after !== 'i' && before !== 's') return true;
+      i += 3;
+    }
+    return false;
+  };
+  const dumbassToken = (w: string) => {
+    const c = collapseRuns(w);
+    return c === 'dumbas' || (c.length > 6 && c.length <= 20 && c.endsWith('dumbas'));
+  };
+  const bags = [norm, norm.replace(/[^a-z\s]+/g, ''), norm.replace(/[^a-z\s]+/g, 'e'), norm.replace(/[^a-z\s]+/g, 'a')];
+  for (let b = 0; b < bags.length; b++) {
+    const words = bags[b].split(/[^a-z]+/).filter(Boolean);
+    let buf = '';
+    const hitBuf = () => {
+      const got = buf.length >= 3 && (hellToken(buf) || dumbassToken(buf));
+      buf = '';
+      return got;
+    };
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i];
+      if (hellToken(w) || dumbassToken(w)) return true;
+      if (w.length === 1) buf += w;
+      else if (hitBuf()) return true;
+      const second = words[i + 1];
+      if (second && !CONTRACTION.has(second)) {
+        const glued = w + second;
+        if (hellToken(glued) || dumbassToken(glued)) return true;
+      }
+    }
+    if (hitBuf()) return true;
+  }
+  return false;
+}
+
 export type FilterResult = { ok: true; text: string } | { ok: false; reason: 'empty' | 'long' | 'link' | 'contact' | 'personal' | 'words' | 'mail' };
 export function filterChat(raw: unknown, max = MAX_CHAT): FilterResult {
   if (typeof raw !== 'string') return { ok: false, reason: 'empty' };
@@ -72,6 +122,7 @@ export function filterChat(raw: unknown, max = MAX_CHAT): FilterResult {
   const squashed = norm.replace(/[^a-z]/g, '').replace(/(.)\1{2,}/g, '$1$1');
   if (toks.some(t => BAD.includes(t) || BAD.includes(t.replace(/(.)\1+/g, '$1'))) || BAD.filter(b => b.length >= 5).some(b => squashed.includes(b)))
     return { ok: false, reason: 'words' };
+  if (explicitWords(text)) return { ok: false, reason: 'words' };
   return { ok: true, text };
 }
 export const FILTER_MSG: Record<string, string> = {
@@ -81,7 +132,7 @@ export const FILTER_MSG: Record<string, string> = {
 
 // Letters are stricter than chat bubbles. The reason sent to the kid is only "mail":
 // the screen says "Oops, try different words!" and does not name the rule.
-const MEAN = new Set<string>([...BAD, 'fat', 'ugly', 'stoopid', 'dummy', 'hateyou', 'hateu', 'shutup']);
+const MEAN = new Set<string>([...BAD, 'fat', 'ugly', 'stoopid', 'hateyou', 'hateu', 'shutup']);
 const MEAN_PHRASE = new Set(['hateyou', 'hateu', 'shutup']);
 const DIGIT_WORDS = ['three', 'seven', 'eight', 'four', 'five', 'nine', 'zero', 'one', 'two', 'six', 'ten', 'oh'];
 const COMMON_WORD = new Set([

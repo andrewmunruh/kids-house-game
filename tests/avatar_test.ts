@@ -240,6 +240,13 @@ for (const hair of HAIR_IDS) {
       }
     }
     if (irises.length < 2) hatFail = hair + ' ' + hat + ' missing eyes';
+    const front = svg.indexOf('data-layer="hair-front"');
+    const accAt = svg.indexOf('data-layer="accessory"');
+    if (front < 0 || accAt < front) hatFail = hair + ' ' + hat + ' paints under the hair';
+    if (hat === 'cap' || hat === 'beanie' || hat === 'sunhat') {
+      const brim = svg.match(/data-brim="(-?\d+(?:\.\d+)?)"/);
+      if (!svg.includes('mask="url(#hhm)"') || !brim || +brim[1] > 70) hatFail = hair + ' ' + hat + ' hair shows through the hat';
+    }
   }
 }
 check('every hat sits above the brow on every hairstyle', hatFail === '', hatFail + ' (' + HATS.length * HAIR_IDS.length + ' looks)');

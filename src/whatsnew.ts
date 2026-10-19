@@ -41,6 +41,7 @@ const kennelArt = `<svg viewBox="0 0 120 100"><path d="M16 50 L60 14 L104 50" fi
 const mailArt = `<svg viewBox="0 0 120 100"><rect x="28" y="38" width="64" height="42" rx="8" fill="#8ecae6" stroke="${O}" stroke-width="4"/><path d="M28 44 L60 68 L92 44" fill="none" stroke="${O}" stroke-width="4"/><path d="M76 30 V16" stroke="${O}" stroke-width="4" stroke-linecap="round"/><path d="M76 16 H96 L90 23 L96 30 H76 Z" fill="#ff6b6b" stroke="${O}" stroke-width="3"/></svg>`;
 const playArt = `<svg viewBox="0 0 120 100"><rect x="8" y="32" width="48" height="40" rx="14" fill="#fff3b0" stroke="${O}" stroke-width="4"/><rect x="64" y="32" width="48" height="40" rx="14" fill="#fff" stroke="${O}" stroke-width="4"/><path d="M26 44 L40 52 L26 60 Z" fill="${O}"/><circle cx="88" cy="52" r="6" fill="#ff8fab" stroke="${O}" stroke-width="3"/></svg>`;
 const winterArt = `<svg viewBox="0 0 120 100"><circle cx="60" cy="78" r="16" fill="#fff" stroke="${O}" stroke-width="4"/><circle cx="60" cy="54" r="12" fill="#fff" stroke="${O}" stroke-width="4"/><circle cx="60" cy="34" r="9" fill="#fff" stroke="${O}" stroke-width="4"/><circle cx="56" cy="32" r="1.8" fill="${O}"/><circle cx="64" cy="32" r="1.8" fill="${O}"/><path d="M50 38 H70" stroke="#e25d6c" stroke-width="4" stroke-linecap="round"/><path d="M42 58 L28 48 M78 58 L92 48" stroke="${O}" stroke-width="3" stroke-linecap="round"/><circle cx="22" cy="22" r="3" fill="#fff" stroke="${O}" stroke-width="2"/><circle cx="98" cy="18" r="4" fill="#d7f3ff" stroke="${O}" stroke-width="2"/></svg>`;
+const padsArt = `<svg viewBox="0 0 120 100"><rect x="16" y="18" width="36" height="58" rx="6" fill="#fff" stroke="${O}" stroke-width="4"/><rect x="62" y="24" width="42" height="52" rx="6" fill="#e7f6ff" stroke="${O}" stroke-width="4"/><circle cx="34" cy="66" r="2.4" fill="${O}"/><circle cx="83" cy="66" r="2.4" fill="${O}"/></svg>`;
 export const CHANGELOG: ChangeEntry[] = [
   { v: 10, title: 'Winter Cheer!', lines: [
     { art: wrap(winterArt), text: 'The <b>Winter Cheer</b> pack is in your drawer!' },
@@ -49,6 +50,7 @@ export const CHANGELOG: ChangeEntry[] = [
     { art: wrap(mailArt), text: 'Leave a <b>letter</b> in a friend\'s mailbox!' },
     { art: wrap(playArt), text: 'Tap <b>Play</b> or <b>Decorate</b>!' },
     { art: wrap(shirtArt), text: '<b>Make your look!</b> New hair, clothes, and colors.' },
+    { art: wrap(padsArt), text: 'Update every iPad to see the <b>new outfits</b>!' },
   ] },
   { v: 7, title: 'New Nursery!', lines: [
     { art: wrap(cribArt), text: 'A new <b>Nursery</b> room, with a <b>crib</b> and a rocker!' },

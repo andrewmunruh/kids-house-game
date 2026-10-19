@@ -4,7 +4,7 @@ import type { Look2 } from '../shared/avatar';
 import { fillLook2 } from '../shared/avatar';
 import { S, SH, SH2, f, taper, limb, rot, darken, lighten, HAND, SHOULDER, type Pose } from './geom';
 import { hairBack, hairFront } from './hair';
-import { topLayer, bottomLayer, bottomOverLayer, dressLayer, shoesLayer, accessoryLayer } from './wardrobe';
+import { topLayer, bottomLayer, bottomOverLayer, dressLayer, shoesLayer, accessoryLayer, hatHairMask } from './wardrobe';
 
 const PRESETS: Pose[] = [
   { hip: 1.5, head: 4, armL: 3, armR: -2, legL: 0, legR: -3, legLLift: 0, legRLift: 0 },
@@ -75,7 +75,7 @@ function wrapHead(inner: string, pose: Pose): string {
   return wrapHip(head, pose);
 }
 
-function defs(u: string, rich: boolean): string {
+function defs(u: string, rich: boolean, mask: string): string {
   let d = `<defs><radialGradient id="${u}b"><stop offset="0" style="stop-color:var(--blush)" stop-opacity=".62"/><stop offset=".55" style="stop-color:var(--blush)" stop-opacity=".28"/><stop offset="1" style="stop-color:var(--blush)" stop-opacity="0"/></radialGradient>`;
   d += `<radialGradient id="${u}s"><stop offset="0" stop-color="#3a1d3c" stop-opacity=".3"/><stop offset=".6" stop-color="#3a1d3c" stop-opacity=".12"/><stop offset="1" stop-color="#3a1d3c" stop-opacity="0"/></radialGradient>`;
   d += `<radialGradient id="${u}k" cx=".42" cy=".36" r=".75"><stop offset=".55" stop-color="#3a1d3c" stop-opacity="0"/><stop offset="1" stop-color="#3a1d3c" stop-opacity=".16"/></radialGradient>`;
@@ -84,7 +84,7 @@ function defs(u: string, rich: boolean): string {
     d += `<linearGradient id="${u}c" gradientUnits="userSpaceOnUse" x1="58" y1="0" x2="146" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".26"/><stop offset=".32" stop-color="#fff" stop-opacity="0"/><stop offset=".62" stop-color="#3a1d3c" stop-opacity="0"/><stop offset="1" stop-color="#3a1d3c" stop-opacity=".2"/></linearGradient>`;
     d += `<radialGradient id="${u}h" cx=".38" cy=".28" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".14"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#1f1020" stop-opacity=".28"/></radialGradient>`;
   }
-  return d + '</defs>';
+  return d + mask + '</defs>';
 }
 
 function armPart(side: 'l' | 'r'): string {
@@ -220,17 +220,19 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean }): s
   const body = `<g data-layer="body">${legs}${wrapHip(torso() + arms, pose)}${wrapHead(headShape(u), pose)}</g>`;
   const top = L.dress ? dressLayer(pose, L, u, rich, hem) : topLayer(pose, L, u, rich, hem);
   const shadow = `<g class="shadow"><ellipse cx="100" cy="308" rx="52" ry="9" fill="url(#${u}s)"/><ellipse cx="87" cy="307" rx="15" ry="3.6" fill="#3a1d3c" opacity=".16"/><ellipse cx="113" cy="307" rx="15" ry="3.6" fill="#3a1d3c" opacity=".16"/></g>`;
+  const mask = hatHairMask(u, L.hair, L.acc);
+  const clip = mask ? ` mask="url(#${u}hm)"` : '';
   const layers = [
-    `<g data-layer="hair-back">${wrapHead(hairBack(L.hair, u, rich), pose)}</g>`,
+    `<g data-layer="hair-back">${wrapHead(`<g${clip}>${hairBack(L.hair, u, rich)}</g>`, pose)}</g>`,
     body,
     shoesLayer(pose, L),
     wrapHip(bottomLayer(pose, L, u, rich), pose),
     wrapHip(top, pose),
     wrapHip(bottomOverLayer(pose, L, u, rich), pose),
     `<g data-layer="face">${wrapHead(face(L, u, rich), pose)}</g>`,
-    `<g data-layer="hair-front">${wrapHead(hairFront(L.hair, u, rich), pose)}</g>`,
+    `<g data-layer="hair-front">${wrapHead(`<g${clip}>${hairFront(L.hair, u, rich)}</g>`, pose)}</g>`,
     wrapHead(accessoryLayer(L), pose),
   ].join('');
   const shownTop = L.dress || L.top;
-  return `<svg data-chibi="1" data-hair="${L.hair}" data-top="${shownTop}" viewBox="0 0 200 320" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg" style="${style}">${defs(u, rich)}${shadow}${layers}</svg>`;
+  return `<svg data-chibi="1" data-hair="${L.hair}" data-top="${shownTop}" viewBox="0 0 200 320" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg" style="${style}">${defs(u, rich, mask)}${shadow}${layers}</svg>`;
 }

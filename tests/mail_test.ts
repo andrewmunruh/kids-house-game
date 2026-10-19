@@ -42,7 +42,7 @@ async function main() {
     'five five five one one', 'my tiktok', 'discord user',
     'add me on fortnite SparkleQueen', 'my house is on Maple street', 'kys', 'im 8 and live on Oak ave',
     'call me', 'text me', "my mom's phone is nine one two", 'f\u{1F338}i\u{1F338}v\u{1F338}e five five',
-    '\uFF46\uFF49\uFF56\uFF45', '\u0456d\u0456ot', 'dummmmy', 'I play for the Tigers soccer team',
+    '\uFF46\uFF49\uFF56\uFF45', '\u0456d\u0456ot', 'I play for the Tigers soccer team',
     "what's your address", 'whats ur last name',
   ];
   const allowed = [
@@ -51,6 +51,7 @@ async function main() {
     'I love your bedroom', 'my cat is so cute', 'Hi Reagan!',
     'best way to play', 'cool drive in my house', 'Text me back with a letter', 'Text me back in the game', 'my favorite number is seven',
     'Come see my Ring Light!',
+    'you are silly', 'you dummy', 'meanie', 'so stinky', 'hello friend', 'please help', 'a pretty seashell', 'dummmmy', 'he will come play',
     'seven', 'one two',
     ...CATALOG_NAMES.filter(n => n.length <= MAIL_MAX),
   ];
@@ -59,6 +60,7 @@ async function main() {
     'my favorite number is seven eight nine', 'one two three', 'call me with a letter', 'text me your phone',
     'Ring Light Smith', 'Emma Ring Light', 'Big Monitor street', 'Gaming Chair Lane 12', 'I live on Gaming Chair Lane',
     'fuck', 'nigger',
+    'go to hell', 'you dumbass', 'dumb ass', 'dumb@ss', 'h3ll', 'heeellll', 'h e l l', 'd.u.m.b.a.s.s', 'dumb-ass', 'go-to-hell', 'you are a dumbass', 'duuumbass', 'h*ll', 'helllll', 'gotohell',
   ];
   const rows: { text: string; want: string }[] = [
     ...blocked.map(text => ({ text, want: 'mail' })),
@@ -107,6 +109,12 @@ async function main() {
   const missingNames = [...expectNames].filter(n => !named.has(n));
   check('every catalog and pack name is allow-listed', missingNames.length === 0 && CATALOG_NAMES.length > 100, missingNames.slice(0, 8).join(' | '));
   check('trickier letters are blocked without naming the rule', blockedBad.length === 0 && alsoBad.length === 0 && phraseBad.length === 0 && tableBad.length === 0 && FILTER_MSG.mail === 'Oops, try different words!' && !/roblox|school|stupid|fat/i.test(FILTER_MSG.mail), blockedBad.concat(alsoBad, phraseBad, tableBad).join(' | '));
+  const explicit = ['go to hell', 'you dumbass', 'dumb ass', 'dumb@ss', 'h3ll', 'heeellll', 'h e l l', 'd.u.m.b.a.s.s', 'dumb-ass', 'h*ll', 'he11', 'd u m b a s s'];
+  const mild = ['you are silly', 'you dummy', 'meanie', 'so stinky', 'hello friend', 'please help', 'a pretty seashell', 'dummmmy'];
+  const explicitBad = explicit.filter(t => filterChat(t, 80).ok || cleanMailText(t, roster).ok);
+  const mildBad = mild.filter(t => !filterChat(t, 80).ok || !cleanMailText(t, roster).ok);
+  check('explicit words are blocked in chat and mail', explicitBad.length === 0, explicitBad.join(' | '));
+  check('mild teases stay allowed in chat and mail', mildBad.length === 0, mildBad.join(' | '));
   check('ordinary letters still go through', allowedBad.length === 0, allowedBad.join(' | '));
   check('Ava Smith is blocked even when Ava is on the roster', cleanMailText('Ava Smith', ['Ava']).ok === false);
   check('five digits are still refused', cleanMailText('call 12345').ok === false);
