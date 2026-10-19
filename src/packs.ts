@@ -64,7 +64,8 @@ export const PACK_ITEMS: ItemDef[] = entries.filter(e => !isPattern(e)).flatMap(
   const h = Math.round(w * Math.min(4, Math.max(0.2, ratio)));
   // optional manifest `holdable`; default: small/medium non-furniture items can be held
   const holdable = typeof e.holdable === 'boolean' ? e.holdable : size !== 'large' && cat !== 'furniture';
-  return [{ kind: `pack:${slug}`, name: e.name || slug, cat, rooms: [room], w, h, wall: e.wall === true || undefined, svg: '', img, pack: pack || undefined, holdable } satisfies ItemDef];
+  const light = e.tag === 'lighting' || /lamp|light|lantern|candle/i.test(slug);
+  return [{ kind: `pack:${slug}`, name: e.name || slug, cat, rooms: [room], w, h, wall: e.wall === true || undefined, svg: '', img, pack: pack || undefined, holdable, light: light || undefined } satisfies ItemDef];
 });
 
 export const PATTERNS_FROM_PACKS: PatternDef[] = entries.filter(isPattern).flatMap(e => {

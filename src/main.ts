@@ -28,6 +28,11 @@ import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
 import { emptyRoomStarters, syncScenery } from './scenery';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
+import { isLightKind } from './sky';
+import { dockSkyChrome, mountSkyToggle } from './sky-toggle';
+import { DecorateUndo } from './decorate-undo';
+import { mountUndoButton } from './undo-button';
+import './sky.css';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
 import { bindGameRoom, renderGameRoom, renderGamePeople, tickGameRoom, mySeat, grScale, tableApi } from './gameroom-view';
@@ -42,7 +47,19 @@ const storeListeners: ((s: GameState, a: Action) => void)[] = [];
 const hooked = new WeakSet<AnyStore>();
 function hookStore(st: AnyStore) { if (hooked.has(st)) return; hooked.add(st); st.subscribe((s, a) => { if (inner === st) storeListeners.forEach(l => l(s, a)); }); }
 hookStore(local);
-const store: AnyStore = { get: () => inner.get(), dispatch: a => inner.dispatch(a), subscribe: l => { storeListeners.push(l); } };
+// Undo history is local memory only. Recording happens here; the button mounts later.
+const decorateUndo = new DecorateUndo();
+let undoSkip = false;
+let undoRefresh = () => {};
+const store: AnyStore = {
+  get: () => inner.get(),
+  dispatch(a) {
+    if (!undoSkip && canEdit()) decorateUndo.note(inner.get(), a);
+    inner.dispatch(a);
+    undoRefresh();
+  },
+  subscribe: l => { storeListeners.push(l); },
+};
 // World is ROOM_W x ROOM_H; the stage shows a VIEW_W-wide window onto it (fits the iPad).
 const W = ROOM_W, H = ROOM_H, FLOOR_Y = 390;
 let VIEW_W = 1000; // visible window; narrower in portrait so the room can fill the height
@@ -114,8 +131,10 @@ app.innerHTML = `
     <p class="menuGroup houseGroup">House</p>
     <button type="button" class="menuRow lockRow" id="btnLock" aria-label="Lock house"><span class="mIco" id="lockIco">${ICONS.lockOff}</span><span class="mLabel" id="lockLabel">Lock my house</span></button>
     <button type="button" class="menuRow mailRow" id="btnMail" aria-label="Mailbox"><span class="mIco">${MAIL_ICON}</span><span class="mLabel">Mailbox</span><span class="menuNew" id="mailNew"></span></button>
-    <!-- cursor/daynight-undo mounts Day / Night / Auto here. Hidden until that branch fills it. -->
+    <!-- Day / Night / Auto. The clock stays on Auto until she taps. -->
     <div id="menuDaySlot" class="menuSlot" hidden></div>
+    <!-- A sideways phone parks Undo here: the dock is hidden and the tool row is full. -->
+    <div id="menuUndoSlot" class="menuSlot" hidden></div>
     <p class="menuGroup streetGroup">Street</p>
     <button type="button" class="menuRow grownRow" id="btnParent" aria-label="Grown-ups"><span class="mIco">${ICONS.shield}</span><span class="mLabel">Grown-ups</span></button>
     <button type="button" class="menuRow soloLeave" id="btnSolo" aria-label="Play in my own house"><span class="mIco">${ICONS.solo}</span><span class="mLabel">Play in my own house</span></button>
@@ -167,7 +186,9 @@ app.innerHTML = `
 <div class="fx" id="fx"></div>
 <div id="toastLane"></div>
 <div class="phoneNote" id="phoneNote"><div class="card"><h2>Turn sideways</h2><p>Turn your phone sideways for more room to play!</p><button class="phoneOk" id="phoneOk" type="button">OK!</button></div></div>
-<div class="elsewhere hidden" id="elsewhere"><div class="card"><h2>You're playing on another screen</h2><p>This screen can rest. Your house is safe.</p><button class="playHere" id="elsewhereGo" type="button">Tap to play here!</button></div></div>`;
+<div class="elsewhere hidden" id="elsewhere"><div class="card"><h2>You're playing on another screen</h2><p>This screen can rest. Your house is safe.</p><button class="playHere" id="elsewhereGo" type="button">Tap to play here!</button></div></div>
+<div id="skyMount"></div>
+<div id="undoMount" hidden></div>`;
 
 const $ = (id: string) => document.getElementById(id)!;
 // preview builds (separate URL, separate server, prefixed saves) wear a little ribbon so nobody mixes them up
@@ -508,12 +529,17 @@ function placeModeToggle() {
   const slot = document.getElementById('decorateUndoSlot');
   const land = document.body.classList.contains('phone') && !document.body.classList.contains('phone-portrait');
   const home = land ? tools : dock;
-  const parked = toggle.parentElement === home && (!slot || slot.parentElement === home);
+  // Undo stays in the dock, beside Play/Decorate. On a sideways phone that dock is
+  // hidden and the tool row is already full, so the button moves into the Menu.
+  const parked = toggle.parentElement === home && (!slot || slot.parentElement === dock);
   dock.hidden = land;
+  if (slot && slot.parentElement !== dock) dock.appendChild(slot);
   if (parked) return false;
   if (land) tools.insertBefore(toggle, tools.firstChild);
-  else dock.appendChild(toggle);
-  if (slot) toggle.insertAdjacentElement('afterend', slot);
+  else {
+    dock.appendChild(toggle);
+    if (slot) toggle.insertAdjacentElement('afterend', slot);
+  }
   return true;
 }
 /**
@@ -667,13 +693,17 @@ function renderItems(s: GameState) {
       el.addEventListener('pointerdown', e => beginItemDrag(el!, e));
     }
     el.dataset.kind = it.kind;
+    el.classList.toggle('is-light', isLightKind(it.kind, !!def.light));
     const box = placedBox(def, it.scale);
     placeEl(el, it.x, it.y, box.w, box.h);
-    el.style.zIndex = String(1000 + it.z);
+    const iz = 1000 + it.z;
+    el.style.zIndex = String(iz);
+    el.style.setProperty('--iz', String(iz));
     el.classList.toggle('flipped', it.flip);
     el.classList.toggle('sel', selected === it.id);
   }
   layer.querySelectorAll<HTMLElement>('.item').forEach(el => { if (!seen.has(el.dataset.id!)) el.remove(); });
+  syncSkyPuddles();
   syncScenery($('scenery'), s.currentRoom, room.items);
   renderToolbar(s); renderMinimap(s);
 }
@@ -690,6 +720,32 @@ function heldHTML(c: Character) {
     return `<div class="held ${it.flip ? 'flipped' : ''}" data-hand="${hand}" style="left:${(hx - iw / 2) / bw * 100}%;top:${(hy - ih * 0.62) / bh * 100}%;width:${iw / bw * 100}%;height:${ih / bh * 100}%"><div class="inner">${svgOf(def)}</div></div>`;
   }).join('');
 }
+/** Warm pools just under each lamp and window, so furniture in the glow is lit and the glass stays on top. */
+function syncSkyPuddles() {
+  let host = layer.querySelector<HTMLElement>('#skyPuddles');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'skyPuddles';
+    host.className = 'skyPuddles';
+  }
+  layer.appendChild(host);
+  const lights = [...layer.querySelectorAll<HTMLElement>('.item.is-light')];
+  while (host.children.length > lights.length) host.lastElementChild!.remove();
+  while (host.children.length < lights.length) host.appendChild(document.createElement('i'));
+  lights.forEach((el, i) => {
+    const puddle = host.children[i] as HTMLElement;
+    const l = parseFloat(el.style.left), t = parseFloat(el.style.top);
+    const w = parseFloat(el.style.width), h = parseFloat(el.style.height);
+    const win = el.dataset.kind === 'window' || el.dataset.kind === 'tv';
+    puddle.style.left = (l - 0.6 * w) + '%';
+    puddle.style.top = (t - (win ? 0.38 : 0.5) * h) + '%';
+    puddle.style.width = (2.2 * w) + '%';
+    puddle.style.height = (2 * h) + '%';
+    // Same band as the furniture. At night and golden the lamp itself steps one above this, so the shade and glass stay clear.
+    puddle.style.zIndex = String(parseInt(el.style.zIndex || '1000', 10));
+  });
+}
+
 function renderChars(s: GameState) {
   const here = s.characters.filter(c => c.room === s.currentRoom);
   for (const [id, el] of charEls) if (!here.some(c => c.id === id)) { el.remove(); charEls.delete(id); }
@@ -3174,7 +3230,24 @@ bindGameRoom({
 
 // ---------- start ----------
 installJuice();
-renderAll(); renderDrawer(); fit(); placeModeToggle(); if (phoneMQ.matches) fitPhone(); requestAnimationFrame(fitNow);
+const skyHandle = mountSkyToggle($('skyMount'));
+const undoUi = mountUndoButton($('undoMount'), {
+  depth: () => decorateUndo.depth,
+  undo() {
+    const step = decorateUndo.take();
+    if (!step) return;
+    undoSkip = true;
+    try { for (const a of step) store.dispatch(a); }
+    finally { undoSkip = false; }
+    undoUi.refresh();
+    sfx.click();
+  },
+});
+undoRefresh = () => undoUi.refresh();
+decorateUndo.onChange = undoRefresh;
+(window as any).__sky = skyHandle;
+(window as any).__undoDepth = () => decorateUndo.depth;
+renderAll(); renderDrawer(); fit(); placeModeToggle(); dockSkyChrome(); if (phoneMQ.matches) fitPhone(); requestAnimationFrame(fitNow);
 // ---------- hidden surprises ----------
 const renderSecrets = () => {
   const n = foundSet().size, total = EGGS.length;

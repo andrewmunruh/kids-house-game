@@ -1143,6 +1143,11 @@ body:not(.mode-hood) #menuPop .houseGroup { display: none; }
 body:not(.mode-hood):not(.has-hood) #menuPop .streetGroup { display: none; }
 /* The letter composer's .mailRow has a top margin. The Menu mailbox is a row, not that composer. */
 #menuPop .menuRow { margin: 0; }
+.menuSlot { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 4px 10px; }
+#menuDaySlot::after { content: 'Auto'; font-weight: 800; font-size: 16px; line-height: 1.2; }
+html[data-sky-choice="day"] #menuDaySlot::after { content: 'Day'; }
+html[data-sky-choice="night"] #menuDaySlot::after { content: 'Night'; }
+html[data-sky-choice="auto"] #menuDaySlot::after { content: 'Auto'; }
 #menuPop .menuSlot[hidden], #decorateUndoSlot[hidden] { display: none !important; margin: 0; padding: 0; height: 0; }
 #menuPop .lockRow, #menuPop .mailRow, #menuPop .grownRow, #menuPop .soloLeave, #menuPop .friendRow { display: none; }
 body.mode-hood.own-house:not(.view-street) #menuPop .lockRow { display: flex; }
@@ -1164,6 +1169,8 @@ body.mode-play #decorateUndoSlot { display: none !important; }
   body.phone.phone-portrait .minimap { flex: 1 1 auto; width: auto; max-width: none; order: 2; height: 44px; min-width: 64px; }
   body.phone.phone-portrait .tools { order: 2; margin-left: auto; flex: 0 0 auto; }
   body.phone .menuRow { min-height: 44px; font-size: 15px; }
+  body.phone .menuSlot { min-height: 44px; }
+  body.phone #menuDaySlot::after { font-size: 15px; }
   body.phone .menuCard { right: 8px; left: 8px; width: auto; }
 }
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
