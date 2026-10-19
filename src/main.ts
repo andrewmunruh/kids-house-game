@@ -296,6 +296,7 @@ function fit() {
   placeSecretsPill();
   play.hint();
   frameYardCam();
+  placeYardHints();
 }
 /** Phone arrows live on the wrap in screen pixels. Centre them on the stage. */
 function placePhoneNudges() {
@@ -423,12 +424,13 @@ function frameHouseKid(nudgeX: boolean) {
   // Portrait: she starts right of centre, so her name tag crowds ›. Centre her in the gap between the arrows.
   if (document.body.classList.contains('phone-portrait') && minL < Infinity) {
     const delta = (minL + maxR) / 2 - (leftLimit + rightLimit) / 2;
-    if (Math.abs(delta) > 3) { setCam(camX + delta / sc); return; }
+    if (Math.abs(delta) > 3) { setCam(camX + delta / sc); placeYardHints(); return; }
   }
   const curX = kidWorldX(kid);
   const res = resolveFrame({ cam: camX, maxCam: maxCam(), kidX: curX, overflowL, overflowR, scale: sc, nudgeX });
   if (Math.abs(res.cam - camX) > 0.5) setCam(res.cam);
   if (nudgeX && Math.abs(res.kidX - curX) > 0.5) moveKidX(kid, res.kidX);
+  placeYardHints();
 }
 function kidWorldX(kid: HTMLElement): number {
   if (kid.dataset.pid && hood) {
@@ -622,6 +624,7 @@ function paintScenery(s: GameState) {
   if (html) root.insertAdjacentHTML('beforeend', html);
   stage.classList.toggle('room-yard', s.currentRoom === 'backyard');
   syncSwingPose();
+  placeYardHints();
 }
 
 const charEls = new Map<string, HTMLElement>();
@@ -3025,9 +3028,49 @@ function goThroughYardDoor(go: 'backyard' | 'living') {
 }
 function frameYardCam() {
   if (!yardOn || yardShot() === 'sheet' || yardShot() === 'compare') return;
-  if (store.get().currentRoom === 'backyard') { setCam(YARD_CAM); return; }
-  const kid = store.get().characters.find(c => c.room === store.get().currentRoom);
-  if (kid) setCam(kid.x - VIEW_W / 2);
+  if (store.get().currentRoom === 'backyard') setCam(YARD_CAM);
+  else {
+    const kid = store.get().characters.find(c => c.room === store.get().currentRoom);
+    if (kid) setCam(kid.x - VIEW_W / 2);
+  }
+  placeYardHints();
+}
+/** The Backyard label stays inside the stage when the door sits on the edge of a phone. */
+function placeYardHints() {
+  const stageBox = stage.getBoundingClientRect();
+  if (stageBox.width < 20) return;
+  const sc = parseFloat(stage.style.getPropertyValue('--yard-sc')) || stageScale() || 1;
+  const visibleW = (box: DOMRect) => Math.min(box.right, stageBox.right) - Math.max(box.left, stageBox.left);
+  for (const door of stage.querySelectorAll<HTMLElement>('.yardDoor')) {
+    // A phone frame can leave the door hanging off the stage. Width grows to the
+    // right, and the drawing is centered, so the art needs twice that growth.
+    door.style.minWidth = '';
+    const r = door.getBoundingClientRect();
+    const art = door.querySelector('.doorArt');
+    if (r.width < 2 || !art) continue;
+    const ar = art.getBoundingClientRect();
+    const buttonOn = visibleW(r);
+    const artOn = visibleW(ar);
+    let grow = 0;
+    if (r.left < stageBox.left && buttonOn < 44) grow = Math.max(grow, 44 - buttonOn);
+    if (ar.left < stageBox.left && artOn < 44) grow = Math.max(grow, 2 * (44 - artOn));
+    if (grow > 0.5) door.style.minWidth = ((r.width + grow) / sc) + 'px';
+  }
+  const pad = 4;
+  const leftLimit = Math.max(pad, stageBox.left + pad);
+  const rightLimit = Math.min(window.innerWidth - pad, stageBox.right - pad);
+  if (rightLimit - leftLimit < 48) return;
+  for (const door of stage.querySelectorAll<HTMLElement>('.yardDoor')) {
+    const hint = door.querySelector<HTMLElement>('.yardHintLabel');
+    if (!hint) continue;
+    hint.style.transform = '';
+    const r = hint.getBoundingClientRect();
+    if (r.width < 2) continue;
+    let dx = 0;
+    if (r.left < leftLimit) dx = leftLimit - r.left;
+    else if (r.right > rightLimit) dx = rightLimit - r.right;
+    if (Math.abs(dx) > 0.5) hint.style.transform = `translateX(calc(-50% + ${dx / sc}px))`;
+  }
 }
 // ---------- hidden surprises ----------
 const renderSecrets = () => {

@@ -68,6 +68,10 @@ async function main() {
   check('nursery and backyard edits are accepted', !!cleanAction({ type: 'item/add', room: 'nursery', item }) && !!cleanAction({ type: 'item/add', room: 'backyard', item: { ...item, id: 'y1', kind: 'plant' } }) && !!cleanAction({ type: 'room/wallTile', room: 'nursery', tile: 'nursery/cloud-sky' }) && !!cleanAction({ type: 'cat/move', room: 'nursery', x: 400 }) && !!cleanAction({ type: 'char/move', id: 'c1', room: 'backyard', x: 200, y: 500 }));
   check('an unknown room is still rejected', cleanAction({ type: 'item/add', room: 'attic', item }) === null);
   check('presence accepts nursery and rejects attic', !!cleanPresence({ where: 'house', houseId: 'h1', room: 'nursery', x: 10, y: 20, flip: false }, () => true) && !cleanPresence({ where: 'house', houseId: 'h1', room: 'attic', x: 10, y: 20, flip: false }, () => true));
+  check('presence accepts the yard', !!cleanPresence({ where: 'house', houseId: 'h1', room: 'backyard', x: 990, y: 530, flip: false }, () => true));
+  const packed = Array.from({ length: 80 }, (_, i) => ({ id: 'cap-' + i, kind: 'plant', x: 100, y: 400, flip: false, z: 1, scale: 1 }));
+  const capped = reduce({ ...initialState(), rooms: { ...initialState().rooms, backyard: { ...initialState().rooms.backyard, items: packed } } }, { type: 'item/add', room: 'backyard', item: { id: 'too-many', kind: 'yard-swing', x: 1160, y: 548, flip: false, z: 1, scale: 1 } });
+  check('the 80-item cap still rejects the 81st', capped.rooms.backyard.items.length === 80 && !capped.rooms.backyard.items.some(i => i.id === 'too-many'));
 
   const sent = ensureRooms(strip(initialState()));
   sent.rooms.living.items = [...sent.rooms.living.items, { id: 'old-sofa', kind: 'sofa', x: 10, y: 400, flip: false, z: 4, scale: 1 }];

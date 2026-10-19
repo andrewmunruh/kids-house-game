@@ -312,7 +312,11 @@ async def main():
             await P.wait_for_timeout(900)
             mailed = await K2.evaluate("""(id) => { const L = (__hood().view(id).mailbox || {}).letters; return L && L[0] && L[0].text.indexOf('yard') >= 0 && !!L[0].from; }""", k2house)
             check('a letter lands in her mailbox', mailed)
-            # old client (27cfcac) against this new server, visiting the house that now has a nursery
+            await K2.evaluate("""() => { const h = __hood(), id = h.myHouseId();
+              h.dispatch(id, {type:'item/add', room:'backyard', item:{id:'keep-swing', kind:'yard-swing', x:1160, y:548, flip:false, z:1, scale:1}});
+            }""")
+            await K2.wait_for_timeout(700)
+            # old client (27cfcac) against this new server, visiting the house that now has a nursery and a yard
             serve_build('/tmp/prod-dist')
             old_errs = []
             P.on('pageerror', lambda e: old_errs.append(str(e)))
@@ -339,6 +343,9 @@ async def main():
             kept_look = await K2.evaluate("""(pid) => { const L = (__hood().players.get(pid) || {}).look || {}; return { shirt: L.shirt, hair: L.look2 && L.look2.hair }; }""", pid_p)
             check('old client edit keeps look2 and the new shirt', kept_look and kept_look.get('shirt') == '#80ed99' and kept_look.get('hair') == 'puffs' and not old_errs, str(kept_look) + ' ' + '; '.join(old_errs[:2]))
             await P.click(f'.mapHouse[data-go="house:{k2house}"]'); await P.wait_for_timeout(900)
+            old_tabs_house = await P.locator('#tabs .tab').count()
+            old_door = await P.locator('.yardDoor, .backDoor').count()
+            check('old client shows four tabs and no door after a friend fills the yard', old_tabs_house == 4 and old_door == 0 and not old_errs, f'tabs={old_tabs_house} door={old_door} ' + '; '.join(old_errs[:2]))
             await P.evaluate("""() => { const h = __hood(), id = """ + json.dumps(k2house) + """; const kind = Object.keys(__items)[0]; h.dispatch(id, {type:'item/add', room:'living', item:{id:'old-client-edit', kind, x:440, y:520, flip:false}}); }""")
             await P.wait_for_timeout(900)
             k2_sees = await K2.evaluate("""() => { const s = __hood().view(""" + json.dumps(k2house) + """); return { edit: s.rooms.living.items.some(i => i.id === 'old-client-edit'), nursery: s.rooms.nursery.items.map(i => i.id) }; }""")
@@ -355,6 +362,11 @@ async def main():
             kept_mail = [L for L in ((disk_old or {}).get('mailbox') or {}).get('letters') or [] if 'yard' in (L.get('text') or '')]
             k2_mail = await K2.evaluate("""(id) => { const L = ((__hood().view(id).mailbox || {}).letters || [])[0]; return L && L.text; }""", k2house)
             check('old client edit keeps the mail', bool(kept_mail) and k2_mail and 'yard' in k2_mail and await K2.locator('.mapMail').count() >= 1, str(kept_mail)[:160] + ' k2=' + str(k2_mail))
+            yard_ids = [i.get('id') for i in ((disk_old or {}).get('rooms') or {}).get('backyard', {}).get('items') or []]
+            check('the server copy still has the yard, the nursery, the kennel, and the mailbox',
+                  'keep-swing' in yard_ids and disk_old and any(i['id'] == 'friend-nur' for i in disk_old['rooms']['nursery']['items'])
+                  and disk_old.get('dogKennel') and disk_old['dogKennel'].get('item') == 'keep-kennel'
+                  and bool(kept_mail) and not old_errs, str(yard_ids))
             # rollback: old client opens a save that already contains a nursery
             rolled = json.loads(json.dumps(solo_a))
             rolled['rooms']['nursery'] = {'wallpaper': '#d6f3ff', 'floor': '#f3ddc4', 'pattern': 1, 'items': [{'id': 'keep-crib', 'kind': 'crib', 'x': 100, 'y': 200, 'flip': False, 'z': 1, 'scale': 1}]}

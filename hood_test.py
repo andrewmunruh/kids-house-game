@@ -248,6 +248,32 @@ async def run(P, K2, K3, mk, errs, check):
           tabs: document.querySelectorAll('#tabs .tab').length,
         })""")
         await check('the yard is the back door, not a map pin or a sixth tab', door['n'] == 1 and door['label'] == 'Backyard' and door['map'] == 0 and door['tabs'] == 5, str(door))
+        pid = await P.evaluate('__hood().pid')
+        await P.evaluate("""() => {
+          const h = __hood(), id = h.myHouseId();
+          h.dispatch(id, {type:'item/add', room:'backyard', item:{id:'swing-sync', kind:'yard-swing', x:1160, y:548, flip:false, z:1, scale:1}});
+          h.setDog({name:'Rocket', breed:3});
+          h.dispatch(id, {type:'cat/move', room:'backyard', x:940});
+        }""")
+        await P.wait_for_timeout(800)
+        await check('a friend sees the swing without reloading', await K2.evaluate("() => __store.get().rooms.backyard.items.some(i => i.id === 'swing-sync')"))
+        await P.evaluate("""() => __store.dispatch({type:'room/switch', room:'backyard'})""")
+        await P.wait_for_timeout(700)
+        hidden = await K2.evaluate("""(pid) => ({
+          kid: document.querySelectorAll('.char[data-pid="' + pid + '"]').length,
+          dog: document.querySelectorAll('.pet-dog').length,
+          cat: document.querySelectorAll('.pet-cat').length,
+        })""", pid)
+        await check('a friend still in the living room does not see her, her dog, or the cat', hidden['kid'] == 0 and hidden['dog'] == 0 and hidden['cat'] == 0, str(hidden))
+        await K2.evaluate("""() => __store.dispatch({type:'room/switch', room:'backyard'})""")
+        await K2.wait_for_timeout(700)
+        shown = await K2.evaluate("""(pid) => ({
+          kid: document.querySelectorAll('.char[data-pid="' + pid + '"]').length,
+          swing: document.querySelectorAll('.item[data-kind="yard-swing"]').length,
+          dog: document.querySelectorAll('.pet-dog').length,
+          cat: document.querySelectorAll('.pet-cat').length,
+        })""", pid)
+        await check('the back door shows her, the swing, the dog, and the cat', shown['kid'] == 1 and shown['swing'] >= 1 and shown['dog'] >= 1 and shown['cat'] == 1, str(shown))
         await P.evaluate("""() => __store.dispatch({type:'room/switch', room:'living'})""")
         await K2.evaluate("""() => __store.dispatch({type:'room/switch', room:'living'})""")
         await P.evaluate("""() => {
@@ -256,7 +282,6 @@ async def run(P, K2, K3, mk, errs, check):
           h.dispatch(id, {type:'item/add', room:'living', item:{id:'hood-kennel', kind:'kennel', x:1100, y:520, flip:false, z:1, scale:1}});
           h.dispatch(id, {type:'dog/kennel', item:'hood-kennel'});
         }""")
-        pid = await P.evaluate('__hood().pid')
         seen = None
         for _ in range(25):
             await P.wait_for_timeout(200)
