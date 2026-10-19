@@ -7,6 +7,7 @@ import { initialState, type Cat } from '../src/shared/state';
 import { keepMailbox, stripUrls, MAIL_CAP, MAIL_MAX, MAIL_TTL_MS, type Letter } from '../src/shared/mail';
 import { catAt } from '../src/pets';
 import { dragAllowed, playGesture } from '../src/playmode';
+import { ALLOW_LINES, BLOCK_LINES, KID_EVERYDAY, corpusResult } from './filter_corpus';
 import { KID_OK, LEAKS } from './filter_lines';
 
 const mem = new Map<string, any>();
@@ -27,6 +28,10 @@ const letter = (over: Partial<Letter> = {}): Letter => ({
 
 async function main() {
   check('protocol stays 4', PROTOCOL === 4);
+  const corpus = corpusResult();
+  check('corpus blocks ' + corpus.blockPass + '/' + corpus.blockTotal, corpus.blockBad.length === 0 && corpus.disagree.length === 0, corpus.blockBad.concat(corpus.disagree).slice(0, 8).join(' | '));
+  check('corpus allows ' + corpus.allowPass + '/' + corpus.allowTotal, corpus.allowBad.length === 0 && KID_EVERYDAY.length === 60, corpus.allowBad.slice(0, 8).join(' | '));
+  console.log('CORPUS block ' + corpus.blockPass + '/' + corpus.blockTotal + ' allow ' + corpus.allowPass + '/' + corpus.allowTotal + ' everyday ' + KID_EVERYDAY.length + ' lines ' + (BLOCK_LINES.length + ALLOW_LINES.length));
   check('80 characters is a letter and 81 is too long', cleanMailText('a'.repeat(MAIL_MAX)).ok && cleanMailText('a'.repeat(MAIL_MAX + 1)).ok === false);
   check('a link can be sent', cleanMailText('come see www.example.com').ok && filterSay('come see www.example.com', 80).ok);
   check('an email can be sent', cleanMailText('write me at a@b.com').ok && filterSay('write me at a@b.com', 80).ok);

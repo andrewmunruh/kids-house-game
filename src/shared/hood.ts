@@ -145,7 +145,9 @@ const CYRILLIC_LOOK: Record<string, string> = {
   '\u0440': 'p', '\u0456': 'i', '\u0445': 'x', '\u0443': 'y',
 };
 function foldSend(raw: string): string {
-  const lower = raw.normalize('NFKC').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  // Invisible marks come off first, so a soft hyphen or zero-width letter cannot split a word.
+  const stripped = raw.replace(/[\u00ad\u0336\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g, '');
+  const lower = stripped.normalize('NFKC').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   let out = '';
   for (let i = 0; i < lower.length; i++) out += CYRILLIC_LOOK[lower[i]] ?? lower[i];
   return out;
@@ -154,13 +156,59 @@ const SAFE_WORD = new Set(['it', 'its', "it's", 'is', 'as', 'a', 'i', 'uh', 'oh'
 function isKeep(c: string): boolean {
   return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || '@$!+*v|#<'.includes(c);
 }
-/** sh, shh, and shhh are the same interjection. ass is not on this list. */
-function isSafe(token: string): boolean {
-  const k = token.replace(/^!+/, '').replace(/!+$/, '').replace(/\*/g, '');
-  if (!k) return false;
-  if (/^sh+$/.test(k) || SAFE_WORD.has(k)) return true;
-  const m = mapAll(k);
-  return m !== k && (/^sh+$/.test(m) || SAFE_WORD.has(m));
+/** A single letter, ignoring bangs stuck to the edge. 't!' counts as t. A longer word does not. */
+function singleAtom(s: string, p: number): { ch: string; end: number } | null {
+  let i = p;
+  while (i < s.length && s[i] === '!') i++;
+  if (i >= s.length || !isKeep(s[i]) || s[i] === '!') return null;
+  const ch = s[i];
+  let j = i + 1;
+  while (j < s.length && s[j] === '!') j++;
+  if (j < s.length && isKeep(s[j])) return null;
+  return { ch, end: j };
+}
+/** s.h.i.t! and s h i t. Leading and trailing ! ? . , are not letters, so the run joins first. */
+function spelledBlocked(s: string): boolean {
+  const n = s.length;
+  const sep = ' .-_~';
+  let i = 0;
+  while (i < n) {
+    if (i > 0 && isKeep(s[i - 1])) { i++; continue; }
+    const first = singleAtom(s, i);
+    if (!first) { i++; continue; }
+    const letters = [first.ch];
+    let end = first.end;
+    while (end < n && sep.includes(s[end])) {
+      const nxt = singleAtom(s, end + 1);
+      if (!nxt) break;
+      letters.push(nxt.ch);
+      end = nxt.end;
+    }
+    if (letters.length >= 2) {
+      const word = mapAll(letters.join('')).replace(/\*/g, '');
+      if (blockedWord(word)) return true;
+    }
+    i = Math.max(i + 1, end);
+  }
+  return false;
+}
+function coreToken(text: string): string {
+  return text.replace(/^!+/, '').replace(/!+$/, '');
+}
+function piecePlain(text: string): string {
+  return mapAll(coreToken(text)).replace(/\*/g, '');
+}
+function pieceLeet(text: string): boolean {
+  return /[0-9@$!+*|#<]/.test(coreToken(text));
+}
+function pieceSingle(text: string): boolean {
+  return coreToken(text).length === 1;
+}
+/** Multi-letter interjections and small real words. A single letter and a leet disguise are not protected. */
+function pieceSafeMulti(text: string): boolean {
+  const c = coreToken(text);
+  if (c.length < 2 || pieceLeet(text)) return false;
+  return /^sh+$/.test(c) || SAFE_WORD.has(c);
 }
 function gapKind(sep: string): 'space' | 'hyphen' | 'punct' {
   let kind: 'space' | 'hyphen' | 'punct' = 'space';
@@ -207,21 +255,11 @@ function killPhrase(tokens: string[]): boolean {
 }
 /** Main swears, compounds, obvious disguises, severe slurs, kys, and "kill yourself". */
 function sendSwear(raw: string): boolean {
-  const pieces = splitPieces(foldSend(raw));
-  // Letter-by-letter spelling still combines ('s h i t', 'f.u.c.k'). A longer piece stays separate.
-  const tokens: { text: string; gap: 'start' | 'space' | 'hyphen' | 'punct' }[] = [];
-  let buf = '';
-  let bufGap: 'start' | 'space' | 'hyphen' | 'punct' = 'start';
-  const flush = () => { if (buf) { tokens.push({ text: buf, gap: bufGap }); buf = ''; } };
-  for (let i = 0; i < pieces.length; i++) {
-    if (pieces[i].text.length === 1) {
-      if (!buf) bufGap = pieces[i].gap;
-      buf += pieces[i].text;
-    } else { flush(); tokens.push(pieces[i]); }
-  }
-  flush();
-  const reads = tokens.map(t => readingsOf(t.text));
-  const plain = tokens.map(t => mapAll(t.text.replace(/^!+/, '').replace(/!+$/, '')).replace(/\*/g, ''));
+  const folded = foldSend(raw);
+  if (spelledBlocked(folded)) return true;
+  const pieces = splitPieces(folded);
+  const reads = pieces.map(t => readingsOf(t.text));
+  const plain = pieces.map(t => piecePlain(t.text));
   if (killPhrase(plain)) return true;
   for (let i = 0; i < reads.length; i++) {
     for (let r = 0; r < reads[i].length; r++) {
@@ -229,20 +267,28 @@ function sendSwear(raw: string): boolean {
       for (let j = 0; j < forms.length; j++) if (blockedWord(forms[j].replace(/\*/g, ''))) return true;
     }
   }
-  // Join across a space or hyphen only. A comma, ellipsis, or bang between the pieces does not join.
-  // A real word or interjection (it, shh, oh, ...) is never glued on. Both pieces may be longer than one letter, so 'fu ck' still matches.
-  for (let i = 0; i < tokens.length - 1; i++) {
-    const gap = tokens[i + 1].gap;
-    const L = tokens[i].text;
-    const R = tokens[i + 1].text;
-    if (gap === 'punct' || L.endsWith('!') || R.startsWith('!')) continue;
-    if (isSafe(L) || isSafe(R)) continue;
-    for (let a = 0; a < reads[i].length; a++) {
-      for (let b = 0; b < reads[i + 1].length; b++) {
-        const left = reads[i][a].replace(/\*/g, '');
-        const right = reads[i + 1][b].replace(/\*/g, '');
-        if (left && right && blockedWord(left + right)) return true;
+  // Join a span when the whole thing is a blocked word. A multi-letter allowlisted word stops the join,
+  // unless two or more pieces are single letters ('sh i t') or one piece is a leet disguise ('$h it').
+  // A comma, ellipsis, or bang between pieces breaks the span.
+  for (let i = 0; i < pieces.length; i++) {
+    let joined = '';
+    let singles = 0;
+    let safeMulti = false;
+    let leet = false;
+    for (let j = i; j < pieces.length && j < i + 8; j++) {
+      if (j > i) {
+        const gap = pieces[j].gap;
+        const left = pieces[j - 1].text;
+        if (gap === 'punct' || gap === 'start' || left.endsWith('!') || pieces[j].text.startsWith('!')) break;
+        if (gap !== 'space' && gap !== 'hyphen') break;
       }
+      joined += piecePlain(pieces[j].text);
+      if (pieceSingle(pieces[j].text)) singles++;
+      if (pieceSafeMulti(pieces[j].text)) safeMulti = true;
+      if (pieceLeet(pieces[j].text)) leet = true;
+      if (j === i) continue;
+      if (safeMulti && singles < 2 && !leet) continue;
+      if (blockedWord(joined)) return true;
     }
   }
   return false;

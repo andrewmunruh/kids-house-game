@@ -14,6 +14,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
 import { NICKNAMES, PROTOCOL } from '../src/shared/hood';
+import { ALLOW_LINES, BLOCK_LINES } from './filter_corpus';
 import { KID_OK, LEAKS } from './filter_lines';
 
 const require = createRequire(import.meta.url);
@@ -93,9 +94,16 @@ function stop(child: ChildProcess | null) {
 }
 
 async function createHood(port: number) {
-  const r = await fetch(`http://127.0.0.1:${port}/api/create`, { method: 'POST' });
-  if (!r.ok) throw new Error('create ' + r.status);
-  return await r.json() as { code: string; id: string; parentKey: string };
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const r = await fetch(`http://127.0.0.1:${port}/api/create`, { method: 'POST' });
+    if (r.status === 429) {
+      await new Promise(res => setTimeout(res, 61_000));
+      continue;
+    }
+    if (!r.ok) throw new Error('create ' + r.status);
+    return await r.json() as { code: string; id: string; parentKey: string };
+  }
+  throw new Error('create 429');
 }
 async function join(port: number, id: string, nickname: string) {
   const sock = await openSock(port, id);
@@ -109,20 +117,22 @@ async function join(port: number, id: string, nickname: string) {
 
 const ALLOW_PER_HOOD = 12 * 5;
 
-async function checkLines(port: number, lines: string[], bad: string[]) {
+async function checkLines(port: number, lines: string[], bad: string[]): Promise<number> {
   const hood = await createHood(port);
   const owner = await join(port, hood.id, NICKNAMES[0]);
   const pals = [];
   const slots = Math.ceil(lines.length / 5);
   for (let i = 1; i < slots && i < 12; i++) pals.push(await join(port, hood.id, NICKNAMES[i]));
   const senders = [owner, ...pals];
+  let failed = 0;
   try {
     for (let i = 0; i < lines.length; i++) {
       const text = lines[i];
+      let lineBad = false;
       const pal = senders[Math.floor(i / 5)];
       pal.sock.send({ t: 'say', b: { kind: 'text', v: text } });
       const say = await waitNew(pal.sock, m => m.t === 'sayFail');
-      if (say.reason !== 'nowhere') bad.push('say ' + text + ' ' + say.reason);
+      if (say.reason !== 'nowhere') { bad.push('say ' + text + ' ' + say.reason); lineBad = true; }
       pal.sock.send({ t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
       const sentAt = pal.sock.inbox.length;
       let box: any;
@@ -131,15 +141,45 @@ async function checkLines(port: number, lines: string[], bad: string[]) {
       } catch {
         const fail = pal.sock.inbox.slice(sentAt).find(m => m.t === 'mailFail');
         bad.push('mail ' + text + ' ' + (fail?.reason ?? 'missing'));
+        failed++;
         continue;
       }
       const letter = (box.mailbox.letters as { id: string; text: string }[]).find(l => l.text === text)!;
       owner.sock.send({ t: 'mail', op: 'drop', houseId: owner.hid, id: letter.id });
       await waitNew(owner.sock, m => m.t === 'mailbox' && !(m.mailbox?.letters ?? []).some((l: { id: string }) => l.id === letter.id));
+      if (lineBad) failed++;
     }
   } finally {
     for (const p of senders) p.sock.ws.close();
   }
+  return failed;
+}
+
+async function corpusLive(port: number, label: string) {
+  const bad: string[] = [];
+  const hood = await createHood(port);
+  const owner = await join(port, hood.id, NICKNAMES[0]);
+  let blocks = 0;
+  try {
+    for (const text of BLOCK_LINES) {
+      try {
+        owner.sock.send({ t: 'say', b: { kind: 'text', v: text } });
+        const say = await waitNew(owner.sock, m => m.t === 'sayFail');
+        owner.sock.send({ t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
+        const mail = await waitNew(owner.sock, m => m.t === 'mailFail');
+        if (say.reason === 'words' && mail.reason === 'mail') blocks++;
+        else bad.push('block ' + JSON.stringify(text) + ' say=' + say.reason + ' mail=' + mail.reason);
+      } catch (err) {
+        bad.push('block ' + JSON.stringify(text) + ' ' + (err instanceof Error ? err.message : 'error'));
+      }
+    }
+  } finally { owner.sock.ws.close(); }
+  let allows = 0;
+  for (let i = 0; i < ALLOW_LINES.length; i += ALLOW_PER_HOOD) {
+    const slice = ALLOW_LINES.slice(i, i + ALLOW_PER_HOOD);
+    allows += slice.length - await checkLines(port, slice, bad);
+  }
+  check(label + ' corpus blocks ' + blocks + '/' + BLOCK_LINES.length + ' allows ' + allows + '/' + ALLOW_LINES.length, bad.length === 0, bad.slice(0, 6).join(' | '));
 }
 
 async function gate(port: number, label: string) {
@@ -158,6 +198,7 @@ async function gate(port: number, label: string) {
   } finally { owner.sock.ws.close(); }
   for (let i = 0; i < KID_OK.length; i += ALLOW_PER_HOOD) await checkLines(port, KID_OK.slice(i, i + ALLOW_PER_HOOD), bad);
   check(label + ' blocks every leak and accepts every ordinary line', bad.length === 0 && KID_OK.length >= 40, bad.slice(0, 8).join(' | '));
+  await corpusLive(port, label);
 }
 
 async function roundTrip(port: number, label: string) {
