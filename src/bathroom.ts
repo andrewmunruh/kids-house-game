@@ -68,19 +68,26 @@ const vanity = `${shadow(50, 40)}
 ${hi('M38 22 Q42 16 48 18')}
 <circle cx="30" cy="8" r="3" fill="#ffe08a" ${S}/><circle cx="70" cy="8" r="3" fill="#ffe08a" ${S}/>`;
 
-const toilet = `${shadow(50, 28)}
-<path d="M34 88 H66 L62 96 H38 Z" fill="#f7fbff" ${I}/>
-<rect x="30" y="18" width="40" height="28" rx="6" fill="#f7fbff" ${I}/>
-<path d="M54 20 H68 V44 H54 Z" fill="#d5e6f0"/>
-<rect x="58" y="28" width="6" height="10" rx="2" fill="#f4f7f8" ${S}/>
-<circle cx="61" cy="27" r="2.2" fill="#f0c36a" ${S}/>
-${hi('M34 24 H48')}
-<ellipse cx="50" cy="74" rx="30" ry="10" fill="#e7eef3" ${I}/>
-<ellipse cx="50" cy="66" rx="30" ry="11" fill="#f7fbff" ${I}/>
-<path d="M50 56 H78 Q80 66 74 74 H50 Z" fill="#d5e6f0"/>
-${hi('M28 64 Q36 58 46 60')}
-${daisy(50, 66)}
-<path d="M36 62 H42 M58 62 H64" stroke="${O}" stroke-width="2" stroke-linecap="round"/>`;
+// Profile 3/4. Tank on the left, closed lid as a slab, bowl body underneath. Nothing reads as an open basin.
+const toilet = `${shadow(58, 30)}
+<path d="M50 90 H72 L68 96 H54 Z" fill="#f7fbff" ${I}/>
+<path d="M64 90 H72 L68 96 H64 Z" fill="#d5e6f0"/>
+<rect x="36" y="74" width="48" height="16" rx="8" fill="#f7fbff" ${I}/>
+<path d="M64 76 H82 V88 H64 Z" fill="#d5e6f0"/>
+<rect x="18" y="58" width="74" height="18" rx="8" fill="#fff" ${I}/>
+<path d="M64 60 H90 V74 H64 Z" fill="#e7eef3"/>
+<path d="M22 66 H88" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+<path d="M24 70 H86" ${S}/>
+<rect x="8" y="24" width="42" height="40" rx="6" fill="#f7fbff" ${I}/>
+<path d="M34 26 H48 V62 H34 Q38 44 34 26 Z" fill="#d5e6f0"/>
+<path d="M6 24 H52 Q54 14 29 14 Q6 14 6 24 Z" fill="#fff" ${I}/>
+<path d="M34 16 H50 Q52 22 48 26 H34 Z" fill="#e4eef4"/>
+<circle cx="24" cy="42" r="5" fill="#f4f7f8" ${S}/>
+<circle cx="24" cy="42" r="2.1" fill="#f0c36a"/>
+<circle cx="38" cy="58" r="2.3" fill="#e7eef3" ${S}/>
+<circle cx="46" cy="58" r="2.3" fill="#d5e6f0" ${S}/>
+${hi('M12 30 H26')}
+${daisy(52, 62)}`;
 
 const ladder = `${shadow(50, 26)}
 <path d="M28 18 L24 90 M72 18 L76 90" ${I}/>
@@ -177,13 +184,18 @@ const bottle = `${shadow(50, 16)}
 <path d="M52 32 H66 L62 84 Q56 90 52 84 Z" fill="#a9dff6"/>
 ${hi('M38 40 Q42 36 46 40')}<circle cx="44" cy="58" r="3" fill="#fff" opacity=".85"/><circle cx="54" cy="70" r="2.4" fill="#fff" opacity=".75"/>`;
 
-const mobile = `<path d="M50 6 V18" ${I}/>
-<ellipse cx="50" cy="22" rx="26" ry="7" fill="#fff" ${I}/>
-<path d="M62 18 H74 V26 H62 Z" fill="#e7eef3"/>
-<path d="M30 26 V44 M50 28 V52 M70 26 V42" ${S}/>
-<circle cx="30" cy="52" r="8" fill="#c5e8f6" ${S}/><circle cx="27" cy="49" r="2" fill="#fff"/>
-<circle cx="50" cy="62" r="9" fill="#ffb7cc" ${S}/><circle cx="47" cy="59" r="2" fill="#fff"/>
-<circle cx="70" cy="50" r="7" fill="#ffe08a" ${S}/><circle cx="68" cy="48" r="1.8" fill="#fff"/>`;
+const machine = `${shadow(50, 26)}
+<rect x="16" y="48" width="68" height="40" rx="16" fill="#d7f3ff" ${I}/>
+<path d="M52 50 H82 V86 H52 Q62 68 52 50 Z" fill="#a9dff6"/>
+<rect x="34" y="32" width="24" height="18" rx="8" fill="#f7fbff" ${S}/>
+<path d="M48 34 H56 V48 H48 Z" fill="#d5e6f0"/>
+<circle cx="46" cy="28" r="8" fill="#c5e8f6" ${I}/>
+<path d="M46 22 H52 V28 H46 Z" fill="#e7eef3"/>
+<circle cx="28" cy="18" r="6" fill="#fff" ${S}/><circle cx="24" cy="16" r="1.6" fill="#fff"/>
+<circle cx="68" cy="14" r="4.5" fill="#eaf6ff" ${S}/>
+<circle cx="50" cy="8" r="3.2" fill="#fff" ${S}/>
+<circle cx="32" cy="66" r="5" fill="#ffb7cc" ${S}/>
+${hi('M24 58 Q34 52 46 56')}`;
 
 const brush = `${shadow(50, 18)}
 <path d="M30 40 H70 L66 88 H34 Z" fill="#f7fbff" ${I}/>
@@ -338,7 +350,7 @@ export const BATHROOM_ITEMS: ItemDef[] = [
   { kind: 'sunny-ducky', name: 'Sunny Ducky', cat: 'decor', w: 80, svg: ducky },
   { kind: 'shell-soap', name: 'Shell Soap Dish', cat: 'decor', w: 70, svg: soap },
   { kind: 'bubble-bottle', name: 'Bubble Bottle', cat: 'decor', w: 55, svg: bottle },
-  { kind: 'bubble-mobile', name: 'Bubble Mobile', cat: 'decor', w: 140, wall: true, svg: mobile },
+  { kind: 'bubble-machine', name: 'Bubble Machine', cat: 'decor', w: 100, svg: machine },
   { kind: 'brush-cup', name: 'Brush Cup', cat: 'decor', w: 70, svg: brush },
   { kind: 'porthole-mirror', name: 'Porthole Mirror', cat: 'decor', w: 110, wall: true, svg: porthole },
   { kind: 'tub-tray', name: 'Tub Tray', cat: 'decor', w: 160, svg: tray },

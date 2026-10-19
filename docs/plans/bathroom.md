@@ -1,6 +1,6 @@
 # Bathroom
 
-The bathroom is in the game on this branch: room id, four starters, thirty shelf pieces, and a Worker allow-list. Art follows `docs/art-style-v2` on `cursor/art-refresh` (fetched, not merged). Nothing here is deployed. The mockups below are the direction Andy approved.
+The bathroom is in the game on this branch: room id, the approved starter, thirty shelf pieces, and a Worker allow-list. Art follows `docs/art-style-v2` on `cursor/art-refresh` (fetched, not merged). Nothing here is deployed. The mockups below are the direction Andy approved.
 
 The nursery is the pattern: room id on the house, starter pieces for a save that has never had the room, version left at 3, protocol left at 4, and the server allow-list is the same `ROOM_IDS` list the client already trusts. Commits worth reading beside this note are `9acd1a9` (nursery room and the server names), `1f0aa5c` (strict migration), and the old-client model in `tests/rooms_test.ts`.
 
@@ -27,14 +27,16 @@ Same rules as the nursery, including the strict checks that model client `27cfca
 
 `ensureRooms` already walks `ROOM_IDS`. A save whose `rooms.bathroom` is missing, not an object, or has no `items` array receives the starter room. A bathroom that is already stored is left byte-for-byte alone, including a bathroom a kid has emptied. Each fill-in calls `initialState()` so two houses do not share one starter array (the nursery test mutates one fill-in and checks the next).
 
-Starter pieces, four, matching the nursery's crib / rug / mobile / rocker:
+Starter pieces match the approved mockup, and every box stays inside the stage at the seven checked sizes:
 
 | kind | name | role |
 | --- | --- | --- |
-| `puddle-mat` | Puddle Bath Mat | the rug, under everything |
-| `clawfoot-tub` | Clawfoot Tub | the hero |
-| `mirror-vanity` | Mirror Vanity | the second anchor |
-| `towel-ladder` | Towel Ladder | something soft beside the tub |
+| `puddle-mat` | Puddle Bath Mat | the rug, in front of the tub |
+| `rain-shower` | Rain Shower | back-left |
+| `clawfoot-tub` | Clawfoot Tub | center-front |
+| `mirror-vanity` | Mirror Vanity | beside the toilet |
+| `little-toilet` | Little Toilet | beside the vanity |
+| `bath-cubby` | Bath Cubby | the small shelf |
 
 `migrate` does not bump the version. A version-3 save with no bathroom key gains that starter and keeps every other room. `cleanHouseState` already rebuilds rooms from `ROOMS`, so once `bathroom` is on that list the new Worker keeps it, the same way it keeps a custom nursery.
 
@@ -43,7 +45,7 @@ Disk stays as stored until the next edit. `server/core.ts` fills missing rooms i
 The implementation test, next to the nursery cases in `tests/rooms_test.ts`:
 
 - protocol stays 4 and the fresh house is still version 3
-- a house with the bathroom key deleted gains the four starter kinds, and the living room is not replaced
+- a house with the bathroom key deleted gains the starter kinds, and the living room is not replaced
 - two fill-ins do not share objects
 - a custom bathroom (one item) is not replaced, and a missing backyard is still filled
 - an emptied bathroom stays empty (`ensureRooms` returns the same object)
@@ -115,12 +117,12 @@ The thirty drawings follow `docs/art-style-v2` on `cursor/art-refresh` (fetched,
 | kind | name | notes |
 | --- | --- | --- |
 | `clawfoot-tub` | Clawfoot Tub | starter, water and bubbles, no one in it |
-| `rain-shower` | Rain Shower | stall, curtain tied back, no one inside |
+| `rain-shower` | Rain Shower | starter, stall, curtain tied back, no one inside |
 | `mirror-vanity` | Mirror Vanity | starter, cabinet plus the mirror |
-| `little-toilet` | Little Toilet | closed lid, daisy sticker |
-| `towel-ladder` | Towel Ladder | starter |
+| `little-toilet` | Little Toilet | starter, closed lid, daisy sticker |
+| `towel-ladder` | Towel Ladder | towels on the rungs |
 | `wall-towel-bar` | Wall Towel Bar | wall, one towel |
-| `bath-cubby` | Bath Cubby | open shelf, towels and a bottle |
+| `bath-cubby` | Bath Cubby | starter, open shelf, towels and a bottle |
 | `clothes-hamper` | Clothes Hamper | lid, a peek of cloth |
 | `sink-step` | Sink Step | two steps, so she can reach |
 | `linen-cupboard` | Linen Cupboard | tall cabinet |
@@ -133,7 +135,7 @@ The thirty drawings follow `docs/art-style-v2` on `cursor/art-refresh` (fetched,
 | `sunny-ducky` | Sunny Ducky | holdable |
 | `shell-soap` | Shell Soap Dish | holdable |
 | `bubble-bottle` | Bubble Bottle | holdable |
-| `bubble-mobile` | Bubble Mobile | wall |
+| `bubble-machine` | Bubble Machine | holdable, bubbles from a nozzle |
 | `brush-cup` | Brush Cup | holdable, two brushes |
 | `porthole-mirror` | Porthole Mirror | wall |
 | `tub-tray` | Tub Tray | rests across the tub |

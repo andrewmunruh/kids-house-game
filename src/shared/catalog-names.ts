@@ -42,7 +42,7 @@ export const CATALOG_NAMES: readonly string[] = [
   "Bubble Bath",
   "Bubble Bottle",
   "Bubble Chair",
-  "Bubble Mobile",
+  "Bubble Machine",
   "Bubble-Gum Rug",
   "Bubbly Fountain",
   "Bubbly Plant",

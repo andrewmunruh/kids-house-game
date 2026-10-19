@@ -130,9 +130,10 @@ export function initialState(): GameState {
       // Same shape as the Salon: old saves gain these pieces, version stays 3.
       nursery: { wallpaper: '#d6f3ff', floor: '#f3ddc4', pattern: 1, items: [
         it('cloud-rug', 480, 545, 0), it('crib', 470, 480, 1), it('crib-mobile', 470, 155, 2), it('rocker', 780, 490, 3)] },
-      // Same shape as the nursery: a save that has never had this room gains the four starters.
+      // Approved mockup, packed so every box stays inside the narrowest stage (camera at 700).
       bathroom: { wallpaper: '#d7f6f8', floor: '#f3e0c8', pattern: 1, items: [
-        it('puddle-mat', 280, 548, 0), it('clawfoot-tub', 280, 490, 1), it('mirror-vanity', 680, 480, 2), it('towel-ladder', 80, 470, 3)] },
+        it('puddle-mat', 240, 570, 0), it('rain-shower', 150, 475, 1), it('clawfoot-tub', 240, 528, 3),
+        it('mirror-vanity', 305, 470, 2), it('little-toilet', 390, 552, 4), it('bath-cubby', 85, 550, 5)] },
       // Empty on purpose. The backyard scene ships later; the room key has to exist so edits are not dropped.
       backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [] },
     },

@@ -600,6 +600,7 @@ function renderItems(s: GameState) {
       el.addEventListener('pointerdown', e => beginItemDrag(el!, e));
     }
     el.dataset.kind = it.kind;
+    if (def.wall) el.dataset.wall = '1'; else delete el.dataset.wall;
     const box = placedBox(def, it.scale);
     placeEl(el, it.x, it.y, box.w, box.h);
     el.style.zIndex = String(1000 + it.z);

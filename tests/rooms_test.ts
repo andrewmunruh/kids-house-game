@@ -269,15 +269,15 @@ async function main() {
   const bare = initialState();
   check('a character without look2 is not rewritten', migrate(bare).characters[0].look2 === undefined && cleanHouseState(bare).characters[0].look2 === undefined);
 
-  check('protocol stays 4 and a fresh house is still version 3', PROTOCOL === 4 && fresh.version === 3 && bathKinds().join(',') === 'puddle-mat,clawfoot-tub,mirror-vanity,towel-ladder');
+  check('protocol stays 4 and a fresh house is still version 3', PROTOCOL === 4 && fresh.version === 3 && bathKinds().join(',') === 'puddle-mat,rain-shower,clawfoot-tub,mirror-vanity,little-toilet,bath-cubby');
   const noBath = initialState();
   const livingBefore = JSON.stringify(noBath.rooms.living);
   delete (noBath.rooms as any).bathroom;
   const filled = ensureRooms(noBath);
   const filled2 = ensureRooms(JSON.parse(JSON.stringify(noBath)));
-  check('a house with the bathroom key deleted gains the four starter kinds', filled.rooms.bathroom.items.map(i => i.kind).join(',') === bathKinds().join(',') && JSON.stringify(filled.rooms.living) === livingBefore);
+  check('a house with the bathroom key deleted gains the starter kinds', filled.rooms.bathroom.items.map(i => i.kind).join(',') === bathKinds().join(',') && JSON.stringify(filled.rooms.living) === livingBefore);
   filled.rooms.bathroom.items.push({ id: 'extra-bath', kind: 'sunny-ducky', x: 1, y: 1, flip: false, z: 9, scale: 1 });
-  check('two bathroom fill-ins do not share objects', filled2.rooms.bathroom.items.length === 4 && !filled2.rooms.bathroom.items.some(i => i.id === 'extra-bath'));
+  check('two bathroom fill-ins do not share objects', filled2.rooms.bathroom.items.length === 6 && !filled2.rooms.bathroom.items.some(i => i.id === 'extra-bath'));
   const customBath = initialState();
   customBath.rooms.bathroom = { ...customBath.rooms.bathroom, items: [{ id: 'my-duck', kind: 'sunny-ducky', x: 40, y: 500, flip: false, z: 1, scale: 1 }] };
   delete (customBath.rooms as any).backyard;
@@ -304,7 +304,7 @@ async function main() {
   const standing = { ...initialState(), currentRoom: 'bathroom' as const, characters: [{ ...initialState().characters[0], room: 'bathroom' as const }] };
   const fbd = fbd04dbLoad(JSON.parse(JSON.stringify(standing)));
   const fbdEdit = { ...fbd, rooms: { ...fbd.rooms, living: { ...fbd.rooms.living, wallpaper: '#112233' } } };
-  check('an fbd04db load keeps the bathroom items and opens the living room', fbd.currentRoom === 'living' && fbd.characters[0].room === 'living' && fbd.rooms.bathroom.items.map((i: { kind: string }) => i.kind).join(',') === bathKinds().join(',') && fbdEdit.rooms.bathroom.items.length === 4 && fbdEdit.rooms.living.wallpaper === '#112233');
+  check('an fbd04db load keeps the bathroom items and opens the living room', fbd.currentRoom === 'living' && fbd.characters[0].room === 'living' && fbd.rooms.bathroom.items.map((i: { kind: string }) => i.kind).join(',') === bathKinds().join(',') && fbdEdit.rooms.bathroom.items.length === 6 && fbdEdit.rooms.living.wallpaper === '#112233');
   const stayedBath = migrate({ ...initialState(), currentRoom: 'bathroom' });
   check('a new client standing in the bathroom is not moved', stayedBath.currentRoom === 'bathroom');
 
@@ -354,7 +354,7 @@ async function main() {
   const names = BATHROOM_ITEMS.map(i => i.name);
   const kinds = BATHROOM_ITEMS.map(i => i.kind);
   check('the bathroom shelf has 30 unique original names', names.length === 30 && new Set(names).size === 30 && new Set(kinds).size === 30);
-  const wall = new Set(['wall-towel-bar', 'bubble-mobile', 'porthole-mirror', 'robe-hooks', 'hanging-eucalyptus']);
+  const wall = new Set(['wall-towel-bar', 'porthole-mirror', 'robe-hooks', 'hanging-eucalyptus']);
   const artBad = BATHROOM_ITEMS.filter(i => {
     const svg = i.svg;
     if (/feGaussianBlur|feDropShadow|filter=|color-mix|backdrop-filter/.test(svg)) return true;
