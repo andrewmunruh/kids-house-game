@@ -6,7 +6,7 @@
 import asyncio, os, socket, subprocess, sys, tempfile, time
 from urllib.parse import parse_qs, urlparse
 from playwright.async_api import async_playwright
-from testnav import SKIP_WN, go, local_page
+from testnav import tap, SKIP_WN, go, local_page
 
 URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = os.environ.get('ARTIFACT_DIR') or tempfile.mkdtemp(prefix='avatar-artifacts-')
@@ -99,7 +99,7 @@ async def adult(pg):
 async def open_look(pg):
     if await pg.locator('#phoneOk').is_visible():
         await pg.click('#phoneOk')
-    await pg.click('#btnDress')
+    await tap(pg, '#btnDress')
     await pg.wait_for_selector('#sheet:not(.hidden) .avLook')
     await pg.wait_for_timeout(450)
 
@@ -339,7 +339,7 @@ async def street(b):
         pg.on('pageerror', lambda e: errs.append(str(e)))
         await pg.goto(URL)
         await pg.wait_for_timeout(400)
-    await P.click('#btnHood')
+    await tap(P, '#btnHood')
     await P.click('[data-m="create"]')
     await adult(P)
     await P.wait_for_selector('#newCode')
@@ -350,7 +350,7 @@ async def street(b):
         await P.click(f'.sugg button:has-text("{n}")')
         await P.wait_for_timeout(150)
     await P.click('.hoodSheet [data-m="close"]')
-    await P.click('#btnHood')
+    await tap(P, '#btnHood')
     await P.click('[data-m="join"]')
     await P.fill('#codeInput', code)
     await P.click('#codeForm button')
@@ -374,7 +374,7 @@ async def street(b):
     await P.wait_for_function("document.getElementById('sheet').classList.contains('hidden')")
     await P.click('#mapWorld .mapHouse.mine')
     await P.wait_for_timeout(700)
-    await K2.click('#btnHood')
+    await tap(K2, '#btnHood')
     await K2.click('[data-m="join"]')
     await K2.fill('#codeInput', code)
     await K2.click('#codeForm button')
@@ -400,7 +400,7 @@ async def street(b):
             O.on('pageerror', lambda e: oerrs.append(str(e)))
             await O.goto(f'http://127.0.0.1:{old_port}/kids-house-game/?hood={hood}')
             await O.wait_for_timeout(500)
-            await O.click('#btnHood')
+            await tap(O, '#btnHood')
             await O.click('[data-m="join"]')
             await O.fill('#codeInput', code)
             await O.click('#codeForm button')
@@ -438,7 +438,7 @@ async def letter_shot(b):
         await pg.goto(URL)
         await pg.wait_for_timeout(300)
     P = pages[0]
-    await P.click('#btnHood')
+    await tap(P, '#btnHood')
     await P.click('[data-m="create"]')
     await adult(P)
     await P.wait_for_selector('#newCode')
@@ -450,7 +450,7 @@ async def letter_shot(b):
         await P.wait_for_timeout(120)
     await P.click('.hoodSheet [data-m="close"]')
     async def join(pg, nick):
-        await pg.click('#btnHood')
+        await tap(pg, '#btnHood')
         await pg.click('[data-m="join"]')
         await pg.fill('#codeInput', code)
         await pg.click('#codeForm button')
@@ -481,7 +481,7 @@ async def letter_shot(b):
     await P.screenshot(path=f'{SHOT}/letter-chibi-820.png')
     await P.click('#mailSheet [data-m="close"]')
     await P.wait_for_timeout(200)
-    await P.click('#btnParent')
+    await tap(P, '#btnParent')
     await adult(P)
     await P.wait_for_selector('#parentMail', timeout=5000)
     grown = await P.inner_text('#parentMail')

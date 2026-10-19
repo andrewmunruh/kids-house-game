@@ -1,3 +1,4 @@
+from testnav import tap
 # Current main (1f0aa5c) against this server. She can edit a house, and the letter stays.
 # The old page never draws a mailbox. Needs /tmp/dist-1f0aa5c and /tmp/new-dist.
 import asyncio, json, os, shutil, signal, subprocess, sys, time
@@ -68,7 +69,7 @@ async def adult(pg):
     await pg.click('.adultCard [data-k="OK"]')
 
 async def join(pg, code, nick, bring):
-    await pg.click('#btnHood')
+    await tap(pg, '#btnHood')
     await pg.click('[data-m="join"]')
     await pg.fill('#codeInput', code)
     await pg.click('#codeForm button')
@@ -111,7 +112,7 @@ async def main():
             await P.goto(URL)
             await K.goto(URL)
             await P.wait_for_timeout(400)
-            await P.click('#btnHood')
+            await tap(P, '#btnHood')
             await P.click('[data-m="create"]')
             await adult(P)
             await P.wait_for_selector('#newCode')

@@ -72,7 +72,12 @@ export function renderGameRoom() {
     html += `<button class="grTable" data-tb="${tb}" aria-label="${GAMES[t.game].name} table" style="left:${px(t.x - tw / 2)};top:${px(456)};width:${px(tw)};height:${px(70)}"></button>`;
     seatLayout(tb).forEach((c, seat) => {
       // In front of the felt, so a tap on the tabletop still opens the game and a tap on the chair sits.
-      html += `<button class="grChair" data-tb="${tb}" data-seat="${seat}" aria-label="Empty chair" style="left:${px(c.x - 38)};top:${px(c.y - 16)};width:${px(76)};height:${px(72)}"></button>`;
+      // A short landscape phone scales 76×72 under 44px. Grow the hit box only then; iPad stays the drawn size.
+      const rawW = 76 * sc, rawH = 72 * sc;
+      const cw = Math.max(rawW, 44), ch = Math.max(rawH, 44);
+      const left = (c.x - 38) * sc - (cw - rawW) / 2;
+      const top = (c.y - 16) * sc - (ch - rawH) / 2;
+      html += `<button class="grChair" data-tb="${tb}" data-seat="${seat}" aria-label="Empty chair" style="left:${left}px;top:${top}px;width:${cw}px;height:${ch}px"></button>`;
     });
   });
   html += '<div class="savatars" id="gavatars"></div>';

@@ -1,7 +1,7 @@
 # Mailboxes on the street, writing a letter, opening it. iPad 1024x768 and iPhone 390x844.
 import asyncio, os, re, sys, time
 from playwright.async_api import async_playwright
-from testnav import SKIP_WN, local_page
+from testnav import tap, SKIP_WN, local_page
 
 URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = os.environ.get('MAIL_SHOTS', '/opt/cursor/artifacts/screenshots')
@@ -53,7 +53,7 @@ async def adult(pg):
     await pg.click('.adultCard [data-k="OK"]')
 
 async def join(pg, code, nick, bring):
-    await pg.click('#btnHood')
+    await tap(pg, '#btnHood')
     await pg.click('[data-m="join"]')
     await pg.fill('#codeInput', code)
     await pg.click('#codeForm button')
@@ -68,7 +68,7 @@ async def shot(pg, name):
 
 async def presets_and_parent(P, k_house, suffix):
     """freeChat off: phrase chips instead of a text box, and the grown-up can see and clear letters."""
-    await P.click('#btnParent')
+    await tap(P, '#btnParent')
     await adult(P)
     await P.wait_for_selector('#pFree')
     if await P.get_attribute('#pFree', 'data-on') == '1':
@@ -122,7 +122,7 @@ async def presets_and_parent(P, k_house, suffix):
     print('SHOT', path, flush=True)
     await P.click('#mailSend')
     await P.wait_for_function("() => !document.querySelector('#mailSheet')")
-    await P.click('#btnParent')
+    await tap(P, '#btnParent')
     await adult(P)
     await P.wait_for_selector('#parentMail')
     await P.evaluate("() => { const c = document.querySelector('.parent .card'); if (c) c.scrollTop = 0; }")
@@ -147,10 +147,10 @@ async def presets_and_parent(P, k_house, suffix):
       return el && el.textContent.indexOf('Come play today!') < 0 && el.textContent.indexOf('Come over!') < 0;
     }""")
     await P.reload()
-    await P.wait_for_selector('body.view-map #btnParent', timeout=12000)
+    await P.wait_for_selector('body.view-map .mapSpot', timeout=12000)
     if await P.locator('#phoneOk').is_visible():
         await P.click('#phoneOk', force=True)
-    await P.click('#btnParent')
+    await tap(P, '#btnParent')
     await adult(P)
     await P.wait_for_selector('#parentMail')
     gone = await P.inner_text('#parentMail')
@@ -171,7 +171,7 @@ async def flow(browser, w, h, tag):
         await P.click('#phoneOk', force=True)
     if await K.locator('#phoneOk').is_visible():
         await K.click('#phoneOk', force=True)
-    await P.click('#btnHood')
+    await tap(P, '#btnHood')
     await P.click('[data-m="create"]')
     await adult(P)
     await P.wait_for_selector('#newCode')

@@ -32,10 +32,10 @@ export function ranchSceneSVG() {
   <path d="M0 566 Q900 530 1800 570 T${W} 552 V600 H0 Z" fill="#f2dcb8" opacity=".9"/>
   ${tree(3560, 400, .8, '#4fbf7a')}
   <!-- entrance gate with a rainbow arch -->
-  <g><rect x="40" y="290" width="24" height="210" rx="6" fill="#c99366" ${st()}/><rect x="196" y="290" width="24" height="210" rx="6" fill="#c99366" ${st()}/>
+  <g class="ranchSign"><g class="ranchSignArt"><rect x="40" y="290" width="24" height="210" rx="6" fill="#c99366" ${st()}/><rect x="196" y="290" width="24" height="210" rx="6" fill="#c99366" ${st()}/>
     <path d="M18 312 A112 100 0 0 1 242 312" fill="none" stroke="${O}" stroke-width="44" stroke-linecap="round"/>
     ${RAINBOW.map((c, i) => `<path d="M${18 + 0} 312 A112 100 0 0 1 242 312" fill="none" stroke="${c}" stroke-width="${36 - i * 6}" stroke-linecap="round"/>`).join('')}
-    <rect x="22" y="250" width="216" height="40" rx="14" fill="#fff6e6" ${st(3)}/><text x="130" y="277" text-anchor="middle" font-size="19" font-weight="900" fill="${O}" font-family="Nunito, system-ui, sans-serif">RAINBOW RANCH</text></g>
+    <rect x="22" y="250" width="216" height="40" rx="14" fill="#fff6e6" ${st(3)}/><text x="130" y="277" text-anchor="middle" font-size="19" font-weight="900" fill="${O}" font-family="Nunito, system-ui, sans-serif">RAINBOW RANCH</text></g></g>
   <!-- red barn with rainbow trim and banner -->
   <g transform="translate(270 0)">
     <path d="M0 470 V250 L60 180 H270 L330 250 V470 Z" fill="#ef5b5b" ${st(5)}/>
@@ -44,8 +44,8 @@ export function ranchSceneSVG() {
     <rect x="115" y="215" width="100" height="56" rx="10" fill="#fff6e6" ${st(4)}/><path d="M115 215 L215 271 M215 215 L115 271" stroke="#ef5b5b" stroke-width="6"/>
     <rect x="95" y="330" width="140" height="140" rx="8" fill="#fff6e6" ${st(4)}/><rect x="108" y="342" width="56" height="128" fill="#d94848" ${st(3)}/><rect x="166" y="342" width="56" height="128" fill="#d94848" ${st(3)}/>
     <path d="M108 342 L164 470 M164 342 L108 470 M166 342 L222 470 M222 342 L166 470" stroke="#fff6e6" stroke-width="6"/>
-    <g transform="translate(165 300)">${RAINBOW.map((c, i) => `<rect x="${-120 + i * 40}" y="-16" width="40" height="30" fill="${c}"/>`).join('')}<rect x="-120" y="-16" width="240" height="30" fill="none" ${st(3)}/>
-      <text x="0" y="6" text-anchor="middle" font-size="18" font-weight="900" fill="#fff" stroke="${O}" stroke-width="4" paint-order="stroke" font-family="Nunito, system-ui, sans-serif">RAINBOW RANCH</text></g>
+    <g class="barnBanner" transform="translate(165 300)"><g class="ranchSignArt">${RAINBOW.map((c, i) => `<rect x="${-120 + i * 40}" y="-16" width="40" height="30" fill="${c}"/>`).join('')}<rect x="-120" y="-16" width="240" height="30" fill="none" ${st(3)}/>
+      <text x="0" y="6" text-anchor="middle" font-size="18" font-weight="900" fill="#fff" stroke="${O}" stroke-width="4" paint-order="stroke" font-family="Nunito, system-ui, sans-serif">RAINBOW RANCH</text></g></g>
   </g>
   ${hay(640, 560, .8)}${hay(1950, 470, .7)}${hay(1880, 470, .55)}${hay(3115, 470, .7)}${hay(3115, 425, .55)}
   <!-- the petting zoo moved into the barn: a sign by the barn door, sunflowers where the pen was -->

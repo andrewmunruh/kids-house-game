@@ -1,9 +1,10 @@
+from testnav import tap
 # Release B0 (fbd04db) saves and a mixed street against avatar B1.
 # Needs /tmp/b0tree (worktree at fbd04db), /tmp/b0-dist, and /tmp/new-dist.
 # A mailbox written by B0 must survive the B1 server, and a B0 client on the
 # same street must not see look2, must be able to use the mailbox, and must
 # not wipe look2 or the mailbox when she edits. A legacy char/update keeps look2.
-import asyncio, json, os, shutil, signal, subprocess, sys, time
+import argparse, asyncio, json, os, shutil, signal, subprocess, sys, time
 from playwright.async_api import async_playwright
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -16,6 +17,17 @@ PORT_HOOD = 8799
 B0_TREE = '/tmp/b0tree'
 B0_DIST = '/tmp/b0-dist'
 B1_DIST = '/tmp/new-dist'
+
+def apply_cli(argv=None):
+    """Ports and the B1 dist stay overridable. Defaults match the old hardcoded run."""
+    global PORT_B0, PORT_B1, PORT_HOOD, B1_DIST
+    p = argparse.ArgumentParser(description='Release B0 saves and a mixed street against avatar B1')
+    p.add_argument('--port-b0', type=int, default=PORT_B0, help='static server for the B0 dist (default 4195)')
+    p.add_argument('--port-b1', type=int, default=PORT_B1, help='static server for the B1 dist (default 4196)')
+    p.add_argument('--port-hood', type=int, default=PORT_HOOD, help='hood server port (default 8799)')
+    p.add_argument('--dist', default=B1_DIST, help='B1 dist directory (default /tmp/new-dist)')
+    a = p.parse_args(argv)
+    PORT_B0, PORT_B1, PORT_HOOD, B1_DIST = a.port_b0, a.port_b1, a.port_hood, a.dist
 DATA = M + '/data'
 res = {}
 
@@ -114,7 +126,7 @@ async def adult(pg):
     await pg.click('.adultCard [data-k="OK"]')
 
 async def join(pg, code, nick, bring):
-    await pg.click('#btnHood')
+    await tap(pg, '#btnHood')
     await pg.click('[data-m="join"]')
     await pg.fill('#codeInput', code)
     await pg.click('#codeForm button')
@@ -123,6 +135,7 @@ async def join(pg, code, nick, bring):
     await pg.wait_for_selector('body.view-map .mapHouse', timeout=8000)
 
 async def main():
+    apply_cli()
     for path, label in ((B0_TREE, 'b0 tree'), (B0_DIST, 'b0 dist'), (B1_DIST, 'b1 dist')):
         if not os.path.isdir(path):
             print('missing', label, path)
@@ -150,7 +163,7 @@ async def main():
             await P.goto(url(PORT_B0))
             await K.goto(url(PORT_B0))
             await P.wait_for_timeout(400)
-            await P.click('#btnHood')
+            await tap(P, '#btnHood')
             await P.click('[data-m="create"]')
             await adult(P)
             await P.wait_for_selector('#newCode')
@@ -232,7 +245,7 @@ async def main():
             await B1.goto(url(PORT_B1))
             await B0.goto(url(PORT_B0))
             await B1.wait_for_timeout(300)
-            await B1.click('#btnHood')
+            await tap(B1, '#btnHood')
             await B1.click('[data-m="create"]')
             await adult(B1)
             await B1.wait_for_selector('#newCode')
