@@ -753,7 +753,7 @@ async def check_secrets(pg, tag, short):
     check(f'{tag} Surprises is a Menu row',
           row['on'] and 'Surprises' in row['label'] and row['fs'] >= 13, str(row))
     await pg.click('#menuClose')
-    await pg.wait_for_selector('#menuPop.hidden')
+    await pg.wait_for_function("() => document.getElementById('menuPop').classList.contains('hidden')")
 
 async def check_wait_fade(pg, tag):
     await inject_slay_hand(pg, 4, 'wait')
