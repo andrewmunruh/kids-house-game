@@ -8,7 +8,7 @@ This is the canonical drawing guide for the catalog. Bathroom, backyard, and any
 
 ## Recognizable first, cute second
 
-Each piece must use the real object's silhouette and proportions, the way a kid would draw it from life. The style (plum outlines, cel shading, soft colors) goes on top of that shape. It never replaces the real shape.
+Each piece must use the real object's silhouette and proportions, the way a kid would draw it from life. The style (plum outlines, soft form shading, soft colors) goes on top of that shape. It never replaces the real shape.
 
 If a kid saw the drawing alone, they should name it in one second. A hair dryer is a barrel, a round vent, a nozzle, and a handle. A rug is a flat rug on the floor. A perfume is a bottle. Cute marks, dots, and stars do not stand in for the object.
 
@@ -17,9 +17,9 @@ If a kid saw the drawing alone, they should name it in one second. A hair dryer 
 Same viewBox, same floor point, new parts. A kid should be able to tell the two drawings apart at a glance.
 
 - Real parts: cushions, piping, a quilt, a pleated shade, fringe, turned legs, knobs, a mobile.
-- Two-tone cel shading. Every major surface has a lit face and a darker side plane on the right and along the lower edge. The plane is a hard-edged shape, not a thin gloss line.
-- A little texture on top of that (grain, stitches, a leaf vein).
-- A soft contact shadow made of two flat ellipses.
+- Soft form shading. Every major surface has a lit face and a darker side, painted with a short gradient so the form turns. A hard-edged color block reads as a glitch at iPad size, so the side is a falloff, not a slab.
+- A little texture on top of that (grain, stitches, a leaf vein, rug nap) and a small highlight on the lit edge.
+- A soft contact shadow made of three flat plum ellipses, wider and fainter on the outside. No blur filter.
 
 The side plane is one clear step darker than the lit face, and it stays a pastel. Example: lit cloth `#ff8fab`, side `#e45d88`. That is dark enough to read as a side, and still pink under an indigo night tint. Do not take the side plane down to brown, gray, or near-black.
 
@@ -41,7 +41,7 @@ New packs (Winter Cheer, Critter Corner, bathroom, backyard) can add a family of
 
 ## Light
 
-Light comes from the top left. Paint the form as two flat tones:
+Light comes from the top left. Paint the form as a soft gradient from the lit pastel to one darker step:
 
 | Face | Role |
 | --- | --- |
@@ -49,21 +49,26 @@ Light comes from the top left. Paint the form as two flat tones:
 | Side | The same hue, one step darker, on the right and the lower edge |
 
 ```svg
-<rect x="16" y="24" width="68" height="34" rx="12" fill="#ffb7cc" stroke="#5a3d5c" stroke-width="3.5"/>
-<rect x="52" y="28" width="28" height="26" rx="8" fill="#e888a8"/>
+<defs><linearGradient id="a2cloth" x1="0" y1="0" x2="1" y2="0.4">
+  <stop offset="0" stop-color="#ffe4ee"/>
+  <stop offset="0.6" stop-color="#ffb7cc"/>
+  <stop offset="1" stop-color="#e888a8"/>
+</linearGradient></defs>
+<rect x="16" y="24" width="68" height="34" rx="12" fill="url(#a2cloth)" stroke="#5a3d5c" stroke-width="3.5"/>
 ```
 
-The darker rect has no stroke of its own. It sits inside the outline, inset so it does not eat the plum edge. A whole right-hand part (the right arm, the right door, the right leaf) can simply be filled with the side color.
+The gradient stays inside the outline. A whole right-hand part (the right arm, the right door, the right leaf) can still be its own shape, filled with the side color or with the same falloff. Do not park a solid rectangle on top of a back or a post. At iPad size that reads as a sticker, not a side.
 
-Use a gradient only for a sky, a glass pane, or a lamp glow. The glow is a radial gradient that fades to transparent, inside the viewBox. It is not a blur. A white tick on the lit edge is optional. It does not replace the side plane.
+A sky, a glass pane, a lamp glow, and a rug pile use a gradient too. The glow is a radial gradient that fades to transparent, inside the viewBox. It is not a blur. A white tick on the lit edge sits on top of the gradient. It does not replace the side.
 
 ## Contact shadow
 
-Floor pieces only, including rugs. Wall pieces (the window) do not get one. Two ellipses, plum, no stroke, no filter:
+Floor pieces only, including rugs. Wall pieces (the window) do not get one. Three ellipses, plum, no stroke, no filter. The outer one is wider and fainter so the edge is soft:
 
 ```svg
-<ellipse cx="50" cy="96.4" rx="36" ry="3.4" fill="#5a3d5c" opacity=".08"/>
-<ellipse cx="50" cy="97.6" rx="22" ry="1.55" fill="#5a3d5c" opacity=".12"/>
+<ellipse cx="50" cy="96.4" rx="36" ry="4.6" fill="#5a3d5c" opacity=".045"/>
+<ellipse cx="50" cy="96.4" rx="26" ry="2.5" fill="#5a3d5c" opacity=".08"/>
+<ellipse cx="50" cy="97.6" rx="16" ry="1.15" fill="#5a3d5c" opacity=".12"/>
 ```
 
 Keep the shadow on the same spot as the old one (near y=97 in a 100-high viewBox) so the piece still stands on its floor point. Widen `rx` for a sofa or a crib, narrow it for a lamp. Do not paint the shadow black and do not blur it. Plum at this opacity stays visible on a night tint without turning into a hole.
@@ -85,7 +90,7 @@ Draw the thing the kid would name. A gloss line on the old shape is not a refres
 - Sofa: two seat cushions, piping, tuft buttons, curled arms, a patterned throw pillow.
 - Bed: the original side view (headboard on the left, footboard on the right, pillow, duvet), plus a heart cutout, quilt diamonds, and a folded sheet edge.
 - Fridge: a closed freezer over a closed door, both solid pastel blue, with a highlight, handles, and a few magnets. Not glass shelves.
-- Rug: lying flat on the floor in perspective. Shaped kids' rugs keep their silhouette (heart, cloud, daisy, rainbow half-round, blob), squashed to about 0.35–0.45 of their width, with a stitched or bound border band, a few pile strokes, a cel side-edge for thickness, and a contact shadow. A heart rug is a flat heart. A cloud rug is a flat cloud. A rainbow rug is a flat half-round with bands, lying down. Only the plain rugs (Rug, Tassel, Runner, Checker, Round Woven) are rectangles or ovals, and those are area rugs at full size. Fringe, when a plain rug has it, is only on the short ends: 5 to 7 tabs, about 5 long and 3 wide, a slightly darker shade of the border, tucked against the edge, with a thin plum outline.
+- Rug: lying flat on the floor in perspective, filling the same box as the original. Shaped kids' rugs keep their silhouette (heart, cloud, daisy, rainbow half-round, blob), with a stitched or bound border band, a radial pile gradient, a light nap texture, a highlight, a soft edge for thickness, and a contact shadow. A heart rug is a flat heart. A cloud rug is a flat cloud. A rainbow rug is a flat half-round with bands, lying down. Only the plain rugs (Rug, Tassel, Runner, Checker, Round Woven) are rectangles or ovals, and those are area rugs at full size. Fringe, when a plain rug has it, is only on the short ends: 5 to 7 tabs, about 5 long and 3 wide, a slightly darker shade of the border, tucked against the edge, with a thin plum outline.
 - Table: a top with thickness, grain, and turned legs.
 - Shelf: books of different heights, a small plant or trophy, grain, a darker side board.
 - Lamp: a pleated shade and a warm pool of light at the opening.
@@ -111,8 +116,8 @@ A later branch tints the room indigo and lets lamps glow. This sample does not d
 Target is 60fps on an iPad 10th gen, and the page has to run on iPadOS 16 Safari.
 
 - No `feGaussianBlur`, `feDropShadow`, or a `filter` on an item. A blur on every sofa will miss the frame.
-- Gradients only for sky, glass, and a lamp glow. A gradient id is prefixed with the piece (`a2win-sky`) so two kinds do not clash.
-- Keep each drawing under about 3KB of markup. The sample pieces are in that range (the sofa is the largest, about 2.8KB).
+- Gradients carry the form shading, plus sky, glass, and a lamp glow. A gradient id is prefixed with the piece (`a2sofa-back`) so two kinds do not clash. No blur filter.
+- Keep each drawing under about 4KB of markup. The sample pieces stay in that range.
 - Stay inside the viewBox. The game draws SVG with overflow visible, so a mark outside the box would spill onto a neighbor without moving the saved anchor.
 - Do not use CSS or JS newer than Safari 16 in the game. The sample page follows the same limit.
 

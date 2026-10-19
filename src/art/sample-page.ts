@@ -1,7 +1,7 @@
 // Standalone before/after board. The game catalog does not load this file.
 import { ITEMS, ITEM_MAP, hOf, svgOf } from '../items';
 import { setArtV2 } from './flag';
-import { artV2Markup } from './catalog';
+import { ART_ROOMS, artV2Markup, loadArtRooms } from './catalog';
 
 const ROOM_H = 600;
 
@@ -301,10 +301,14 @@ const view = params.get('view') || 'sheet';
 const roomName = params.get('room') || 'living';
 const phone = params.get('size') === '390';
 
-if (STAGES[view]) room(view, phone);
-else if (view === 'night') sheet(true, roomName);
-else if (view === 'bench' || view === 'foot') { /* filled below */ }
-else sheet(false, roomName);
+async function boot(): Promise<void> {
+  await loadArtRooms(ART_ROOMS);
+  if (STAGES[view]) room(view, phone);
+  else if (view === 'night') sheet(true, roomName);
+  else if (view === 'bench' || view === 'foot') { /* filled below */ }
+  else sheet(false, roomName);
+  await finish();
+}
 
 async function finish(): Promise<void> {
   if (view === 'bench') await bench();
@@ -318,4 +322,4 @@ async function finish(): Promise<void> {
   (window as unknown as { __artReady: boolean }).__artReady = true;
 }
 
-finish();
+void boot();

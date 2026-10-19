@@ -4,8 +4,8 @@ import { artV2On } from './flag';
 // Turn this on with ?art=v2 (see main.ts) or from the sample page. Nothing here
 // is written into a house save, and footprints live on the item, not in this file.
 //
-// Each piece is a new drawing: real parts, and a hard-edged darker plane on the
-// right / lower side. No blur filters. ViewBoxes stay put.
+// Each piece is a new drawing: real parts, and soft form shading (a lit face
+// falling off to a darker side). No blur filters. ViewBoxes stay put.
 
 export interface V2Mark {
   /** viewBox. Built-ins stay 0 0 100 100. Wardrobe keeps the pack viewBox. */
@@ -17,10 +17,11 @@ const O = '#5a3d5c';
 
 const ink = (w = 3.5) => `stroke="${O}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
 
-/** Two flat ellipses. Soft contact without a blur filter. */
+/** Three plum ellipses. A soft contact without a blur filter. */
 function shadow(cx = 50, rx = 36): string {
-  const inner = Math.round(rx * 0.62);
-  return `<ellipse cx="${cx}" cy="96.4" rx="${rx}" ry="3.4" fill="${O}" opacity=".08"/><ellipse cx="${cx}" cy="97.6" rx="${inner}" ry="1.55" fill="${O}" opacity=".12"/>`;
+  const mid = Math.round(rx * 0.72);
+  const inner = Math.round(rx * 0.46);
+  return `<ellipse cx="${cx}" cy="96.4" rx="${rx}" ry="4.6" fill="${O}" opacity=".045"/><ellipse cx="${cx}" cy="96.4" rx="${mid}" ry="2.5" fill="${O}" opacity=".08"/><ellipse cx="${cx}" cy="97.6" rx="${inner}" ry="1.15" fill="${O}" opacity=".12"/>`;
 }
 
 function rad(id: string, color: string, a = '.85'): string {
@@ -35,9 +36,20 @@ const VB = '0 0 100 100';
 
 const MARKS: Record<string, V2Mark> = {
   sofa: { vb: VB, body: pack(`
+    <defs>
+      <linearGradient id="a2sofa-back" x1="0" y1="0" x2="1" y2="0.35">
+        <stop offset="0" stop-color="#ffe4ee"/>
+        <stop offset="0.58" stop-color="#ffb7cc"/>
+        <stop offset="1" stop-color="#e888a8"/>
+      </linearGradient>
+      <linearGradient id="a2sofa-seat" x1="0" y1="0" x2="1" y2="0.6">
+        <stop offset="0" stop-color="#ffd0e0"/>
+        <stop offset="0.7" stop-color="#ffc2d4"/>
+        <stop offset="1" stop-color="#e888a8"/>
+      </linearGradient>
+    </defs>
     ${shadow(50, 40)}
-    <path d="M18 58 V30 Q18 18 32 18 H68 Q82 18 82 30 V58 Z" fill="#ffb7cc" ${ink()}/>
-    <path d="M56 24 H76 Q80 24 80 32 V52 H56 Z" fill="#e888a8"/>
+    <path d="M18 58 V30 Q18 18 32 18 H68 Q82 18 82 30 V58 Z" fill="url(#a2sofa-back)" ${ink()}/>
     <circle cx="34" cy="38" r="3.4" fill="#ff8fab" ${ink(2)}/><circle cx="33" cy="37" r="1.1" fill="#fff"/>
     <circle cx="50" cy="36" r="3.4" fill="#ff8fab" ${ink(2)}/><circle cx="49" cy="35" r="1.1" fill="#fff"/>
     <circle cx="66" cy="38" r="3.4" fill="#e45d88" ${ink(2)}/><circle cx="65" cy="37" r="1.1" fill="#fff"/>
@@ -48,8 +60,7 @@ const MARKS: Record<string, V2Mark> = {
     <ellipse cx="86" cy="44" rx="12" ry="9" fill="#e45d88" ${ink()}/>
     <rect x="20" y="64" width="60" height="16" rx="6" fill="#ff8fab" ${ink()}/>
     <rect x="22" y="56" width="28" height="22" rx="7" fill="#ffe0ea" ${ink(2.4)}/>
-    <rect x="50" y="56" width="28" height="22" rx="7" fill="#ffc2d4" ${ink(2.4)}/>
-    <rect x="66" y="58" width="10" height="18" rx="4" fill="#e888a8"/>
+    <rect x="50" y="56" width="28" height="22" rx="7" fill="url(#a2sofa-seat)" ${ink(2.4)}/>
     <path d="M26 60 h20 M54 60 h16 M26 74 h20 M54 74 h16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
     <path d="M50 58 v18" fill="none" stroke="#e45d88" stroke-width="2.2" stroke-linecap="round"/>
     <rect x="26" y="46" width="20" height="16" rx="5" fill="#fff" ${ink(2.2)}/>
@@ -95,10 +106,16 @@ const MARKS: Record<string, V2Mark> = {
   `) },
 
   lamp: { vb: VB, body: pack(`
-    <defs>${rad('a2lamp-glow', '#ffd56a', '.95')}</defs>
+    <defs>${rad('a2lamp-glow', '#ffd56a', '.95')}
+      <linearGradient id="a2lamp-shade" x1="0" y1="0" x2="1" y2="0.2">
+        <stop offset="0" stop-color="#fff8dc"/>
+        <stop offset="0.45" stop-color="#ffe08a"/>
+        <stop offset="1" stop-color="#e0a83a"/>
+      </linearGradient>
+    </defs>
     ${shadow(50, 22)}
     <path d="M34 8 L42 8 L37 40 L24 40 Z" fill="#fff6d4"/>
-    <path d="M42 8 L50 8 L50 40 L37 40 Z" fill="#ffe08a"/>
+    <path d="M42 8 L50 8 L50 40 L37 40 Z" fill="url(#a2lamp-shade)"/>
     <path d="M50 8 L58 8 L63 40 L50 40 Z" fill="#f0c45c"/>
     <path d="M58 8 L66 8 L76 40 L63 40 Z" fill="#e0a83a"/>
     <path d="M24 40 L34 8 H66 L76 40 Z" fill="none" ${ink()}/>
@@ -112,8 +129,9 @@ const MARKS: Record<string, V2Mark> = {
   `) },
 
   bookshelf: { vb: VB, body: pack(`
+    <defs><linearGradient id="a2shelf-wood" x1="0" y1="0" x2="1" y2="0.4"><stop offset="0" stop-color="#f8e2c8"/><stop offset="0.62" stop-color="#f0d2b0"/><stop offset="1" stop-color="#d4a078"/></linearGradient></defs>
     ${shadow(50, 36)}
-    <rect x="12" y="6" width="76" height="86" rx="8" fill="#f0d2b0" ${ink()}/>
+    <rect x="12" y="6" width="76" height="86" rx="8" fill="url(#a2shelf-wood)" ${ink()}/>
     <rect x="66" y="10" width="18" height="76" rx="4" fill="#c4844c"/>
     <path d="M18 18 h22 M20 26 h14 M18 72 h20" fill="none" stroke="${O}" stroke-width="1.1" stroke-linecap="round" opacity=".22"/>
     <rect x="16" y="36" width="68" height="7" rx="1" fill="#e0b888" ${ink(2.2)}/>
@@ -137,6 +155,21 @@ const MARKS: Record<string, V2Mark> = {
   `) },
 
   rug: { vb: VB, body: pack(`
+    <defs>
+      <radialGradient id="a2rug-pile" cx="38%" cy="32%" r="75%">
+        <stop offset="0" stop-color="#fff"/>
+        <stop offset="0.4" stop-color="#ffe0ec"/>
+        <stop offset="1" stop-color="#ffb3c6"/>
+      </radialGradient>
+      <linearGradient id="a2rug-edge" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ffc8dd" stop-opacity="0"/>
+        <stop offset="0.4" stop-color="#e888a8" stop-opacity=".28"/>
+        <stop offset="1" stop-color="#e07098"/>
+      </linearGradient>
+      <pattern id="a2rug-nap" width="7" height="4" patternUnits="userSpaceOnUse">
+        <path d="M1 3 q1.4 -2 2.8 0" fill="none" stroke="#fff" stroke-width="0.6" opacity=".45"/>
+      </pattern>
+    </defs>
     ${shadow(50, 44)}
     <rect x="10.2" y="69.6" width="5.2" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
     <rect x="4.4" y="73.4" width="5.2" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
@@ -150,10 +183,12 @@ const MARKS: Record<string, V2Mark> = {
     <rect x="93.8" y="81" width="5" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
     <rect x="90.4" y="84.8" width="5.2" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
     <rect x="84.6" y="88.6" width="5.2" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
-    <ellipse cx="50" cy="83.2" rx="47" ry="14" fill="#e888a8"/>
-    <ellipse cx="50" cy="80" rx="47" ry="14" fill="#ffc8dd" ${ink()}/>
-    <ellipse cx="50" cy="80" rx="34" ry="9" fill="#bde0fe" ${ink(2.2)}/>
+    <ellipse cx="50" cy="83.2" rx="47" ry="14" fill="url(#a2rug-edge)"/>
+    <ellipse cx="50" cy="80" rx="47" ry="14" fill="url(#a2rug-pile)" ${ink()}/>
+    <ellipse cx="50" cy="80" rx="40" ry="11" fill="url(#a2rug-nap)" opacity=".7"/>
+    <ellipse cx="50" cy="80" rx="34" ry="9" fill="#d4edff" ${ink(2.2)}/>
     <ellipse cx="50" cy="80" rx="18" ry="4.5" fill="#fff" ${ink(2)}/>
+    <ellipse cx="34" cy="76" rx="14" ry="2.4" fill="#fff" opacity=".72"/>
     <path d="M20 76 q8 2 14 0 M62 86 q8 -2 14 0 M34 86 q6 1 10 0" fill="none" stroke="${O}" stroke-width="1.1" stroke-linecap="round" opacity=".22"/>
   `) },
 
@@ -166,7 +201,8 @@ const MARKS: Record<string, V2Mark> = {
     <path d="M54 18 C60 32 58 48 50 58 C56 44 58 28 54 18 Z" fill="#52b078"/>
     <path d="M50 14 V52" fill="none" stroke="#2f7a52" stroke-width="1.4" stroke-linecap="round" opacity=".55"/>
     <path d="M40 60 C34 50 24 48 22 38 C32 44 38 54 42 64 Z" fill="#74c69d" ${ink(2.2)}/>
-    <path d="M28 64 H74 L68 94 H34 Z" fill="#e8845a" ${ink()}/>
+    <defs><linearGradient id="a2pot" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4b08a"/><stop offset="0.6" stop-color="#e8845a"/><stop offset="1" stop-color="#c45c38"/></linearGradient></defs>
+    <path d="M28 64 H74 L68 94 H34 Z" fill="url(#a2pot)" ${ink()}/>
     <path d="M58 66 H72 L68 92 H60 Z" fill="#c45c38"/>
     <rect x="22" y="58" width="58" height="10" rx="4" fill="#f0a078" ${ink()}/>
     <rect x="56" y="60" width="20" height="6" rx="3" fill="#d47848"/>
@@ -187,7 +223,8 @@ const MARKS: Record<string, V2Mark> = {
     <path d="M22 70 v8 M26 70 v8 M74 70 v8 M78 70 v8" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity=".35"/>
     <rect x="6" y="36" width="88" height="12" rx="3" fill="#d4925a" ${ink()}/>
     <path d="M70 38 H90 V46 H70 Z" fill="#c4844c"/>
-    <rect x="6" y="24" width="88" height="14" rx="5" fill="#f6c48a" ${ink()}/>
+    <defs><linearGradient id="a2table-top" x1="0" y1="0" x2="0.8" y2="1"><stop offset="0" stop-color="#ffe0b8"/><stop offset="0.55" stop-color="#f6c48a"/><stop offset="1" stop-color="#e0a060"/></linearGradient></defs>
+    <rect x="6" y="24" width="88" height="14" rx="5" fill="url(#a2table-top)" ${ink()}/>
     <path d="M64 26 H90 Q92 26 92 30 V34 H64 Z" fill="#e0a060"/>
     <path d="M14 28 h16 M18 32 h26 M52 29 h14 M16 36 h20" fill="none" stroke="${O}" stroke-width="1.1" stroke-linecap="round" opacity=".28"/>
     <path d="M12 27 h12" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".65"/>
@@ -266,24 +303,35 @@ const MARKS: Record<string, V2Mark> = {
   `) },
 
   crib: { vb: VB, body: pack(`
+    <defs>
+      <linearGradient id="a2crib-post" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#f7fcff"/>
+        <stop offset="0.42" stop-color="#d7f0fb"/>
+        <stop offset="1" stop-color="#7eb4dc"/>
+      </linearGradient>
+      <linearGradient id="a2crib-rail" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#e7f6ff"/>
+        <stop offset="1" stop-color="#9ecae8"/>
+      </linearGradient>
+    </defs>
     ${shadow(50, 40)}
     <rect x="22" y="48" width="56" height="22" rx="4" fill="#ffe0ec"/>
     <ellipse cx="34" cy="55" rx="8" ry="4.2" fill="#fff"/>
     <ellipse cx="52" cy="56" rx="8" ry="4.2" fill="#d7ecff"/>
     <rect x="8" y="12" width="14" height="72" rx="6" fill="#fff" ${ink()}/>
-    <rect x="78" y="12" width="14" height="72" rx="6" fill="#7eb4dc" ${ink()}/>
+    <rect x="78" y="12" width="14" height="72" rx="6" fill="url(#a2crib-post)" ${ink()}/>
     <rect x="16" y="20" width="68" height="12" rx="5" fill="#c5e8f8" ${ink()}/>
-    <rect x="54" y="22" width="26" height="8" rx="3" fill="#7eb4dc"/>
+    <rect x="54" y="22" width="26" height="8" rx="3" fill="url(#a2crib-rail)"/>
     <rect x="16" y="72" width="68" height="11" rx="4" fill="#e7f6ff" ${ink()}/>
     <rect x="54" y="74" width="26" height="7" rx="3" fill="#b9dff2"/>
     <rect x="26" y="30" width="5" height="46" rx="2.4" fill="#fff" ${ink(2.2)}/>
     <rect x="38" y="30" width="5" height="46" rx="2.4" fill="#fff" ${ink(2.2)}/>
     <rect x="50" y="30" width="5" height="46" rx="2.4" fill="#f4fbff" ${ink(2.2)}/>
     <rect x="62" y="30" width="5" height="46" rx="2.4" fill="#d7f0fb" ${ink(2.2)}/>
-    <rect x="74" y="30" width="5" height="46" rx="2.4" fill="#7eb4dc" ${ink(2.2)}/>
+    <rect x="74" y="30" width="5" height="46" rx="2.4" fill="url(#a2crib-post)" ${ink(2.2)}/>
     <path d="M50 30 C50 30 45.6 25.6 45.6 23.4 C45.6 21.4 47.5 20.6 49 21.8 C49.7 22.4 50 23.2 50 23.2 C50 23.2 50.3 22.4 51 21.8 C52.5 20.6 54.4 21.4 54.4 23.4 C54.4 25.6 50 30 50 30 Z" fill="#ff8fab"/>
     <rect x="11" y="82" width="8" height="12" rx="2.4" fill="#fff" ${ink(2.2)}/>
-    <rect x="81" y="82" width="8" height="12" rx="2.4" fill="#7eb4dc" ${ink(2.2)}/>
+    <rect x="81" y="82" width="8" height="12" rx="2.4" fill="url(#a2crib-post)" ${ink(2.2)}/>
   `) },
 };
 

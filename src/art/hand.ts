@@ -6,7 +6,7 @@ import type { V2Mark } from './v2-sample';
 const O = '#5a3d5c';
 const ink = (w = 3.5) => `stroke="${O}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
 const sh = (cx = 50, rx = 34) =>
-  `<ellipse cx="${cx}" cy="96.4" rx="${rx}" ry="3.4" fill="${O}" opacity=".08"/><ellipse cx="${cx}" cy="97.6" rx="${Math.round(rx * 0.62)}" ry="1.55" fill="${O}" opacity=".12"/>`;
+  `<ellipse cx="${cx}" cy="96.4" rx="${rx}" ry="4.6" fill="${O}" opacity=".045"/><ellipse cx="${cx}" cy="96.4" rx="${Math.round(rx * 0.72)}" ry="2.5" fill="${O}" opacity=".08"/><ellipse cx="${cx}" cy="97.6" rx="${Math.round(rx * 0.46)}" ry="1.15" fill="${O}" opacity=".12"/>`;
 
 function pack(s: string): string {
   return s.replace(/\n\s*/g, '').trim();
@@ -142,13 +142,17 @@ export const HAND: Record<string, V2Mark> = {
   `) },
 
   flowers: { vb: VB, body: pack(`
-    ${sh(50, 28)}
+    <defs>
+      <radialGradient id="a2flowers-pink" cx="35%" cy="32%" r="70%"><stop offset="0" stop-color="#fff"/><stop offset="0.45" stop-color="#ffb3c6"/><stop offset="1" stop-color="#e45d88"/></radialGradient>
+      <radialGradient id="a2flowers-gold" cx="35%" cy="32%" r="70%"><stop offset="0" stop-color="#fff6d0"/><stop offset="1" stop-color="#ffe08a"/></radialGradient>
+      <radialGradient id="a2flowers-blue" cx="35%" cy="32%" r="70%"><stop offset="0" stop-color="#f4fbff"/><stop offset="1" stop-color="#7eb4dc"/></radialGradient>
+    </defs>
+    ${sh(50, 36)}
     <path d="M50 72 V28 M50 58 Q30 48 30 30 M50 58 Q70 48 70 30" stroke="#3d9a68" stroke-width="4" fill="none" stroke-linecap="round"/>
     <path d="M58 40 Q68 36 70 30" stroke="#2f7a52" stroke-width="1.4" fill="none" opacity=".5"/>
-    <circle cx="50" cy="24" r="11" fill="#ffb3c6" ${ink()}/>
-    <circle cx="56" cy="26" r="6" fill="#e45d88"/>
-    <circle cx="30" cy="28" r="9" fill="#ffe08a" ${ink(2.2)}/>
-    <circle cx="70" cy="28" r="9" fill="#7eb4dc" ${ink(2.2)}/>
+    <circle cx="50" cy="24" r="11" fill="url(#a2flowers-pink)" ${ink()}/>
+    <circle cx="30" cy="28" r="9" fill="url(#a2flowers-gold)" ${ink(2.2)}/>
+    <circle cx="70" cy="28" r="9" fill="url(#a2flowers-blue)" ${ink(2.2)}/>
     <circle cx="50" cy="24" r="3" fill="#fff"/>
     <path d="M32 66 H68 L62 96 H38 Z" fill="#cfefff" ${ink()}/>
     <path d="M54 70 H66 L62 94 H56 Z" fill="#7eb4dc"/>
@@ -232,19 +236,30 @@ export const HAND: Record<string, V2Mark> = {
   `) },
 
   'cloud-rug': { vb: VB, body: pack(`
+    <defs>
+      <radialGradient id="a2cloud-puff" cx="35%" cy="30%" r="75%">
+        <stop offset="0" stop-color="#fff"/>
+        <stop offset="0.42" stop-color="#e7f6ff"/>
+        <stop offset="1" stop-color="#9ecff0"/>
+      </radialGradient>
+      <linearGradient id="a2cloud-edge" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#bde0fe" stop-opacity="0"/>
+        <stop offset="1" stop-color="#7eb4dc"/>
+      </linearGradient>
+    </defs>
     ${sh(50, 44)}
     <g transform="translate(0,2.8)">
-      <ellipse cx="20" cy="74" rx="18" ry="12" fill="#7eb4dc"/>
-      <ellipse cx="38" cy="68" rx="18" ry="12" fill="#7eb4dc"/>
-      <ellipse cx="62" cy="68" rx="18" ry="12" fill="#7eb4dc"/>
-      <ellipse cx="80" cy="74" rx="16" ry="12" fill="#7eb4dc"/>
-      <ellipse cx="50" cy="80" rx="40" ry="12" fill="#7eb4dc"/>
+      <ellipse cx="20" cy="74" rx="18" ry="12" fill="url(#a2cloud-edge)"/>
+      <ellipse cx="38" cy="68" rx="18" ry="12" fill="url(#a2cloud-edge)"/>
+      <ellipse cx="62" cy="68" rx="18" ry="12" fill="url(#a2cloud-edge)"/>
+      <ellipse cx="80" cy="74" rx="16" ry="12" fill="url(#a2cloud-edge)"/>
+      <ellipse cx="50" cy="80" rx="40" ry="12" fill="url(#a2cloud-edge)"/>
     </g>
-    <ellipse cx="20" cy="74" rx="18" ry="12" fill="#bde0fe" ${ink()}/>
-    <ellipse cx="38" cy="68" rx="18" ry="12" fill="#bde0fe" ${ink()}/>
-    <ellipse cx="62" cy="68" rx="18" ry="12" fill="#bde0fe" ${ink()}/>
-    <ellipse cx="80" cy="74" rx="16" ry="12" fill="#bde0fe" ${ink()}/>
-    <ellipse cx="50" cy="80" rx="40" ry="12" fill="#bde0fe" ${ink()}/>
+    <ellipse cx="20" cy="74" rx="18" ry="12" fill="url(#a2cloud-puff)" ${ink()}/>
+    <ellipse cx="38" cy="68" rx="18" ry="12" fill="url(#a2cloud-puff)" ${ink()}/>
+    <ellipse cx="62" cy="68" rx="18" ry="12" fill="url(#a2cloud-puff)" ${ink()}/>
+    <ellipse cx="80" cy="74" rx="16" ry="12" fill="url(#a2cloud-puff)" ${ink()}/>
+    <ellipse cx="50" cy="80" rx="40" ry="12" fill="url(#a2cloud-puff)" ${ink()}/>
     <ellipse cx="20" cy="74" rx="14.6" ry="9.2" fill="#f4fbff"/>
     <ellipse cx="38" cy="68" rx="14.6" ry="9.2" fill="#f4fbff"/>
     <ellipse cx="62" cy="68" rx="14.6" ry="9.2" fill="#f4fbff"/>
@@ -274,7 +289,8 @@ export const HAND: Record<string, V2Mark> = {
     <rect x="34" y="74" width="7" height="16" rx="2.5" fill="#ead8f6" ${ink(2.2)}/>
     <rect x="59" y="74" width="7" height="16" rx="2.5" fill="#c49ad4" ${ink(2.2)}/>
     <rect x="30" y="28" width="40" height="36" rx="12" fill="#f3e4ff" ${ink()}/>
-    <rect x="52" y="32" width="16" height="28" rx="8" fill="#c49ad4"/>
+    <defs><linearGradient id="a2rocker-side" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f3e4ff" stop-opacity="0"/><stop offset="1" stop-color="#c49ad4"/></linearGradient></defs>
+    <rect x="52" y="32" width="16" height="28" rx="8" fill="url(#a2rocker-side)"/>
     <path d="M20 48 Q16 70 30 80 H70 Q84 70 80 48 Z" fill="#fff" ${ink()}/>
     <path d="M58 52 H78 Q80 68 70 76 H60 Z" fill="#e4ccf2"/>
     <rect x="36" y="56" width="28" height="12" rx="6" fill="#ffc8dd" ${ink(2)}/>

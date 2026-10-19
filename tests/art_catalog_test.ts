@@ -1,7 +1,9 @@
 // Whole-catalog art: footprints stay put, old saves still migrate, the drawings stay light.
 import { execSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
-import { artV2Markup } from '../src/art/catalog';
+import { ART_ROOMS, artV2Markup, loadArtRooms } from '../src/art/catalog';
+
+await loadArtRooms(ART_ROOMS);
 import { setArtV2, setArtV2FromSearch, ART_V2 } from '../src/art/flag';
 import { migrate } from '../src/shared/state';
 import { PROTOCOL } from '../src/shared/hood';
@@ -125,10 +127,51 @@ check('an fbd04db house keeps a custom nursery and a backyard rug',
   mF.rooms.nursery.items.length === 1 && mF.rooms.nursery.items[0].kind === 'doll-rose' && mF.rooms.backyard.items[0].kind === 'rug' && mF.rooms.living.items.some(i => i.kind === 'lamp'));
 
 const bench = JSON.parse(readFileSync('docs/art-catalog/bench.json', 'utf8'));
-const foot = JSON.parse(readFileSync('docs/art-catalog/foot.json', 'utf8'));
 const after80 = bench.items80.after;
 check('80-item pan stays at 60fps', after80.p95 <= 20 && after80.p50 <= 18, JSON.stringify(after80));
 check('80-item layer build stays under one frame', after80.build < 16.7, String(after80.build));
-check('placed boxes and anchors match the old art', foot.mismatches.length === 0 && foot.checked > 200, String(foot.checked));
+
+const VOID = new Set(['path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'stop', 'use', 'image']);
+function lintSvg(kind: string, body: string): string {
+  const stack: string[] = [];
+  const re = /<\/?([a-zA-Z][\w:-]*)\b[^>]*\/?>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body))) {
+    const raw = m[0];
+    const name = m[1].toLowerCase();
+    if (raw.endsWith('/>') || VOID.has(name)) continue;
+    if (raw.startsWith('</')) {
+      const open = stack.pop();
+      if (open !== name) return kind + ' expected </' + open + '> found </' + name + '>';
+    } else stack.push(name);
+  }
+  if (stack.length) return kind + ' unclosed <' + stack[stack.length - 1] + '>';
+  if ((body.match(/<text\b/g) || []).length !== (body.match(/<\/text>/g) || []).length) return kind + ' text';
+  return '';
+}
+setArtV2(true);
+const lintBad: string[] = [];
+for (const k of Object.keys(nowW)) {
+  if (PETS.has(k) || packPets.has(k)) continue;
+  const mark = artV2Markup(k);
+  if (!mark) continue;
+  const msg = lintSvg(k, mark.body);
+  if (msg) lintBad.push(msg);
+}
+check('svg markup is well formed', lintBad.length === 0, lintBad.slice(0, 6).join('; '));
+
+const py = ['/tmp/pwvenv/bin/python', '/workspace/.pwvenv/bin/python'].find(p => { try { execSync(`test -x ${p}`); return true; } catch { return false; } });
+check('placement measurer is available', !!py, 'playwright python');
+if (py) {
+  execSync('node scripts/dump-art-pairs.mjs', { stdio: 'inherit' });
+  const pairs = JSON.parse(readFileSync('/tmp/art-pairs.json', 'utf8')).filter((p: { v1?: string }) => p.v1);
+  const measured = JSON.parse(execSync(`${py} tests/measure_place.py`, { input: JSON.stringify(pairs), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }));
+  const bad = measured.bad as { kind: string; dax: number; day: number; dw: number; dh: number; out: boolean }[];
+  const drift = bad.filter(r => r.dax > 0.04 || r.day > 0.04 || r.dw > 0.12 || r.dh > 0.12);
+  const spilled = bad.filter(r => r.out);
+  check('ink anchor and size match fbd04db', drift.length === 0 && measured.checked > 200,
+    drift.slice(0, 8).map(r => `${r.kind} a${r.day.toFixed(2)} w${r.dw.toFixed(2)} h${r.dh.toFixed(2)}`).join(', ') + ` checked ${measured.checked}`);
+  check('svg stays inside its viewBox', spilled.length === 0, spilled.slice(0, 8).map(r => r.kind).join(','));
+}
 
 console.log(pass + ' passed');

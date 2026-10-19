@@ -213,8 +213,10 @@ function boost(slug, box, vb) {
       pill(left, y1, '#ffc8dd') + pill(left - 1.2, y2, '#ffb7cc') +
       pill(right, y1, '#ffb7cc') + pill(right + 1.2, y2, '#e888a8');
   }
+  const xn = (n) => Math.max(vb.x + 1, Math.min(vb.r - 1, n));
+  const yn = (n) => Math.max(vb.y + 1, Math.min(vb.b - 1, n));
   if (/lamp|light|sconce/.test(s)) {
-    return `<path d="M${(box.cx - 8).toFixed(1)} ${(box.y + 6).toFixed(1)} V${(box.y + box.h * 0.55).toFixed(1)} M${box.cx.toFixed(1)} ${(box.y + 4).toFixed(1)} V${(box.y + box.h * 0.6).toFixed(1)} M${(box.cx + 8).toFixed(1)} ${(box.y + 6).toFixed(1)} V${(box.y + box.h * 0.55).toFixed(1)}" fill="none" stroke="${O}" stroke-width="1.6" stroke-linecap="round" opacity=".35"/>`;
+    return `<path d="M${xn(box.cx - 8).toFixed(1)} ${yn(box.y + 6).toFixed(1)} V${yn(box.y + box.h * 0.55).toFixed(1)} M${xn(box.cx).toFixed(1)} ${yn(box.y + 4).toFixed(1)} V${yn(box.y + box.h * 0.6).toFixed(1)} M${xn(box.cx + 8).toFixed(1)} ${yn(box.y + 6).toFixed(1)} V${yn(box.y + box.h * 0.55).toFixed(1)}" fill="none" stroke="${O}" stroke-width="1.6" stroke-linecap="round" opacity=".35"/>`;
   }
   if (/bed|crib|bassinet|duvet/.test(s)) {
     return `<path d="M${x.toFixed(1)} ${(y + 6).toFixed(1)} l3.2 3.2 -3.2 3.2 -3.2 -3.2 z M${(x + 12).toFixed(1)} ${(y + 10).toFixed(1)} l3.2 3.2 -3.2 3.2 -3.2 -3.2 z" fill="#efe8ff" stroke="${O}" stroke-width="1.2"/>`;
@@ -237,7 +239,7 @@ function boost(slug, box, vb) {
   if (/clock|watch/.test(s)) {
     return `<path d="M${box.cx.toFixed(1)} ${(box.cy - 6).toFixed(1)} V${box.cy.toFixed(1)} H${(box.cx + 5).toFixed(1)}" fill="none" stroke="${O}" stroke-width="1.6" stroke-linecap="round"/>`;
   }
-  return `<path d="M${x.toFixed(1)} ${y.toFixed(1)} H${(x + 10).toFixed(1)} M${x.toFixed(1)} ${(y + 4).toFixed(1)} H${(x + 7).toFixed(1)}" fill="none" stroke="${O}" stroke-width="1.1" stroke-linecap="round" opacity=".2"/>`;
+  return `<path d="M${xn(x).toFixed(1)} ${yn(y).toFixed(1)} H${xn(x + 10).toFixed(1)} M${xn(x).toFixed(1)} ${yn(y + 4).toFixed(1)} H${xn(x + 7).toFixed(1)}" fill="none" stroke="${O}" stroke-width="1.1" stroke-linecap="round" opacity=".2"/>`;
 }
 
 function restyle(inner, vbStr, slug, wall) {
@@ -259,10 +261,17 @@ function restyle(inner, vbStr, slug, wall) {
   const re = /<([a-zA-Z][\w:-]*)\b[^>]*\/?>/g;
   let m;
   while ((m = re.exec(svg))) {
-    const tag = m[0];
-    if (tag.startsWith('</')) continue;
+    let tag = m[0];
     const name = m[1].toLowerCase();
-    if (['clippath', 'defs', 'lineargradient', 'radialgradient', 'stop', 'g', 'svg', 'mask'].includes(name)) continue;
+    // A label is not a side plane. Copying only its opening tag used to leave
+    // </text> off and let the boost draw lines far outside the viewBox.
+    if (['clippath', 'defs', 'lineargradient', 'radialgradient', 'stop', 'g', 'svg', 'mask', 'text', 'tspan', 'textpath', 'title', 'desc', 'style'].includes(name)) continue;
+    if (!tag.endsWith('/>')) {
+      const close = `</${m[1]}>`;
+      const end = svg.indexOf(close, m.index + tag.length);
+      if (end < 0) continue;
+      tag = svg.slice(m.index, end + close.length);
+    }
     const fill = attr(tag, 'fill');
     if (!fill || fill === 'none' || fill.startsWith('url(')) continue;
     const box = bboxOf(tag);
@@ -290,20 +299,17 @@ function restyle(inner, vbStr, slug, wall) {
     svg = svg.slice(0, r.index) + r.to + svg.slice(r.index + r.from.length);
   }
 
-  if (!recolored) {
+  if (!recolored && largest.name !== 'text') {
+    // A soft falloff on the right, clamped to the viewBox. Not a clipped copy
+    // of the shape (that leaked unclosed text) and not a hard-edged slab.
     const side = darken(largest.fill) || '#e888a8';
-    const x = Math.max(vb.x, largest.box.x + largest.box.w * 0.62);
-    const y = largest.box.y + 2;
-    const w = Math.max(6, Math.min(vb.r - x - 1, largest.box.w * 0.3));
-    const h = Math.max(8, largest.box.h - 6);
+    const x = Math.max(vb.x, Math.min(vb.r - 8, largest.box.x + largest.box.w * 0.42));
+    const y = Math.max(vb.y, Math.min(vb.b - 8, largest.box.y));
+    const w = Math.max(6, Math.min(vb.r - x - 0.5, largest.box.w * 0.58));
+    const h = Math.max(6, Math.min(vb.b - y - 0.5, largest.box.h));
     const id = 'a2' + slug.replace(/[^a-zA-Z0-9]/g, '') + 'side';
-    svg += `<clipPath id="${id}"><rect x="${x.toFixed(1)}" y="${vb.y}" width="${(vb.r - x).toFixed(1)}" height="${vb.h}"/></clipPath>`;
-    svg += `<g clip-path="url(#${id})">${setFill(largest.tag.replace(/\sstroke="[^"]*"/, '').replace(/\sstroke-width="[^"]*"/, ''), side)}</g>`;
-    if (svg.length > 5200) {
-      // The duplicate was too heavy. A hard-edged slab stays inside the body instead.
-      svg = svg.replace(new RegExp(`<clipPath id="${id}">[\\s\\S]*$`), '');
-      svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="${side}"/>`;
-    }
+    svg += `<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${side}" stop-opacity="0"/><stop offset="1" stop-color="${side}" stop-opacity=".7"/></linearGradient></defs>`;
+    svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="url(#${id})"/>`;
   }
 
   let box = largest.box;
@@ -325,7 +331,9 @@ function innerOf(file) {
   return { vb, inner };
 }
 
-const roomsWanted = process.argv.slice(2);
+const onlyArg = process.argv.find(a => a.startsWith('--only='));
+const only = new Set(onlyArg ? onlyArg.slice(7).split(',').filter(Boolean) : []);
+const roomsWanted = process.argv.slice(2).filter(a => !a.startsWith('--'));
 
 const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
 const mod = await vite.ssrLoadModule('/src/items.ts');
@@ -339,6 +347,7 @@ function add(room, kind, mark) {
 }
 
 for (const item of mod.ITEMS) {
+  if (only.size && !only.has(item.kind)) continue;
   if (SKIP_PETS.has(item.kind) || item.cat === 'pets' || SKIP_HAND.has(item.kind)) continue;
   if (item.kind.startsWith('pack:')) {
     const slug = item.kind.slice(5);
@@ -361,7 +370,34 @@ for (const item of mod.ITEMS) {
 
 await vite.close();
 
+function spliceMark(text, kind, mark) {
+  const key = `${JSON.stringify(kind)}:`;
+  const start = text.indexOf(key);
+  if (start < 0) throw new Error('missing ' + kind);
+  let depth = 0;
+  const i = text.indexOf('{', start);
+  for (let j = i; j < text.length; j++) {
+    if (text[j] === '{') depth++;
+    else if (text[j] === '}') {
+      depth--;
+      if (depth === 0) return text.slice(0, start) + key + JSON.stringify(mark) + text.slice(j + 1);
+    }
+  }
+  throw new Error('unclosed ' + kind);
+}
+
 mkdirSync('src/art/generated', { recursive: true });
+if (only.size) {
+  for (const room of Object.keys(groups)) {
+    const id = room.replace(/[^a-z0-9]/gi, '') || 'any';
+    const file = `src/art/generated/${id}.ts`;
+    let text = readFileSync(file, 'utf8');
+    for (const [kind, mark] of Object.entries(groups[room])) text = spliceMark(text, kind, mark);
+    writeFileSync(file, text);
+    console.log('patched', room, Object.keys(groups[room]).join(','));
+  }
+  process.exit(0);
+}
 const names = [];
 for (const room of Object.keys(groups).sort()) {
   if (roomsWanted.length && !roomsWanted.includes(room)) continue;

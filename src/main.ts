@@ -32,6 +32,7 @@ import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMAL
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
 import { bindGameRoom, renderGameRoom, renderGamePeople, tickGameRoom, mySeat, grScale, tableApi } from './gameroom-view';
 import { setArtV2FromSearch } from './art/flag';
+import { ART_ROOMS, loadArtRoom, loadArtRooms } from './art/catalog';
 
 // ART_V2 in src/art/flag.ts picks the drawings. ?art=v1 is the old set. Not stored on the house.
 setArtV2FromSearch(location.search);
@@ -673,7 +674,11 @@ function renderAll() {
 
 store.subscribe((s, a) => {
   switch (a.type) {
-    case 'room/switch': if (hood && inner !== local) moveMeToRoom(a.room); renderAll(); renderDrawer(); break;
+    case 'room/switch': {
+      const go = () => { if (hood && inner !== local) moveMeToRoom(a.room); renderAll(); renderDrawer(); };
+      void loadArtRoom(a.room).then(go);
+      break;
+    }
     case 'game/reset': renderAll(); break;
     case 'room/wallpaper': case 'room/floor': case 'room/pattern': case 'room/wallTile': case 'room/floorTile': renderRoomBg(s); break;
     case 'char/update': case 'char/move': renderChars(s); if (view === 'ranch') renderRanchAvatars(); else if (view === 'park') renderParkAvatars(); break;
@@ -2823,7 +2828,7 @@ bindGameRoom({
 
 // ---------- start ----------
 installJuice();
-renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
+void loadArtRooms(ART_ROOMS).then(() => { renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit); });
 // ---------- hidden surprises ----------
 const renderSecrets = () => {
   const n = foundSet().size, total = EGGS.length;
