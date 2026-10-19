@@ -1,8 +1,8 @@
 # Art style v2
 
-A sample of twelve pieces, drawn so Andy can approve the direction before the rest of the catalog is touched. The game still ships the current drawings. Open the game with `?art=v2` to preview the sample in a real room, or open `art-sample.html` for the before/after board. Nothing in this pass changes a save, an item id, a footprint, or the protocol (it stays 4). Old clients keep the art they already have, because the drawing lives in the client, not in the house.
+This is the canonical drawing guide for the catalog. Bathroom, backyard, and any new pack follow these rules. Winter Cheer and Critter Corner are restyled after those branches ship. Characters and the avatar pets stay on avatar v2. Do not redraw them here.
 
-Characters stay on avatar v2. Do not redraw them in this style.
+`ART_V2` in `src/art/flag.ts` is the one-line switch. `true` draws this style. `false` draws the previous art. `?art=v1` forces the old drawings for one visit and is not stored on the house. Nothing here changes a save, an item id, a footprint, or the protocol (it stays 4). Old clients keep the art they already have, because the drawing lives in the client, not in the house.
 
 ## What changed in the sample
 
@@ -133,19 +133,20 @@ The wardrobe file on disk is unchanged. The sample is an inline stand-in used on
 
 Rough numbers from `art-sample.html?view=bench` in headless Chrome on this build machine. This is not an iPad 10th gen. The bench builds a room layer, forces layout, then nudges that layer for about 70 frames. 48 items is a busy room. 80 is the room cap.
 
-Measured again after the rug tassels, the side-view bed, and the closed fridge. One run in headless Chrome. While the layer was nudged, every case sat on the display refresh: p50 16.7 ms, p95 16.8 ms, max 16.8 ms, for the current art and the sample, at 48 items and at 80. Building the layer was 3.4 ms (48) and 3.8 ms (80) for the current art, and 4.9 ms (48) and 7.5 ms (80) for the sample. Both are under one frame, including at the room cap. The thing that would miss 60 fps on an iPad is a blur filter on every piece, and the sample does not use one.
+Measured again after the whole catalog moved to this style. One run in headless Chrome, 310 drawings in the rotation. While the layer was nudged, the steady frames sat on the display refresh: p50 16.7 ms and p95 16.8 ms for the previous art and the new art, at 48 items and at 80. Building the layer was 3.6–3.7 ms for the previous art, and 4.0 ms (48) and 8.4 ms (80) for the new art. Both builds are under one frame at the room cap. The thing that would miss 60 fps on an iPad is a blur filter on every piece, and these drawings do not use one.
 
-Markup per sample piece is 1071–2801 bytes (rug smallest, sofa largest).
+Markup per drawing is 670–7461 bytes. Most pieces sit near 1.6KB. Eight pack pieces that were already detailed stay above 4.5KB.
 
 ## Pictures
 
-- `docs/art-sample/contact-sheet.png` — before / after, with display names
-- `docs/art-sample/living-820x1180.png` — living room, current art on top, sample below
-- `docs/art-sample/bedroom-820x1180.png` — bedroom, same
-- `docs/art-sample/contact-sheet-night.png` — the after column under a flat indigo veil
+The approved sample board is still in `docs/art-sample/`. The whole-catalog boards are in `docs/art-catalog/`:
 
-The room shots stage the sample pieces so they fit in one iPad-portrait frame. They use each piece's real width, height, and bottom-center anchor. They are not a change to the starter rooms in a save.
+- `sheet-<room>.png` — before / after for that room's pieces (living, bedroom, kitchen, salon, nursery, backyard, any, ranch)
+- `sheet-living-night.png` — the living sheet under the indigo veil
+- `<room>-820x1180.png` and `<room>-390x844.png` — the same staged room at the iPad portrait size and the phone portrait size
 
-## Not in this pass
+The room shots use each piece's real width, height, and bottom-center anchor. They are not a change to the starter rooms in a save.
 
-The other furniture and decor stays as it is until the sample direction is approved. Winter Cheer, Critter Corner, the bathroom, and the backyard should follow this guide when their packs are drawn. Do not deploy this branch for the preview, and do not retint the characters.
+## Out of this pass
+
+Winter Cheer and Critter Corner live on other branches. Restyle them after they ship, using this file. Do not deploy this branch, and do not retint the characters or the avatar pets.

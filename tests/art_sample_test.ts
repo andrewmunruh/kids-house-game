@@ -1,6 +1,7 @@
 // The art sample must not change footprints, saves, or the default drawing.
 import { readFileSync } from 'node:fs';
 import { SAMPLE_KINDS, artV2Markup, artV2On, setArtV2, setArtV2FromSearch, v2Mark } from '../src/art/v2-sample';
+import { ART_V2 } from '../src/art/flag';
 
 let pass = 0;
 const check = (name: string, ok: boolean, extra = '') => {
@@ -27,11 +28,12 @@ function widthOf(kind: string): string | null {
 }
 
 check('protocol stays 4', /export const PROTOCOL = 4/.test(hood));
-check('sample starts off', artV2On() === false && artV2Markup('sofa') === null);
-check('search without the flag stays off', setArtV2FromSearch('') === false && artV2Markup('sofa') === null);
-check('search flag turns the sample on', setArtV2FromSearch('?art=v2') === true && artV2Markup('sofa') !== null);
+check('default follows the one-line switch', setArtV2FromSearch('') === ART_V2 && artV2On() === ART_V2);
+check('v1 search rolls back to the old art', setArtV2FromSearch('?art=v1') === false && artV2Markup('sofa') === null);
+check('v2 search forces the new art', setArtV2FromSearch('?art=v2') === true && artV2Markup('sofa') !== null);
 setArtV2(false);
 check('flag can turn back off', artV2On() === false && artV2Markup('bed') === null);
+setArtV2FromSearch('');
 check('game reads the search flag once', main.includes('setArtV2FromSearch(location.search)'));
 check('svgOf asks the sample and still has the img path', items.includes('artV2Markup(d.kind)') && items.includes('class="packimg"'));
 check('sample is not written to storage', !/localStorage|sessionStorage/.test(readFileSync(new URL('../src/art/v2-sample.ts', import.meta.url), 'utf8')));

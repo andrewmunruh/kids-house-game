@@ -1,3 +1,5 @@
+import { artV2On } from './flag';
+
 // Opt-in art sample. The catalog strings in items.ts stay the old drawings.
 // Turn this on with ?art=v2 (see main.ts) or from the sample page. Nothing here
 // is written into a house save, and footprints live on the item, not in this file.
@@ -285,27 +287,13 @@ const MARKS: Record<string, V2Mark> = {
 /** Sheet and room order. Display names come from the catalog. */
 export const SAMPLE_KINDS = ['sofa', 'bed', 'fridge', 'lamp', 'bookshelf', 'rug', 'plant', 'table', 'pack:wardrobe', 'teddy', 'window', 'crib'] as const;
 
-let on = false;
-
-export function artV2On(): boolean {
-  return on;
-}
-
-export function setArtV2(v: boolean): void {
-  on = v;
-}
-
-/** True only when the page was opened with ?art=v2. Not stored on the house. */
-export function setArtV2FromSearch(search: string): boolean {
-  on = new URLSearchParams(search).get('art') === 'v2';
-  return on;
-}
+export { ART_V2, artV2On, setArtV2, setArtV2FromSearch } from './flag';
 
 export function v2Mark(kind: string): V2Mark | null {
   return MARKS[kind] ?? null;
 }
 
-/** Null unless the sample is on, so svgOf keeps drawing the catalog art. */
+/** The twelve approved drawings, when the v2 switch is on. */
 export function artV2Markup(kind: string): V2Mark | null {
-  return on ? v2Mark(kind) : null;
+  return artV2On() ? v2Mark(kind) : null;
 }

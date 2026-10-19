@@ -31,9 +31,9 @@ import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
 import { bindGameRoom, renderGameRoom, renderGamePeople, tickGameRoom, mySeat, grScale, tableApi } from './gameroom-view';
-import { setArtV2FromSearch } from './art/v2-sample';
+import { setArtV2FromSearch } from './art/flag';
 
-// Sample drawings only. A normal visit keeps the catalog art. Not stored on the house.
+// ART_V2 in src/art/flag.ts picks the drawings. ?art=v1 is the old set. Not stored on the house.
 setArtV2FromSearch(location.search);
 
 // The renderer talks to `store`, which forwards to either the offline localStorage house
