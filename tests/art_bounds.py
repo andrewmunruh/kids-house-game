@@ -26,14 +26,26 @@ JS = r'''async ({ b64, svg, vb }) => {
   const data = ctx.getImageData(0, 0, c.width, c.height).data;
   let l = c.width, t = c.height, r = -1, b = -1, clear = 0;
   const solid = new Uint8Array(c.width * c.height);
+  const pale = new Uint8Array(c.width * c.height);
+  const structural = new Uint8Array(c.width * c.height);
   for (let i = 0, p = 0; i < data.length; i += 4, p++) {
-    if (data[i + 3] > 12) {
+    const pr = data[i], pg = data[i + 1], pb = data[i + 2], pa = data[i + 3];
+    if (pa > 12) {
       solid[p] = 1;
       const x = p % c.width, y = (p / c.width) | 0;
       if (x < l) l = x;
       if (y < t) t = y;
       if (x > r) r = x;
       if (y > b) b = y;
+      const mx = pr > pg ? (pr > pb ? pr : pb) : (pg > pb ? pg : pb);
+      const mn = pr < pg ? (pr < pb ? pr : pb) : (pg < pb ? pg : pb);
+      const ch = mx - mn;
+      const plum = Math.abs(pr - 90) < 28 && Math.abs(pg - 61) < 28 && Math.abs(pb - 92) < 28 && ch < 45;
+      const pink = pr > pg + 40 && pr > pb + 15;
+      const warm = pr + 8 >= pg && pg + 6 >= pb;
+      // Near-cream: a light warm fringe, brighter than a wood highlight.
+      if (!plum && pr + pg + pb > 630 && ch < 42 && warm && !pink) pale[p] = 1;
+      else if (!plum) structural[p] = 1;
     } else clear++;
   }
   const seen = new Uint8Array(c.width * c.height);
@@ -62,6 +74,83 @@ JS = r'''async ({ b64, svg, vb }) => {
       }
     }
   }
+  // Interior holes: transparent pixels the border flood cannot reach.
+  const holeSeen = new Uint8Array(c.width * c.height);
+  let holes = 0;
+  const seedHole = (x, y) => {
+    const p = y * c.width + x;
+    if (solid[p] || holeSeen[p]) return;
+    holeSeen[p] = 1;
+    qx[0] = x; qy[0] = y;
+    let head = 0, tail = 1;
+    while (head < tail) {
+      const cx = qx[head], cy = qy[head]; head++;
+      const nb = [cx + 1, cy, cx - 1, cy, cx, cy + 1, cx, cy - 1];
+      for (let k = 0; k < nb.length; k += 2) {
+        const nx = nb[k], ny = nb[k + 1];
+        if (nx < 0 || ny < 0 || nx >= c.width || ny >= c.height) continue;
+        const np = ny * c.width + nx;
+        if (solid[np] || holeSeen[np]) continue;
+        holeSeen[np] = 1;
+        qx[tail] = nx; qy[tail] = ny; tail++;
+      }
+    }
+  };
+  for (let x = 0; x < c.width; x++) { seedHole(x, 0); seedHole(x, c.height - 1); }
+  for (let y = 0; y < c.height; y++) { seedHole(0, y); seedHole(c.width - 1, y); }
+  for (let p = 0; p < solid.length; p++) if (!solid[p] && !holeSeen[p]) holes++;
+  // Near-cream that can be reached from outside the frame without crossing
+  // the object. The plum outline does not count as the frame.
+  const reach = new Uint8Array(c.width * c.height);
+  const seedOut = (x, y) => {
+    const p = y * c.width + x;
+    if (structural[p] || reach[p]) return;
+    reach[p] = 1;
+    qx[0] = x; qy[0] = y;
+    let head = 0, tail = 1;
+    while (head < tail) {
+      const cx = qx[head], cy = qy[head]; head++;
+      const nb = [cx + 1, cy, cx - 1, cy, cx, cy + 1, cx, cy - 1];
+      for (let k = 0; k < nb.length; k += 2) {
+        const nx = nb[k], ny = nb[k + 1];
+        if (nx < 0 || ny < 0 || nx >= c.width || ny >= c.height) continue;
+        const np = ny * c.width + nx;
+        if (structural[np] || reach[np]) continue;
+        reach[np] = 1;
+        qx[tail] = nx; qy[tail] = ny; tail++;
+      }
+    }
+  };
+  for (let x = 0; x < c.width; x++) { seedOut(x, 0); seedOut(x, c.height - 1); }
+  for (let y = 0; y < c.height; y++) { seedOut(0, y); seedOut(c.width - 1, y); }
+  const outside = new Uint8Array(c.width * c.height);
+  let cream = 0;
+  for (let p = 0; p < pale.length; p++) if (pale[p] && reach[p]) { outside[p] = 1; cream++; }
+  const creamSeen = new Uint8Array(c.width * c.height);
+  let creamBlob = 0;
+  for (let y = 0; y < c.height; y++) {
+    for (let x = 0; x < c.width; x++) {
+      const start = y * c.width + x;
+      if (!outside[start] || creamSeen[start]) continue;
+      let head = 0, tail = 0, area = 0;
+      qx[tail] = x; qy[tail] = y; tail++;
+      creamSeen[start] = 1;
+      while (head < tail) {
+        const cx = qx[head], cy = qy[head]; head++;
+        area++;
+        const nb = [cx + 1, cy, cx - 1, cy, cx, cy + 1, cx, cy - 1];
+        for (let k = 0; k < nb.length; k += 2) {
+          const nx = nb[k], ny = nb[k + 1];
+          if (nx < 0 || ny < 0 || nx >= c.width || ny >= c.height) continue;
+          const np = ny * c.width + nx;
+          if (!outside[np] || creamSeen[np]) continue;
+          creamSeen[np] = 1;
+          qx[tail] = nx; qy[tail] = ny; tail++;
+        }
+      }
+      if (area > creamBlob) creamBlob = area;
+    }
+  }
   const host = document.createElement('div');
   host.innerHTML = `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
   const el = host.firstElementChild;
@@ -87,7 +176,7 @@ JS = r'''async ({ b64, svg, vb }) => {
   minX = Math.max(0, minX); minY = Math.max(0, minY);
   maxX = Math.min(box.width, maxX); maxY = Math.min(box.height, maxY);
   return {
-    nw: img.naturalWidth, nh: img.naturalHeight, clear, islands,
+    nw: img.naturalWidth, nh: img.naturalHeight, clear, islands, holes, cream, creamBlob,
     ax: l, ay: t, aw: r - l + 1, ah: b - t + 1,
     sx: minX, sy: minY, sw: maxX - minX, sh: maxY - minY,
     vx: box.width, vy: box.height,
@@ -117,6 +206,14 @@ def main():
                 notes.append('no transparent pixels')
             if m['islands'] != 1:
                 notes.append(f"{m['islands']} alpha islands")
+            if m['holes']:
+                notes.append(f"{m['holes']} interior holes")
+            # A clock crescent or a sill lip is a bright warm fringe outside the
+            # frame. Wood highlights on the picture stay under both bars.
+            if m['cream'] >= 80 or m['creamBlob'] >= 48:
+                notes.append(f"{m['cream']} cream edge px (blob {m['creamBlob']})")
+            if it['kind'] == 'rug' and size >= 60000:
+                notes.append(f'{size}B rug not under 60000')
             sw, sh = m['sw'] / m['vx'], m['sh'] / m['vy']
             sx, sy = m['sx'] / m['vx'], m['sy'] / m['vy']
             rw, rh = m['aw'] / m['nw'], m['ah'] / m['nh']
