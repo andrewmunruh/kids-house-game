@@ -2,27 +2,29 @@
 import { ITEM_MAP, hOf, svgOf } from '../items';
 import { SAMPLE_KINDS, setArtV2, v2Mark } from './v2-sample';
 
-const VIEW_W = 860;
 const ROOM_H = 600;
 
 interface Spot { kind: string; x: number; y: number; z: number }
 
+// Wider than the portrait camera so each piece has a gap. Same spots for before and after.
+const LIVING_W = 1120;
 const LIVING: Spot[] = [
-  { kind: 'rug', x: 540, y: 560, z: 0 },
-  { kind: 'window', x: 540, y: 200, z: 2 },
-  { kind: 'bookshelf', x: 150, y: 495, z: 3 },
-  { kind: 'lamp', x: 310, y: 480, z: 4 },
-  { kind: 'sofa', x: 540, y: 500, z: 6 },
-  { kind: 'plant', x: 780, y: 500, z: 7 },
-  { kind: 'table', x: 540, y: 558, z: 8 },
+  { kind: 'rug', x: 520, y: 548, z: 0 },
+  { kind: 'window', x: 500, y: 200, z: 2 },
+  { kind: 'bookshelf', x: 150, y: 488, z: 3 },
+  { kind: 'lamp', x: 320, y: 478, z: 4 },
+  { kind: 'sofa', x: 560, y: 492, z: 5 },
+  { kind: 'table', x: 860, y: 528, z: 6 },
+  { kind: 'plant', x: 1040, y: 500, z: 7 },
 ];
 
+const BED_W = 1000;
 const BEDROOM: Spot[] = [
-  { kind: 'window', x: 370, y: 188, z: 2 },
-  { kind: 'lamp', x: 120, y: 480, z: 3 },
-  { kind: 'bed', x: 370, y: 505, z: 4 },
-  { kind: 'teddy', x: 600, y: 535, z: 5 },
-  { kind: 'pack:wardrobe', x: 760, y: 495, z: 6 },
+  { kind: 'window', x: 430, y: 186, z: 2 },
+  { kind: 'lamp', x: 130, y: 478, z: 3 },
+  { kind: 'bed', x: 430, y: 500, z: 4 },
+  { kind: 'teddy', x: 680, y: 540, z: 5 },
+  { kind: 'pack:wardrobe', x: 870, y: 492, z: 6 },
 ];
 
 function draw(kind: string, v2: boolean): string {
@@ -58,8 +60,8 @@ function sheet(night: boolean): void {
   </div>`;
 }
 
-function mountWorld(frame: HTMLElement, spots: Spot[], v2: boolean, wall: string, floor: string, pattern: 'dots' | 'stripes'): void {
-  frame.dataset.viewW = String(VIEW_W);
+function mountWorld(frame: HTMLElement, spots: Spot[], v2: boolean, wall: string, floor: string, pattern: 'dots' | 'stripes', viewW: number): void {
+  frame.dataset.viewW = String(viewW);
   const world = document.createElement('div');
   world.className = 'world';
   world.innerHTML = `<div class="wall ${pattern}" style="background-color:${wall}"></div><div class="floor" style="background-color:${floor}"></div><div class="baseboard"></div><div class="layer"></div>`;
@@ -72,9 +74,9 @@ function mountWorld(frame: HTMLElement, spots: Spot[], v2: boolean, wall: string
     const h = hOf(d);
     const el = document.createElement('div');
     el.className = 'piece';
-    el.style.left = (s.x - w / 2) / VIEW_W * 100 + '%';
+    el.style.left = (s.x - w / 2) / viewW * 100 + '%';
     el.style.top = (s.y - h) / ROOM_H * 100 + '%';
-    el.style.width = w / VIEW_W * 100 + '%';
+    el.style.width = w / viewW * 100 + '%';
     el.style.height = h / ROOM_H * 100 + '%';
     el.style.zIndex = String(s.z);
     el.innerHTML = draw(s.kind, v2);
@@ -111,15 +113,16 @@ function room(which: 'living' | 'bedroom'): void {
   const names = spots.map(s => ITEM_MAP[s.kind].name).join(', ');
   const root = document.getElementById('app')!;
   root.innerHTML = `<div id="shot">
-    <header><h1>${title}</h1><p class="sub">${names}. Same sizes, staged in one frame.</p></header>
+    <header><h1>${title}</h1><p class="sub">${names}. Same spots in both rooms.</p></header>
     <div class="block"><h2>Before</h2><div class="frame" id="before"></div></div>
     <div class="block"><h2>After</h2><div class="frame" id="after"></div></div>
   </div>`;
   const wall = living ? '#ffd6e0' : '#d9ccff';
   const floor = living ? '#e8b98a' : '#f2d0a4';
   const pattern = living ? 'dots' : 'stripes';
-  mountWorld(document.getElementById('before')!, spots, false, wall, floor, pattern);
-  mountWorld(document.getElementById('after')!, spots, true, wall, floor, pattern);
+  const viewW = living ? LIVING_W : BED_W;
+  mountWorld(document.getElementById('before')!, spots, false, wall, floor, pattern, viewW);
+  mountWorld(document.getElementById('after')!, spots, true, wall, floor, pattern, viewW);
   fitFrames();
 }
 

@@ -42,9 +42,9 @@ for (const kind of SAMPLE_KINDS) {
   const body = mark?.body ?? '';
   check(kind + ' has a drawing', !!mark && body.length > 80);
   check(kind + ' keeps plum outlines', body.includes('#5a3d5c'));
-  check(kind + ' uses a gradient', body.includes('linearGradient'));
+  check(kind + ' has a darker side plane', /#(e45d88|e04878|e888a8|d4925a|c4844c|7eb4dc|3d9a68|c45c38|9a84e6|c49ad4|c48a5c|d4a078|b07cc8|e0a83a)/.test(body));
   check(kind + ' has no blur filter', !/feGaussianBlur|feDropShadow|<filter|filter=/.test(body));
-  check(kind + ' markup stays small', body.length < 2800, String(body.length));
+  check(kind + ' markup stays small', body.length < 4200, String(body.length));
   if (kind !== 'pack:wardrobe') check(kind + ' viewBox stays 100', mark?.vb === '0 0 100 100');
   if (WIDTH[kind]) check(kind + ' footprint unchanged', widthOf(kind) === WIDTH[kind], widthOf(kind) ?? '');
 }

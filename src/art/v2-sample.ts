@@ -1,6 +1,9 @@
 // Opt-in art sample. The catalog strings in items.ts stay the old drawings.
 // Turn this on with ?art=v2 (see main.ts) or from the sample page. Nothing here
 // is written into a house save, and footprints live on the item, not in this file.
+//
+// Each piece is a new drawing: real parts, and a hard-edged darker plane on the
+// right / lower side. No blur filters. ViewBoxes stay put.
 
 export interface V2Mark {
   /** viewBox. Built-ins stay 0 0 100 100. Wardrobe keeps the pack viewBox. */
@@ -18,13 +21,8 @@ function shadow(cx = 50, rx = 36): string {
   return `<ellipse cx="${cx}" cy="96.4" rx="${rx}" ry="3.4" fill="${O}" opacity=".08"/><ellipse cx="${cx}" cy="97.6" rx="${inner}" ry="1.55" fill="${O}" opacity=".12"/>`;
 }
 
-/** Top-left light. The far stop is the color the flat art already used. */
-function lin(id: string, light: string, deep: string): string {
-  return `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${light}"/><stop offset="1" stop-color="${deep}"/></linearGradient>`;
-}
-
-function rad(id: string, color: string, a = '.7'): string {
-  return `<radialGradient id="${id}" cx="32%" cy="28%" r="68%"><stop offset="0" stop-color="${color}" stop-opacity="${a}"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></radialGradient>`;
+function rad(id: string, color: string, a = '.85'): string {
+  return `<radialGradient id="${id}" cx="50%" cy="40%" r="55%"><stop offset="0" stop-color="${color}" stop-opacity="${a}"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></radialGradient>`;
 }
 
 function pack(s: string): string {
@@ -35,197 +33,249 @@ const VB = '0 0 100 100';
 
 const MARKS: Record<string, V2Mark> = {
   sofa: { vb: VB, body: pack(`
-    <defs>${lin('a2sofa-back', '#ffe6ef', '#ffb3c6')}${lin('a2sofa-body', '#ffd4e2', '#ff8fab')}${lin('a2sofa-arm', '#ffb0c8', '#ff7096')}${lin('a2sofa-seat', '#fff4f7', '#ffc2d1')}</defs>
     ${shadow(50, 40)}
-    <rect x="6" y="40" width="88" height="40" rx="16" fill="url(#a2sofa-body)" ${ink()}/>
-    <rect x="16" y="28" width="68" height="30" rx="12" fill="url(#a2sofa-back)" ${ink()}/>
-    <path d="M28 40 h8 M46 37 h10 M64 40 h8" fill="none" stroke="${O}" stroke-width="1.15" stroke-linecap="round" opacity=".18"/>
-    <path d="M26 34 q10 -3 18 1" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".6"/>
-    <rect x="2" y="48" width="18" height="38" rx="9" fill="url(#a2sofa-arm)" ${ink()}/>
-    <rect x="80" y="48" width="18" height="38" rx="9" fill="url(#a2sofa-arm)" ${ink()}/>
-    <path d="M8 56 v16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".5"/>
-    <rect x="20" y="60" width="60" height="18" rx="8" fill="url(#a2sofa-seat)" ${ink()}/>
-    <path d="M34 64 v9 M50 63 v11 M66 64 v9" fill="none" stroke="${O}" stroke-width="1.2" stroke-linecap="round" opacity=".2"/>
-    <ellipse cx="42" cy="67" rx="12" ry="3.2" fill="#fff" opacity=".4"/>
-    <rect x="24" y="55" width="16" height="13" rx="5" fill="#fff" ${ink(2.2)}/>
-    <path d="M28 60 q4 2.5 8 0" fill="none" stroke="#ffb3c6" stroke-width="1.4" stroke-linecap="round"/>
-    <rect x="14" y="86" width="6" height="10" rx="2" fill="${O}"/>
-    <rect x="80" y="86" width="6" height="10" rx="2" fill="${O}"/>
-    <path d="M15.5 88 v5" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity=".35"/>
+    <path d="M18 58 V30 Q18 18 32 18 H68 Q82 18 82 30 V58 Z" fill="#ffb7cc" ${ink()}/>
+    <path d="M56 24 H76 Q80 24 80 32 V52 H56 Z" fill="#e888a8"/>
+    <circle cx="34" cy="38" r="3.4" fill="#ff8fab" ${ink(2)}/><circle cx="33" cy="37" r="1.1" fill="#fff"/>
+    <circle cx="50" cy="36" r="3.4" fill="#ff8fab" ${ink(2)}/><circle cx="49" cy="35" r="1.1" fill="#fff"/>
+    <circle cx="66" cy="38" r="3.4" fill="#e45d88" ${ink(2)}/><circle cx="65" cy="37" r="1.1" fill="#fff"/>
+    <rect x="4" y="44" width="20" height="38" rx="10" fill="#ff7096" ${ink()}/>
+    <ellipse cx="14" cy="44" rx="12" ry="9" fill="#ff9ab6" ${ink()}/>
+    <ellipse cx="9" cy="41" rx="4" ry="2.4" fill="#fff" opacity=".7"/>
+    <rect x="76" y="44" width="20" height="38" rx="10" fill="#e04878" ${ink()}/>
+    <ellipse cx="86" cy="44" rx="12" ry="9" fill="#e45d88" ${ink()}/>
+    <rect x="20" y="64" width="60" height="16" rx="6" fill="#ff8fab" ${ink()}/>
+    <rect x="22" y="56" width="28" height="22" rx="7" fill="#ffe0ea" ${ink(2.4)}/>
+    <rect x="50" y="56" width="28" height="22" rx="7" fill="#ffc2d4" ${ink(2.4)}/>
+    <rect x="66" y="58" width="10" height="18" rx="4" fill="#e888a8"/>
+    <path d="M26 60 h20 M54 60 h16 M26 74 h20 M54 74 h16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+    <path d="M50 58 v18" fill="none" stroke="#e45d88" stroke-width="2.2" stroke-linecap="round"/>
+    <rect x="26" y="46" width="20" height="16" rx="5" fill="#fff" ${ink(2.2)}/>
+    <path d="M33 52 c-2.2 -3.2 -6.4 -.4 -3.4 2.6 c1 1.2 3.4 2.6 3.4 2.6 c0 0 2.4 -1.4 3.4 -2.6 c3 -3 -1.2 -5.8 -3.4 -2.6 z" fill="#ff8fab"/>
+    <path d="M41 56 c-1.4 -2 -4.2 0 -2.2 1.8 c.7 .8 2.2 1.6 2.2 1.6 c0 0 1.5 -.8 2.2 -1.6 c2 -1.8 -.8 -3.8 -2.2 -1.8 z" fill="#7eb4dc"/>
+    <rect x="16" y="84" width="7" height="10" rx="2" fill="${O}"/>
+    <rect x="77" y="84" width="7" height="10" rx="2" fill="${O}"/>
   `) },
 
   bed: { vb: VB, body: pack(`
-    <defs>${lin('a2bed-wood', '#f3d2aa', '#c99366')}${lin('a2bed-sheet', '#ffffff', '#f4e6ea')}${lin('a2bed-quilt', '#e6dcff', '#a78bfa')}${lin('a2bed-pillow', '#fff7f8', '#fde2e4')}</defs>
-    ${shadow(50, 38)}
-    <rect x="4" y="22" width="18" height="72" rx="8" fill="url(#a2bed-wood)" ${ink()}/>
-    <path d="M9 32 v18 M13 40 v22 M9 58 v16" fill="none" stroke="${O}" stroke-width="1" stroke-linecap="round" opacity=".16"/>
-    <path d="M7 30 v20" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".45"/>
-    <rect x="80" y="44" width="16" height="50" rx="7" fill="url(#a2bed-wood)" ${ink()}/>
-    <path d="M84 54 v16 M88 62 v14" fill="none" stroke="${O}" stroke-width="1" stroke-linecap="round" opacity=".16"/>
-    <rect x="14" y="54" width="76" height="30" rx="10" fill="url(#a2bed-sheet)" ${ink()}/>
-    <rect x="40" y="50" width="54" height="36" rx="12" fill="url(#a2bed-quilt)" ${ink()}/>
-    <path d="M50 62 q14 7 32 1" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".45"/>
-    <path d="M52 70 q12 5 26 0" fill="none" stroke="${O}" stroke-width="1.1" stroke-linecap="round" opacity=".15"/>
-    <circle cx="56" cy="64" r="3" fill="#fff"/><circle cx="72" cy="72" r="3" fill="#fff"/><circle cx="84" cy="60" r="3" fill="#fff"/>
-    <rect x="18" y="42" width="24" height="16" rx="8" fill="url(#a2bed-pillow)" ${ink()}/>
-    <path d="M24 48 q6 3 12 0" fill="none" stroke="#f7c2cb" stroke-width="1.4" stroke-linecap="round"/>
+    ${shadow(50, 40)}
+    <path d="M8 56 V30 Q8 12 26 12 H74 Q92 12 92 30 V56 Z" fill="#f0c49a" ${ink()}/>
+    <path d="M60 18 H86 Q90 18 90 28 V50 H60 Z" fill="#d4925a"/>
+    <path d="M14 22 h16 M18 28 h10" fill="none" stroke="${O}" stroke-width="1.1" stroke-linecap="round" opacity=".22"/>
+    <path d="M50 26 C42 16 30 20 34 30 C36 36 44 40 50 48 C56 40 64 36 66 30 C70 20 58 16 50 26 Z" fill="#fff0f6" ${ink(2.4)}/>
+    <rect x="10" y="60" width="80" height="24" rx="6" fill="#c4b5fd" ${ink()}/>
+    <path d="M62 62 H84 V80 H62 Z" fill="#9a84e6"/>
+    <path d="M22 68 l6 5 -6 5 -6 -5 z M38 68 l6 5 -6 5 -6 -5 z M54 68 l6 5 -6 5 -6 -5 z" fill="#efe8ff" ${ink(1.6)}/>
+    <path d="M30 74 l6 5 -6 5 -6 -5 z M46 74 l6 5 -6 5 -6 -5 z" fill="#b7a6f5" ${ink(1.6)}/>
+    <path d="M10 52 h80 v12 q-10 8 -20 1 q-10 7 -20 -1 q-10 8 -20 0 q-10 7 -20 -1 v-11 z" fill="#fff" ${ink()}/>
+    <path d="M16 60 q10 5 18 0 q10 6 20 -1 q10 6 20 0" fill="none" stroke="#e4cdd6" stroke-width="1.4" stroke-linecap="round"/>
+    <rect x="16" y="44" width="28" height="16" rx="7" fill="#fff7f8" ${ink(2.2)}/>
+    <path d="M22 50 q8 4 14 0" fill="none" stroke="#f0b8c6" stroke-width="1.5" stroke-linecap="round"/>
+    <rect x="10" y="82" width="80" height="8" rx="3" fill="#e2b07a" ${ink(2.2)}/>
+    <rect x="62" y="83" width="24" height="6" rx="2" fill="#c4844c"/>
   `) },
 
   fridge: { vb: VB, body: pack(`
-    <defs>${lin('a2fridge', '#f3fbff', '#bde0fe')}</defs>
     ${shadow(50, 32)}
-    <rect x="16" y="4" width="68" height="90" rx="14" fill="url(#a2fridge)" ${ink()}/>
-    <path d="M22 14 v16" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".65"/>
-    <path d="M16 38 H84" ${ink()}/>
-    <rect x="70" y="14" width="5" height="16" rx="2" fill="${O}"/>
-    <rect x="70" y="46" width="5" height="22" rx="2" fill="${O}"/>
-    <path d="M71.2 16 v10" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".45"/>
-    <circle cx="32" cy="22" r="5" fill="#ff8fab" ${ink()}/>
-    <rect x="28" y="54" width="12" height="12" rx="3" fill="#ffd166" ${ink()}/>
-    <path d="M30 56 h4" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
+    <rect x="16" y="6" width="68" height="86" rx="12" fill="#d7eeff" ${ink()}/>
+    <rect x="22" y="12" width="56" height="26" rx="6" fill="#f4fbff" ${ink(2.4)}/>
+    <rect x="58" y="15" width="16" height="20" rx="4" fill="#9ec8ea"/>
+    <rect x="22" y="44" width="56" height="42" rx="6" fill="#c5e4fb" ${ink(2.4)}/>
+    <rect x="58" y="48" width="16" height="34" rx="4" fill="#7eb4dc"/>
+    <rect x="68" y="18" width="7" height="14" rx="3.5" fill="#f4f1f8" ${ink(2)}/>
+    <rect x="69.4" y="20" width="2" height="8" rx="1" fill="#fff"/>
+    <rect x="68" y="52" width="7" height="20" rx="3.5" fill="#f4f1f8" ${ink(2)}/>
+    <rect x="69.4" y="56" width="2" height="12" rx="1" fill="#fff"/>
+    <path d="M34 56 C28 50 20 54 24 60 C26 64 32 68 34 68 C36 68 42 64 44 60 C48 54 40 50 34 56 Z" fill="#ff8fab" ${ink(2)}/>
+    <path d="M48 66 l2.6 5.2 5.6 .4 -4.2 3.6 1.4 5.4 -5.4 -3.2 -5.4 3.2 1.4 -5.4 -4.2 -3.6 5.6 -.4 z" fill="#ffd166" ${ink(2)}/>
   `) },
 
   lamp: { vb: VB, body: pack(`
-    <defs>${lin('a2lamp-shade', '#fff8e4', '#ffd166')}${lin('a2lamp-stem', '#f0d8f6', '#c9a0dc')}${lin('a2lamp-base', '#e4ccf2', '#b388d6')}${rad('a2lamp-glow', '#fff1c2', '.75')}</defs>
-    ${shadow(50, 24)}
-    <ellipse cx="50" cy="28" rx="30" ry="22" fill="url(#a2lamp-glow)"/>
-    <path d="M24 40 L34 6 H66 L76 40 Z" fill="url(#a2lamp-shade)" ${ink()}/>
-    <path d="M32 16 q6 -2 8 4" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".75"/>
-    <rect x="46" y="40" width="8" height="48" rx="4" fill="url(#a2lamp-stem)" ${ink()}/>
-    <path d="M48 46 v28" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity=".4"/>
-    <ellipse cx="50" cy="92" rx="22" ry="6" fill="url(#a2lamp-base)" ${ink()}/>
-    <ellipse cx="46" cy="90" rx="8" ry="2" fill="#fff" opacity=".45"/>
-    <circle cx="44" cy="20" r="3" fill="#fff" opacity=".8"/>
+    <defs>${rad('a2lamp-glow', '#ffd56a', '.95')}</defs>
+    ${shadow(50, 22)}
+    <path d="M34 8 L42 8 L37 40 L24 40 Z" fill="#fff6d4"/>
+    <path d="M42 8 L50 8 L50 40 L37 40 Z" fill="#ffe08a"/>
+    <path d="M50 8 L58 8 L63 40 L50 40 Z" fill="#f0c45c"/>
+    <path d="M58 8 L66 8 L76 40 L63 40 Z" fill="#e0a83a"/>
+    <path d="M24 40 L34 8 H66 L76 40 Z" fill="none" ${ink()}/>
+    <path d="M42 8 L37 40 M50 8 V40 M58 8 L63 40" fill="none" stroke="${O}" stroke-width="2" stroke-linecap="round"/>
+    <ellipse cx="50" cy="36" rx="20" ry="10" fill="url(#a2lamp-glow)"/>
+    <rect x="46" y="40" width="8" height="42" rx="3" fill="#e4ccf2" ${ink()}/>
+    <rect x="50" y="44" width="4" height="34" rx="2" fill="#c49ad4"/>
+    <ellipse cx="50" cy="88" rx="20" ry="6" fill="#d4b4e6" ${ink()}/>
+    <ellipse cx="60" cy="90" rx="8" ry="3" fill="#b888c8"/>
+    <ellipse cx="42" cy="86" rx="6" ry="2" fill="#fff" opacity=".55"/>
   `) },
 
   bookshelf: { vb: VB, body: pack(`
-    <defs>${lin('a2shelf-wood', '#f0d2b0', '#d4a373')}</defs>
     ${shadow(50, 36)}
-    <rect x="10" y="4" width="80" height="90" rx="10" fill="url(#a2shelf-wood)" ${ink()}/>
-    <path d="M16 18 h22 M18 26 h30 M48 16 h16" fill="none" stroke="${O}" stroke-width="1" stroke-linecap="round" opacity=".14"/>
-    <path d="M16 10 h24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".4"/>
-    <path d="M10 34 H90 M10 64 H90" ${ink()}/>
-    <path d="M14 32.2 H86 M14 62.2 H86" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".45"/>
-    <rect x="18" y="12" width="8" height="22" rx="2" fill="#ff8fab" ${ink()}/>
-    <rect x="28" y="16" width="8" height="18" rx="2" fill="#8ecae6" ${ink()}/>
-    <rect x="38" y="12" width="8" height="22" rx="2" fill="#ffd166" ${ink()}/>
-    <path d="M19.4 14 v16 M29.4 18 v12 M39.4 14 v16" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".55"/>
-    <rect x="60" y="42" width="8" height="22" rx="2" fill="#90e0a8" ${ink()}/>
-    <rect x="70" y="46" width="8" height="18" rx="2" fill="#c9a0dc" ${ink()}/>
-    <path d="M61.4 44 v16 M71.4 48 v12" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".55"/>
-    <circle cx="34" cy="80" r="8" fill="#ffadad" ${ink()}/>
-    <circle cx="31" cy="77" r="2.2" fill="#fff" opacity=".65"/>
+    <rect x="12" y="6" width="76" height="86" rx="8" fill="#f0d2b0" ${ink()}/>
+    <rect x="66" y="10" width="18" height="76" rx="4" fill="#c4844c"/>
+    <path d="M18 18 h22 M20 26 h14 M18 72 h20" fill="none" stroke="${O}" stroke-width="1.1" stroke-linecap="round" opacity=".22"/>
+    <rect x="16" y="36" width="68" height="7" rx="1" fill="#e0b888" ${ink(2.2)}/>
+    <rect x="16" y="34" width="68" height="3" fill="#f8e2c8"/>
+    <rect x="16" y="64" width="68" height="7" rx="1" fill="#e0b888" ${ink(2.2)}/>
+    <rect x="16" y="62" width="68" height="3" fill="#f8e2c8"/>
+    <rect x="18" y="16" width="7" height="18" rx="1" fill="#ff8fab" ${ink(2)}/>
+    <rect x="26" y="22" width="6" height="12" rx="1" fill="#8ecae6" ${ink(2)}/>
+    <rect x="34" y="12" width="7" height="22" rx="1" fill="#ffd166" ${ink(2)} transform="rotate(-7 37 23)"/>
+    <rect x="44" y="18" width="6" height="16" rx="1" fill="#c9a0dc" ${ink(2)}/>
+    <path d="M56 20 h8 v5 q-1 5 -4 5 q-3 0 -4 -5 z" fill="#ffe08a" ${ink(2)}/>
+    <rect x="58" y="30" width="4" height="5" fill="#e0b060" ${ink(1.6)}/>
+    <rect x="59" y="35" width="2" height="2" fill="#c4844c"/>
+    <ellipse cx="28" cy="52" rx="7" ry="9" fill="#8fd4ae" ${ink(2)}/>
+    <ellipse cx="36" cy="54" rx="6" ry="8" fill="#3d9a68" ${ink(2)}/>
+    <path d="M30 64 h8 l-1 4 h-6 z" fill="#e8845a" ${ink(1.8)}/>
+    <ellipse cx="34" cy="80" rx="12" ry="7" fill="#ffb3c6" ${ink(2.2)}/>
+    <ellipse cx="40" cy="78" rx="5" ry="3" fill="#e888a8"/>
+    <rect x="58" y="70" width="8" height="16" rx="1" fill="#90e0a8" ${ink(2)}/>
+    <rect x="67" y="74" width="7" height="12" rx="1" fill="#ffd166" ${ink(2)}/>
   `) },
 
   rug: { vb: VB, body: pack(`
-    <defs>${lin('a2rug-out', '#ffe4ef', '#ffc8dd')}${lin('a2rug-mid', '#e5f4ff', '#bde0fe')}</defs>
-    <ellipse cx="50" cy="82" rx="48" ry="14" fill="url(#a2rug-out)" ${ink()}/>
-    <path d="M16 80 Q50 74 84 80" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity=".5"/>
-    <path d="M20 86 Q50 91 80 86" fill="none" stroke="${O}" stroke-width="1" stroke-linecap="round" opacity=".14"/>
-    <ellipse cx="50" cy="82" rx="34" ry="9" fill="url(#a2rug-mid)" ${ink()}/>
-    <path d="M26 80 Q50 76 74 80" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity=".4"/>
-    <ellipse cx="50" cy="82" rx="18" ry="4.5" fill="#fff" ${ink()}/>
+    <path d="M18 70 l-3 -3 M30 66 l-1 -4 M50 64 v-4 M70 66 l1 -4 M82 70 l3 -3 M12 78 l-4 0 M10 88 l-3 2 M22 94 l-2 3 M38 98 v3 M50 99 v3 M62 98 v3 M78 94 l2 3 M90 88 l3 2 M88 78 l4 0" fill="none" stroke="${O}" stroke-width="1.8" stroke-linecap="round"/>
+    <ellipse cx="50" cy="82" rx="38" ry="11" fill="#ffc8dd" ${ink()}/>
+    <path d="M18 86 Q50 96 82 86 Q50 91 18 86 Z" fill="#e888a8"/>
+    <ellipse cx="50" cy="81" rx="30" ry="7" fill="none" stroke="#fff" stroke-width="2.2"/>
+    <ellipse cx="50" cy="81" rx="30" ry="7" fill="none" stroke="#e45d88" stroke-width="2.2" stroke-dasharray="1.2 3.2"/>
+    <ellipse cx="50" cy="81" rx="16" ry="4" fill="#fff6fa" ${ink(2)}/>
+    <circle cx="30" cy="79" r="2.2" fill="#ff8fab" ${ink(1.4)}/>
+    <circle cx="42" cy="84" r="2" fill="#bde0fe" ${ink(1.4)}/>
+    <circle cx="58" cy="76" r="2.1" fill="#ffd166" ${ink(1.4)}/>
+    <circle cx="70" cy="82" r="2" fill="#90e0a8" ${ink(1.4)}/>
+    <path d="M50 78 l1.2 2.4 2.6 .2 -2 1.8 .6 2.6 -2.4 -1.5 -2.4 1.5 .6 -2.6 -2 -1.8 2.6 -.2 z" fill="#ff8fab"/>
   `) },
 
   plant: { vb: VB, body: pack(`
-    <defs>${lin('a2plant-l', '#c6f0d6', '#74c69d')}${lin('a2plant-r', '#b7ebc8', '#52b788')}${lin('a2plant-m', '#e7f8ee', '#95d5b2')}${lin('a2plant-pot', '#ffd0b0', '#ff9f68')}</defs>
     ${shadow(50, 30)}
-    <ellipse cx="34" cy="38" rx="12" ry="26" fill="url(#a2plant-l)" ${ink()} transform="rotate(-25 34 38)"/>
-    <ellipse cx="66" cy="38" rx="12" ry="26" fill="url(#a2plant-r)" ${ink()} transform="rotate(25 66 38)"/>
-    <ellipse cx="50" cy="30" rx="12" ry="28" fill="url(#a2plant-m)" ${ink()}/>
-    <path d="M50 14 v28" fill="none" stroke="${O}" stroke-width="1.2" stroke-linecap="round" opacity=".28"/>
-    <path d="M44 24 q6 -6 4 2" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".55"/>
-    <path d="M24 62 H76 L70 94 H30 Z" fill="url(#a2plant-pot)" ${ink()}/>
-    <path d="M32 70 q6 2 8 10" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".45"/>
-    <rect x="20" y="58" width="60" height="10" rx="5" fill="#ffb385" ${ink()}/>
-    <ellipse cx="50" cy="64" rx="22" ry="3.2" fill="#c9845a" opacity=".35"/>
-    <path d="M28 60 h16" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".5"/>
+    <ellipse cx="30" cy="40" rx="14" ry="22" fill="#b7ebc8" ${ink()} transform="rotate(-30 30 40)"/>
+    <path d="M34 28 C30 40 32 52 44 58" fill="#52b078"/>
+    <ellipse cx="72" cy="42" rx="13" ry="20" fill="#3d9a68" ${ink()} transform="rotate(26 72 42)"/>
+    <path d="M50 66 C40 44 42 18 50 6 C58 18 60 44 50 66 Z" fill="#d8f6e4" ${ink()}/>
+    <path d="M54 18 C60 32 58 48 50 58 C56 44 58 28 54 18 Z" fill="#52b078"/>
+    <path d="M50 14 V52" fill="none" stroke="#2f7a52" stroke-width="1.4" stroke-linecap="round" opacity=".55"/>
+    <path d="M40 60 C34 50 24 48 22 38 C32 44 38 54 42 64 Z" fill="#74c69d" ${ink(2.2)}/>
+    <path d="M28 64 H74 L68 94 H34 Z" fill="#e8845a" ${ink()}/>
+    <path d="M58 66 H72 L68 92 H60 Z" fill="#c45c38"/>
+    <rect x="22" y="58" width="58" height="10" rx="4" fill="#f0a078" ${ink()}/>
+    <rect x="56" y="60" width="20" height="6" rx="3" fill="#d47848"/>
+    <ellipse cx="50" cy="65" rx="20" ry="3" fill="#a86a42" opacity=".4"/>
+    <path d="M28 62 h14" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".65"/>
   `) },
 
   table: { vb: VB, body: pack(`
-    <defs>${lin('a2table-top', '#ffd7b0', '#f4a261')}${lin('a2table-leg', '#f0b27a', '#e07a3f')}</defs>
-    ${shadow(50, 40)}
-    <rect x="4" y="30" width="92" height="14" rx="7" fill="url(#a2table-top)" ${ink()}/>
-    <path d="M12 34 h22 M18 38 h34 M48 35 h18" fill="none" stroke="${O}" stroke-width="1" stroke-linecap="round" opacity=".16"/>
-    <path d="M8 40 h84" stroke="#fff" stroke-width="2" opacity=".55" stroke-linecap="round"/>
-    <rect x="14" y="42" width="10" height="54" rx="5" fill="url(#a2table-leg)" ${ink()}/>
-    <rect x="76" y="42" width="10" height="54" rx="5" fill="url(#a2table-leg)" ${ink()}/>
-    <path d="M16.5 48 v30" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".4"/>
+    ${shadow(50, 38)}
+    <rect x="20" y="46" width="8" height="14" rx="2" fill="#f0b27a" ${ink(2.2)}/>
+    <ellipse cx="24" cy="62" rx="8" ry="5" fill="#f4a261" ${ink()}/>
+    <rect x="22" y="66" width="5" height="22" rx="2.2" fill="#e08a45" ${ink(2.2)}/>
+    <ellipse cx="24.5" cy="90" rx="6" ry="3.2" fill="#d4925a" ${ink(2)}/>
+    <rect x="72" y="46" width="8" height="14" rx="2" fill="#d4925a" ${ink(2.2)}/>
+    <ellipse cx="76" cy="62" rx="8" ry="5" fill="#c4844c" ${ink()}/>
+    <rect x="74" y="66" width="5" height="22" rx="2.2" fill="#b86e38" ${ink(2.2)}/>
+    <ellipse cx="76.5" cy="90" rx="6" ry="3.2" fill="#a86834" ${ink(2)}/>
+    <path d="M22 70 v8 M26 70 v8 M74 70 v8 M78 70 v8" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity=".35"/>
+    <rect x="6" y="36" width="88" height="12" rx="3" fill="#d4925a" ${ink()}/>
+    <path d="M70 38 H90 V46 H70 Z" fill="#c4844c"/>
+    <rect x="6" y="24" width="88" height="14" rx="5" fill="#f6c48a" ${ink()}/>
+    <path d="M64 26 H90 Q92 26 92 30 V34 H64 Z" fill="#e0a060"/>
+    <path d="M14 28 h16 M18 32 h26 M52 29 h14 M16 36 h20" fill="none" stroke="${O}" stroke-width="1.1" stroke-linecap="round" opacity=".28"/>
+    <path d="M12 27 h12" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".65"/>
   `) },
 
-  // Pack wardrobe. Same viewBox as assets/items/bedroom/wardrobe.svg so the box does not move.
+  // Pack wardrobe. Same viewBox as assets/items/bedroom/wardrobe.svg.
   'pack:wardrobe': { vb: '7 -1 86 102', body: pack(`
-    <defs>${lin('a2ward-body', '#f6e9ff', '#c9a0dc')}${lin('a2ward-crown', '#ecd8f8', '#b388d6')}</defs>
-    <ellipse cx="50" cy="96.2" rx="36" ry="3.2" fill="${O}" opacity=".08"/>
-    <ellipse cx="50" cy="97.4" rx="22" ry="1.5" fill="${O}" opacity=".12"/>
+    <ellipse cx="50" cy="96.2" rx="34" ry="3.2" fill="${O}" opacity=".08"/>
+    <ellipse cx="50" cy="97.4" rx="20" ry="1.5" fill="${O}" opacity=".12"/>
     <rect x="22" y="88" width="7" height="8" rx="2" fill="${O}"/>
     <rect x="71" y="88" width="7" height="8" rx="2" fill="${O}"/>
-    <rect x="14" y="8" width="72" height="82" rx="14" fill="url(#a2ward-body)" ${ink()}/>
-    <path d="M22 22 q8 2 6 12 M24 42 q10 2 4 14" fill="none" stroke="${O}" stroke-width="1" stroke-linecap="round" opacity=".12"/>
-    <rect x="20" y="18" width="26" height="62" rx="8" fill="#f7ecff" stroke="${O}" stroke-width="2.2" stroke-linejoin="round"/>
-    <rect x="54" y="18" width="26" height="62" rx="8" fill="#c9a0dc" stroke="${O}" stroke-width="2.2" stroke-linejoin="round"/>
-    <path d="M24 24 v16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".55"/>
-    <path d="M50 16 V86" fill="none" stroke="${O}" stroke-width="3.5" stroke-linecap="round"/>
-    <rect x="42" y="46" width="4" height="12" rx="2" fill="${O}"/>
-    <rect x="54" y="46" width="4" height="12" rx="2" fill="${O}"/>
-    <path d="M43 48 v6" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity=".4"/>
-    <path d="M10 12 Q10 2 22 2 H78 Q90 2 90 12 Z" fill="url(#a2ward-crown)" ${ink()}/>
-    <path d="M22 5 h20" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".5"/>
-    <ellipse cx="22" cy="24" rx="2.5" ry="8" fill="#fff" opacity=".55"/>
-    <circle cx="30" cy="34" r="3" fill="${O}"/><circle cx="70" cy="34" r="3" fill="${O}"/>
-    <circle cx="31" cy="33" r="1" fill="#fff"/><circle cx="71" cy="33" r="1" fill="#fff"/>
-    <ellipse cx="30" cy="42" rx="4" ry="2.5" fill="#ff9bb5" opacity=".7"/>
-    <ellipse cx="70" cy="42" rx="4" ry="2.5" fill="#ff9bb5" opacity=".7"/>
-    <path d="M30 73.6 C24 70.4 26 65.6 30 68.4 C34 65.6 36 70.4 30 73.6 Z" fill="#ff8fab" ${ink(2.5)}/>
-    <path d="M70 73.6 C64 70.4 66 65.6 70 68.4 C74 65.6 76 70.4 70 73.6 Z" fill="#ff8fab" ${ink(2.5)}/>
+    <rect x="14" y="16" width="72" height="72" rx="10" fill="#ead8f6" ${ink()}/>
+    <rect x="20" y="24" width="28" height="56" rx="5" fill="#f7ecff" ${ink(2.2)}/>
+    <rect x="38" y="28" width="8" height="48" rx="2" fill="#d7b6ea"/>
+    <rect x="52" y="24" width="28" height="56" rx="5" fill="#d4b4e4" ${ink(2.2)}/>
+    <rect x="70" y="28" width="8" height="48" rx="2" fill="#b07cc8"/>
+    <circle cx="44" cy="52" r="3.4" fill="#f6f2fa" ${ink(2)}/><circle cx="43" cy="51" r="1.1" fill="#fff"/>
+    <circle cx="56" cy="52" r="3.4" fill="#f6f2fa" ${ink(2)}/><circle cx="55" cy="51" r="1.1" fill="#fff"/>
+    <path d="M12 20 Q12 4 26 4 H74 Q88 4 88 20 Z" fill="#dcc2ee" ${ink()}/>
+    <path d="M60 8 H82 Q86 8 86 14 V18 H60 Z" fill="#c49ad4"/>
+    <path d="M24 8 h16" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".6"/>
+    <circle cx="30" cy="40" r="3" fill="${O}"/><circle cx="70" cy="40" r="3" fill="${O}"/>
+    <circle cx="31" cy="39" r="1" fill="#fff"/><circle cx="71" cy="39" r="1" fill="#fff"/>
+    <ellipse cx="30" cy="48" rx="4" ry="2.4" fill="#ff9bb5" opacity=".7"/>
+    <ellipse cx="70" cy="48" rx="4" ry="2.4" fill="#ff9bb5" opacity=".7"/>
+    <path d="M30 78 C24 75 26 70 30 73 C34 70 36 75 30 78 Z" fill="#ff8fab" ${ink(2.2)}/>
+    <path d="M70 78 C64 75 66 70 70 73 C74 70 76 75 70 78 Z" fill="#ff8fab" ${ink(2.2)}/>
   `) },
 
   teddy: { vb: VB, body: pack(`
-    <defs>${lin('a2teddy-fur', '#f0cfa6', '#d4a373')}${lin('a2teddy-head', '#f6d7b4', '#e6b88a')}</defs>
     ${shadow(50, 32)}
-    <circle cx="26" cy="22" r="10" fill="url(#a2teddy-fur)" ${ink()}/>
-    <circle cx="74" cy="22" r="10" fill="url(#a2teddy-fur)" ${ink()}/>
-    <circle cx="26" cy="22" r="5" fill="#f3d2b8"/>
-    <circle cx="74" cy="22" r="5" fill="#f3d2b8"/>
-    <ellipse cx="50" cy="72" rx="28" ry="24" fill="url(#a2teddy-fur)" ${ink()}/>
-    <ellipse cx="50" cy="76" rx="14" ry="12" fill="#f6e3cf"/>
-    <path d="M42 74 q8 3 16 0 M44 80 q6 2 12 0" fill="none" stroke="${O}" stroke-width="1.1" stroke-linecap="round" opacity=".28"/>
-    <circle cx="50" cy="38" r="26" fill="url(#a2teddy-head)" ${ink()}/>
-    <path d="M34 30 q6 -4 8 2" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".5"/>
-    <circle cx="40" cy="36" r="3" fill="${O}"/><circle cx="60" cy="36" r="3" fill="${O}"/>
-    <circle cx="41" cy="35" r="1" fill="#fff"/><circle cx="61" cy="35" r="1" fill="#fff"/>
-    <ellipse cx="50" cy="48" rx="8" ry="6" fill="#fff3e0"/>
-    <circle cx="50" cy="46" r="2.5" fill="${O}"/>
-    <ellipse cx="32" cy="46" rx="4" ry="2.5" fill="#ff9bb5" opacity=".7"/>
-    <ellipse cx="68" cy="46" rx="4" ry="2.5" fill="#ff9bb5" opacity=".7"/>
+    <circle cx="26" cy="24" r="10" fill="#e8c09a" ${ink()}/>
+    <circle cx="74" cy="24" r="10" fill="#c48a5c" ${ink()}/>
+    <circle cx="26" cy="24" r="5" fill="#f6dcc4"/>
+    <circle cx="74" cy="24" r="5" fill="#deb08a"/>
+    <ellipse cx="50" cy="74" rx="28" ry="22" fill="#e8c09a" ${ink()}/>
+    <ellipse cx="64" cy="76" rx="12" ry="16" fill="#c48a5c"/>
+    <ellipse cx="48" cy="78" rx="14" ry="11" fill="#f8e6d4" ${ink(2.2)}/>
+    <ellipse cx="48" cy="78" rx="10" ry="7.5" fill="none" stroke="${O}" stroke-width="1.3" stroke-dasharray="2.1 1.7"/>
+    <path d="M40 62 q-10 -6 -4 3 q4 4 6 -1 z" fill="#ff8fab" ${ink(2)}/>
+    <path d="M56 62 q10 -6 4 3 q-4 4 -6 -1 z" fill="#e45d88" ${ink(2)}/>
+    <circle cx="48" cy="63" r="3.2" fill="#ff7096" ${ink(2)}/>
+    <circle cx="50" cy="42" r="24" fill="#f0d0b0" ${ink()}/>
+    <ellipse cx="64" cy="46" rx="9" ry="16" fill="#d4a078"/>
+    <path d="M36 32 q6 -4 8 2" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+    <circle cx="42" cy="40" r="3" fill="${O}"/><circle cx="58" cy="40" r="3" fill="${O}"/>
+    <circle cx="43" cy="39" r="1" fill="#fff"/><circle cx="59" cy="39" r="1" fill="#fff"/>
+    <ellipse cx="50" cy="50" rx="7" ry="5" fill="#fff3e0"/>
+    <circle cx="50" cy="48.5" r="2.4" fill="${O}"/>
+    <ellipse cx="36" cy="48" rx="4" ry="2.4" fill="#ff9bb5" opacity=".75"/>
+    <ellipse cx="64" cy="48" rx="4" ry="2.4" fill="#ff9bb5" opacity=".75"/>
   `) },
 
   window: { vb: VB, body: pack(`
-    <defs>${lin('a2win-sky', '#eaf6ff', '#a2d2ff')}${lin('a2win-curt', '#ffd5e4', '#ff8fab')}</defs>
-    <rect x="12" y="8" width="76" height="76" rx="38" fill="url(#a2win-sky)" ${ink()}/>
-    <path d="M50 8 V84 M12 50 H88" ${ink()}/>
-    <circle cx="34" cy="32" r="8" fill="#fff" opacity=".7"/>
-    <path d="M22 26 q8 -2 10 6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".5"/>
-    <path d="M1 8 Q14 40 7 92 Q16 88 18 86 Q26 42 15 4 Z" fill="url(#a2win-curt)" ${ink()}/>
-    <path d="M99 8 Q86 40 93 92 Q84 88 82 86 Q74 42 85 4 Z" fill="url(#a2win-curt)" ${ink()}/>
-    <path d="M7 22 q3 16 1 26" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" opacity=".5"/>
-    <path d="M91 28 q-2 12 0 20" fill="none" stroke="${O}" stroke-width="1" stroke-linecap="round" opacity=".12"/>
+    <defs><linearGradient id="a2win-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff4c8"/><stop offset=".42" stop-color="#b9e4ff"/><stop offset="1" stop-color="#7eb4dc"/></linearGradient></defs>
+    <path d="M2 8 C10 28 4 58 8 84 C16 74 18 40 20 10 Z" fill="#ffb7cc" ${ink()}/>
+    <path d="M8 16 C12 36 6 58 12 78 C18 66 18 40 22 18 Z" fill="#ff8eae"/>
+    <path d="M98 8 C90 28 96 58 92 84 C84 74 82 40 80 10 Z" fill="#e45d88" ${ink()}/>
+    <path d="M92 16 C88 36 94 58 88 78 C82 66 82 40 78 18 Z" fill="#e888a8"/>
+    <rect x="20" y="12" width="60" height="62" rx="6" fill="#f3d7b8" ${ink()}/>
+    <rect x="26" y="18" width="48" height="50" rx="3" fill="url(#a2win-sky)"/>
+    <rect x="48" y="18" width="5" height="50" fill="#e8c9a8"/>
+    <rect x="26" y="40" width="48" height="5" fill="#e8c9a8"/>
+    <rect x="48" y="18" width="2" height="50" fill="#f8e6d0"/>
+    <rect x="26" y="40" width="48" height="2" fill="#f8e6d0"/>
+    <circle cx="36" cy="28" r="5" fill="#ffe08a"/>
+    <ellipse cx="58" cy="30" rx="8" ry="3.5" fill="#fff" opacity=".9"/>
+    <ellipse cx="64" cy="32" rx="5" ry="2.6" fill="#fff" opacity=".85"/>
+    <path d="M6 62 Q16 54 18 64" fill="none" stroke="#ffd166" stroke-width="3.2" stroke-linecap="round"/>
+    <circle cx="18" cy="64" r="3.2" fill="#ffd166" ${ink(2)}/>
+    <path d="M94 62 Q84 54 82 64" fill="none" stroke="#e0a83a" stroke-width="3.2" stroke-linecap="round"/>
+    <circle cx="82" cy="64" r="3.2" fill="#e0a83a" ${ink(2)}/>
+    <rect x="14" y="72" width="72" height="8" rx="3" fill="#f0d2b0" ${ink()}/>
+    <rect x="14" y="78" width="72" height="6" rx="2" fill="#d4a06a" ${ink(2.2)}/>
+    <rect x="58" y="80" width="24" height="4" rx="1.5" fill="#c4844c"/>
   `) },
 
   crib: { vb: VB, body: pack(`
-    <defs>${lin('a2crib-rail', '#e7f7ff', '#9ad7f5')}${lin('a2crib-bed', '#fff5f8', '#ffe0ec')}</defs>
     ${shadow(50, 40)}
-    <rect x="8" y="28" width="84" height="58" rx="10" fill="#fff" ${ink()}/>
-    <path d="M14 36 v10" fill="none" stroke="#e7f4fb" stroke-width="2.4" stroke-linecap="round"/>
-    <path d="M8 42 H92 M20 28 V86 M36 28 V86 M50 28 V86 M64 28 V86 M80 28 V86" ${ink()}/>
-    <path d="M21.6 32 v18" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity=".7"/>
-    <rect x="6" y="22" width="88" height="12" rx="6" fill="url(#a2crib-rail)" ${ink()}/>
-    <path d="M16 25 h22" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".65"/>
-    <rect x="14" y="48" width="72" height="16" rx="6" fill="url(#a2crib-bed)"/>
-    <path d="M22 54 q16 4 28 0" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".55"/>
-    <ellipse cx="32" cy="56" rx="8" ry="5" fill="#fff" ${ink()}/>
-    <ellipse cx="50" cy="56" rx="8" ry="5" fill="#c9e7ff" ${ink()}/>
-    <path d="M28 55 q3 1.5 6 0" fill="none" stroke="#f3c6d4" stroke-width="1" stroke-linecap="round"/>
+    <path d="M50 4 V14" ${ink(2.2)}/>
+    <path d="M26 14 H74" ${ink(2.4)}/>
+    <path d="M32 14 V24 M50 14 V28 M68 14 V24" fill="none" stroke="${O}" stroke-width="1.7" stroke-linecap="round"/>
+    <circle cx="32" cy="28" r="5" fill="#ffd166" ${ink(2)}/>
+    <circle cx="50" cy="33" r="5.2" fill="#ff8fab" ${ink(2)}/>
+    <path d="M68 28 l5 3.4 -5 3.4 -5 -3.4 z" fill="#8ecae6" ${ink(2)}/>
+    <rect x="8" y="38" width="10" height="52" rx="5" fill="#fff" ${ink()}/>
+    <rect x="82" y="38" width="10" height="52" rx="5" fill="#7eb4dc" ${ink()}/>
+    <rect x="12" y="40" width="76" height="10" rx="5" fill="#c5e8f8" ${ink()}/>
+    <rect x="58" y="42" width="26" height="6" rx="3" fill="#7eb4dc"/>
+    <rect x="20" y="48" width="7" height="30" rx="3.5" fill="#fff" ${ink(2.2)}/>
+    <rect x="34" y="48" width="7" height="30" rx="3.5" fill="#fff" ${ink(2.2)}/>
+    <rect x="48" y="48" width="7" height="30" rx="3.5" fill="#f4fbff" ${ink(2.2)}/>
+    <rect x="62" y="48" width="7" height="30" rx="3.5" fill="#d7f0fb" ${ink(2.2)}/>
+    <rect x="74" y="48" width="7" height="30" rx="3.5" fill="#7eb4dc" ${ink(2.2)}/>
+    <rect x="18" y="60" width="64" height="14" rx="4" fill="#ffe0ec"/>
+    <ellipse cx="34" cy="66" rx="8" ry="4" fill="#fff" ${ink(2)}/>
+    <ellipse cx="50" cy="67" rx="8" ry="4" fill="#d7ecff" ${ink(2)}/>
+    <rect x="12" y="76" width="76" height="10" rx="5" fill="#e7f6ff" ${ink()}/>
+    <rect x="58" y="78" width="26" height="6" rx="3" fill="#b9dff2"/>
   `) },
 };
 

@@ -6,14 +6,14 @@ Characters stay on avatar v2. Do not redraw them in this style.
 
 ## What changed in the sample
 
-Same silhouette, same viewBox, same floor point. The new drawing adds:
+Same viewBox, same floor point, new parts. A kid should be able to tell the two drawings apart at a glance.
 
-- a top-left light, painted with a gradient
-- a short white highlight on the lit edge
-- a little texture (wood grain, a fabric stitch, a leaf vein)
-- a soft contact shadow made of two flat ellipses
+- Real parts: cushions, piping, a quilt, a pleated shade, fringe, turned legs, knobs, a mobile.
+- Two-tone cel shading. Every major surface has a lit face and a darker side plane on the right and along the lower edge. The plane is a hard-edged shape, not a thin gloss line.
+- A little texture on top of that (grain, stitches, a leaf vein).
+- A soft contact shadow made of two flat ellipses.
 
-The darkest solid color on a piece is the color that piece already used, or another pastel already on that piece. Highlights are lighter than today. That keeps the shape readable when a night pass lays an indigo tint over the room.
+The side plane is one clear step darker than the lit face, and it stays a pastel. Example: lit cloth `#ff8fab`, side `#e45d88`. That is dark enough to read as a side, and still pink under an indigo night tint. Do not take the side plane down to brown, gray, or near-black.
 
 ## Palette
 
@@ -33,18 +33,21 @@ New packs (Winter Cheer, Critter Corner, bathroom, backyard) can add a family of
 
 ## Light
 
-Light comes from the top left.
+Light comes from the top left. Paint the form as two flat tones:
+
+| Face | Role |
+| --- | --- |
+| Lit | The pastel the piece is known by, on the upper left |
+| Side | The same hue, one step darker, on the right and the lower edge |
 
 ```svg
-<linearGradient id="example" x1="0" y1="0" x2="1" y2="1">
-  <stop offset="0" stop-color="#ffd4e2"/>
-  <stop offset="1" stop-color="#ff8fab"/>
-</linearGradient>
+<rect x="16" y="24" width="68" height="34" rx="12" fill="#ffb7cc" stroke="#5a3d5c" stroke-width="3.5"/>
+<rect x="52" y="28" width="28" height="26" rx="8" fill="#e888a8"/>
 ```
 
-The stop at offset 1 is the flat color the piece uses today. The stop at offset 0 is a lighter mix of that color, still in the same hue. A white stroke, about 2 units wide and around 0.5 opacity, sits on the upper-left edge. Do not add a dark underside. A second pastel already used on the piece (the lilac wardrobe's right door, the teddy's belly) is enough for the turn-away side.
+The darker rect has no stroke of its own. It sits inside the outline, inset so it does not eat the plum edge. A whole right-hand part (the right arm, the right door, the right leaf) can simply be filled with the side color.
 
-Lamp glow is a radial gradient that fades to transparent, drawn behind the shade and inside the viewBox. It is not a blur.
+Use a gradient only for a sky, a glass pane, or a lamp glow. The glow is a radial gradient that fades to transparent, inside the viewBox. It is not a blur. A white tick on the lit edge is optional. It does not replace the side plane.
 
 ## Contact shadow
 
@@ -67,17 +70,24 @@ Keep the shadow on the same spot as the old one (near y=97 in a 100-high viewBox
 
 `stroke-linejoin` and `stroke-linecap` stay `round`. The outline color is always `#5a3d5c`.
 
-## Texture
+## Parts and texture
 
-A few strokes, not a tiled photo and not a dense hatch (a hatch buzzes on a small iPad shelf icon).
+Draw the thing the kid would name. A gloss line on the old shape is not a refresh.
 
-- Wood: two or three short grain lines, plus one lighter streak on the lit edge.
-- Cloth: two or three stitches, or a single seam curve. A sofa can have one small pillow inside the old silhouette.
-- Leaves: one vein.
-- Glass and ceramic: one white highlight. A fridge handle can take a thin white tick.
-- Plush: a lighter belly and a stitch. Keep a face that the current piece already has. Do not add a face to a table or a lamp.
+- Sofa: two seat cushions, piping, tuft buttons, curled arms, a patterned throw pillow.
+- Bed: a headboard with a heart cutout, a quilt pattern, a folded sheet.
+- Fridge: a separate freezer door, rounded chrome-pastel handles, a couple of magnets.
+- Rug: flat on the floor, a fringe, a pattern ring. Not a stack of ovals.
+- Table: a top with thickness, grain, and turned legs.
+- Shelf: books of different heights, a small plant or trophy, grain, a darker side board.
+- Lamp: a pleated shade and a warm pool of light at the opening.
+- Plant: a terracotta pot with a rim band, and leaves that are not three copies.
+- Window: a frame, a sill, mullions, folded curtains with tiebacks, a sky.
+- Crib: rounded rails and a mobile.
+- Teddy: a stitched tummy patch and a bow.
+- Wardrobe: inset panels and round knobs. Keep a face the current piece already has.
 
-If the current piece has a face (the wardrobe, the teddy), keep the eyes, blush, and smile where they are.
+Texture is a few strokes, not a tiled photo and not a dense hatch (a hatch buzzes on a small shelf icon). Wood grain is two or three lines. Cloth stitches are a short dash. A leaf gets one vein. Do not add a face to a table or a lamp.
 
 ## Night
 
@@ -93,8 +103,8 @@ A later branch tints the room indigo and lets lamps glow. This sample does not d
 Target is 60fps on an iPad 10th gen, and the page has to run on iPadOS 16 Safari.
 
 - No `feGaussianBlur`, `feDropShadow`, or a `filter` on an item. A blur on every sofa will miss the frame.
-- One to four gradients per item. A gradient id is prefixed with the piece (`a2sofa-body`) so two kinds do not clash. Copies of the same kind may share an id.
-- Keep each drawing under about 2.5KB of markup. The sample pieces are under that.
+- Gradients only for sky, glass, and a lamp glow. A gradient id is prefixed with the piece (`a2win-sky`) so two kinds do not clash.
+- Keep each drawing under about 3KB of markup. The sample pieces are in that range (the sofa is the largest, about 2.8KB).
 - Stay inside the viewBox. The game draws SVG with overflow visible, so a mark outside the box would spill onto a neighbor without moving the saved anchor.
 - Do not use CSS or JS newer than Safari 16 in the game. The sample page follows the same limit.
 
@@ -123,7 +133,7 @@ The wardrobe file on disk is unchanged. The sample is an inline stand-in used on
 
 Rough numbers from `art-sample.html?view=bench` in headless Chrome on this build machine. This is not an iPad 10th gen. The bench builds a room layer, forces layout, then nudges that layer for about 70 frames. 48 items is a busy room. 80 is the room cap.
 
-Two runs. While the layer was nudged, every case sat on the display refresh: p50 16.7 ms, p95 16.7–16.8 ms, max 16.8 ms, for the current art and the sample, at 48 items and at 80. Building the layer (parse the SVG and force layout, one timing per run) was about 3–4 ms for the current art and about 5–8 ms for the sample. Both are under one frame, including at the room cap. The thing that would miss 60 fps on an iPad is a blur filter on every piece, and the sample does not use one.
+Measured again after the pieces gained real parts and a side plane. One run in headless Chrome. While the layer was nudged, every case sat on the display refresh: p50 16.7 ms, p95 16.7–16.8 ms, max 16.8 ms, for the current art and the sample, at 48 items and at 80. Building the layer was 3.8 ms (48) and 4.6 ms (80) for the current art, and 5.5 ms (48) and 8.4 ms (80) for the sample. Both are under one frame, including at the room cap. The thing that would miss 60 fps on an iPad is a blur filter on every piece, and the sample does not use one.
 
 Markup per sample piece is 1090–2590 bytes (rug smallest, sofa largest).
 
