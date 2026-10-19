@@ -62,16 +62,16 @@ export const yardLookPatch = () => patchFromLook2(YARD_LOOK);
 /** Play frames 480 world units. The camera stays put so the house stays on the left. */
 export const YARD_CAM = 870;
 export const YARD_KID = { x: 1100, y: 528, flip: true as boolean };
-export const YARD_CAT = { x: 957, y: 518 };
+export const YARD_CAT = { x: 1188, y: 400 };
 export const DOOR_KID = { x: 1000, y: 540, flip: true as boolean };
 export const DOOR_CAT_X = 1140;
 
 /** Back-to-front. item/add stamps z from this order. */
 export const YARD_STAGE: { kind: string; x: number; y: number }[] = [
-  { kind: 'lemonade-cart', x: 1142, y: 306 },
-  { kind: 'yard-swing', x: 1284, y: 392 },
-  { kind: 'sandbox', x: 936, y: 584 },
-  { kind: 'picnic-blanket', x: 1062, y: 590 },
+  { kind: 'lemonade-cart', x: 980, y: 498 },
+  { kind: 'yard-swing', x: 1272, y: 552 },
+  { kind: 'sandbox', x: 948, y: 556 },
+  { kind: 'picnic-blanket', x: 1074, y: 564 },
 ];
 
 function piece(p: { kind: string; name: string; cat: string; w: number; h: number; vb: string; wall?: boolean; holdable?: boolean; svg: string }): ItemDef {
@@ -427,10 +427,6 @@ function tree(x: number, scale: number): string {
     <ellipse cx="${x - 28 * scale}" cy="${y + 18 * scale}" rx="${40 * scale}" ry="${32 * scale}" fill="#95d5b2" ${ink(2.4)}/>
     <ellipse cx="${x}" cy="${y}" rx="${70 * scale}" ry="${52 * scale}" fill="#74c69d" ${ink()}/>
     <ellipse cx="${x + 36 * scale}" cy="${y + 10 * scale}" rx="${40 * scale}" ry="${34 * scale}" fill="#3d9a68" ${ink(2.4)}/>
-    <path d="M${x + 8 * scale} ${y - 20 * scale} C${x + 40 * scale} ${y - 10 * scale} ${x + 50 * scale} ${y + 16 * scale} ${x + 20 * scale} ${y + 28 * scale} C${x + 40 * scale} ${y + 8 * scale} ${x + 28 * scale} ${y - 8 * scale} ${x + 10 * scale} ${y - 12 * scale} Z" fill="#2f7a52"/>
-    <path d="M${x - 24 * scale} ${y - 8 * scale} q${16 * scale} -8 ${26 * scale} 2" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".6"/>
-    <circle cx="${x - 16 * scale}" cy="${y - 6 * scale}" r="${5 * scale}" fill="#ff8fab"/>
-    <circle cx="${x + 10 * scale}" cy="${y + 8 * scale}" r="${4.5 * scale}" fill="#ffd166"/>
   </g>`;
 }
 
@@ -459,7 +455,7 @@ export function yardBackyardScenery(): string {
     <rect y="360" width="2400" height="28" fill="#e7f8c8"/>
     <rect y="520" width="2400" height="80" fill="#9ed67a"/>
     <path d="M900 470 q40 -16 20 -8 M1040 500 q30 -14 16 -6 M1240 540 q28 -12 14 -4" fill="none" stroke="#3d9a68" stroke-width="1.4" stroke-linecap="round" opacity=".22"/>
-    ${tree(1160, 0.92)}
+    ${tree(1140, 0.92)}
     <path d="M790 128 H1070 L1048 156 H812 Z" fill="#ffb3c6" ${ink()}/>
     <path d="M960 132 H1064 L1046 152 H972 Z" fill="#e45d88"/>
     ${hi('M830 136 h80', 3)}
@@ -478,11 +474,6 @@ export function yardBackyardScenery(): string {
     <rect x="964" y="304" width="48" height="46" rx="3" fill="#f7ecff" ${ink(2)}/>
     ${hi('M970 254 v24')}
     <circle cx="1004" cy="292" r="3.4" fill="#ffd166" ${ink(1.6)}/>
-    <rect x="808" y="324" width="254" height="14" rx="3" fill="#e7d3b0" ${ink(2.2)}/>
-    <ellipse cx="988" cy="372" rx="40" ry="8" fill="#f0d2b0" ${ink(2)}/>
-    <ellipse cx="1008" cy="374" rx="16" ry="5" fill="#d4a373"/>
-    ${bloom(1056, 348, '#ff8fab', 6)}${bloom(1074, 362, '#ffd166', 5)}${bloom(1090, 346, '#fff', 5)}
-    ${bloom(1272, 528, '#ff8fab', 6)}${bloom(1292, 544, '#ffd166', 5)}
   </svg>`;
 }
 
