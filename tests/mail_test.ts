@@ -56,7 +56,7 @@ async function main() {
   check('the cat only curls up on a bed while napping', settled && curled);
 
   const hood = new Neighborhood(kv, { flushMs: 5 });
-  await hood.init('MAILBOX1');
+  const parentKey = await hood.init('MAILBOX1');
   let nickN = 0;
   const send = (c: C, o: any) => { (c as any).budget = undefined; return hood.onMessage(c, JSON.stringify(o)); };
   const join = async (mail = 1) => {
@@ -139,6 +139,53 @@ async function main() {
   const locked = await join(1);
   await send(locked.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'Even if it is locked', color: 0, sticker: 0 });
   check('a locked house can still get a letter', locked.c.last('mailbox')?.mailbox?.letters?.some((l: Letter) => l.text === ''));
+
+  const grown = mk();
+  await hood.onConnect(grown);
+  await send(grown, { t: 'parent', key: 'nope', op: 'freeChat', on: false });
+  check('a wrong grown-up key does not change the street', grown.last('error')?.code === 'badkey' && hood.meta!.settings.freeChat === true);
+  await send(grown, { t: 'parent', key: parentKey, op: 'freeChat', on: false });
+  check('the grown-up turns free typing off', grown.last('parentInfo')?.settings.freeChat === false && hood.meta!.settings.freeChat === false);
+  const before = live().mailbox?.letters.length ?? 0;
+  await send(locked.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'Come play today!', color: 1, sticker: 2 });
+  await send(locked.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'Hi! Bye!', color: 0, sticker: 0 });
+  await send(locked.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'hi!', color: 0, sticker: 0 });
+  await send(locked.c, { t: 'mail', op: 'send', houseId: owner.hid, text: ' Hi!', color: 0, sticker: 0 });
+  check('free text is refused when presets are on, even from a hand-crafted message', locked.c.last('mailFail')?.reason === 'presetsOnly' && (live().mailbox?.letters.length ?? 0) === before && locked.c.inbox.filter(m => m.t === 'mailFail' && m.reason === 'presetsOnly').length === 4);
+  await send(locked.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'Hi!', color: 1, sticker: 2, from: 'Hacker', fromPid: 'pHacker' });
+  const preset = (owner.c.last('mailbox')?.mailbox?.letters ?? []).slice(-1)[0];
+  check('a preset phrase and a sticker are delivered with her name', preset?.text === 'Hi!' && preset?.sticker === 2 && preset?.color === 1 && preset?.from === locked.nick && preset?.fromPid === locked.pid);
+  await send(locked.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'Bye!', color: 0, sticker: 4 });
+  await hood.flush();
+  await send(grown, { t: 'parent', key: parentKey, op: 'info' });
+  const listed = grown.last('parentInfo')?.mail as { houseId: string; letters: { id: string; from: string; text: string; at: number }[] }[];
+  const ownerBox = listed?.find(b => b.houseId === owner.hid);
+  const hi = ownerBox?.letters?.find(l => l.text === 'Hi!');
+  const bye = ownerBox?.letters?.find(l => l.text === 'Bye!');
+  const hiKeys = hi ? Object.keys(hi).sort().join(',') : '';
+  check('the grown-up view lists the name, the words, and the date', !!hi && hi.from === locked.nick && typeof hi.at === 'number' && hi.at > 0 && !!bye && hiKeys === 'at,from,id,text');
+  await send(grown, { t: 'parent', key: 'wrong-key', op: 'mailClear', houseId: owner.hid, id: bye!.id });
+  await send(grown, { t: 'parent', key: parentKey, op: 'mailWipe', houseId: owner.hid });
+  check('only an allow-listed grown-up message can clear mail', grown.last('error')?.code === 'badkey' && live().mailbox?.letters.some(l => l.text === 'Bye!'));
+  await send(grown, { t: 'parent', key: parentKey, op: 'mailClear', houseId: owner.hid, id: bye!.id });
+  await hood.flush();
+  const hood2 = new Neighborhood(kv, { flushMs: 5 });
+  await hood2.load();
+  const reloaded = hood2.houses.get(owner.hid)!.state.mailbox!.letters;
+  check('clearing one letter stays gone after a reload', reloaded.some(l => l.text === 'Hi!') && !reloaded.some(l => l.text === 'Bye!'));
+  const oldAgain = mk();
+  await hood.onConnect(oldAgain);
+  await hood.onMessage(oldAgain, JSON.stringify({ t: 'hello', token: owner.token, v: PROTOCOL }));
+  await send(oldAgain, { t: 'act', houseId: owner.hid, cid: 11, action: { type: 'room/wallpaper', room: 'kitchen', color: '#112233' } });
+  await hood.flush();
+  const kept = mem.get('house:' + owner.hid).state;
+  check('an old client edit still keeps the mailbox', kept.mailbox.letters.some((l: Letter) => l.text === 'Hi!') && !kept.mailbox.letters.some((l: Letter) => l.text === 'Bye!') && kept.rooms.kitchen.wallpaper === '#112233' && !('mailbox' in (oldAgain.last('welcome').houses as any[]).find((h: any) => h.id === owner.hid).state));
+  await send(grown, { t: 'parent', key: parentKey, op: 'mailClearAll' });
+  await hood.flush();
+  const hood3 = new Neighborhood(kv, { flushMs: 5 });
+  await hood3.load();
+  const cleared = grown.last('parentInfo')?.mail as { letters: unknown[] }[];
+  check('the grown-up can clear every mailbox', !hood3.houses.get(owner.hid)!.state.mailbox && !hood3.houses.get(oldie.hid)!.state.mailbox && Array.isArray(cleared) && cleared.every(b => b.letters.length === 0));
 
   console.log(`${pass} passed`);
 }

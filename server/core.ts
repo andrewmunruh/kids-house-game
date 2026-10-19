@@ -1,6 +1,7 @@
 // Platform-agnostic, server-authoritative neighborhood. One instance per invite code.
 // Adapters (server/node.ts, server/worker.ts) provide storage + sockets.
-// Privacy: no emails, names, IPs or chat are stored; chat is relayed to nearby players only and never logged.
+// Privacy: no emails, last names, or IP addresses are stored. Chat bubbles are relayed to nearby players only and never logged.
+// Letters are kept on the server for up to 30 days: filtered, first names only. A grown-up can clear them, or limit new letters to preset phrases.
 import { reduce, initialState, ensureRooms, type GameState, type Dog } from '../src/shared/state';
 import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, cleanPresence, cleanHouseName,
@@ -477,6 +478,39 @@ export class Neighborhood {
     }
   }
 
+  /** What a grown-up may see: first name, words, and date. Nothing else from the letter. */
+  private parentMail(): { houseId: string; name: string; letters: { id: string; from: string; text: string; at: number }[] }[] {
+    const mail: { houseId: string; name: string; letters: { id: string; from: string; text: string; at: number }[] }[] = [];
+    for (const id of this.meta!.houseOrder) {
+      const h = this.houses.get(id);
+      if (!h) continue;
+      this.freshen(h);
+      const letters: { id: string; from: string; text: string; at: number }[] = [];
+      for (const l of h.state.mailbox?.letters ?? []) {
+        if (!l.text) continue;
+        letters.push({ id: l.id, from: l.from, text: l.text, at: l.at });
+      }
+      mail.push({ houseId: h.id, name: h.name, letters });
+    }
+    return mail;
+  }
+  /** Drop one letter, or the whole mailbox when id is empty. The key comes off the house when nothing is left. */
+  private clearLetters(h: HouseFull, id: string) {
+    this.freshen(h);
+    const letters = h.state.mailbox?.letters ?? [];
+    if (!letters.length) return;
+    if (id && !letters.some(l => l.id === id)) return;
+    const keep = id ? letters.filter(l => l.id !== id) : [];
+    const dropped = id ? letters.filter(l => l.id === id) : letters.slice();
+    if (keep.length) h.state = { ...h.state, mailbox: { letters: keep } };
+    else {
+      const { mailbox: _drop, ...rest } = h.state;
+      h.state = rest;
+    }
+    this.save(h.id);
+    this.pushMail(h, dropped.map(l => l.fromPid));
+  }
+
   /** Send, open, or throw away a letter. The name is stamped from the connection, never from the payload. */
   private onMail(c: Conn, me: Player, m: Extract<ClientMsg, { t: 'mail' }>) {
     const houseId = typeof m.houseId === 'string' ? m.houseId : '';
@@ -485,8 +519,17 @@ export class Neighborhood {
     if (!h || (c.mail ?? 0) < 1) return fail('nohouse');
     const now = Date.now();
     if (m.op === 'send') {
-      const text = cleanMailText((m as { text?: unknown }).text);
-      if (!text.ok) return fail(text.reason);
+      const raw = (m as { text?: unknown }).text;
+      let text = '';
+      if (!this.meta!.settings.freeChat) {
+        // The same phrase list as chat bubbles. Exact text only: a crafted message cannot sneak a sentence in.
+        if (typeof raw !== 'string' || PHRASES.indexOf(raw) < 0) return fail('presetsOnly');
+        text = raw;
+      } else {
+        const cleaned = cleanMailText(raw);
+        if (!cleaned.ok) return fail(cleaned.reason);
+        text = cleaned.text;
+      }
       const color = mailColor((m as { color?: unknown }).color);
       const sticker = mailSticker((m as { sticker?: unknown }).sticker);
       if (color < 0 || sticker < 0) return fail('bad');
@@ -494,7 +537,7 @@ export class Neighborhood {
       this.freshen(h, now);
       const letters = h.state.mailbox?.letters ?? [];
       if (letters.length >= MAIL_CAP) return fail('full');
-      const letter: Letter = { id: 'm' + randomToken(8), from: me.nickname, fromPid: me.pid, text: text.text, color, sticker, at: now };
+      const letter: Letter = { id: 'm' + randomToken(8), from: me.nickname, fromPid: me.pid, text, color, sticker, at: now };
       const next: GameState = { ...h.state, mailbox: { letters: [...letters, letter] } };
       if (JSON.stringify(next).length > MAX_HOUSE_JSON) return fail('toobig');
       h.state = next; this.save(h.id); this.pushMail(h);
@@ -560,6 +603,20 @@ export class Neighborhood {
       }
       case 'rename': { const h = this.houses.get(m.houseId), name = cleanHouseName(m.name); if (!h || !name) break; h.name = name; this.save(h.id); this.broadcast({ t: 'houseMeta', meta: this.metaOf(h) }); break; }
       case 'freeChat': { if (typeof m.on !== 'boolean') break; meta.settings.freeChat = m.on; this.save('meta'); this.broadcast({ t: 'settings', settings: meta.settings }); break; }
+      case 'mailClear': {
+        const houseId = typeof m.houseId === 'string' ? m.houseId : '';
+        const h = this.houses.get(houseId); if (!h) break;
+        const id = typeof m.id === 'string' ? m.id : '';
+        this.clearLetters(h, id);
+        break;
+      }
+      case 'mailClearAll': {
+        for (const id of meta.houseOrder) {
+          const h = this.houses.get(id);
+          if (h) this.clearLetters(h, '');
+        }
+        break;
+      }
       case 'remove': {
         const p = meta.players[m.pid]; if (!p) break;
         delete meta.players[p.pid]; this.houses.delete(p.houseId); meta.houseOrder = meta.houseOrder.filter(id => id !== p.houseId);
@@ -572,6 +629,6 @@ export class Neighborhood {
         break;
       }
     }
-    this.send(c, { t: 'parentInfo', code: meta.code, settings: meta.settings, players: this.players(), houses: meta.houseOrder.map(id => this.metaOf(this.houses.get(id)!)), roster: this.roster(), note });
+    this.send(c, { t: 'parentInfo', code: meta.code, settings: meta.settings, players: this.players(), houses: meta.houseOrder.map(id => this.metaOf(this.houses.get(id)!)), roster: this.roster(), mail: this.parentMail(), note });
   }
 }

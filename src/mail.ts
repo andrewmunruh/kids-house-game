@@ -1,5 +1,5 @@
 // Street mailbox: write a short letter, and the owner opens it.
-import { FILTER_MSG, filterChat } from './shared/hood';
+import { FILTER_MSG, PHRASES, filterChat } from './shared/hood';
 import { MAIL_COLOR, MAIL_COLORS, MAIL_MAX, MAIL_STICKERS, friendlyWhen, stripUrls, type Letter } from './shared/mail';
 
 const O = '#5a3d5c';
@@ -47,6 +47,7 @@ const FAIL: Record<string, string> = {
   nohouse: 'That house is not on the street.',
   gone: 'That letter is already gone.',
   toobig: 'The mailbox is too full!',
+  presetsOnly: 'Typing is turned off: pick a phrase!',
 };
 
 export function failMsg(reason: string): string { return FAIL[reason] || "Let's try that again!"; }
@@ -68,6 +69,8 @@ export function installMail(opts: {
   mine: (houseId: string) => boolean;
   toast: (m: string) => void;
   openOwn: () => void;
+  /** True when a grown-up still allows typed letters. Preset phrases otherwise. */
+  freeType: () => boolean;
 }): MailCtl {
   let openId = '';
   let readingId = '';
@@ -75,6 +78,7 @@ export function installMail(opts: {
   let replyTo = '';
   let color = 0;
   let sticker = 0;
+  let phrase = -1;
   let err = '';
   let confirmDrop = '';
   const cue = () => document.getElementById('mailCue');
@@ -117,11 +121,15 @@ export function installMail(opts: {
       readingId = '';
     }
     if (writing || !mine) {
+      const free = opts.freeType();
       const title = replyTo ? `Reply to ${opts.houseName(replyTo) || 'your friend'}` : (mine ? 'Leave a letter' : `Letter for ${name}`);
+      const words = free
+        ? `<textarea id="mailText" class="mailBox" maxlength="${MAIL_MAX}" placeholder="Hi! Come play!"></textarea>
+        <div class="mailCount" id="mailCount">0/${MAIL_MAX}</div>`
+        : `<h3>Phrase</h3><div class="phrases mailPhrases">${PHRASES.map((p, i) => `<button type="button" data-phrase="${i}" class="${i === phrase ? 'on' : ''}">${esc(p)}</button>`).join('')}</div>`;
       card.innerHTML = `<button class="close" data-m="close">✕</button><h2>${esc(title)}</h2>
-        <p class="hint">A short note. Your name goes on it for you.</p>
-        <textarea id="mailText" class="mailBox" maxlength="${MAIL_MAX}" placeholder="Hi! Come play!"></textarea>
-        <div class="mailCount" id="mailCount">0/${MAIL_MAX}</div>
+        <p class="hint">${free ? 'A short note. Your name goes on it for you.' : 'Pick a phrase. Your name goes on it for you.'}</p>
+        ${words}
         <h3>Paper</h3><div class="mailRow">${MAIL_COLOR.map((c, i) => `<button class="swatch ${i === color ? 'on' : ''}" data-color="${i}" style="background:${c}" aria-label="Paper ${i + 1}"></button>`).join('')}</div>
         <h3>Sticker</h3><div class="mailRow">${STICKER.slice(0, MAIL_STICKERS).map((s, i) => `<button class="stick ${i === sticker ? 'on' : ''}" data-sticker="${i}" aria-label="Sticker ${i + 1}">${s}</button>`).join('')}</div>
         ${err ? `<p class="mailErr" id="mailErr">${esc(err)}</p>` : ''}
@@ -145,6 +153,8 @@ export function installMail(opts: {
   }
 
   function onClick(t: HTMLElement) {
+    const phraseBtn = t.closest<HTMLElement>('.mailPhrases [data-phrase]');
+    if (phraseBtn) { phrase = +phraseBtn.dataset.phrase!; err = ''; draw(); return; }
     const colorBtn = t.closest<HTMLElement>('[data-color]');
     if (colorBtn) { color = +colorBtn.dataset.color!; draw(); return; }
     const stickBtn = t.closest<HTMLElement>('[data-sticker]');
@@ -192,12 +202,19 @@ export function installMail(opts: {
   }
 
   function send() {
-    const raw = sheet().querySelector<HTMLTextAreaElement>('#mailText')?.value ?? '';
-    const f = letterOk(raw);
-    if (!f.ok) { err = f.msg; draw(); const area = sheet().querySelector<HTMLTextAreaElement>('#mailText'); if (area) area.value = raw; return; }
+    let text = '';
+    if (!opts.freeType()) {
+      if (phrase < 0 || phrase >= PHRASES.length) { err = 'Pick a phrase!'; draw(); return; }
+      text = PHRASES[phrase];
+    } else {
+      const raw = sheet().querySelector<HTMLTextAreaElement>('#mailText')?.value ?? '';
+      const f = letterOk(raw);
+      if (!f.ok) { err = f.msg; draw(); const area = sheet().querySelector<HTMLTextAreaElement>('#mailText'); if (area) area.value = raw; return; }
+      text = f.text;
+    }
     const target = replyTo || openId;
     err = '';
-    opts.send(target, f.text, color, sticker);
+    opts.send(target, text, color, sticker);
     opts.toast('On its way!');
     if (opts.mine(target)) { writing = false; replyTo = ''; openId = target; draw(); }
     else close();
@@ -205,7 +222,7 @@ export function installMail(opts: {
 
   return {
     open(houseId, _houseName, mine, _letters) {
-      openId = houseId; readingId = ''; writing = !mine; replyTo = ''; err = ''; confirmDrop = ''; color = 0; sticker = 0;
+      openId = houseId; readingId = ''; writing = !mine; replyTo = ''; err = ''; confirmDrop = ''; color = 0; sticker = 0; phrase = -1;
       draw();
     },
     fail(reason) { err = failMsg(reason); if (openId) draw(); else opts.toast(err); },

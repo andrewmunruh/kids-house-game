@@ -181,6 +181,7 @@ const mailUI = installMail({
   mine: houseId => !!hood && hood.houses.get(houseId)?.meta.ownerId === hood.pid,
   toast,
   openOwn: () => { const id = hood?.myHouseId(); if (id) openMailbox(id); },
+  freeType: () => !hood || hood.settings.freeChat,
 });
 play.sync(true);
 const avatarEls = new Map<string, HTMLElement>();
@@ -1583,7 +1584,7 @@ function enterNeighborhood(client: HoodClient) {
   client.on('sayFail', (r: string) => toast(r === 'presetsOnly' ? 'Typing is turned off: pick a bubble!' : FILTER_MSG[r] || "Couldn't send that"));
   client.on('mailbox', () => { if (hood !== client) return; if (view === 'street') renderMap(true); syncMailCue(); mailUI.refresh(); });
   client.on('mailFail', (r: string) => { if (hood === client) mailUI.fail(r); });
-  client.on('settings', () => { if (!$('chatTray').classList.contains('hidden')) renderChatTray(); });
+  client.on('settings', () => { if (hood !== client) return; if (!$('chatTray').classList.contains('hidden')) renderChatTray(); mailUI.refresh(); });
   client.on('removed', () => { toast('A grown-up took this iPad off the street'); const c = client.cfg; saveHoodConfig({ url: c.url, code: c.code, id: c.id, parentKey: c.parentKey }); goSolo(); });
   client.on('status', (st: string) => {
     if (hood !== client) return;
@@ -1733,9 +1734,20 @@ async function parentScreen() {
     if (op === 'unclaim') { if (a.dataset.sure !== '1') { a.dataset.sure = '1'; a.textContent = 'Tap again'; return; } c.parent({ op: 'unclaim', name: a.dataset.name }); }
     if (op === 'setcode') c.parent({ op: 'setCode', code: val('#codeEdit') });
     if (op === 'remove') { if (a.dataset.sure !== '1') { a.dataset.sure = '1'; a.textContent = 'Tap again to remove'; return; } c.parent({ op: 'remove', pid: a.dataset.pid }); }
+    if (op === 'mailClear' || op === 'mailClearAll') {
+      if (a.dataset.sure !== '1') { a.dataset.sure = '1'; a.textContent = op === 'mailClearAll' ? 'Tap again to clear every mailbox' : (a.dataset.id ? 'Tap again' : 'Tap again to clear this mailbox'); return; }
+      if (op === 'mailClearAll') c.parent({ op: 'mailClearAll' });
+      else c.parent({ op: 'mailClear', houseId: a.dataset.hid, ...(a.dataset.id ? { id: a.dataset.id } : {}) });
+    }
     if (op === 'leave') { if (a.dataset.sure !== '1') { a.dataset.sure = '1'; a.textContent = 'Tap again: forget this street here'; return; } saveHoodConfig(null); m.close(); goSolo(); toast('This iPad left the street'); }
   }, 'wide parent');
   m.root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).id; if (f === 'rosterForm') c.parent({ op: 'rosterAdd', name: val('#rosterInput') }); if (f === 'codeForm2') c.parent({ op: 'setCode', code: val('#codeEdit') }); });
+  const letterDate = (at: number) => {
+    const d = new Date(at);
+    if (!Number.isFinite(d.getTime())) return '';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+  };
   c.on('parentInfo', (info: any) => {
     const body = m.root.querySelector('#parentBody'); if (!body) return;
     // remember the current code on this device (sockets use the permanent id, so changing the code never kicks anyone)
@@ -1744,9 +1756,16 @@ async function parentScreen() {
     const names = new Set(roster.map(r => r.name.toLowerCase()));
     const sugg = ROSTER_SUGGEST.filter(n => !names.has(n.toLowerCase()));
     const firstName = roster[0]?.name ?? 'Reagan';
+    const boxes: { houseId: string; name: string; letters: { id: string; from: string; text: string; at: number }[] }[] = Array.isArray(info.mail) ? info.mail : [];
+    const anyLetters = boxes.some(b => b.letters && b.letters.length);
+    const mailHtml = boxes.map(b => `<div class="pMailHouse"><div class="pMailName">${esc(b.name || 'House')}</div>${
+      (b.letters || []).slice().reverse().map(l => `<div class="pLetter"><b>${esc(l.from)}</b><span class="pWhen">${esc(letterDate(l.at))}</span><p>${esc(l.text)}</p><button type="button" class="danger" data-p="mailClear" data-hid="${esc(b.houseId)}" data-id="${esc(l.id)}">Clear</button></div>`).join('')
+      || '<p class="hint">No letters.</p>'
+    }${(b.letters || []).length ? `<button type="button" class="danger" data-p="mailClear" data-hid="${esc(b.houseId)}">Clear this mailbox</button>` : ''}</div>`).join('');
     body.innerHTML = `${info.note ? `<p class="err" id="pNote">${esc(PARENT_NOTES[info.note] ?? info.note)}</p>` : ''}
       <div class="pRow"><div><div class="label">Invite code</div><div class="code small" id="pCode">${esc(info.code)}</div></div>
-        <div><div class="label">Free typing in chat</div><button class="toggle ${info.settings.freeChat ? 'on' : ''}" data-p="free" data-on="${info.settings.freeChat ? 1 : 0}" id="pFree">${info.settings.freeChat ? 'On' : 'Off (presets only)'}</button></div></div>
+        <div><div class="label">Free typing</div><button class="toggle ${info.settings.freeChat ? 'on' : ''}" data-p="free" data-on="${info.settings.freeChat ? 1 : 0}" id="pFree">${info.settings.freeChat ? 'On' : 'Off (presets only)'}</button><p class="hint small">Chat and letters. Off means preset phrases only.</p></div></div>
+      <div class="label">Letters</div><div id="parentMail">${mailHtml || '<p class="hint">No letters right now.</p>'}${anyLetters ? '<button type="button" class="danger" data-p="mailClearAll" id="mailClearAll">Clear every mailbox</button>' : ''}</div>
       <form class="pAdd" id="codeForm2"><input id="codeEdit" maxlength="${CODE_MAX}" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="e.g. ${esc(normCode(firstName))}${7}"/><button data-p="setcode" type="button">Use this code</button></form>
       <p class="hint small">Tip: a word plus a number (like ${esc(normCode(firstName))}7) is easy to remember and harder to guess. Not case-sensitive.</p>
       <div class="label">Kids' names (sign-in list)</div>
@@ -1757,7 +1776,7 @@ async function parentScreen() {
       ${sugg.length ? `<div class="sugg">${sugg.map(n => `<button data-p="add" data-name="${n}">+ ${n}</button>`).join('')}</div>` : ''}
       <div class="label">Houses</div>${info.houses.map((h: any) => `<div class="pHouse"><input data-hid="${h.id}" value="${esc(h.name)}" maxlength="24"/><button data-p="rename" data-hid="${h.id}">Rename</button></div>`).join('') || '<p class="hint">No houses yet.</p>'}
       <div class="label">Players</div>${info.players.map((p: any) => `<div class="pPlayer"><span class="dot ${p.online ? 'on' : ''}"></span>${esc(p.nickname)}<button class="danger" data-p="remove" data-pid="${p.pid}">Remove</button></div>`).join('') || '<p class="hint">Nobody has joined yet.</p>'}
-      <p class="hint small">Only the first names you add here are stored: no emails, last names, or chat history. "Reset" signs a name out of its iPad so it can sign in again on another one (her house stays). Chat bubbles are only relayed to kids standing nearby.</p>
+      <p class="hint small">Letters stay on the server for up to 30 days. They are filtered, and only a first name is stored. You can clear them here, or turn free typing off so new letters use preset phrases. Chat bubbles are only relayed to kids standing nearby and are not saved. No emails or last names. "Reset" signs a name out of its iPad so it can sign in again on another one (her house stays).</p>
       <button class="danger wideBtn" data-p="leave">Forget this street on this device</button>`;
   });
   c.on('error', (code: string) => { if (code === 'badkey') { toast("That grown-up key didn't work"); cfg.parentKey = undefined; saveHoodConfig(cfg); m.close(); } });

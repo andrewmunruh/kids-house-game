@@ -49,6 +49,7 @@ body.mode-play .drawer, body.mode-play .toolbar, body.mode-play .bin { display: 
 .stick { width: 52px; height: 52px; border-radius: 16px; background: #fff; border: 3px solid transparent; padding: 6px; }
 .stick.on { border-color: var(--ink); background: #fff3b0; }
 .mailBox { width: 100%; min-height: 64px; border: 4px solid var(--ink); border-radius: 18px; padding: 10px 12px; font: inherit; font-weight: 800; font-size: 18px; resize: none; }
+.mailPhrases button.on { background: #fff3b0; border-color: var(--ink); }
 .mailCount { font-weight: 800; opacity: .6; font-size: 14px; text-align: right; }
 .mailErr { color: #c2255c; font-weight: 900; margin: 6px 0; }
 .statusChip { display: inline-block; background: #e7f5ff; border: 3px solid var(--ink); border-radius: 14px; padding: 4px 10px; font-weight: 900; margin-top: 6px; }

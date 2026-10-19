@@ -1,5 +1,5 @@
 # Mailboxes on the street, writing a letter, opening it. iPad 1024x768 and iPhone 390x844.
-import asyncio, os, sys, time
+import asyncio, os, re, sys, time
 from playwright.async_api import async_playwright
 from testnav import SKIP_WN, local_page
 
@@ -66,6 +66,69 @@ async def shot(pg, name):
     await pg.screenshot(path=path)
     print('SHOT', path, flush=True)
 
+async def presets_and_parent(P, k_house):
+    """freeChat off: phrase chips instead of a text box, and the grown-up can see and clear letters."""
+    await P.click('#btnParent')
+    await adult(P)
+    await P.wait_for_selector('#pFree')
+    if await P.get_attribute('#pFree', 'data-on') == '1':
+        await P.click('#pFree')
+        await P.wait_for_function("() => { const b = document.querySelector('#pFree'); return b && b.getAttribute('data-on') === '0'; }")
+    await P.click('.hoodSheet [data-m="close"]')
+    await P.wait_for_function("() => !document.querySelector('.sheet:not(.hidden)')")
+    await P.click(f'.mapMail[data-mail="{k_house}"]')
+    await P.wait_for_selector('.mailPhrases button')
+    chips = await P.locator('.mailPhrases button').count()
+    sticks = await P.locator('#mailSheet .stick').count()
+    no_box = await P.locator('#mailText').count()
+    check('preset composer has phrases and stickers and no text box', no_box == 0 and chips == 16 and sticks == 6, f'text={no_box} chips={chips} sticks={sticks}')
+    await P.click('#mailSend')
+    asked = await P.inner_text('#mailErr')
+    check('preset composer asks for a phrase', 'Pick a phrase' in asked, asked)
+    await P.click('.mailPhrases button:has-text("Come over!")')
+    await P.click('.stick[data-sticker="2"]')
+    chosen = await P.evaluate("""() => {
+      const on = document.querySelector('.mailPhrases button.on');
+      return {phrase: on ? on.textContent : '', sticker: !!document.querySelector('.stick.on'), box: !!document.querySelector('#mailText')};
+    }""")
+    check('a preset chip and a sticker can be picked', chosen['phrase'] == 'Come over!' and chosen['sticker'] and not chosen['box'], str(chosen))
+    path = os.path.join(SHOT, 'preset-composer-820x1180.png')
+    await P.screenshot(path=path)
+    print('SHOT', path, flush=True)
+    await P.click('#mailSend')
+    await P.wait_for_function("() => !document.querySelector('#mailSheet')")
+    await P.click('#btnParent')
+    await adult(P)
+    await P.wait_for_selector('#parentMail')
+    await P.evaluate("() => { const c = document.querySelector('.parent .card'); if (c) c.scrollTop = 0; }")
+    text = await P.inner_text('#parentMail')
+    check('grown-up mail lists the name, the words, and a date', 'Reagan' in text and 'Come over!' in text and 'Come play today!' in text and re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}, \d{4}', text) is not None, text[:300])
+    path = os.path.join(SHOT, 'grownup-mail-820x1180.png')
+    await P.screenshot(path=path)
+    print('SHOT', path, flush=True)
+    btn = P.locator('.pLetter', has_text='Come over!').locator('[data-p="mailClear"]')
+    await btn.click()
+    await btn.click()
+    await P.wait_for_function("""() => {
+      const el = document.querySelector('#parentMail');
+      return el && el.textContent.indexOf('Come over!') < 0 && el.textContent.indexOf('Come play today!') >= 0;
+    }""")
+    left = await P.inner_text('#parentMail')
+    check('clearing one letter leaves the others', 'Come over!' not in left and 'Come play today!' in left, left[:240])
+    await P.click('[data-p="mailClearAll"]')
+    await P.click('[data-p="mailClearAll"]')
+    await P.wait_for_function("""() => {
+      const el = document.querySelector('#parentMail');
+      return el && el.textContent.indexOf('Come play today!') < 0 && el.textContent.indexOf('Come over!') < 0;
+    }""")
+    await P.reload()
+    await P.wait_for_selector('body.view-map #btnParent', timeout=12000)
+    await P.click('#btnParent')
+    await adult(P)
+    await P.wait_for_selector('#parentMail')
+    gone = await P.inner_text('#parentMail')
+    check('cleared letters stay gone after reload', 'Come over!' not in gone and 'Come play today!' not in gone, gone[:200])
+
 async def flow(browser, w, h, tag):
     async def ctx(slow=False):
         c = await browser.new_context(viewport={'width': w, 'height': h}, device_scale_factor=1, has_touch=True, is_mobile=(w < 500))
@@ -102,6 +165,10 @@ async def flow(browser, w, h, tag):
     await P.click('.swatch[data-color="2"]')
     await P.click('.stick[data-sticker="1"]')
     await shot(P, f'{tag}-write-letter')
+    if tag == 'ipad820':
+        path = os.path.join(SHOT, 'free-text-composer-820x1180.png')
+        await P.screenshot(path=path)
+        print('SHOT', path, flush=True)
     await P.click('#mailSend')
     await P.wait_for_timeout(700)
     await K.wait_for_selector('.mapMail.up', timeout=8000)
@@ -137,6 +204,8 @@ async def flow(browser, w, h, tag):
         path = os.path.join(SHOT, 'open-letter-820x1180.png')
         await K.screenshot(path=path)
         print('SHOT', path, flush=True)
+    if tag == 'ipad820':
+        await presets_and_parent(P, k_house)
     if tag == 'ipad':
         await K.click('[data-m="close"]')
         await K.wait_for_timeout(200)
