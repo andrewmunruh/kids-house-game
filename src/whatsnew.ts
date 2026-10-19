@@ -41,8 +41,8 @@ const kennelArt = `<svg viewBox="0 0 120 100"><path d="M16 50 L60 14 L104 50" fi
 const mailArt = `<svg viewBox="0 0 120 100"><rect x="28" y="38" width="64" height="42" rx="8" fill="#8ecae6" stroke="${O}" stroke-width="4"/><path d="M28 44 L60 68 L92 44" fill="none" stroke="${O}" stroke-width="4"/><path d="M76 30 V16" stroke="${O}" stroke-width="4" stroke-linecap="round"/><path d="M76 16 H96 L90 23 L96 30 H76 Z" fill="#ff6b6b" stroke="${O}" stroke-width="3"/></svg>`;
 const playArt = `<svg viewBox="0 0 120 100"><rect x="8" y="32" width="48" height="40" rx="14" fill="#fff3b0" stroke="${O}" stroke-width="4"/><rect x="64" y="32" width="48" height="40" rx="14" fill="#fff" stroke="${O}" stroke-width="4"/><path d="M26 44 L40 52 L26 60 Z" fill="${O}"/><circle cx="88" cy="52" r="6" fill="#ff8fab" stroke="${O}" stroke-width="3"/></svg>`;
 const critterArt = `<svg viewBox="0 0 120 100"><path d="M34 42 L40 18 L52 40" fill="#ff9f68" stroke="${O}" stroke-width="3.5" stroke-linejoin="round"/><path d="M86 42 L80 18 L68 40" fill="#ff9f68" stroke="${O}" stroke-width="3.5" stroke-linejoin="round"/><rect x="28" y="40" width="64" height="36" rx="16" fill="#ff9f68" stroke="${O}" stroke-width="3.5"/><ellipse cx="60" cy="58" rx="16" ry="10" fill="#fff6e6"/><circle cx="52" cy="56" r="3" fill="${O}"/><circle cx="68" cy="56" r="3" fill="${O}"/><rect x="36" y="70" width="48" height="14" rx="7" fill="#ffd0a8" stroke="${O}" stroke-width="3"/></svg>`;
+// v9 is declutter + day/night, v10 is Winter Cheer. Critter Corner is v11 by merge order.
 export const CHANGELOG: ChangeEntry[] = [
-  // v9 is declutter + day/night, v10 is Winter Cheer. Critter Corner is v11 by merge order.
   { v: 11, title: 'Critter Corner!', lines: [
     { art: wrap(critterArt), text: 'The <b>Critter Corner</b> pack is in your drawer!' },
   ] },
