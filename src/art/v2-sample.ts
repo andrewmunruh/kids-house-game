@@ -147,10 +147,18 @@ const MARKS: Record<string, V2Mark> = {
     <circle cx="58" cy="77" r="1.9" fill="#ffd166"/>
     <circle cx="68" cy="82" r="1.8" fill="#90e0a8"/>
     <path d="M50 79 l1.1 2.2 2.4 .2 -1.8 1.6 .6 2.4 -2.3 -1.4 -2.3 1.4 .6 -2.4 -1.8 -1.6 2.4 -.2 z" fill="#ff8fab"/>
-    <ellipse cx="14" cy="78.5" rx="10" ry="3.4" fill="#ffc8dd"/>
-    <ellipse cx="12" cy="85" rx="11" ry="3.6" fill="#ffb7cc"/>
-    <ellipse cx="86" cy="78.5" rx="10" ry="3.4" fill="#ffb7cc"/>
-    <ellipse cx="88" cy="85" rx="11" ry="3.6" fill="#e888a8"/>
+    <rect x="20.7" y="71.7" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
+    <rect x="11.6" y="75.2" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
+    <rect x="7.9" y="78.7" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
+    <rect x="7.9" y="82.2" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
+    <rect x="11.3" y="85.7" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
+    <rect x="20.5" y="89.2" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
+    <rect x="74.3" y="71.7" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
+    <rect x="83.4" y="75.2" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
+    <rect x="87.1" y="78.7" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
+    <rect x="87.1" y="82.2" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
+    <rect x="83.7" y="85.7" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
+    <rect x="74.5" y="89.2" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
   `) },
 
   plant: { vb: VB, body: pack(`
