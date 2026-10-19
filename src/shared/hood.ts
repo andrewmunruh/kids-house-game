@@ -53,45 +53,6 @@ const EMAIL_RE = /\S+\s*(@|\(at\)|\sat\s)\s*\S+\s*(\.|\sdot\s)\s*\w{2,}/i;
 const HANDLE_RE = /@\w/;
 const ADDRESS_RE = /\b\d{1,6}\s+([a-z]+\s+){0,3}(street|st|road|rd|avenue|ave|lane|ln|drive|dr|court|ct|blvd|boulevard|way|place|pl|circle|cir|terrace|parkway|pkwy|highway|hwy|apt|apartment|unit)\b/i;
 
-// 1 maps to L here, so he11 is hell. The chat leet map maps 1 to I and must not change.
-const EXPLICIT_LEET: Record<string, string> = { '0': 'o', '1': 'l', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's', 'v': 'u' };
-function explicitToken(raw: string): boolean {
-  const mapped = raw.toLowerCase().replace(/[013457@$v]/g, c => EXPLICIT_LEET[c] ?? c);
-  if (!/^[a-z*]+$/.test(mapped)) return false;
-  const pos: number[] = [];
-  for (let i = 0; i < mapped.length; i++) if (mapped[i] === '*') pos.push(i);
-  if (pos.length > 2) return false;
-  const chars = mapped.split('');
-  const wordHit = (s: string) => (/^h+e+l+$/.test(s) && (s.match(/l/g) ?? []).length >= 2) || /^d+u+m+b+a+s+$/.test(s);
-  const walk = (n: number): boolean => {
-    if (n === pos.length) return wordHit(chars.join(''));
-    for (let a = 97; a <= 122; a++) {
-      chars[pos[n]] = String.fromCharCode(a);
-      if (walk(n + 1)) return true;
-    }
-    return false;
-  };
-  return walk(0);
-}
-/** Whole token only: hell, dumbass, and stretched or leet forms (h3ll, he11, hellll, h*ll, dvmbass, d*mbass).
- *  Single letters glue (h e l l, h.e.l.l). Neighbouring words do not, and hel inside a word does not. */
-function explicitWords(raw: string): boolean {
-  const parts = raw.toLowerCase().split(/[^a-z0-9@$*]+/).filter(Boolean);
-  let buf = '';
-  const flush = () => {
-    const hit = buf.length >= 4 && explicitToken(buf);
-    buf = '';
-    return hit;
-  };
-  for (let i = 0; i < parts.length; i++) {
-    const w = parts[i];
-    if (explicitToken(w)) return true;
-    if (w.length === 1) buf += w;
-    else if (flush()) return true;
-  }
-  return flush();
-}
-
 export type FilterResult = { ok: true; text: string } | { ok: false; reason: 'empty' | 'long' | 'link' | 'contact' | 'personal' | 'words' | 'mail' };
 export function filterChat(raw: unknown, max = MAX_CHAT): FilterResult {
   if (typeof raw !== 'string') return { ok: false, reason: 'empty' };
@@ -111,24 +72,90 @@ export function filterChat(raw: unknown, max = MAX_CHAT): FilterResult {
   const squashed = norm.replace(/[^a-z]/g, '').replace(/(.)\1{2,}/g, '$1$1');
   if (toks.some(t => BAD.includes(t) || BAD.includes(t.replace(/(.)\1+/g, '$1'))) || BAD.filter(b => b.length >= 5).some(b => squashed.includes(b)))
     return { ok: false, reason: 'words' };
-  // Stored mail, pet names, kid names, and house names all come through here.
-  // A stricter rule belongs on a new bubble or a new letter, never on this re-read.
+  // Names and stored letters re-read through here. Keep this list as it was on fbd04db.
   return { ok: true, text };
 }
-/** A new chat bubble. Letters already block f*ck and kys; bubbles do too. Stored data stays on filterChat. */
+const SEND_LEET: Record<string, string> = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's', '!': 'i', '+': 't', 'v': 'u' };
+function swearShape(s: string): boolean {
+  return /^f+u+c+k+$/.test(s) || /^f+u+k+$/.test(s) || /^f+c+k+$/.test(s)
+    || /^s+h+i+t+$/.test(s) || /^s+h+t+$/.test(s)
+    || /^b+i+t+c+h+$/.test(s) || /^b+t+c+h+$/.test(s)
+    || /^a+s+h+o+l+e+$/.test(s)
+    || /^d+u+m+b+a+s+$/.test(s)
+    || /^n+i+g{2,}e+r+$/.test(s) || /^n+i+g{2,}a+$/.test(s)
+    || /^f+a+g+$/.test(s) || /^f+a+g+o+t+$/.test(s)
+    || /^r+e+t+a+r+d+$/.test(s)
+    || /^k+y+s+$/.test(s);
+}
+function swearToken(s: string): boolean {
+  if (!/^[a-z]+$/.test(s)) return false;
+  const stems = [s];
+  const sufs = ['ing', 'ers', 'er', 'ed', 'es', 'y', 's'];
+  for (let i = 0; i < sufs.length; i++) {
+    const suf = sufs[i];
+    if (s.endsWith(suf) && s.length > suf.length + 2) stems.push(s.slice(0, -suf.length));
+  }
+  for (let i = 0; i < stems.length; i++) if (swearShape(stems[i])) return true;
+  return false;
+}
+function starForms(mapped: string): string[] {
+  if (!mapped.includes('*')) return [mapped];
+  const stars = mapped.split('*').length - 1;
+  const stripped = mapped.replace(/\*/g, '');
+  const out = stripped ? [stripped] : [];
+  if (stars < 1 || stars > 3) return out;
+  const chars = mapped.split('');
+  const pos: number[] = [];
+  for (let i = 0; i < chars.length; i++) if (chars[i] === '*') pos.push(i);
+  const walk = (n: number) => {
+    if (n === pos.length) { out.push(chars.join('')); return; }
+    for (let a = 97; a <= 122; a++) { chars[pos[n]] = String.fromCharCode(a); walk(n + 1); }
+  };
+  walk(0);
+  return out;
+}
+/** Main swears, obvious disguises, severe slurs, and kys. Whole tokens only. */
+function sendSwear(raw: string): boolean {
+  const parts = raw.toLowerCase().split(/[^a-z0-9@$!+*v]+/).filter(Boolean);
+  const tokens: string[] = [];
+  let buf = '';
+  const flush = () => { if (buf) { tokens.push(buf); buf = ''; } };
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i].length === 1) buf += parts[i];
+    else { flush(); tokens.push(parts[i]); }
+  }
+  flush();
+  const norms = tokens.map(t => t.replace(/[013457@$!+v]/g, c => SEND_LEET[c] ?? c));
+  for (let i = 0; i < norms.length; i++) {
+    const forms = starForms(norms[i]);
+    for (let j = 0; j < forms.length; j++) if (swearToken(forms[j])) return true;
+  }
+  for (let i = 0; i < norms.length - 1; i++) {
+    const a = norms[i].replace(/\*/g, '');
+    const b = norms[i + 1].replace(/\*/g, '');
+    if (/^d+u+m+b+$/.test(a) && /^a+s+$/.test(b)) return true;
+  }
+  return false;
+}
+function filterLoose(raw: unknown, max: number, blocked: 'words' | 'mail'): FilterResult {
+  if (typeof raw !== 'string') return { ok: false, reason: 'empty' };
+  const text = raw.normalize('NFKC').replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g, '').replace(/\s+/g, ' ').trim();
+  if (!text) return { ok: false, reason: 'empty' };
+  if (text.length > max) return { ok: false, reason: 'long' };
+  if (sendSwear(text)) return { ok: false, reason: blocked };
+  return { ok: true, text };
+}
+/** A new chat bubble. Light list: swears, slurs, and kys. Stored data stays on filterChat. */
 export function filterSay(raw: unknown, max = MAX_CHAT): FilterResult {
-  const f = filterChat(raw, max);
-  if (!f.ok) return f;
-  if (mailMean(f.text) || explicitWords(f.text)) return { ok: false, reason: 'words' };
-  return f;
+  return filterLoose(raw, max, 'words');
 }
 export const FILTER_MSG: Record<string, string> = {
   long: 'That is a bit long!', link: 'No links, please!', contact: 'Keep numbers and contact info secret!', personal: 'Keep personal info secret!',
   words: "Let's use kind words!", mail: 'Oops, try different words!', empty: '',
 };
 
-// Letters are stricter than chat bubbles. The reason sent to the kid is only "mail":
-// the screen says "Oops, try different words!" and does not name the rule.
+// Old letter rules. New bubbles and new letters use filterLoose instead, so these
+// lists are not on the send path. The kid still only hears "Oops, try different words!"
 const MEAN = new Set<string>([...BAD, 'fat', 'ugly', 'stoopid', 'hateyou', 'hateu', 'shutup']);
 const MEAN_PHRASE = new Set(['hateyou', 'hateu', 'shutup']);
 const DIGIT_WORDS = ['three', 'seven', 'eight', 'four', 'five', 'nine', 'zero', 'one', 'two', 'six', 'ten', 'oh'];
@@ -474,16 +501,9 @@ export function cleanHouseState(raw: any): GameState {
   return mailbox ? { ...house, mailbox } : house;
 }
 
-/** Chat filter, then a stricter letter-only pass. Roster names are the street's first names. */
-export function cleanMailText(raw: unknown, roster: string[] = []): FilterResult {
-  const f = filterChat(raw, MAIL_MAX);
-  if (!f.ok) return f;
-  // New letters only. filterMailbox re-reads stored letters with filterChat, which stays the old rule.
-  if (explicitWords(f.text)) return { ok: false, reason: 'mail' };
-  const text = stripUrls(f.text);
-  if (!text || text !== f.text) return { ok: false, reason: 'link' };
-  if (mailBlocked(typeof raw === 'string' ? raw : text, roster)) return { ok: false, reason: 'mail' };
-  return { ok: true, text };
+/** A new letter. Same light list as a new bubble. Reload still uses filterChat, not this. */
+export function cleanMailText(raw: unknown, _roster: string[] = []): FilterResult {
+  return filterLoose(raw, MAIL_MAX, 'mail');
 }
 
 /** Letters follow this when a street has never set freeMail.

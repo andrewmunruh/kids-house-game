@@ -27,78 +27,53 @@ const letter = (over: Partial<Letter> = {}): Letter => ({
 async function main() {
   check('protocol stays 4', PROTOCOL === 4);
   check('80 characters is a letter and 81 is too long', cleanMailText('a'.repeat(MAIL_MAX)).ok && cleanMailText('a'.repeat(MAIL_MAX + 1)).ok === false);
-  check('a link is refused', cleanMailText('come see www.example.com').ok === false && (cleanMailText('come see www.example.com') as { reason?: string }).reason === 'link');
-  check('an email is refused', cleanMailText('write me at a@b.com').ok === false);
-  check('a mean word is refused', cleanMailText('you are stupid').ok === false);
+  check('a link can be sent', cleanMailText('come see www.example.com').ok && filterSay('come see www.example.com', 80).ok);
+  check('an email can be sent', cleanMailText('write me at a@b.com').ok && filterSay('write me at a@b.com', 80).ok);
+  check('a mild insult can be sent', cleanMailText('you are stupid').ok && filterSay('you are stupid', 80).ok);
   const roster = ['Ava', 'Chloe', 'Cada'];
-  const blocked = [
-    'roblox user Jane2016', 'Ava Smith', 'I go to Lincoln Elementary', 'meet me at the park at 3',
-    'fivefivefive-oneoneone-twotwotwotwo', 'st00pid', 'fat', 'ugly', 'f*ck', 'f u c k',
-  ];
-  const alsoBlocked = [
-    'minecraft please', 'snap me', 'insta friend', 'youtube channel', 'username coolkid',
-    'Lincoln School', 'Lincoln Academy', 'Lincoln Middle', 'Lincoln High',
-    'at the park', 'see you at 3', 'come at 3pm', 'hate you', 'shut up', 'dumb', 'loser', 'kill',
-    'five five five one one', 'my tiktok', 'discord user',
-    'add me on fortnite SparkleQueen', 'my house is on Maple street', 'kys', 'im 8 and live on Oak ave',
-    'call me', 'text me', "my mom's phone is nine one two", 'f\u{1F338}i\u{1F338}v\u{1F338}e five five',
-    '\uFF46\uFF49\uFF56\uFF45', '\u0456d\u0456ot', 'I play for the Tigers soccer team',
-    "what's your address", 'whats ur last name',
-  ];
-  const allowed = [
+  const sendPass = [
+    'fat', 'ugly sweater day', 'my cat is fat', 'fat cat', 'ugly duckling', 'the fat pony is cute',
+    "Hell's Kitchen is a show", 'go to hell', 'go to hell!', 'add me on fortnite', 'loser', 'shut up', 'go away',
+    'I live on Maple St', 'my number is 5', 'Rachel', 'Michelle', 'Ethel', 'the lamp is pretty',
+    'silly', 'dummy', 'meanie', 'stinky', 'you are silly', 'you dummy', 'hello friend',
+    'damn', 'you are stupid', 'come see www.example.com', 'write me at a@b.com', 'roblox user Jane2016',
+    'Ava Smith', 'I go to Lincoln Elementary', 'call 12345', 'see you at school', 'my favorite number is seven',
+    'Come see my Ring Light!', 'Ring Light Smith', 'h3ll', 'he11', 'hellll', "he'll", 'gotohell', 'seashell',
     'Why is your cat in my bed?', 'Your house is so cute!', 'Want to play Slay?', 'Hi Chloe!', 'father', 'skill', 'someone', 'snapshot of the cat', 'so high',
-    'see you at school', 'Come to my garden', 'come to my house', 'meet me at the treehouse', 'want to play at the ranch?',
+    'Come to my garden', 'come to my house', 'meet me at the treehouse', 'want to play at the ranch?',
     'I love your bedroom', 'my cat is so cute', 'Hi Reagan!',
-    'best way to play', 'cool drive in my house', 'Text me back with a letter', 'Text me back in the game', 'my favorite number is seven',
-    'Come see my Ring Light!',
-    'you are silly', 'you dummy', 'meanie', 'so stinky', 'hello friend', 'please help', 'a pretty seashell', 'dummmmy', 'he will come play',
-    'silly', 'dummy', 'stinky',
-    'the lamp is pretty', 'the lake', 'the last one', 'the leaf', 'the llama', 'wheel', 'haha he laughed', "Rachel's House",
-    'Rachel', 'Michelle', 'Chelsea', 'Ethel', 'Mitchell', 'hello', 'help', 'shell', 'heel', "he'll", "she'll", 'helicopter', 'Helen', 'gotohell', 'seashell',
-    'seven', 'one two',
+    'best way to play', 'cool drive in my house', 'Text me back with a letter', 'Text me back in the game',
+    'you dummy', 'so stinky', 'please help', 'a pretty seashell', 'dummmmy', 'he will come play',
+    'the lake', 'the last one', 'the leaf', 'the llama', 'wheel', 'haha he laughed', "Rachel's House",
+    'Chelsea', 'Mitchell', 'hello', 'help', 'shell', 'heel', "she'll", 'helicopter', 'Helen',
+    'seven', 'one two', 'minecraft please', 'Lincoln School', 'my house is on Maple street', 'Emma Ring Light',
+    'Big Monitor street', 'Gaming Chair Lane 12', 'I live on Gaming Chair Lane', 'hate you', 'dumb', 'kill',
+    'st00pid', 'ugly', 'add me on fortnite SparkleQueen',
     ...CATALOG_NAMES.filter(n => n.length <= MAIL_MAX),
   ];
-  const phraseBlocked = [
-    'Text me back', 'cool drive', 'Cool Drive', 'Maple Drive cool drive in my house', 'best way to the park',
-    'my favorite number is seven eight nine', 'one two three', 'call me with a letter', 'text me your phone',
-    'Ring Light Smith', 'Emma Ring Light', 'Big Monitor street', 'Gaming Chair Lane 12', 'I live on Gaming Chair Lane',
-    'fuck', 'nigger',
-    'go to hell', 'go to hell!', 'go-to-hell', 'go.to.hell', 'you dumbass', 'dumb ass', 'dumb@ss', 'h3ll', 'he11', 'heeellll', 'hellll', 'h e l l', 'h.e.l.l', 'd.u.m.b.a.s.s', 'd u m b a s s', 'dumb-ass', 'you are a dumbass', 'duuumbass', 'h*ll', 'helllll', 'dvmbass', 'd*mbass', 'f*ck', 'kys',
-  ];
-  const rows: { text: string; want: string }[] = [
-    ...blocked.map(text => ({ text, want: 'mail' })),
-    ...alsoBlocked.map(text => ({ text, want: 'block' })),
-    ...phraseBlocked.map(text => ({ text, want: 'block' })),
-    ...allowed.map(text => ({ text, want: 'ok' })),
+  const sendBlock = [
+    'fuck', 'f*ck', 'f**k', 'f u c k', 'f.u.c.k', 'fuuuck', 'fck', 'fuk',
+    'shit', 'sh*t', 'sh1t', 'sht', 'bitch', 'b*tch', 'b1tch',
+    'asshole', 'a**hole', 'a$$hole',
+    'dumbass', 'dvmbass', 'd*mbass', 'dumb ass', 'dumb@ss', 'd.u.m.b.a.s.s', 'd u m b a s s', 'duuumbass', 'dumb-ass', 'you dumbass',
+    'kys', 'k y s', 'nigger', 'n1gger', 'nigga', 'faggot', 'f4g', 'fag', 'retard',
   ];
   console.log('MAIL TABLE');
   console.log('result\texpect\treason\ttext');
   const tableBad: string[] = [];
+  const rows = [
+    ...sendBlock.map(text => ({ text, want: 'mail' as const })),
+    ...sendPass.map(text => ({ text, want: 'ok' as const })),
+  ];
   for (const row of rows) {
     const f = cleanMailText(row.text, roster);
     const reason = f.ok ? 'ok' : (f as { reason?: string }).reason ?? '';
-    const chat = filterChat(row.text, 80);
-    let got = reason;
-    if (row.want === 'mail') got = reason === 'mail' ? 'mail' : (f.ok ? 'ok' : 'not-mail:' + reason);
-    else if (row.want === 'block') got = f.ok ? 'ok' : 'block';
-    else got = f.ok ? 'ok' : reason;
-    const passRow = got === row.want || (row.want === 'block' && !f.ok && !chat.ok);
-    if (row.want === 'block' && !f.ok) got = 'block';
-    if (!passRow) tableBad.push(row.text + ' -> ' + reason);
+    const say = filterSay(row.text, 80);
+    const sayReason = say.ok ? 'ok' : say.reason;
+    const passRow = row.want === 'ok' ? f.ok && say.ok : !f.ok && reason === 'mail' && !say.ok && sayReason === 'words';
+    if (!passRow) tableBad.push(row.text + ' -> mail:' + reason + ' say:' + sayReason);
     console.log((passRow ? 'PASS' : 'FAIL') + '\t' + row.want + '\t' + reason + '\t' + row.text);
   }
-  const blockedBad = blocked.filter(t => {
-    const f = cleanMailText(t, roster);
-    return f.ok || (f as { reason?: string }).reason !== 'mail';
-  });
-  const phraseBad = phraseBlocked.filter(t => cleanMailText(t, roster).ok);
-  const alsoBad = alsoBlocked.filter(t => {
-    const f = cleanMailText(t, roster);
-    if (f.ok) return true;
-    const chat = filterChat(t, 80);
-    return chat.ok && (f as { reason?: string }).reason !== 'mail';
-  });
-  const allowedBad = allowed.filter(t => !cleanMailText(t, roster).ok);
   const named = new Set(CATALOG_NAMES);
   const manifest = JSON.parse(readFileSync('assets/items/manifest.json', 'utf8')) as { name?: string; type?: string }[];
   const expectNames = new Set<string>();
@@ -111,19 +86,18 @@ async function main() {
   for (const kid of ['Cada', 'Sloane', 'Chloe', 'Quinn', 'Reagan']) expectNames.delete(kid);
   const missingNames = [...expectNames].filter(n => !named.has(n));
   check('every catalog and pack name is allow-listed', missingNames.length === 0 && CATALOG_NAMES.length > 100, missingNames.slice(0, 8).join(' | '));
-  check('trickier letters are blocked without naming the rule', blockedBad.length === 0 && alsoBad.length === 0 && phraseBad.length === 0 && tableBad.length === 0 && FILTER_MSG.mail === 'Oops, try different words!' && !/roblox|school|stupid|fat/i.test(FILTER_MSG.mail), blockedBad.concat(alsoBad, phraseBad, tableBad).join(' | '));
-  const explicit = ['go to hell', 'go to hell!', 'go-to-hell', 'go.to.hell', 'you dumbass', 'dumb ass', 'dumb@ss', 'h3ll', 'he11', 'heeellll', 'hellll', 'h e l l', 'h.e.l.l', 'd.u.m.b.a.s.s', 'd u m b a s s', 'dumb-ass', 'h*ll', 'dvmbass', 'd*mbass', 'duuumbass', 'f*ck', 'kys'];
-  const mild = ['you are silly', 'you dummy', 'meanie', 'so stinky', 'silly', 'dummy', 'hello friend', 'please help', 'a pretty seashell', 'dummmmy'];
-  const safe = ['the lamp is pretty', 'the lake', 'the last one', 'the leaf', 'the llama', 'wheel', 'haha he laughed', "Rachel's House", 'Rachel', 'Michelle', 'Chelsea', 'Ethel', 'Mitchell', 'hello', 'help', 'seashell', "he'll", "she'll", 'heel', 'gotohell'];
-  const explicitBad = explicit.filter(t => filterSay(t, 80).ok || cleanMailText(t, roster).ok);
-  const mildBad = mild.filter(t => !filterSay(t, 80).ok || !cleanMailText(t, roster).ok || !filterChat(t, 80).ok);
+  check('swears are refused in bubbles and letters, and ordinary lines pass', tableBad.length === 0 && sendPass.length >= 30 && FILTER_MSG.mail === 'Oops, try different words!' && FILTER_MSG.words === "Let's use kind words!" && !/roblox|school|stupid|fat/i.test(FILTER_MSG.mail), tableBad.join(' | '));
+  const mild = ['you are silly', 'you dummy', 'meanie', 'so stinky', 'silly', 'dummy', 'hello friend', 'please help', 'a pretty seashell', 'dummmmy', 'loser', 'shut up', 'go away', 'fat', 'ugly sweater day'];
+  const safe = ['the lamp is pretty', 'the lake', 'the last one', 'the leaf', 'the llama', 'wheel', 'haha he laughed', "Rachel's House", 'Rachel', 'Michelle', 'Chelsea', 'Ethel', 'Mitchell', 'hello', 'help', 'seashell', "he'll", "she'll", 'heel', 'gotohell', "Hell's Kitchen is a show", 'my cat is fat', 'fat cat', 'ugly duckling', 'the fat pony is cute', 'add me on fortnite'];
+  const mildBad = mild.filter(t => !filterSay(t, 80).ok || !cleanMailText(t, roster).ok);
   const safeBad = safe.filter(t => !filterSay(t, 80).ok || !cleanMailText(t, roster).ok || !filterChat(t, 80).ok);
   const storedStill = ['the lamp is pretty', 'I like your wheel', 'Rachel says hi', 'haha he laughed', 'go to hell', 'you dumbass', 'f*ck', 'kys', 'h3ll', 'Ethel', 'Mitchell'];
   const storedBad = storedStill.filter(t => { const f = filterChat(t, 80); return !f.ok || f.text !== t; });
-  check('explicit words are blocked in new chat and new mail', explicitBad.length === 0, explicitBad.join(' | '));
+  const storedBlock = ['I live on Maple St', 'my number is 5', 'loser', 'shut up', 'damn', 'come see www.example.com', 'you are stupid', 'call 12345'];
+  const storedLeak = storedBlock.filter(t => filterChat(t, 80).ok);
   check('mild teases stay allowed in chat and mail', mildBad.length === 0, mildBad.join(' | '));
   check('ordinary phrases and names stay allowed', safeBad.length === 0, safeBad.join(' | '));
-  check('the stored-mail rule is unchanged', storedBad.length === 0, storedBad.join(' | '));
+  check('the stored-mail rule is unchanged', storedBad.length === 0 && storedLeak.length === 0, storedBad.concat(storedLeak).join(' | '));
   const names = ['Rachel', 'Michelle', 'Chelsea', 'Ethel', 'Mitchell'];
   const nameBad = names.filter(n => cleanFirstName(n) !== n || cleanPetName(n) !== n || cleanHouseName(n) !== n || cleanHouseName(n + "'s House") !== n + "'s House");
   check('those names work for a kid, a pet, and a house', nameBad.length === 0, nameBad.join(' | '));
@@ -131,9 +105,8 @@ async function main() {
   const fourLetters = four.map((text, i) => letter({ id: 'mkeep' + i + 'abcd', text, from: 'Rachel', fromPid: 'pkeepkid01' }));
   const reloadedBox = filterMailbox({ letters: fourLetters });
   check('a stored mailbox keeps those four letters exactly', JSON.stringify(reloadedBox?.letters) === JSON.stringify(fourLetters));
-  check('ordinary letters still go through', allowedBad.length === 0, allowedBad.join(' | '));
-  check('Ava Smith is blocked even when Ava is on the roster', cleanMailText('Ava Smith', ['Ava']).ok === false);
-  check('five digits are still refused', cleanMailText('call 12345').ok === false);
+  check('Ava Smith can be sent even when Ava is on the roster', cleanMailText('Ava Smith', ['Ava']).ok === true);
+  check('a short number can be sent', cleanMailText('call 12345').ok === true && cleanMailText('my number is 5').ok === true);
   check('urls are stripped', stripUrls('hello') === 'hello' && stripUrls('see http://x.com now') !== 'see http://x.com now' && !stripUrls('see http://x.com now').includes('http'));
   const old = letter({ at: Date.now() - MAIL_TTL_MS - 86400000 });
   const fresh = Array.from({ length: MAIL_CAP + 1 }, (_, i) => letter({ id: 'm' + String(i).padStart(6, '0'), at: Date.now() - i * 1000 }));
@@ -198,10 +171,9 @@ async function main() {
   await hood.flush();
   check('throwing it away clears the mailbox', !disk0().mailbox && owner.c.last('mailbox').mailbox.letters.length === 0);
 
-  await send(pal.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'come see www.example.com', color: 0, sticker: 0 });
-  await send(pal.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'you are stupid', color: 0, sticker: 0 });
   await send(pal.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'a'.repeat(81), color: 0, sticker: 0 });
-  check('the server refuses a link, a mean word, and a long letter', ['link', 'words', 'long'].every(r => pal.c.inbox.some(m => m.t === 'mailFail' && m.reason === r)) && !live().mailbox);
+  await send(pal.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'f*ck', color: 0, sticker: 0 });
+  check('the server refuses a swear and a long letter', ['mail', 'long'].every(r => pal.c.inbox.some(m => m.t === 'mailFail' && m.reason === r)) && !live().mailbox);
 
   const seeded = Array.from({ length: MAIL_CAP }, (_, i) => letter({ id: 'm' + String(i).padStart(6, '0') }));
   hood.houses.get(owner.hid)!.state = { ...hood.houses.get(owner.hid)!.state, mailbox: { letters: seeded } };
@@ -300,10 +272,10 @@ async function main() {
 
   await send(grown, { t: 'parent', key: parentKey, op: 'freeChat', on: true });
   await send(grown, { t: 'parent', key: parentKey, op: 'rosterAdd', name: 'Ava' });
-  const tricky = ['roblox user Jane2016', 'Ava Smith', 'I go to Lincoln Elementary', 'meet me at the park at 3', 'fivefivefive-oneoneone-twotwotwotwo', 'st00pid', 'fat', 'ugly', 'f*ck', 'f u c k'];
+  const tricky = ['f*ck', 'f u c k', 'sh*t', 'kys', 'dumbass', 'a**hole', 'nigger', 'b*tch'];
   for (const text of tricky) await send(locked.c, { t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
   const mailFails = locked.c.inbox.filter(m => m.t === 'mailFail' && m.reason === 'mail');
-  check('the server blocks trickier letters with a generic reason', mailFails.length === tricky.length && !live().mailbox, String(mailFails.length));
+  check('the server blocks swears in letters with a generic reason', mailFails.length === tricky.length && !live().mailbox, String(mailFails.length));
   const passTexts = ['Why is your cat in my bed?', 'Your house is so cute!', 'Want to play Slay?', 'Hi Chloe!'];
   const passBox = () => hood.houses.get(fullKid.hid)!.state.mailbox?.letters ?? [];
   for (const text of passTexts) {
@@ -354,12 +326,11 @@ async function main() {
   const shield = ['Ring Light Smith', 'Emma Ring Light', 'Big Monitor street', 'Gaming Chair Lane 12', 'I live on Gaming Chair Lane'];
   const keptCute = () => live().mailbox?.letters.some(l => l.text === 'Your house is so cute!') ?? false;
   await send(grown, { t: 'parent', key: parentKey, op: 'freeMail', on: true });
-  const onAt = fullKid.c.inbox.length;
-  for (const text of shield) await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
-  await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'Come see my Ring Light!', color: 0, sticker: 0 });
-  const onFails = fullKid.c.inbox.slice(onAt).filter(m => m.t === 'mailFail');
-  const onMail = onFails.filter(m => m.reason === 'mail').length;
-  check('item names do not shield a surname or a street when freeMail is on', hood.meta!.settings.freeMail === true && onMail === 4 && onFails.some(m => m.reason === 'personal') && live().mailbox?.letters.some(l => l.text === 'Come see my Ring Light!') && !shield.some(t => live().mailbox?.letters.some(l => l.text === t)) && keptCute(), onFails.map(m => m.reason).join(','));
+  const deliver = ['Ring Light Smith', 'Big Monitor street', 'I live on Gaming Chair Lane'];
+  const onAt = again.inbox.length;
+  for (const text of deliver) await send(again, { t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
+  const onFails = again.inbox.slice(onAt).filter(m => m.t === 'mailFail');
+  check('surnames, streets, and item names go through when freeMail is on', hood.meta!.settings.freeMail === true && onFails.length === 0 && deliver.every(t => live().mailbox?.letters.some(l => l.text === t)) && keptCute(), onFails.map(m => m.reason).join(','));
   await send(grown, { t: 'parent', key: parentKey, op: 'freeMail', on: false });
   const offAt = fullKid.c.inbox.length;
   const offBefore = live().mailbox?.letters.length ?? 0;
@@ -369,16 +340,17 @@ async function main() {
 
   await send(grown, { t: 'parent', key: parentKey, op: 'freeChat', on: true });
   await send(grown, { t: 'parent', key: parentKey, op: 'freeMail', on: true });
-  const sayBlocked = ['go to hell', 'you dumbass', 'f*ck', 'kys', 'h3ll', 'dvmbass'];
+  const sayBlocked = ['fuck', 'f*ck', 'f u c k', 'sh*t', 'b*tch', 'a**hole', 'dumbass', 'dvmbass', 'kys', 'nigger'];
+  const sayOk = ['the lamp is pretty', 'you dummy', 'fat', 'ugly sweater day', "Hell's Kitchen is a show", 'go to hell', 'loser', 'shut up', 'add me on fortnite'];
   const wordsBefore = fullKid.c.inbox.filter(m => m.t === 'sayFail' && m.reason === 'words').length;
   for (const text of sayBlocked) await send(fullKid.c, { t: 'say', b: { kind: 'text', v: text } });
   const sayWords = fullKid.c.inbox.filter(m => m.t === 'sayFail' && m.reason === 'words').length - wordsBefore;
-  await send(fullKid.c, { t: 'say', b: { kind: 'text', v: 'the lamp is pretty' } });
-  await send(fullKid.c, { t: 'say', b: { kind: 'text', v: 'you dummy' } });
-  check('new bubbles block what new letters block, and mild words still pass the filter', sayWords === sayBlocked.length && fullKid.c.last('sayFail')?.reason === 'nowhere', 'words=' + sayWords + ' last=' + fullKid.c.last('sayFail')?.reason);
+  for (const text of sayOk) await send(fullKid.c, { t: 'say', b: { kind: 'text', v: text } });
+  check('new bubbles block swears, and mild words still pass the filter', sayWords === sayBlocked.length && fullKid.c.last('sayFail')?.reason === 'nowhere', 'words=' + sayWords + ' last=' + fullKid.c.last('sayFail')?.reason);
   await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'go to hell', color: 0, sticker: 0 });
   await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'the lamp is pretty', color: 0, sticker: 0 });
-  check('a new letter blocks hell and keeps the lamp', fullKid.c.inbox.some(m => m.t === 'mailFail' && m.reason === 'mail') && live().mailbox?.letters.some(l => l.text === 'the lamp is pretty') && !live().mailbox?.letters.some(l => l.text === 'go to hell'));
+  await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'f*ck', color: 0, sticker: 0 });
+  check('a new letter keeps hell and the lamp, and refuses a swear', live().mailbox?.letters.some(l => l.text === 'go to hell') && live().mailbox?.letters.some(l => l.text === 'the lamp is pretty') && !live().mailbox?.letters.some(l => l.text === 'f*ck') && fullKid.c.inbox.some(m => m.t === 'mailFail' && m.reason === 'mail'));
 
   const keepMem = new Map<string, any>();
   const keepKv: KV = {

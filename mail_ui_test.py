@@ -236,11 +236,11 @@ async def flow(browser, w, h, tag):
         suffix = '820x1180' if tag == 'ipad820' else '390x844'
         await P.click(f'.mapMail[data-mail="{k_house}"]')
         await P.wait_for_selector('#mailText')
-        await P.fill('#mailText', 'roblox user Jane2016')
+        await P.fill('#mailText', 'f*ck')
         await P.click('#mailSend')
         await P.wait_for_selector('.mailErr')
         err = await P.inner_text('.mailErr')
-        check(f'{tag} a tricky letter gets a friendly oops', err == 'Oops, try different words!' and 'roblox' not in err.lower() and 'school' not in err.lower(), err)
+        check(f'{tag} a swear in a letter gets a friendly oops', err == 'Oops, try different words!' and 'roblox' not in err.lower() and 'school' not in err.lower(), err)
         path = os.path.join(SHOT, 'rejected-letter-' + suffix + '.png')
         await P.screenshot(path=path)
         print('SHOT', path, flush=True)

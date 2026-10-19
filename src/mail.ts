@@ -1,6 +1,6 @@
 // Street mailbox: write a short letter, and the owner opens it.
-import { FILTER_MSG, PHRASES, cleanMailText, filterChat } from './shared/hood';
-import { MAIL_COLOR, MAIL_COLORS, MAIL_MAX, MAIL_STICKERS, friendlyWhen, stripUrls, type Letter } from './shared/mail';
+import { FILTER_MSG, PHRASES, cleanMailText } from './shared/hood';
+import { MAIL_COLOR, MAIL_COLORS, MAIL_MAX, MAIL_STICKERS, friendlyWhen, type Letter } from './shared/mail';
 
 const O = '#5a3d5c';
 const st = `stroke="${O}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"`;
@@ -232,10 +232,9 @@ export function installMail(opts: {
 
 function showText(text: string): string | null {
   if (!text) return null;
-  // Already-delivered letters stay readable. The stricter check applies to new letters only.
-  const f = filterChat(text, MAIL_MAX);
-  if (!f.ok) return null;
-  const text2 = stripUrls(f.text);
-  return text2 && text2 === f.text ? text2 : null;
+  // A letter that was accepted stays readable. Reloading the house still uses filterChat.
+  const clean = text.normalize('NFKC').replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g, '').replace(/\s+/g, ' ').trim();
+  if (!clean || clean.length > MAIL_MAX) return null;
+  return clean;
 }
 function esc(t: string) { return t.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!)); }
