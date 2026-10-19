@@ -1,0 +1,189 @@
+/* Day / night colours. One block, so a menu branch can merge it without touching style.css.
+   The veil is a single layer: a tint plus a couple of radial washes. No filters on big layers.
+   Opacity stays low so names painted into the art (the ranch signs) stay easy to read.
+   Name tags, map signs, tabs, and buttons sit above the veil or outside it. */
+
+:root {
+  --sky-opacity: 0;
+  --sky-glow: 0;
+  --sky-stars: 0;
+  --sky-tint: #322456;
+  --sky-glow-soft: rgb(255 214 140 / calc(var(--sky-glow) * 0.55));
+  --sky-glow-hot: rgb(255 236 180 / calc(var(--sky-glow) * 0.9));
+}
+
+/* The room shell tints. Furniture, kids, and name tags stay in .layer, above this. */
+.world::after,
+.mapWorld::after,
+.ranchWorld::before,
+.parkWorld::before,
+.grWorld::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-color: var(--sky-tint);
+  opacity: var(--sky-opacity);
+}
+.world::after { z-index: 3; }
+.scenery { z-index: 4; }
+.layer { z-index: 6; }
+.mapWorld::after { z-index: 3; border-radius: inherit; }
+.ranchWorld::before,
+.parkWorld::before,
+.grWorld::before { z-index: 1; }
+
+/* Warm pools. These are gradients on the same veil, still one layer per scene. */
+.world::after,
+.ranchWorld::before {
+  background-image:
+    radial-gradient(circle at 28% 70%, var(--sky-glow-soft), transparent 24%),
+    radial-gradient(circle at 74% 64%, rgb(255 186 96 / calc(var(--sky-glow) * 0.35)), transparent 18%);
+}
+.mapWorld::after {
+  background-image:
+    radial-gradient(circle at 18% 62%, var(--sky-glow-soft), transparent 12%),
+    radial-gradient(circle at 70% 40%, rgb(255 196 120 / calc(var(--sky-glow) * 0.28)), transparent 10%);
+}
+
+html.sky-live .world::after,
+html.sky-live .mapWorld::after,
+html.sky-live .ranchWorld::before,
+html.sky-live .parkWorld::before,
+html.sky-live .grWorld::before {
+  transition: opacity 1.4s linear, background-color 1.4s linear;
+}
+
+/* Lamps, string lights, night-lights, windows. A radial wash behind the art, not a filter. */
+.item.is-light::before,
+.sceneWin::after,
+.sceneLamp::after,
+.mapHouse::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--sky-glow-hot) 0%, var(--sky-glow-soft) 42%, transparent 70%);
+}
+.item.is-light::before {
+  left: 50%;
+  top: 22%;
+  width: 200%;
+  height: 170%;
+  transform: translate(-50%, -28%);
+  z-index: 0;
+}
+.item.is-light > .inner { position: relative; z-index: 1; }
+.sceneWin::after,
+.sceneLamp::after { left: 10%; top: 8%; width: 80%; height: 70%; }
+.mapHouse::before { left: 18%; top: 46%; width: 64%; height: 28%; z-index: 1; }
+
+/* Stars and fireflies. Only the street (the neighborhood map). Five tiny dots, not a filter. */
+.skyBits {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  opacity: var(--sky-stars);
+  background:
+    radial-gradient(circle at 8% 14%, #fff 0 1.5px, transparent 2px),
+    radial-gradient(circle at 18% 28%, #fff 0 1px, transparent 1.8px),
+    radial-gradient(circle at 32% 10%, #fff8d0 0 1.6px, transparent 2.2px),
+    radial-gradient(circle at 46% 22%, #fff 0 1px, transparent 1.6px),
+    radial-gradient(circle at 61% 8%, #fff 0 1.7px, transparent 2.3px),
+    radial-gradient(circle at 74% 26%, #fff8d0 0 1.2px, transparent 1.8px),
+    radial-gradient(circle at 86% 12%, #fff 0 1.5px, transparent 2px),
+    radial-gradient(circle at 92% 34%, #fff 0 1px, transparent 1.6px),
+    radial-gradient(circle at 24% 44%, #fff 0 1px, transparent 1.5px),
+    radial-gradient(circle at 54% 40%, #fff8d0 0 1.3px, transparent 1.9px);
+}
+.skyBits i {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: #e7ff9a;
+  box-shadow: 0 0 6px 2px rgb(190 255 120 / 0.85);
+}
+html.sky-live .skyBits i { animation: skyFly 7s ease-in-out infinite; }
+.skyBits i:nth-child(1) { left: 14%; top: 22%; }
+.skyBits i:nth-child(2) { left: 36%; top: 48%; animation-delay: -1.6s; }
+.skyBits i:nth-child(3) { left: 58%; top: 30%; animation-delay: -3.1s; }
+.skyBits i:nth-child(4) { left: 78%; top: 58%; animation-delay: -4.4s; }
+.skyBits i:nth-child(5) { left: 88%; top: 18%; animation-delay: -2.2s; }
+@keyframes skyFly {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(10px, -14px); }
+}
+
+/* Single mount points. Fixed, so they do not change the stage size. The menu branch can move the nodes. */
+#skyMount, #undoMount {
+  position: fixed;
+  z-index: 9600;
+  left: 8px;
+  display: flex;
+  pointer-events: none;
+}
+#skyMount { top: calc(var(--chrome-h, 70px) + 8px); }
+#undoMount { top: calc(var(--chrome-h, 70px) + 56px); }
+#skyMount[hidden], #undoMount[hidden] { display: none !important; }
+
+.skyToggle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 0 3px 0 rgba(90, 61, 92, 0.25);
+  pointer-events: auto;
+}
+.skyToggle button {
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0 8px;
+  border-radius: 12px;
+  background: #fff6fa;
+  font-weight: 900;
+  font-size: 14px;
+  line-height: 1;
+  border: 3px solid transparent;
+}
+.skyToggle button.on { background: #fff3b0; border-color: var(--ink); }
+.skyToggle button:active { transform: scale(0.96); }
+
+.undoBtn {
+  min-width: 64px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 16px;
+  background: #fff3b0;
+  border: 3px solid var(--ink);
+  font-weight: 900;
+  font-size: 16px;
+  line-height: 1;
+  box-shadow: 0 3px 0 rgba(90, 61, 92, 0.25);
+  pointer-events: auto;
+}
+.undoBtn.is-empty { background: #fff; }
+.undoBtn:active { transform: scale(0.96); }
+
+/* Narrow phones: sit below the mail banner so the two do not cover each other. */
+@media (max-width: 700px) {
+  #skyMount { top: calc(var(--chrome-h, 70px) + 52px); }
+  #undoMount { top: calc(var(--chrome-h, 70px) + 100px); }
+}
+/* Short landscape: one row, so the buttons stay off the drawer and the kid. */
+@media (max-height: 430px) {
+  #skyMount { top: calc(var(--chrome-h, 70px) + 6px); }
+  #undoMount { top: calc(var(--chrome-h, 70px) + 6px); left: 184px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.sky-live .world::after, html.sky-live .mapWorld::after,
+  html.sky-live .ranchWorld::before, html.sky-live .parkWorld::before, html.sky-live .grWorld::before,
+  html.sky-live .skyBits i { animation: none; transition: none; }
+}

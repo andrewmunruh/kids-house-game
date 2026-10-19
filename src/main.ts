@@ -28,6 +28,11 @@ import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
 import { emptyRoomStarters, syncScenery } from './scenery';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
+import { isLightKind } from './sky';
+import { mountSkyToggle } from './sky-toggle';
+import { DecorateUndo } from './decorate-undo';
+import { mountUndoButton } from './undo-button';
+import './sky.css';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
 import { bindGameRoom, renderGameRoom, renderGamePeople, tickGameRoom, mySeat, grScale, tableApi } from './gameroom-view';
@@ -42,7 +47,19 @@ const storeListeners: ((s: GameState, a: Action) => void)[] = [];
 const hooked = new WeakSet<AnyStore>();
 function hookStore(st: AnyStore) { if (hooked.has(st)) return; hooked.add(st); st.subscribe((s, a) => { if (inner === st) storeListeners.forEach(l => l(s, a)); }); }
 hookStore(local);
-const store: AnyStore = { get: () => inner.get(), dispatch: a => inner.dispatch(a), subscribe: l => { storeListeners.push(l); } };
+// Undo history is local memory only. Recording happens here; the button mounts later.
+const decorateUndo = new DecorateUndo();
+let undoSkip = false;
+let undoRefresh = () => {};
+const store: AnyStore = {
+  get: () => inner.get(),
+  dispatch(a) {
+    if (!undoSkip && canEdit()) decorateUndo.note(inner.get(), a);
+    inner.dispatch(a);
+    undoRefresh();
+  },
+  subscribe: l => { storeListeners.push(l); },
+};
 // World is ROOM_W x ROOM_H; the stage shows a VIEW_W-wide window onto it (fits the iPad).
 const W = ROOM_W, H = ROOM_H, FLOOR_Y = 390;
 let VIEW_W = 1000; // visible window; narrower in portrait so the room can fill the height
@@ -150,7 +167,9 @@ app.innerHTML = `
 <div class="fx" id="fx"></div>
 <div id="toastLane"></div>
 <div class="phoneNote" id="phoneNote"><div class="card"><h2>Turn sideways</h2><p>Turn your phone sideways for more room to play!</p><button class="phoneOk" id="phoneOk" type="button">OK!</button></div></div>
-<div class="elsewhere hidden" id="elsewhere"><div class="card"><h2>You're playing on another screen</h2><p>This screen can rest. Your house is safe.</p><button class="playHere" id="elsewhereGo" type="button">Tap to play here!</button></div></div>`;
+<div class="elsewhere hidden" id="elsewhere"><div class="card"><h2>You're playing on another screen</h2><p>This screen can rest. Your house is safe.</p><button class="playHere" id="elsewhereGo" type="button">Tap to play here!</button></div></div>
+<div id="skyMount"></div>
+<div id="undoMount" hidden></div>`;
 
 const $ = (id: string) => document.getElementById(id)!;
 // preview builds (separate URL, separate server, prefixed saves) wear a little ribbon so nobody mixes them up
@@ -594,6 +613,7 @@ function renderItems(s: GameState) {
       el.addEventListener('pointerdown', e => beginItemDrag(el!, e));
     }
     el.dataset.kind = it.kind;
+    el.classList.toggle('is-light', isLightKind(it.kind, !!def.light));
     const box = placedBox(def, it.scale);
     placeEl(el, it.x, it.y, box.w, box.h);
     el.style.zIndex = String(1000 + it.z);
@@ -2819,6 +2839,23 @@ bindGameRoom({
 
 // ---------- start ----------
 installJuice();
+const skyHandle = mountSkyToggle($('skyMount'));
+const undoUi = mountUndoButton($('undoMount'), {
+  depth: () => decorateUndo.depth,
+  undo() {
+    const step = decorateUndo.take();
+    if (!step) return;
+    undoSkip = true;
+    try { for (const a of step) store.dispatch(a); }
+    finally { undoSkip = false; }
+    undoUi.refresh();
+    sfx.click();
+  },
+});
+undoRefresh = () => undoUi.refresh();
+decorateUndo.onChange = undoRefresh;
+(window as any).__sky = skyHandle;
+(window as any).__undoDepth = () => decorateUndo.depth;
 renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
 // ---------- hidden surprises ----------
 const renderSecrets = () => {
