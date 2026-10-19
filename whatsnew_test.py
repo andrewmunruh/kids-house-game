@@ -1,8 +1,8 @@
 # What's new popup: welcome on brand-new device, changelog once after an update, then never again.
 import asyncio, os, sys, json
 from playwright.async_api import async_playwright
-from testnav import PFX, SKIP_WN, K
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
+from testnav import PFX, SKIP_WN, K, local_page
+URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 WN_DIR = os.environ.get('WHATSNEW_SHOTS', os.path.join('screens', 'pets'))
 os.makedirs(WN_DIR, exist_ok=True)
 res = {}

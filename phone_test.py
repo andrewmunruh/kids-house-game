@@ -2,11 +2,11 @@
 import asyncio, os, sys
 from playwright.async_api import async_playwright
 from testnav import (
-    tap, K, NOTE_VS_TABLE_JS, SLAY_PINK_3, about_slay_card, dim_card_contrast, face_chroma,
+    tap, K, local_page, NOTE_VS_TABLE_JS, SLAY_PINK_3, about_slay_card, dim_card_contrast, face_chroma,
     inject_slay_hand, read_slay_hand, read_wait_style, read_secrets, read_door_hint, read_paddock,
 )
 
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
+URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/phone/'
 os.makedirs(SHOT, exist_ok=True)
 PHONES = [(390, 844), (844, 390), (375, 667), (667, 375), (932, 430)]

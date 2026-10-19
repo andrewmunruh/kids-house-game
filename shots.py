@@ -1,7 +1,7 @@
-from testnav import tap
+from testnav import tap, local_page
 import asyncio, sys, json
 from playwright.async_api import async_playwright
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
+URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 V1 = {"version":1,"houseId":"local","currentRoom":"living","soundOn":True,
   "rooms":{"living":{"wallpaper":"#cfe8ff","floor":"#c99366","pattern":2,"items":[{"id":"sofa-1","kind":"sofa","x":470,"y":470,"flip":False,"z":1,"scale":1},{"id":"cat-9","kind":"cat","x":900,"y":520,"flip":True,"z":2,"scale":1}]},
            "bedroom":{"wallpaper":"#d9ccff","floor":"#f2d0a4","pattern":2,"items":[]},"kitchen":{"wallpaper":"#cdf3dc","floor":"#ffe7a8","pattern":3,"items":[]}},

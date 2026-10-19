@@ -1,7 +1,7 @@
 import asyncio, os, sys
 from playwright.async_api import async_playwright
-from testnav import PFX, SKIP_WN, K
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
+from testnav import PFX, SKIP_WN, K, local_page
+URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 EGG_DIR = os.environ.get('EGGS_SHOTS', 'screens')
 os.makedirs(EGG_DIR, exist_ok=True)
 SHOT = os.environ.get('EGG_ARTIFACTS', '/opt/cursor/artifacts/screenshots')

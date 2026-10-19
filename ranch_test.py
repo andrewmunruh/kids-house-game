@@ -1,8 +1,8 @@
 # Rainbow Ranch: solo play + 3 simulated iPads (and one "older app" socket) against a neighborhood server.
 import asyncio, sys, json, time
 from playwright.async_api import async_playwright
-from testnav import tap, PFX, SKIP_WN, K, to_map, go
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
+from testnav import tap, PFX, SKIP_WN, K, to_map, go, local_page
+URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/ranch/'
 res = {}
 def check(name, ok, extra=''):
