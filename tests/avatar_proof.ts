@@ -6,7 +6,7 @@ import { fillLook2, HAIR_IDS, ACC_IDS, accSlot, type Look2 } from '../src/shared
 const kit = '/tmp/chibi-kit/chibi/svg';
 const kids: { name: string; file: string; look: Look2 }[] = [
   { name: 'Maya', file: 'kid-maya-v2.svg', look: { v: 1, hair: 'puffs', hairC: '#2a1914', skin: '#8a5634', eyes: 'round', eyeC: '#7b4fb8', blush: true, top: 'hoodie', topC: '#c6a8f0', bottom: 'skirt', bottomC: '#5b86c4', shoes: 'sneakers', shoesC: '#ffffff', acc: [] } },
-  { name: 'Ivy', file: 'kid-ivy-v2.svg', look: { v: 1, hair: 'pony', hairC: '#c8602a', skin: '#f8d6bb', eyes: 'round', eyeC: '#3f9b52', freckles: true, blush: true, top: 'classic', topC: '#ffffff', bottom: 'overalls', bottomC: '#ffd34e', shoes: 'boots', shoesC: '#ff9ec4', acc: [] } },
+  { name: 'Ivy', file: 'kid-ivy-v2.svg', look: { v: 1, hair: 'pony', hairC: '#c8602a', skin: '#f8d6bb', eyes: 'round', eyeC: '#3f9b52', freckles: true, blush: true, top: 'stripes', topC: '#ffffff', bottom: 'overalls', bottomC: '#ffd34e', shoes: 'boots', shoesC: '#ff9ec4', acc: [] } },
   { name: 'Zara', file: 'kid-zara-v2.svg', look: { v: 1, hair: 'braids', hairC: '#1d1416', skin: '#b97a50', eyes: 'round', eyeC: '#5a321c', blush: true, top: 'puff', topC: '#ff7f7f', bottom: 'tutu', bottomC: '#fffaf6', shoes: 'maryjanes', shoesC: '#2b1d24', acc: ['glasses'], accC: '#e8b84a' } },
   { name: 'Lily', file: 'kid-lily-v2.svg', look: { v: 1, hair: 'buns', hairC: '#4a2c1e', skin: '#ffe1cb', eyes: 'round', eyeC: '#8a5226', blush: true, dress: 'twirl', dressC: '#ffc2da', shoes: 'sandals', shoesC: '#ff9ec4', acc: ['headband'], accC: '#ffb3d1' } },
 ];

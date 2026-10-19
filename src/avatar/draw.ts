@@ -94,9 +94,8 @@ function armPart(side: 'l' | 'r'): string {
   const wx = hx - m, wy = hy - 7;
   const t = -m;
   let out = `<path d="${taper([sx, sy], [wx, wy], 18, 13, -3 * m)}" fill="var(--skin)" ${S(3)}/>`;
-  out += `<path d="${taper([sx + 4 * m, sy + 4], [wx + 2.5 * m, wy - 2], 6, 3.5, -2 * m)}" ${SH}/>`;
   const ex = (sx + wx) / 2 + 2 * m, ey = (sy + wy) / 2;
-  out += `<ellipse cx="${f(ex)}" cy="${f(ey)}" rx="3" ry="2" fill="#3a1d3c" opacity=".12"/>`;
+  out += `<path d="M${f(sx + 3 * m)} ${f(sy + 10)} Q${f(ex)} ${f(ey)} ${f(wx - m)} ${f(wy - 6)}" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".28"/>`;
   out += `<path class="hand" d="M${f(hx - 8)} ${f(hy - 4)} Q${f(hx - 8)} ${f(hy - 10)} ${f(hx)} ${f(hy - 10)} Q${f(hx + 8)} ${f(hy - 10)} ${f(hx + 8)} ${f(hy - 3)} Q${f(hx + 8.5)} ${f(hy + 9)} ${f(hx)} ${f(hy + 9.5)} Q${f(hx - 8.5)} ${f(hy + 9)} ${f(hx - 8)} ${f(hy - 4)} Z" fill="var(--skin)" ${S(2.8)}/>`;
   out += `<ellipse cx="${f(hx + 7 * t)}" cy="${f(hy - 1)}" rx="3.4" ry="5" fill="var(--skin)" ${S(2.4)} transform="rotate(${-20 * t} ${f(hx + 7 * t)} ${f(hy - 1)})"/>`;
   out += `<path d="M${f(hx - 3 * t)} ${f(hy + 3)} v4 M${f(hx + 0.5 * t)} ${f(hy + 3.5)} v4" stroke="var(--line)" stroke-width="1.5" stroke-linecap="round" opacity=".45"/>`;
@@ -195,6 +194,8 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean }): s
   const hem = hemOf(pose);
   const shoe = L.shoesC;
   const shoeTrim = shoe.toLowerCase() === '#ffffff' ? (L.dress ? L.dressC : L.topC) : lighten(shoe, 0.28);
+  const topHex = L.dress ? L.dressC : L.topC;
+  const topTrim = channelSum(topHex) > 700 ? '#8fdcc0' : darken(topHex, 0.18);
   const style = [
     '--line:#5a3d5c',
     `--skin:${L.skin}`,
@@ -205,8 +206,8 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean }): s
     '--lash:#3b2340',
     '--blush:#ff6f91',
     `--freckle:${darken(L.skin, 0.35)}`,
-    `--top:${L.dress ? L.dressC : L.topC}`,
-    `--top-trim:${darken(L.dress ? L.dressC : L.topC, 0.18)}`,
+    `--top:${topHex}`,
+    `--top-trim:${topTrim}`,
     `--bottom:${L.dress ? L.dressC : L.bottomC}`,
     `--bottom-trim:${darken(L.dress ? L.dressC : L.bottomC, 0.16)}`,
     `--shoe:${shoe}`,

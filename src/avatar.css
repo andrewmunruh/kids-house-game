@@ -61,6 +61,8 @@
 .char.chibi.hold-target.flipped[data-hand="left"]::after { left: calc(100% - var(--hx-l)); }
 .char.chibi.hold-target.flipped[data-hand="right"]::after { left: calc(100% - var(--hx-r)); }
 
+.savatar.riding > .inner .skirt { opacity: 0; }
+
 @media (prefers-reduced-motion: reduce) {
   .chibi-move .leg, .chibi-move .arm, .chibi-bob > .inner, .char.chibi > .inner, .savatar.chibi > .inner { animation: none; }
 }

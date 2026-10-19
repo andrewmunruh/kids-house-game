@@ -57,7 +57,33 @@ check('every full-quality kid is under 8 KB gzip', biggest < 8192, biggestName +
 const ride = chibiRideLeg(fillLook2({ v: 1, bottom: 'pants', bottomC: '#5aa9e6', shoes: 'boots', shoesC: '#ff9ec4', dress: '' }));
 check('ride leg keeps the saddle class names', ride.indexOf('class="thigh cloth"') >= 0 && ride.indexOf('class="shin') >= 0 && ride.indexOf('class="shoe"') >= 0 && ride.indexOf('class="knee"') >= 0);
 const skirtRide = chibiRideLeg(fillLook2({ v: 1, bottom: 'skirt', dress: 'party', dressC: '#ffc2da', skin: '#ffe0c4' }));
-check('a dress drapes the riding thigh', skirtRide.indexOf('#ffc2da') >= 0 && skirtRide.indexOf('#ffe0c4') >= 0);
+check('a dress drapes the riding thigh', skirtRide.indexOf('#ffc2da') >= 0 && skirtRide.indexOf('#ffe0c4') >= 0 && skirtRide.indexOf('class="dress"') >= 0);
+check('pants do not drape a skirt over the saddle', ride.indexOf('class="dress"') < 0);
+function pathYs(svg: string, cls: string): number[] {
+  const m = svg.match(new RegExp('class="' + cls + '" d="([^"]+)"'));
+  const n = m ? (m[1].match(/-?\d*\.?\d+/g) || []).map(Number) : [];
+  const ys: number[] = [];
+  for (let i = 1; i < n.length; i += 2) ys.push(n[i]);
+  return ys;
+}
+const thighYs = pathYs(ride, 'thigh cloth');
+const shinYs = pathYs(ride, 'shin cloth');
+check('the near leg bends from the saddle down to the belly',
+  thighYs.length > 1 && Math.max(...thighYs) - Math.min(...thighYs) < 20 && Math.max(...shinYs) >= 98 && Math.max(...shinYs) - Math.min(...shinYs) > 24);
+
+const ivy = chibiSVG(fillLook2({ v: 1, hair: 'pony', top: 'stripes', topC: '#ffffff', bottom: 'overalls', bottomC: '#ffd34e', shoes: 'boots', shoesC: '#ff9ec4', freckles: true }), { rich: true, uid: 'iv' });
+const ivyBottom = (ivy.split('data-layer="bottom"')[1] || '').split('data-layer=')[0];
+const ivyOver = (ivy.split('data-layer="bottom-over"')[1] || '').split('data-layer=')[0];
+check('overalls are short shorts under a bib pocket', ivyBottom.indexOf('L139 264') >= 0 && ivyBottom.indexOf('292') < 0 && ivyOver.indexOf('M80 176 L72 164') >= 0 && ivyOver.indexOf('M88 190 H112 V206') >= 0);
+check('a white tee uses mint stripes', ivy.indexOf('--top-trim:#8fdcc0') >= 0 && ivy.indexOf('fill="var(--top-trim)"') >= 0);
+check('polka dots sit on the boots', ivy.indexOf('cy="272" r="2.6" fill="#fff"') >= 0);
+const mayaTop = chibiSVG(fillLook2({ v: 1, top: 'hoodie', topC: '#c6a8f0', bottom: 'skirt' }), { rich: true, uid: 'hd' });
+check('a hoodie keeps its strings and pocket', mayaTop.indexOf('M92 172 v18') >= 0 && mayaTop.indexOf('M78 202 H122') >= 0);
+const lily = chibiSVG(fillLook2({ v: 1, dress: 'twirl', dressC: '#ffc2da', top: 'puff' }), { rich: true, uid: 'ly' });
+check('a twirl dress prints hearts and puff sleeves', lily.indexOf('c-3 -5 -9 -1') >= 0 && lily.indexOf('class="skirt"') >= 0);
+const classicTop = chibiSVG(fillLook2({ v: 1, top: 'classic', topC: '#ff7aa8' }), { rich: true, uid: 'ar' });
+const arm = (classicTop.split('class="arm l"')[1] || '').split('</g>')[0];
+check('forearms have no dark ghost patch and the tee is not a flat dot', arm.indexOf('opacity=".14"') < 0 && classicTop.indexOf('cy="188"') < 0 && classicTop.indexOf('url(#arc)') >= 0);
 
 const seeded = randomLook2(() => 0.1);
 check('surprise-me stays on the allow-list', !!sanitizeLook2(seeded) && JSON.stringify(sanitizeLook2(seeded)) === JSON.stringify(seeded));
