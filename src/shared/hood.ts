@@ -117,7 +117,7 @@ function swearShapeMore(s: string): boolean {
     || /^h+e+i+l+h+i+t+l+e+r+$/.test(s);
 }
 // Full words that would lose a suffix and become a slur: spicy, cocky, chinking, Spicer, gooky.
-const FALSE_FRIEND = new Set(['spicy', 'spices', 'spicing', 'spicey', 'spicier', 'spiciest', 'cocky', 'chinking', 'spicer', 'gooky']);
+const FALSE_FRIEND = new Set(['spicy', 'spices', 'spicing', 'spicey', 'spicier', 'spiciest', 'cocky', 'chinking', 'spicer', 'gooky', 'slutty', 'twatt']);
 function swearToken(s: string, extra: boolean): boolean {
   if (!/^[a-z]+$/.test(s)) return false;
   if (extra && FALSE_FRIEND.has(s)) return false;
@@ -353,6 +353,7 @@ function sendSwear(raw: string, extra = true): boolean {
   if (extra && heilHitler(plain)) return true;
   for (let i = 0; i < reads.length; i++) {
     if (extra && (dickName(pieces, plain, i) || coonBreed(pieces, plain, i))) continue;
+    if (extra && coreToken(pieces[i].text) === 'slut' && (plain[i + 1] || '') === 'walk') continue;
     for (let r = 0; r < reads[i].length; r++) {
       const forms = starForms(reads[i][r]);
       for (let j = 0; j < forms.length; j++) if (blockedWord(forms[j].replace(/\*/g, ''), extra)) return true;
