@@ -110,7 +110,7 @@ Generic decor still appears, the way it does in the nursery: plants, and decor w
 
 Thirty names, ten to a shelf. None of these strings are in `src/shared/catalog-names.ts`. Kinds are new. Wall pieces use `wall: true` and snap to the wall the way the crib mobile does. Small decor is holdable. Furniture is not.
 
-The thirty drawings follow `docs/art-style-v2` on `cursor/art-refresh` (fetched, not merged): plum outline `#5a3d5c` at weight 3.5, light from the top left, a two-tone cel side plane, a white edge tick, a few texture strokes, and the two-ellipse plum contact shadow on floor pieces. Rugs and wall pieces have no shadow. No blur filter, no `color-mix()`, no bitmap. Glass is two flat tones plus a white tick, so copies of one piece never share a gradient id. Nobody is in the water. The toilet is a closed lid and a daisy.
+The thirty drawings follow `docs/art-style-v2` on `cursor/art-refresh` (fetched, not merged): the real object's silhouette first, then plum outline `#5a3d5c` at weight 3.5, light from the top left, a two-tone cel side plane, a white edge tick, a few texture strokes, and the two-ellipse plum contact shadow on floor pieces. Rugs and wall pieces have no shadow. No blur filter, no `color-mix()`, no bitmap. Glass is two flat tones plus a white tick, so copies of one piece never share a gradient id. Nobody is in the water. The toilet is a closed lid and a daisy.
 
 ### Furniture
 
