@@ -98,7 +98,57 @@ JS = r'''async ({ b64, svg, vb }) => {
   };
   for (let x = 0; x < c.width; x++) { seedHole(x, 0); seedHole(x, c.height - 1); }
   for (let y = 0; y < c.height; y++) { seedHole(0, y); seedHole(c.width - 1, y); }
-  for (let p = 0; p < solid.length; p++) if (!solid[p] && !holeSeen[p]) holes++;
+  // Flag a hole inside one painted shape, including a pinhole under about
+  // 12px at 1x (the file is 3x). A gap between leaves or strings is wrapped
+  // by the plum outline on its own, and that opening is allowed.
+  const SMALL = 12 * 3;
+  const holeMark = new Uint8Array(c.width * c.height);
+  for (let p = 0; p < solid.length; p++) if (!solid[p] && !holeSeen[p]) holeMark[p] = 1;
+  const holeComp = new Uint8Array(c.width * c.height);
+  for (let y = 0; y < c.height; y++) {
+    for (let x = 0; x < c.width; x++) {
+      const start = y * c.width + x;
+      if (!holeMark[start] || holeComp[start]) continue;
+      let head = 0, tail = 0;
+      let minX = x, maxX = x, minY = y, maxY = y;
+      let plumTouch = 0, solidTouch = 0;
+      qx[tail] = x; qy[tail] = y; tail++;
+      holeComp[start] = 1;
+      while (head < tail) {
+        const cx = qx[head], cy = qy[head]; head++;
+        if (cx < minX) minX = cx;
+        if (cx > maxX) maxX = cx;
+        if (cy < minY) minY = cy;
+        if (cy > maxY) maxY = cy;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (!dx && !dy) continue;
+            const nx = cx + dx, ny = cy + dy;
+            if (nx < 0 || ny < 0 || nx >= c.width || ny >= c.height) continue;
+            const np = ny * c.width + nx;
+            const cardinal = dx === 0 || dy === 0;
+            if (cardinal && holeMark[np] && !holeComp[np]) {
+              holeComp[np] = 1;
+              qx[tail] = nx; qy[tail] = ny; tail++;
+            }
+            if (!solid[np]) continue;
+            solidTouch++;
+            const o = np * 4;
+            const pr = data[o], pg = data[o + 1], pb = data[o + 2];
+            const mx = pr > pg ? (pr > pb ? pr : pb) : (pg > pb ? pg : pb);
+            const mn = pr < pg ? (pr < pb ? pr : pb) : (pg < pb ? pg : pb);
+            const ch = mx - mn;
+            if (Math.abs(pr - 90) < 28 && Math.abs(pg - 61) < 28 && Math.abs(pb - 92) < 28 && ch < 45) plumTouch++;
+          }
+        }
+      }
+      const longSide = Math.max(maxX - minX + 1, maxY - minY + 1);
+      const betweenParts = solidTouch > 0 && plumTouch / solidTouch >= 0.8;
+      const small = longSide < SMALL;
+      const insideShape = !betweenParts;
+      if (!betweenParts && (small || insideShape)) holes++;
+    }
+  }
   // Near-cream that can be reached from outside the frame without crossing
   // the object. The plum outline does not count as the frame.
   const reach = new Uint8Array(c.width * c.height);
