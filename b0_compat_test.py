@@ -1,3 +1,4 @@
+from testnav import tap
 # Release B0 (fbd04db) saves and a mixed street against avatar B1.
 # Needs /tmp/b0tree (worktree at fbd04db), /tmp/b0-dist, and /tmp/new-dist.
 # A mailbox written by B0 must survive the B1 server, and a B0 client on the
@@ -114,7 +115,7 @@ async def adult(pg):
     await pg.click('.adultCard [data-k="OK"]')
 
 async def join(pg, code, nick, bring):
-    await pg.click('#btnHood')
+    await tap(pg, '#btnHood')
     await pg.click('[data-m="join"]')
     await pg.fill('#codeInput', code)
     await pg.click('#codeForm button')
@@ -150,7 +151,7 @@ async def main():
             await P.goto(url(PORT_B0))
             await K.goto(url(PORT_B0))
             await P.wait_for_timeout(400)
-            await P.click('#btnHood')
+            await tap(P, '#btnHood')
             await P.click('[data-m="create"]')
             await adult(P)
             await P.wait_for_selector('#newCode')
@@ -232,7 +233,7 @@ async def main():
             await B1.goto(url(PORT_B1))
             await B0.goto(url(PORT_B0))
             await B1.wait_for_timeout(300)
-            await B1.click('#btnHood')
+            await tap(B1, '#btnHood')
             await B1.click('[data-m="create"]')
             await adult(B1)
             await B1.wait_for_selector('#newCode')

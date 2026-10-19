@@ -2,11 +2,11 @@
 import asyncio, os, sys
 from playwright.async_api import async_playwright
 from testnav import (
-    K, NOTE_VS_TABLE_JS, SLAY_PINK_3, about_slay_card, dim_card_contrast, face_chroma,
+    tap, K, local_page, NOTE_VS_TABLE_JS, SLAY_PINK_3, about_slay_card, dim_card_contrast, face_chroma,
     inject_slay_hand, read_slay_hand, read_wait_style, read_secrets, read_door_hint, read_paddock,
 )
 
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
+URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/phone/'
 os.makedirs(SHOT, exist_ok=True)
 PHONES = [(390, 844), (844, 390), (375, 667), (667, 375), (932, 430)]
@@ -140,7 +140,7 @@ async def pet_targets(pg, tag, save, w, h):
     }""")
     sized = lambda b: b and b['w'] >= 44 and b['h'] >= 44
     check(f'{tag} kennel and cat tower are at least 44px', sized(boxes['shelfKennel']) and sized(boxes['shelfTower']) and sized(boxes['placedKennel']) and sized(boxes['placedTower']) and sized(boxes['out']), str(boxes))
-    await pg.click('#btnPets')
+    await tap(pg, '#btnPets')
     await pg.click('.petTabs [data-pt="dog"]')
     await pg.wait_for_selector('#kennelDog')
     await pg.evaluate("() => document.getElementById('kennelDog').scrollIntoView({block:'nearest'})")
@@ -166,7 +166,7 @@ async def pet_targets(pg, tag, save, w, h):
         await pg.evaluate("__cam.set(1900 - 180)")
         await pg.wait_for_timeout(200)
         await shot(pg, 'cat-tower-iphone')
-        await pg.click('#btnPets')
+        await tap(pg, '#btnPets')
         await pg.click('.petTabs [data-pt="dog"]')
     await pg.locator('.sheet:not(.hidden) .close').first.click()
     await pg.wait_for_function("() => !document.querySelector('.sheet:not(.hidden)')")
@@ -274,7 +274,7 @@ async def phone_pass(b, w, h, save):
     info = await layout(pg)
     bad = tops_ok(info)
     ids = [t['id'] for t in info['top']]
-    check(f'{tag} own-house tools fit', bad == [] and 'btnLock' in ids and 'btnChat' in ids and 'btnMap' in ids, str(bad or ids))
+    check(f'{tag} own-house tools fit', bad == [] and 'btnMenu' in ids and 'btnChat' in ids and 'btnMap' in ids, str(bad or ids))
     await tabs_fit(pg, f'{tag} own-house')
 
     await pg.evaluate("""() => {
@@ -301,7 +301,7 @@ async def phone_pass(b, w, h, save):
         ('pets', '#btnPets', '.petTabs'),
         ('neighborhood', '#btnHood', '.hoodSheet h2'),
     ):
-        await pg.click(click)
+        await tap(pg, click)
         await pg.wait_for_selector(sel)
         c = await card_ok(pg)
         check(f'{tag} {name} sheet fits', c['ok'], str(c))
@@ -309,7 +309,7 @@ async def phone_pass(b, w, h, save):
         await pg.locator('.sheet:not(.hidden) .close').first.click()
         await pg.wait_for_function("() => !document.querySelector('.sheet:not(.hidden)')")
     await pet_targets(pg, tag, save, w, h)
-    await pg.click('#btnHood')
+    await tap(pg, '#btnHood')
     await pg.click('[data-m="join"]')
     await pg.wait_for_selector('#codeInput')
     c = await card_ok(pg)
@@ -318,7 +318,7 @@ async def phone_pass(b, w, h, save):
     check(f'{tag} join code input is 16px and tappable', c['ok'] and fs >= 16 and ih >= 44, f'fs {fs} h {ih}')
     await pg.locator('.sheet:not(.hidden) .close').first.click()
     await pg.wait_for_function("() => !document.querySelector('.sheet:not(.hidden)')")
-    await pg.click('#btnHood')
+    await tap(pg, '#btnHood')
     await pg.click('[data-m="create"]')
     await pg.wait_for_selector('.adultCard')
     c = await card_ok(pg)
@@ -618,16 +618,18 @@ async def stage_fill(pg, tag, w, h):
 
 async def living_room_one_line(pg, tag):
     data = await pg.evaluate("""() => {
-      const tab = [...document.querySelectorAll('.tab')].find(t => (t.textContent || '').trim() === 'Living Room');
+      const tab = [...document.querySelectorAll('.tab')].find(t => (t.getAttribute('aria-label') || t.textContent || '').trim() === 'Living Room');
       if (!tab) return {ok: false};
+      const text = [...tab.childNodes].reverse().find(n => n.nodeType === 3 && (n.textContent || '').trim());
       const range = document.createRange();
-      range.selectNodeContents(tab);
+      range.selectNodeContents(text || tab);
       const lines = range.getClientRects().length;
       const b = tab.getBoundingClientRect();
       return {lines, sw: tab.scrollWidth, cw: tab.clientWidth, w: Math.round(b.width), h: Math.round(b.height),
+        font: parseFloat(getComputedStyle(tab).fontSize),
         on: b.left >= -1 && b.right <= innerWidth + 1 && b.top >= -1 && b.bottom <= innerHeight + 1};
     }""")
-    check(f'{tag} Living Room stays on one line', data.get('lines') == 1 and data.get('sw', 9) <= data.get('cw', 0) + 1 and data.get('on'), str(data))
+    check(f'{tag} Living Room stays on one line', data.get('lines') == 1 and data.get('sw', 9) <= data.get('cw', 0) + 1 and data.get('on') and data.get('font', 0) >= 13, str(data))
 
 async def roster_targets(pg, tag):
     data = await pg.evaluate("""() => {
@@ -733,21 +735,27 @@ async def check_zoo_hint(pg, tag):
           str(hint))
 
 async def check_secrets(pg, tag, short):
-    pill = await read_secrets(pg)
-    if short:
-        # 844×300, 667×280, 932×340: the gutter is narrower than the label, so the
-        # compact pill has to clear the stage entirely and stay a 44px target.
-        count_px = await pg.evaluate("() => parseFloat(getComputedStyle(document.querySelector('#secrets .secCount')).fontSize)")
-        check(f'{tag} Surprises pill sits fully outside the room',
-              pill['on'] and not pill['overlap'] and pill['compact'] and not pill['chrome']
-              and pill['side'] and pill['pill']['w'] >= 44 and pill['pill']['h'] >= 44,
-              str(pill))
-        check(f'{tag} compact Surprises count is 12–13px', 12 <= count_px <= 13.5, str(count_px))
-    else:
-        check(f'{tag} Surprises pill stays centred on a taller phone',
-              pill['on'] and pill['centered'] and not pill['compact'] and not pill['chrome']
-              and 'Surprises' in pill.get('text', '') and pill['pill']['w'] >= 140,
-              str(pill))
+    """Surprises lives in the Menu. Closed, it must not cover the room."""
+    del short
+    closed = await read_secrets(pg)
+    check(f'{tag} Surprises stays off the stage until the Menu opens',
+          not closed['on'] and not closed['overlap'], str(closed))
+    await pg.click('#btnMenu')
+    await pg.wait_for_selector('#menuPop:not(.hidden)')
+    await pg.locator('#secrets').scroll_into_view_if_needed()
+    row = await pg.evaluate("""() => {
+      const el = document.getElementById('secrets');
+      const b = el.getBoundingClientRect();
+      const count = el.querySelector('.secCount');
+      const fs = parseFloat(getComputedStyle(count || el).fontSize);
+      const label = (el.textContent || '').replace(/\\s+/g, ' ').trim();
+      return {w: Math.round(b.width), h: Math.round(b.height), fs, label,
+        on: b.width >= 44 && b.height >= 44 && b.left >= -1 && b.top >= -1 && b.right <= innerWidth + 1 && b.bottom <= innerHeight + 1};
+    }""")
+    check(f'{tag} Surprises is a Menu row',
+          row['on'] and 'Surprises' in row['label'] and row['fs'] >= 13, str(row))
+    await pg.click('#menuClose')
+    await pg.wait_for_function("() => document.getElementById('menuPop').classList.contains('hidden')")
 
 async def check_wait_fade(pg, tag):
     await inject_slay_hand(pg, 4, 'wait')
@@ -842,7 +850,8 @@ async def ipad_pass(b, w, h):
           return { w: Math.round(b.width), h: Math.round(b.height), tools };
         }""")
         check('ipad 820x1180 minimap is at least 100px wide', mini['w'] >= 100 and mini['h'] >= 44, str(mini))
-        check('ipad 820x1180 street shows seven tools and Map', len(mini['tools']) == 7 and 'btnMap' in mini['tools'], str(mini['tools']))
+        check('ipad 820x1180 house shows Chat, Menu, and Map',
+              sorted(mini['tools']) == ['btnChat', 'btnMap', 'btnMenu'], str(mini['tools']))
         tabs = await pg.evaluate("""() => [...document.querySelectorAll('.tab')].map(el => ({
           label: el.getAttribute('aria-label'), shown: (el.textContent || '').replace(/\\s+/g, ' ').trim(),
           font: parseFloat(getComputedStyle(el).fontSize), clipped: el.scrollWidth > el.clientWidth + 1

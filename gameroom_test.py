@@ -4,7 +4,7 @@ import asyncio, os, shutil, sys, traceback
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
 from testnav import (
-    SKIP_WN, K, to_map, go, local_page, NOTE_VS_TABLE_JS, about_slay_card, dim_card_contrast, face_chroma,
+    tap, SKIP_WN, K, to_map, go, local_page, NOTE_VS_TABLE_JS, about_slay_card, dim_card_contrast, face_chroma,
     inject_slay_hand, read_slay_hand, read_wait_style, read_secrets, read_door_hint, read_paddock,
 )
 
@@ -37,7 +37,7 @@ async def adult(pg):
     await pg.click('.adultCard [data-k="OK"]')
 
 async def join(pg, code, nth, bring):
-    await pg.click('#btnHood')
+    await tap(pg, '#btnHood')
     await pg.click('[data-m="join"]')
     await pg.fill('#codeInput', code.lower())
     await pg.click('#codeForm button')
@@ -277,7 +277,7 @@ async def polish_pass(b):
     tag = '844x390'
     ctx, pg = await phone(844, 390)
     pill = await read_secrets(pg)
-    check(f'{tag} Surprises pill stays centred on a taller phone', pill['on'] and pill['centered'], str(pill))
+    check(f'{tag} Surprises stays off the stage', not pill['on'] and not pill['overlap'], str(pill))
     await pg.click('#btnMap')
     await pg.wait_for_selector('body.view-map .mapSpot')
     await pg.click('[data-go="ranch"]')
@@ -294,7 +294,7 @@ async def polish_pass(b):
         tag = f'{w}x{h}'
         ctx, pg = await phone(w, h)
         pill = await read_secrets(pg)
-        check(f'{tag} Surprises pill sits in a side gutter', pill['on'] and not pill['coversCenter'] and pill['side'], str(pill))
+        check(f'{tag} Surprises stays off the stage', not pill['on'] and not pill['overlap'], str(pill))
         await pg.click('#btnMap')
         await pg.wait_for_selector('body.view-map .mapSpot')
         await pg.click('[data-go="ranch"]')
@@ -359,7 +359,7 @@ async def main():
             check('Home from the clubhouse goes back to her house', await P.evaluate("!document.body.classList.contains('view-gameroom') && !document.body.classList.contains('view-street')"))
 
             # ---------- three kids on a street ----------
-            await P.click('#btnHood')
+            await tap(P, '#btnHood')
             await P.click('[data-m="create"]')
             await adult(P)
             await P.wait_for_selector('#newCode', timeout=8000)

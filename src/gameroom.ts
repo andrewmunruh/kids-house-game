@@ -153,10 +153,12 @@ export function gameRoomSVG(): string {
   </g>
 
   <g class="neonSign" transform="translate(560 168)">
+    <g class="neonSignArt">
     <rect x="-228" y="-58" width="456" height="108" rx="28" fill="#2b1430" ${st(5)}/>
     <rect class="neonRing" x="-214" y="-44" width="428" height="80" rx="22" fill="none" stroke="#ff4d94" stroke-width="4"/>
     <path d="M-150 8 C-162 -14 -186 -8 -174 12 C-166 26 -150 36 -150 36 C-150 36 -134 26 -126 12 C-114 -8 -138 -14 -150 8 Z" fill="#ff4d94" stroke="#ffd0ea" stroke-width="2"/>
     <text x="6" y="16" text-anchor="middle" font-size="40" font-weight="900" fill="#ff7eb3" stroke="#fff6fb" stroke-width="2" paint-order="stroke" font-family="Nunito, ui-rounded, system-ui, sans-serif">SLAY CLUB</text>
+    </g>
   </g>
 
   ${poster(250, 250, -6, '#ffe0f0', `${heart(0, 8, 1.4)}${star(-18, -16, 0.7, '#ffd43b')}${star(18, -10, 0.55, '#66d9e8')}`)}

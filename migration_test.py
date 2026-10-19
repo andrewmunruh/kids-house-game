@@ -8,7 +8,7 @@
 # Usage: migration_test.py   (needs: /tmp/prodtree = git worktree of main, builds in /tmp/prod-dist, /tmp/new-dist, /tmp/preview-dist)
 import asyncio, json, os, shutil, subprocess, time, sys, signal
 from playwright.async_api import async_playwright
-from testnav import to_map, go
+from testnav import tap, to_map, go
 ROOT = os.path.dirname(os.path.abspath(__file__)); M = '/tmp/migr'; WWW = M + '/www'; PORT_WEB = 4190; PORT_HOOD = 8795; PORT_PREV = 8796
 BASE = f'http://localhost:{PORT_WEB}'; URL = f'{BASE}/kids-house-game/?hood=http://localhost:{PORT_HOOD}'
 res = {}
@@ -52,7 +52,7 @@ async def adult(pg):
     for d in str(q): await pg.click(f'.adultCard [data-k="{d}"]')
     await pg.click('.adultCard [data-k="OK"]')
 async def join_prod(pg, code, nick, bring):
-    await pg.click('#btnHood'); await pg.click('[data-m="join"]')
+    await tap(pg, '#btnHood'); await pg.click('[data-m="join"]')
     await pg.fill('#codeInput', code.lower()); await pg.click('#codeForm button')
     await pg.click(f'.nicks button:has-text("{nick}")')
     if bring is not None: await pg.click('[data-m="bring"]' if bring else '[data-m="fresh"]')
@@ -151,7 +151,7 @@ async def main():
             check('phase A: rich solo save written', len(solo_a['characters']) >= 3 and solo_a['cat']['name'] == 'Mochi' and solo_a['basket']['egg'] == 2 and sum(len(r['items']) for r in solo_a['rooms'].values()) >= 5)
             # grown-up creates the street with a roster + custom code; 3 kids join (the family iPad brings its house)
             for attempt in range(3):
-                await P.click('#btnHood'); await P.click('[data-m="create"]'); await adult(P)
+                await tap(P, '#btnHood'); await P.click('[data-m="create"]'); await adult(P)
                 try: await P.wait_for_selector('#newCode', timeout=8000); break
                 except Exception:
                     toast = await P.evaluate("[...document.querySelectorAll('.toast')].map(t=>t.textContent).join('|')")
@@ -176,7 +176,7 @@ async def main():
             await K2.evaluate("__hood().ranchOp({op:'egg'}); __hood().ranchOp({op:'plant', i:0, seed:'carrot'}); __hood().ranchOp({op:'water', i:0})"); await K2.wait_for_timeout(500)
             if OLD_HAS_MAP: await to_map(K2)
             else: await K2.click('#btnLeavePark'); await K2.wait_for_timeout(400)
-            await P.click('#btnParent'); await adult(P); await P.wait_for_selector('.pHouse, input[data-hid]')
+            await tap(P, '#btnParent'); await adult(P); await P.wait_for_selector('.pHouse, input[data-hid]')
             k3h = await K3.evaluate('__hood().myHouseId()')
             await P.fill(f'input[data-hid="{k3h}"]', 'Koala Castle'); await P.click(f'[data-p="rename"][data-hid="{k3h}"]'); await P.wait_for_timeout(500)
             roster_a = sorted(await P.locator('.rName').all_inner_texts()) if await P.locator('.rName').count() else None
@@ -249,7 +249,7 @@ async def main():
             friend_a = {r: [i[1] for i in items_of(snap_a)[k2house] if i[0] == r] for r in OLD_ROOMS}
             check("a friend's decorated house opens from the map, all items there", all(sorted(friend['old'][r]) == sorted(friend_a[r]) for r in OLD_ROOMS) and friend['nursery'] == STARTER_KINDS)
             await P.click('#btnMap'); await P.wait_for_timeout(500)
-            await P.click('#btnParent'); await adult(P); await P.wait_for_timeout(700)
+            await tap(P, '#btnParent'); await adult(P); await P.wait_for_timeout(700)
             roster_b = sorted(await P.locator('.rName').all_inner_texts()) if await P.locator('.rName').count() else None
             check('roster + grown-up key still work (parent screen)', roster_a == roster_b and roster_b is not None, json.dumps(roster_b))
             await P.click('.hoodSheet [data-m="close"]')

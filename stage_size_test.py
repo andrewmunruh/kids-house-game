@@ -6,6 +6,9 @@ from testnav import K
 
 PROD = os.environ.get('PROD_URL', 'http://127.0.0.1:4194/kids-house-game/')
 NEW = os.environ.get('NEW_URL', 'http://localhost:4173/kids-house-game/')
+# iPad stage must stay pixel-identical to 1f0aa5c. Phone chrome collapsed, so the
+# phone stage is allowed to grow and must not shrink.
+IPAD = {(1180, 820), (1024, 768), (820, 1180)}
 SIZES = [(1180, 820), (1024, 768), (820, 1180), (844, 390), (375, 667)]
 
 def check(name, ok, extra=''):
@@ -38,8 +41,13 @@ async def main():
         for w, h in SIZES:
             prod = await measure(browser, PROD, w, h)
             cur = await measure(browser, NEW, w, h)
-            ok = abs(prod['w'] - cur['w']) <= 2 and abs(prod['h'] - cur['h']) <= 2
-            if not check(f'stage {w}x{h} matches 1f0aa5c', ok, f"prod {prod['w']}x{prod['h']} now {cur['w']}x{cur['h']}"):
+            if (w, h) in IPAD:
+                ok = abs(prod['w'] - cur['w']) <= 2 and abs(prod['h'] - cur['h']) <= 2
+                name = f'stage {w}x{h} matches 1f0aa5c'
+            else:
+                ok = cur['w'] + 2 >= prod['w'] and cur['h'] + 2 >= prod['h']
+                name = f'stage {w}x{h} did not shrink'
+            if not check(name, ok, f"prod {prod['w']}x{prod['h']} now {cur['w']}x{cur['h']}"):
                 failed += 1
         await browser.close()
     if failed:

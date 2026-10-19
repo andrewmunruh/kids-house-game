@@ -1,8 +1,8 @@
 # Pets + park: 3 simulated iPads (and one "old app" socket) against a neighborhood server.
 import asyncio, re, sys, json
 from playwright.async_api import async_playwright
-from testnav import PFX, SKIP_WN, K, to_map, go
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
+from testnav import tap, PFX, SKIP_WN, K, to_map, go, local_page
+URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/pets/'
 res = {}
 def check(name, ok, extra=''):
@@ -12,7 +12,7 @@ async def adult(pg):
     for d in str(q): await pg.click(f'.adultCard [data-k="{d}"]')
     await pg.click('.adultCard [data-k="OK"]')
 async def join(pg, code, nth, bring):
-    await pg.click('#btnHood'); await pg.click('[data-m="join"]')
+    await tap(pg, '#btnHood'); await pg.click('[data-m="join"]')
     await pg.fill('#codeInput', code.lower()); await pg.click('#codeForm button')
     await pg.locator('.nicks button').nth(nth).click()
     if bring is not None: await pg.click('[data-m="bring"]' if bring else '[data-m="fresh"]')
@@ -28,7 +28,7 @@ async def see_hearts(pg, timeout_ms=2500):
         await pg.wait_for_timeout(100)
     return False
 async def adopt(pg, tab, swatch, name=None, typed=None):
-    await pg.click('#btnPets'); await pg.wait_for_selector('.pets .petTabs')
+    await tap(pg, '#btnPets'); await pg.wait_for_selector('.pets .petTabs')
     await pg.click(f'.petTabs [data-pt="{tab}"]')
     await pg.click(f'.swatches [data-{"coat" if tab == "cat" else "breed"}="{swatch}"]')
     if name: await pg.click(f'.nameChips button:has-text("{name}")')
@@ -97,7 +97,7 @@ async def main():
         # ---------- dog kennel + cat tower ----------
         await P.evaluate("""() => __store.dispatch({type:'item/add', room:__store.get().currentRoom, item:{id:'solo-kennel', kind:'kennel', x:700, y:520, flip:false, z:1, scale:1}})""")
         await P.wait_for_timeout(200)
-        await P.click('#btnPets'); await P.click('.petTabs [data-pt="dog"]'); await P.click('#kennelDog'); await P.wait_for_timeout(500)
+        await tap(P, '#btnPets'); await P.click('.petTabs [data-pt="dog"]'); await P.click('#kennelDog'); await P.wait_for_timeout(500)
         pp = await pets(P)
         kx = await P.evaluate("() => __store.get().characters.find(c => c.room === __store.get().currentRoom).x")
         check('kennel: dog stops following and rests in the kennel', pp.get('dogKennel') and pp['dogKennel']['item'] == 'solo-kennel' and 'solo' not in pp['dogs'] and pp.get('kennel') and pp['kennel']['name'] == 'Rocket', json.dumps(pp))
@@ -160,7 +160,7 @@ async def main():
         check('solo: map -> home with the save intact', await P.evaluate("!document.body.classList.contains('view-park') && !document.body.classList.contains('view-street') && __store.get().cat.name === 'Mochi'"))
         await to_map(P)
         # ---------- neighborhood ----------
-        await P.click('#btnHood'); await P.click('[data-m="create"]'); await adult(P)
+        await tap(P, '#btnHood'); await P.click('[data-m="create"]'); await adult(P)
         await P.wait_for_selector('#newCode'); code = (await P.inner_text('#newCode')).strip(); await P.click('.hoodSheet [data-m="close"]')
         await join(P, code, 0, True); await join(K2, code, 1, False); await join(K3, code, 2, False)
         await P.wait_for_timeout(800)
@@ -183,7 +183,7 @@ async def main():
         check('visitor pets the cat -> owner sees hearts', await see_hearts(P))
         await K2.screenshot(path=SHOT + '06-visitor-sees-cat.png')
         # owner calls the cat
-        await P.click('#btnPets'); await P.click('#callCat'); await P.wait_for_timeout(500)
+        await tap(P, '#btnPets'); await P.click('#callCat'); await P.wait_for_timeout(500)
         check('"Here, kitty!" moves the cat (synced)', (await K2.evaluate(f"__hood().view('{p_house}').cat.x")) == (await P.evaluate('__store.get().cat.x')))
         # ---------- park ----------
         old = await K3.evaluate("""(async () => { const cfg = JSON.parse(localStorage.getItem('""" + K('cozy-hood') + """'));

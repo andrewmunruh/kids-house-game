@@ -1,7 +1,7 @@
 # Neighborhood map + barn navigation: solo + 3 simulated iPads against a neighborhood server.
 import asyncio, sys, json
 from playwright.async_api import async_playwright
-from testnav import PFX, SKIP_WN, K, to_map, go, local_page
+from testnav import tap, PFX, SKIP_WN, K, to_map, go, local_page
 URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/map/'
 res = {}
@@ -12,7 +12,7 @@ async def adult(pg):
     for d in str(q): await pg.click(f'.adultCard [data-k="{d}"]')
     await pg.click('.adultCard [data-k="OK"]')
 async def join(pg, code, nth, bring):
-    await pg.click('#btnHood'); await pg.click('[data-m="join"]')
+    await tap(pg, '#btnHood'); await pg.click('[data-m="join"]')
     await pg.fill('#codeInput', code.lower()); await pg.click('#codeForm button')
     await pg.locator('.nicks button').nth(nth).click()
     if bring is not None: await pg.click('[data-m="bring"]' if bring else '[data-m="fresh"]')
@@ -58,7 +58,7 @@ async def main():
         check('map layout 1..12 houses: no overlaps, all on the map', all(l['inside'] and l['minSpot'] > -5 and (l['n'] == 1 or l['minHouse'] > 88) for l in lay), json.dumps([(l['n'], round(l['minHouse']), round(l['minSpot'])) for l in lay]))
         await go(P, 'home')
         # ---------------- neighborhood ----------------
-        await P.click('#btnHood'); await P.click('[data-m="create"]'); await adult(P)
+        await tap(P, '#btnHood'); await P.click('[data-m="create"]'); await adult(P)
         try: await P.wait_for_selector('#newCode', timeout=8000)
         except Exception:
             print('DBG', await P.evaluate("document.body.className"), await P.evaluate("[...document.querySelectorAll('.toast,.hoodSheet,.adultCard')].map(t=>t.className+':'+t.textContent.slice(0,80)).join(' | ')")); await P.screenshot(path='/tmp/dbgfail.png'); raise
