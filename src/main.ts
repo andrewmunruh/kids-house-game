@@ -1,11 +1,15 @@
 import './style.css';
 import './juice.css';
 import './scenery.css';
+import './mail.css';
 import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapTreesSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
 import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
 import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, cleanPetName, CAT_NAMES, DOG_NAMES, PARK_W, PARK_SPOTS, SLIDE, DOG_AREA, type Presence, type Bubble, type Look, type Fx } from './shared/hood';
 import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } from './pets';
+import { mailboxArt, installMail } from './mail';
+import { installPlayMode, playGesture } from './playmode';
+import { unreadCount } from './shared/mail';
 import { parkSceneSVG, swingSVG, ballSVG, treeIcon, pawIcon, gateIcon, streetGateSVG, PARK_H, SWING_BAR } from './park';
 import { houseSVG, ICONS, toast, adultCheck } from './hood-ui';
 import { initEggs, foundSet, EGGS } from './eggs';
@@ -114,6 +118,10 @@ app.innerHTML = `
     <button class="nudge right" id="nudgeR" aria-label="Look right"><svg viewBox="0 0 40 40"><path d="M16 10 L26 20 L16 30" fill="none" stroke="#5a3d5c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
   <div class="bin" id="bin">${ICON.trash}</div>
+  <div class="modeToggle" id="modeToggle">
+    <button type="button" id="modePlay" data-mode="play" aria-label="Play" aria-pressed="false"><span class="modeIco"></span><span class="modeWord">Play</span></button>
+    <button type="button" id="modeDecorate" data-mode="decorate" aria-label="Decorate" aria-pressed="true"><span class="modeIco"></span><span class="modeWord">Decorate</span></button>
+  </div>
   <div class="houseTag hoodOnly" id="houseTag"></div>
   <div class="secrets" id="secrets"></div>
 </div>
@@ -132,7 +140,7 @@ app.innerHTML = `
 <div class="street park hidden" id="park"><div class="streetScroll" id="parkScroll"><div class="parkWorld" id="parkWorld"></div></div></div>
 <div class="street grRoom hidden" id="gameroom"><div class="streetScroll" id="grScroll"><div class="parkWorld grWorld" id="grWorld"></div></div><div id="grSolo" class="grSolo hidden">Play with friends on your street</div></div>
 <div id="tableOverlay" class="tableOverlay hidden"></div>
-<div class="street mapView hidden" id="street"><div class="mapWorld" id="mapWorld"></div></div>
+<div class="street mapView hidden" id="street"><button class="mailCue" id="mailCue" type="button">You've got mail!</button><div class="mapWorld" id="mapWorld"></div></div>
 <div class="chatTray hidden" id="chatTray"></div>
 <div class="sheet hidden" id="sheet"><div class="card" id="card"></div></div>
 <div class="fx" id="fx"></div>
@@ -158,6 +166,19 @@ let view: 'house' | 'street' | 'park' | 'ranch' | 'gameroom' = 'house'; // 'stre
 let inBarn = false; // inside Rainbow Ranch: the yard, or the barn (petting zoo)
 let currentHouseId = '';
 let houseStores = new Map<string, ReturnType<typeof houseStore>>();
+const play = installPlayMode($('modeToggle'), { ownHouse: () => !hood || !currentHouseId || currentHouseId === hood.myHouseId() });
+const mailUI = installMail({
+  send: (houseId, text, color, sticker) => hood?.sendMail(houseId, text, color, sticker),
+  read: (houseId, id) => hood?.readMail(houseId, id),
+  drop: (houseId, id) => hood?.dropMail(houseId, id),
+  houseOf: pid => [...(hood?.players.values() ?? [])].find(p => p.pid === pid)?.houseId ?? '',
+  houseName: houseId => hood?.houses.get(houseId)?.meta.name ?? 'My House',
+  lettersOf: houseId => hood?.houses.get(houseId)?.confirmed.mailbox?.letters ?? [],
+  mine: houseId => !!hood && hood.houses.get(houseId)?.meta.ownerId === hood.pid,
+  toast,
+  openOwn: () => { const id = hood?.myHouseId(); if (id) openMailbox(id); },
+});
+play.sync(true);
 const avatarEls = new Map<string, HTMLElement>();
 
 // ---------- camera (view-only, not part of game state) ----------
@@ -694,6 +715,7 @@ function startDrag(e: PointerEvent, ctx: DragCtx) {
 function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
   e.preventDefault(); e.stopPropagation();
   if (twoFinger) return;
+  if (play.isPlay()) { onPlayTap(el, el.dataset.id!); return; }
   if (!canEdit()) { lockedNudge(el); return; }
   const s = store.get(); const room = s.currentRoom;
   const id = el.dataset.id!; const it = s.rooms[room].items.find(i => i.id === id); if (!it) return;
@@ -726,7 +748,7 @@ function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
 /** Drag a held item off a hand: it is released into the room and becomes a normal dragged item. */
 function beginHeldDrag(charEl: HTMLElement, heldEl: HTMLElement, e: PointerEvent) {
   e.preventDefault(); e.stopPropagation();
-  if (twoFinger) return;
+  if (twoFinger || play.isPlay()) return;
   const cid = charEl.dataset.cid!, hand = heldEl.dataset.hand as Hand;
   const c = store.get().characters.find(c => c.id === cid); const it = c?.held[hand]; if (!c || !it) return;
   const r = heldEl.getBoundingClientRect(); const p = toRoom(r.left + r.width / 2, r.bottom);
@@ -738,7 +760,7 @@ function beginHeldDrag(charEl: HTMLElement, heldEl: HTMLElement, e: PointerEvent
 function attachCharDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
     const heldEl = (e.target as HTMLElement).closest<HTMLElement>('.held');
-    if (heldEl) { if (!canEdit()) { e.stopPropagation(); lockedNudge(el); return; } return beginHeldDrag(el, heldEl, e); }
+    if (heldEl) { if (play.isPlay()) { e.preventDefault(); e.stopPropagation(); return; } if (!canEdit()) { e.stopPropagation(); lockedNudge(el); return; } return beginHeldDrag(el, heldEl, e); }
     e.preventDefault(); e.stopPropagation();
     if (twoFinger) return;
     if (!canEdit()) { lockedNudge(el); return; }
@@ -779,6 +801,7 @@ function attachCharDrag(el: HTMLElement) {
 function attachShelfDrag(btn: HTMLElement, def: ItemDef) {
   btn.addEventListener('pointerdown', e => {
     e.preventDefault();
+    if (play.isPlay()) { e.stopPropagation(); return; }
     if (!canEdit()) { lockedNudge(btn); return; }
     const ghost = document.createElement('div'); ghost.className = 'ghost'; ghost.innerHTML = svgOf(def);
     document.body.appendChild(ghost);
@@ -816,6 +839,7 @@ function attachShelfDrag(btn: HTMLElement, def: ItemDef) {
 function attachPersonCard(btn: HTMLElement, id: string) {
   btn.addEventListener('pointerdown', e => {
     e.preventDefault();
+    if (play.isPlay()) return;
     if (!canEdit()) { lockedNudge(btn); return; }
     const c = store.get().characters.find(c => c.id === id); if (!c) return;
     const sc = charScale(c), gw = CHAR_W * sc * stageScale(), gh = CHAR_H * sc * stageScale();
@@ -1205,7 +1229,7 @@ function renderHoodChrome() {
   const inHouse = !!hood && inner !== local && view === 'house';
   const h = inHouse ? hood!.houses.get(currentHouseId) : undefined;
   const own = !!h && h.meta.ownerId === hood!.pid;
-  b.toggle('mode-hood', !!hood); b.toggle('view-street', view !== 'house'); b.toggle('view-park', view === 'park'); b.toggle('view-ranch', view === 'ranch'); b.toggle('view-map', view === 'street'); b.toggle('view-gameroom', view === 'gameroom'); b.toggle('in-barn', view === 'ranch' && inBarn); renderBasketChip();
+  b.toggle('mode-hood', !!hood); b.toggle('view-street', view !== 'house'); b.toggle('view-park', view === 'park'); b.toggle('view-ranch', view === 'ranch'); b.toggle('view-map', view === 'street'); b.toggle('view-gameroom', view === 'gameroom'); b.toggle('in-barn', view === 'ranch' && inBarn); b.toggle('mode-play', view === 'house' && play.isPlay()); renderBasketChip(); syncMailCue();
   b.toggle('own-house', own); b.toggle('locked', !!h && !canEdit()); b.toggle('has-hood', !!hoodServerUrl());
   if (h) {
     const owner = hood!.players.get(h.meta.ownerId)?.nickname ?? '';
@@ -1232,7 +1256,7 @@ function renderMap(force = false) {
   if (view !== 'street') return;
   const sc = mapScale(), w = $('mapWorld');
   const houses = mapHouses();
-  const key = sc.toFixed(3) + JSON.stringify(houses) + (hood ? houses.map(h => (hood!.players.get(h.ownerId)?.online ? 1 : 0)).join('') + hood.pid : 'solo');
+  const key = sc.toFixed(3) + JSON.stringify(houses) + (hood ? houses.map(h => (hood!.players.get(h.ownerId)?.online ? 1 : 0) + (houseUnread(h.id) ? 'u' : '')).join('') + hood.pid : 'solo');
   if (!force && key === mapKey && w.querySelector('#mapFaces')) { renderMapFaces(); return; }
   mapKey = key;
   w.style.width = MAP_W * sc + 'px'; w.style.height = MAP_H * sc + 'px'; w.style.setProperty('--sc', String(sc));
@@ -1254,7 +1278,13 @@ function renderMap(force = false) {
     const c = spotsXY[i];
     const go = h ? `house:${h.id}` : 'home', name = h ? h.name : 'My House';
     mapAnchors.set(h ? 'house:' + h.id : 'home', { x: c.x, y: c.y - hh / 2 - 4 });
+    const flag = !!(h && houseUnread(h.id));
+    // Lower-right of the house, clear of the door's center so a tap on the house still goes inside.
+    const mw = 34, mh = 40;
+    const mx = Math.max(4, Math.min(MAP_W - mw - 4, c.x + hw * 0.28));
+    const my = Math.max(4, Math.min(MAP_H - mh - 4, c.y + hh * 0.28));
     html += `<button class="mapSpot mapHouse ${h?.mine || !h ? 'mine' : ''}" data-go="${go}" aria-label="${esc(name)}" style="left:${px(c.x - hw / 2)};top:${px(c.y - hh / 2)};width:${px(hw)};height:${px(hh)}">${houseSVG(h ? h.style : 0, { lit: h ? h.lit : true })}${h?.locked ? '<span class="lockBadge">🔒</span>' : ''}${h?.mine || !h ? '<span class="homeBadge">★</span>' : ''}</button>
+      <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>
       <div class="mapSign ${h?.mine || !h ? 'mine' : ''} ${c.x > MAP_W - 130 ? 'edgeR' : c.x < 130 ? 'edgeL' : ''}" style="left:${px(c.x > MAP_W - 130 ? MAP_W - 8 : c.x < 130 ? 8 : c.x)};top:${px(c.y + hh / 2 - 2)}">${esc(name)}</div>`;
   });
   html += `<button class="mapSpot mapPark" data-go="park" aria-label="The park" style="left:${px(PARK.x - 100)};top:${px(PARK.y - 85)};width:${px(200)};height:${px(170)}">${parkMiniSVG}</button><div class="mapSign place" style="left:${px(PARK.x)};top:${px(PARK.y + 70)}">Park</div>`;
@@ -1369,8 +1399,25 @@ function goToFriend(pid: string) {
     toast(`You found ${name}! 💕`);
   }, 420);
 }
+function houseUnread(id: string) {
+  if (!hood) return false;
+  const h = hood.houses.get(id);
+  return !!h && h.meta.ownerId === hood.pid && unreadCount(h.confirmed.mailbox) > 0;
+}
+function syncMailCue() {
+  const show = !!hood && view === 'street' && houseUnread(hood.myHouseId());
+  mailUI.syncCue(show);
+}
+function openMailbox(id: string) {
+  if (!hood || id === 'home' || !hood.houses.has(id)) { toast('Join a street to send letters!'); return; }
+  const h = hood.houses.get(id)!;
+  mailUI.open(id, h.meta.name, h.meta.ownerId === hood.pid, h.confirmed.mailbox?.letters ?? []);
+  sfx.click();
+}
 $('mapWorld').addEventListener('click', e => {
   const t = e.target as HTMLElement; if (view !== 'street') return;
+  const box = t.closest<HTMLElement>('.mapMail');
+  if (box) { openMailbox(box.dataset.mail || 'home'); return; }
   const f = t.closest<HTMLElement>('.mapFace');
   if (f) { if (f.classList.contains('mine')) { bounce(f); sfx.pop(); toast("That's you! Tap a place to go there"); } else goToFriend(f.dataset.pid!); return; }
   const sp = t.closest<HTMLElement>('[data-go]'); if (!sp) return;
@@ -1390,12 +1437,13 @@ function goMap() {
 /** Back to her own house (solo: the local house; neighborhood: her house on the street). */
 function goHome() {
   if (hood) { const id = hood.myHouseId(); if (id && hood.houses.has(id)) enterHouse(id); return; }
-  hideScenes(); view = 'house'; soloPark = null; renderHoodChrome(); renderAll(); sceneIn($('stageWrap')); sfx.sparkle();
+  hideScenes(); view = 'house'; soloPark = null; play.sync(true); renderHoodChrome(); renderAll(); sceneIn($('stageWrap')); sfx.sparkle();
   fitPhone();
 }
 function enterHouse(houseId: string, room: RoomId = 'living') {
   if (!hood || !hood.houses.has(houseId)) return;
   currentHouseId = houseId; view = 'house'; inBarn = false;
+  play.sync(houseId === hood.myHouseId());
   let st = houseStores.get(houseId);
   if (!st) { st = houseStore(hood, houseId, { get: () => local.get().soundOn, set: on => local.dispatch({ type: 'settings/sound', on }) }); houseStores.set(houseId, st); }
   st.dispatch({ type: 'room/switch', room });
@@ -1407,7 +1455,7 @@ function enterHouse(houseId: string, room: RoomId = 'living') {
 function goSolo() {
   hood?.close(); hood = null; houseStores = new Map(); view = 'house'; currentHouseId = ''; soloPark = null; fetchSt = null; walkQueue = []; inBarn = false; $('elsewhere').classList.add('hidden');
   hideScenes();
-  useStore(local); renderHoodChrome();
+  play.sync(true); useStore(local); renderHoodChrome();
 }
 $('btnMap').addEventListener('click', () => { if (view === 'street') { sfx.pop(); return; } goMap(); });
 $('btnHome').addEventListener('click', () => { if (view === 'house' && (!hood || currentHouseId === hood.myHouseId())) { sfx.pop(); return; } goHome(); });
@@ -1440,6 +1488,8 @@ function enterNeighborhood(client: HoodClient) {
   client.on('fx', (pid: string, fx: Fx) => { if (hood === client) onFx(pid, fx); });
   client.on('bubble', (pid: string, b: Bubble) => { if (hood === client) showBubble(pid, b); });
   client.on('sayFail', (r: string) => toast(r === 'presetsOnly' ? 'Typing is turned off: pick a bubble!' : FILTER_MSG[r] || "Couldn't send that"));
+  client.on('mailbox', () => { if (hood !== client) return; if (view === 'street') renderMap(true); syncMailCue(); mailUI.refresh(); });
+  client.on('mailFail', (r: string) => { if (hood === client) mailUI.fail(r); });
   client.on('settings', () => { if (!$('chatTray').classList.contains('hidden')) renderChatTray(); });
   client.on('removed', () => { toast('A grown-up took this iPad off the street'); const c = client.cfg; saveHoodConfig({ url: c.url, code: c.code, id: c.id, parentKey: c.parentKey }); goSolo(); });
   client.on('status', (st: string) => {
@@ -1948,6 +1998,28 @@ function onPlaceTap(id: string) {
   if (it.kind === 'kennel') { if (inMyHouse()) toggleKennel(it.id); return; }
   if (it.kind === 'cat-tower') tapTower();
 }
+function onPlayTap(el: HTMLElement, id: string) {
+  const s = store.get();
+  const it = s.rooms[s.currentRoom]?.items.find(i => i.id === id); if (!it) return;
+  const g = playGesture(it.kind);
+  el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle');
+  sfx.click();
+  if (g === 'kennel' || g === 'tower') { onPlaceTap(id); return; }
+  if (g === 'lamp') { el.classList.toggle('lamp-on'); return; }
+  if (g === 'open') { el.classList.toggle('opened'); return; }
+  if (g === 'sit') sitAt(it);
+}
+function sitAt(it: PlacedItem) {
+  const y = Math.max(FLOOR_Y + 40, it.y - 8);
+  if (hood && view === 'house') {
+    const me = myPres();
+    if (me && me.where === 'house') { setMyPres({ ...me, x: it.x, y, flip: false }); renderAvatars(); }
+    return;
+  }
+  const s = store.get();
+  const c = s.characters.find(ch => ch.id === activeChar && ch.room === s.currentRoom) ?? s.characters.find(ch => ch.room === s.currentRoom);
+  if (c) store.dispatch({ type: 'char/move', id: c.id, room: s.currentRoom, x: it.x, y });
+}
 function syncKennelBtn(el: HTMLElement, key: string, inside: boolean) {
   const mine = hood ? key === hood.pid : key === 'solo';
   let b = el.querySelector<HTMLButtonElement>('.kennelBtn');
@@ -2008,6 +2080,18 @@ function roomTower(s: GameState): PlacedItem | null {
   const items = s.rooms[s.currentRoom]?.items.filter(i => i.kind === 'cat-tower') ?? [];
   return items.reduce<PlacedItem | null>((a, b) => !a || b.z >= a.z ? b : a, null);
 }
+function petBedKind(kind: string) {
+  return kind === 'cat-bed' || kind === 'pet-bed' || kind === 'dog-bed' || kind === 'pack:cat-bed' || /(?:^|:)cat-bed$|(?:^|:)pet-bed$/.test(kind);
+}
+function roomBed(s: GameState): { x: number; y: number; h: number; pet: boolean } | null {
+  const items = s.rooms[s.currentRoom]?.items ?? [];
+  const pets = items.filter(i => petBedKind(i.kind));
+  const beds = items.filter(i => i.kind === 'bed');
+  const pick = (pets.length ? pets : beds).reduce<PlacedItem | null>((a, b) => !a || b.z >= a.z ? b : a, null);
+  if (!pick) return null;
+  const def = ITEM_MAP[pick.kind];
+  return { x: pick.x, y: pick.y, h: def ? hOf(def) * pick.scale : 80, pet: petBedKind(pick.kind) };
+}
 function tapTower() {
   const s = store.get();
   if (!s.cat || s.cat.room !== s.currentRoom || !roomTower(s)) return;
@@ -2022,9 +2106,10 @@ function tickCat() {
     catEl.addEventListener('click', ev => { ev.stopPropagation(); purr(); if (hood) hood.fx({ k: 'purr' }); });
   }
   const tower = roomTower(s);
+  const bed = tower ? null : roomBed(s);
   const def = tower ? ITEM_MAP[tower.kind] : undefined;
   const th = tower && def ? hOf(def) * tower.scale : 0;
-  const b = catAt(cat, Date.now(), tower ? { x: tower.x } : null, prefersReducedMotion());
+  const b = catAt(cat, Date.now(), tower ? { x: tower.x } : null, bed ? { x: bed.x } : null, prefersReducedMotion());
   const leaping = !!tower && performance.now() < leapUntil;
   const perch = leaping ? 2 : b.perch;
   const x = leaping && tower ? tower.x : b.x;
@@ -2041,14 +2126,14 @@ function tickCat() {
   }
   if (perch > 0 && catPerch === 0) { catEl.classList.add('hop'); const el = catEl; setTimeout(() => el.classList.remove('hop'), 420); }
   catPerch = perch;
-  catEl.dataset.name = cat.name; catEl.dataset.mood = mood; catEl.dataset.perch = String(perch); catEl.dataset.leap = leaping ? '1' : '0';
-  catEl.classList.toggle('walking', mood === 'walk'); catEl.classList.toggle('groom', mood === 'groom'); catEl.classList.toggle('play', mood === 'play' && !leaping); catEl.classList.toggle('leap', leaping); catEl.classList.toggle('flipped', b.flip);
+  catEl.dataset.name = cat.name; catEl.dataset.mood = mood; catEl.dataset.perch = String(perch); catEl.dataset.leap = leaping ? '1' : '0'; catEl.dataset.curl = b.curl ? '1' : '0';
+  catEl.classList.toggle('walking', mood === 'walk'); catEl.classList.toggle('groom', mood === 'groom'); catEl.classList.toggle('play', mood === 'play' && !leaping); catEl.classList.toggle('leap', leaping); catEl.classList.toggle('flipped', b.flip); catEl.classList.toggle('curl', b.curl === 1);
   layer.querySelectorAll<HTMLElement>('.item.toy-live').forEach(el => el.classList.remove('toy-live'));
   if (tower && mood === 'play' && perch && !leaping) layer.querySelector<HTMLElement>(`.item[data-id="${tower.id}"]`)?.classList.add('toy-live');
   // __pinCat holds her on a character's feet for tests. She stays under characters (5000 + y).
   const pin = (window as any).__pinCat as { x: number } | null;
   const pinned = !!(pin && Number.isFinite(pin.x));
-  const foot = !pinned && perch && tower ? towerFootY(tower.y, th, perch as 1 | 2) : CAT_Y;
+  const foot = !pinned && perch && tower ? towerFootY(tower.y, th, perch as 1 | 2) : !pinned && b.curl && bed ? bed.y - bed.h * (bed.pet ? 0.38 : 0.2) : CAT_Y;
   placeEl(catEl, pinned ? pin!.x : x, foot, !pinned && perch ? 110 : 150, !pinned && perch ? 92 : 128);
   catEl.style.zIndex = String(4000 + Math.round(foot));
   catSpot = { x: pinned ? pin!.x : x, perch, leap: leaping };
@@ -2140,7 +2225,7 @@ $('btnPets').addEventListener('click', () => openPets(view === 'house' ? 'cat' :
 requestAnimationFrame(petTick);
 (window as any).__pets = () => {
   const spot = kennelSpot(); const run = spot ? kennelRuns.get(spot.key) : undefined;
-  return { dogs: [...dogRuns.keys()], dogPos: Object.fromEntries([...dogRuns].map(([k, r]) => [k, { x: Math.round(r.x), y: Math.round(r.y) }])), cat: catEl ? { mood: catEl.dataset.mood, name: catEl.dataset.name, perch: catSpot.perch, x: Math.round(catSpot.x), leap: catSpot.leap } : null, kennel: spot && run ? { x: Math.round(run.x), y: Math.round(run.y), pose: run.pose, name: spot.dog.name, item: spot.item.id } : null, dogKennel: store.get().dogKennel ?? null, fetch: fetchSt?.phase ?? null, ball: ballPos, view };
+  return { dogs: [...dogRuns.keys()], dogPos: Object.fromEntries([...dogRuns].map(([k, r]) => [k, { x: Math.round(r.x), y: Math.round(r.y) }])), cat: catEl ? { mood: catEl.dataset.mood, name: catEl.dataset.name, perch: catSpot.perch, x: Math.round(catSpot.x), leap: catSpot.leap, curl: catEl.dataset.curl === '1' } : null, kennel: spot && run ? { x: Math.round(run.x), y: Math.round(run.y), pose: run.pose, name: spot.dog.name, item: spot.item.id } : null, dogKennel: store.get().dogKennel ?? null, fetch: fetchSt?.phase ?? null, ball: ballPos, view };
 };
 
 // =====================================================================================
@@ -2634,7 +2719,7 @@ setTimeout(showWhatsNew, 500);
 (window as any).__whatsnew = firstRun;
 (window as any).__hood = () => hood;
 (window as any).__hood_url = () => hoodServerUrl();
-(window as any).__ui = () => ({ view, currentHouseId, mode: hood ? 'hood' : 'solo' });
+(window as any).__ui = () => ({ view, currentHouseId, mode: hood ? 'hood' : 'solo', play: play.mode() });
 bindGameRoom({
   hood: () => hood, view: () => view, solo: () => soloPark, myPres, setPres: setParkPres, toast, refreshNear: updateNear, sfx, goMap,
   soloLook: () => { const s = local.get(); return { look: cleanLook(s.characters[0] ?? {}), dog: s.dog ?? null }; },

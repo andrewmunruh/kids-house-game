@@ -3,6 +3,7 @@
 import { RANCH_W, BARN_W, RANCH_Y0, RANCH_Y1, HORSES, ANIMALS, FOODS, type Basket, type Plot, type RanchOp } from './ranch';
 import { GAMEROOM_W, type TablePub, type TableOp } from './games/index';
 import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, validKennel, ROOM_W, ROOM_H, MAX_CHARS, ROOM_IDS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
+import { MAIL_COLORS, MAIL_MAX, MAIL_STICKERS, keepMailbox, stripUrls, type Mailbox } from './mail';
 
 export const MAX_PLAYERS = 12;
 export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L
@@ -51,12 +52,12 @@ const HANDLE_RE = /@\w/;
 const ADDRESS_RE = /\b\d{1,6}\s+([a-z]+\s+){0,3}(street|st|road|rd|avenue|ave|lane|ln|drive|dr|court|ct|blvd|boulevard|way|place|pl|circle|cir|terrace|parkway|pkwy|highway|hwy|apt|apartment|unit)\b/i;
 
 export type FilterResult = { ok: true; text: string } | { ok: false; reason: 'empty' | 'long' | 'link' | 'contact' | 'personal' | 'words' };
-export function filterChat(raw: unknown): FilterResult {
+export function filterChat(raw: unknown, max = MAX_CHAT): FilterResult {
   if (typeof raw !== 'string') return { ok: false, reason: 'empty' };
   // strip control/zero-width chars, collapse whitespace
   const text = raw.normalize('NFKC').replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g, '').replace(/\s+/g, ' ').trim();
   if (!text) return { ok: false, reason: 'empty' };
-  if (text.length > MAX_CHAT) return { ok: false, reason: 'long' };
+  if (text.length > max) return { ok: false, reason: 'long' };
   if (URL_RE.test(text)) return { ok: false, reason: 'link' };
   if (EMAIL_RE.test(text) || HANDLE_RE.test(text)) return { ok: false, reason: 'contact' };
   const digits = (text.match(/\d/g) ?? []).length;
@@ -117,7 +118,7 @@ function cleanCharacter(c: any): Character | null {
 }
 
 // ---------- pets ----------
-export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, backyard, and dogKennel ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know.
+export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1.
 export const PROTO_PETS = 2, PROTO_RANCH = 3, PROTO_GAMES = 4;
 export const CAT_NAMES = ['Mittens', 'Luna', 'Biscuit', 'Pumpkin', 'Whiskers', 'Mochi', 'Pepper', 'Noodle', 'Ginger', 'Socks'];
 export const DOG_NAMES = ['Buddy', 'Coco', 'Max', 'Daisy', 'Peanut', 'Rocket', 'Bella', 'Waffles', 'Scout', 'Honey'];
@@ -181,8 +182,33 @@ export function cleanHouseState(raw: any): GameState {
   const characters = (Array.isArray(s.characters) ? s.characters : []).slice(0, MAX_CHARS).map(cleanCharacter).filter(Boolean) as Character[];
   const cat = (s as any).cat ? cleanCat((s as any).cat) : null;
   const dogKennel = validKennel({ dogKennel: (s as any).dogKennel, rooms });
-  return { ...base, rooms, characters, currentRoom: 'living', soundOn: true, cat, dog: null, dogKennel };
+  const mailbox = filterMailbox((s as any).mailbox);
+  const house: GameState = { ...base, rooms, characters, currentRoom: 'living', soundOn: true, cat, dog: null, dogKennel };
+  return mailbox ? { ...house, mailbox } : house;
 }
+
+/** Same chat filter as bubbles, with the letter length. Links and emails are rejected, and URLs are stripped so they can never be stored. */
+export function cleanMailText(raw: unknown): FilterResult {
+  const f = filterChat(raw, MAIL_MAX);
+  if (!f.ok) return f;
+  const text = stripUrls(f.text);
+  if (!text || text !== f.text) return { ok: false, reason: 'link' };
+  return { ok: true, text };
+}
+
+/** Drop letters the chat filter would block. Shape, cap, and the 30-day fade happen in keepMailbox. */
+export function filterMailbox(raw: unknown, now = Date.now()): Mailbox | null {
+  const box = keepMailbox(raw, now);
+  if (!box) return null;
+  const letters = box.letters.filter(l => {
+    const f = filterChat(l.text, MAIL_MAX);
+    return f.ok && stripUrls(f.text) === f.text && f.text === l.text;
+  });
+  return letters.length ? { letters } : null;
+}
+
+export function mailColor(n: unknown): number { return Number.isInteger(n) && (n as number) >= 0 && (n as number) < MAIL_COLORS ? n as number : -1; }
+export function mailSticker(n: unknown): number { return Number.isInteger(n) && (n as number) >= 0 && (n as number) < MAIL_STICKERS ? n as number : -1; }
 
 // ---------- presence ----------
 // The park: a fixed, shared scene at the end of the street (and in solo play).
@@ -248,8 +274,8 @@ export interface HouseFull extends HouseMeta { state: GameState }
 export type Bubble = { kind: 'phrase' | 'emote'; v: number } | { kind: 'text'; v: string };
 
 export type ClientMsg =
-  | { t: 'hello'; token: string; v?: number; pet?: number }
-  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number }
+  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number }
+  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number }
   | { t: 'dog'; dog: Dog | null }
   | { t: 'fx'; fx: Fx }
   | { t: 'ranch'; o: RanchOp }
@@ -258,6 +284,8 @@ export type ClientMsg =
   | { t: 'look'; look: Look }
   | { t: 'lock'; houseId: string; locked: boolean }
   | { t: 'say'; b: Bubble }
+  | { t: 'mail'; op: 'send'; houseId: string; text: string; color: number; sticker: number }
+  | { t: 'mail'; op: 'read' | 'drop'; houseId: string; id: string }
   | ({ t: 'tbl' } & TableOp)
   | { t: 'parent'; key: string; op: 'info' } | { t: 'parent'; key: string; op: 'rename'; houseId: string; name: string }
   | { t: 'parent'; key: string; op: 'remove'; pid: string } | { t: 'parent'; key: string; op: 'freeChat'; on: boolean }
@@ -280,6 +308,8 @@ export type ServerMsg =
   | { t: 'table'; table: TablePub }
   | { t: 'tblFail'; tb: number; reason: string }
   | { t: 'sayFail'; reason: string }
+  | { t: 'mailbox'; houseId: string; mailbox: Mailbox }
+  | { t: 'mailFail'; houseId: string; reason: string }
   | { t: 'parentInfo'; code: string; settings: { freeChat: boolean }; players: PlayerPub[]; houses: HouseMeta[]; roster: RosterEntry[]; note?: string }
   | { t: 'error'; code: 'nohood' | 'badtoken' | 'nickname' | 'full' | 'badkey' | 'bad'; msg?: string }
   | { t: 'removed' };
