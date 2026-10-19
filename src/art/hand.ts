@@ -156,20 +156,20 @@ export const HAND: Record<string, V2Mark> = {
 
   vanity: { vb: VB, body: pack(`
     ${sh(50, 40)}
-    <ellipse cx="50" cy="26" rx="24" ry="22" fill="#ffe08a" ${ink()}/>
-    <ellipse cx="62" cy="26" rx="10" ry="16" fill="#e0a83a"/>
-    <ellipse cx="50" cy="26" rx="16" ry="14" fill="#e7f6ff" ${ink(2.2)}/>
-    <path d="M40 18 l8 -6 M44 28 l8 -8" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
-    <rect x="6" y="48" width="88" height="14" rx="7" fill="#ffc8dd" ${ink()}/>
-    <rect x="60" y="50" width="30" height="10" rx="5" fill="#e888a8"/>
-    <rect x="10" y="60" width="30" height="30" rx="6" fill="#ffe0ec" ${ink(2.2)}/>
-    <rect x="60" y="60" width="30" height="30" rx="6" fill="#e888a8" ${ink(2.2)}/>
-    <circle cx="25" cy="75" r="3" fill="#fff" ${ink(1.6)}/>
-    <circle cx="75" cy="75" r="3" fill="#fff" ${ink(1.6)}/>
-    <rect x="30" y="40" width="8" height="10" rx="2" fill="#c9a0dc" ${ink(1.6)}/>
-    <rect x="58" y="38" width="7" height="12" rx="2" fill="#bde0fe" ${ink(1.6)}/>
-    <rect x="14" y="90" width="6" height="7" rx="2" fill="${O}"/>
-    <rect x="80" y="90" width="6" height="7" rx="2" fill="${O}"/>
+    <rect x="14" y="80" width="8" height="14" rx="2" fill="#e0a83a" ${ink(2)}/>
+    <rect x="78" y="80" width="8" height="14" rx="2" fill="#c4844c" ${ink(2)}/>
+    <rect x="8" y="58" width="84" height="24" rx="4" fill="#ffe0ec" ${ink()}/>
+    <path d="M50 60 H88 V78 Q88 80 84 80 H50 Z" fill="#e888a8"/>
+    <path d="M50 60 V80" ${ink(2)}/>
+    <circle cx="38" cy="70" r="2.4" fill="#fff" ${ink(1.4)}/>
+    <circle cx="66" cy="70" r="2.4" fill="#fff" ${ink(1.4)}/>
+    <rect x="4" y="50" width="92" height="11" rx="3" fill="#ffc8dd" ${ink()}/>
+    <rect x="58" y="52" width="34" height="7" rx="2" fill="#e888a8"/>
+    <rect x="46" y="36" width="8" height="16" rx="2" fill="#e0a83a" ${ink(1.8)}/>
+    <ellipse cx="50" cy="22" rx="20" ry="14" fill="#ffe08a" ${ink()}/>
+    <ellipse cx="58" cy="22" rx="7" ry="10" fill="#e0a83a"/>
+    <ellipse cx="50" cy="22" rx="14" ry="10" fill="#e7f6ff" ${ink(2)}/>
+    <path d="M40 16 l7 -4" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
   `) },
 
   mirror: { vb: VB, body: pack(`
@@ -182,14 +182,15 @@ export const HAND: Record<string, V2Mark> = {
   `) },
 
   perfume: { vb: VB, body: pack(`
-    ${sh(50, 28)}
-    <rect x="40" y="8" width="20" height="14" rx="5" fill="#ffe08a" ${ink()}/>
-    <rect x="52" y="10" width="6" height="10" rx="2" fill="#e0a83a"/>
-    <rect x="46" y="20" width="8" height="10" fill="#fff" ${ink(2)}/>
-    <path d="M22 48 Q22 32 50 32 Q78 32 78 48 V78 Q78 94 64 94 H36 Q22 94 22 78 Z" fill="#ffb3c6" ${ink()}/>
-    <path d="M56 40 H74 V78 Q74 90 64 90 H58 Z" fill="#e45d88"/>
-    <ellipse cx="34" cy="52" rx="4" ry="8" fill="#fff" opacity=".7"/>
-    <path d="M50 58 l3 6 6 .8 -4.6 4 1.4 6.2 -5.8 -3.4 -5.8 3.4 1.4 -6.2 -4.6 -4 6 -.8z" fill="#fff" ${ink(1.2)}/>
+    ${sh(50, 24)}
+    <rect x="38" y="10" width="24" height="12" rx="2" fill="#ffe08a" ${ink()}/>
+    <rect x="52" y="12" width="8" height="8" fill="#e0a83a"/>
+    <rect x="44" y="22" width="12" height="10" rx="1" fill="#fff" ${ink(2)}/>
+    <path d="M26 40 H74 V78 Q74 94 60 94 H40 Q26 94 26 78 Z" fill="#ffb3c6" ${ink()}/>
+    <path d="M54 42 H72 V78 Q72 90 62 90 H54 Z" fill="#e45d88"/>
+    <rect x="34" y="52" width="28" height="22" rx="2" fill="#fff6fa" ${ink(1.6)}/>
+    <path d="M40 60 H56 M40 66 H52" fill="none" stroke="#e45d88" stroke-width="1.4" stroke-linecap="round"/>
+    <ellipse cx="34" cy="48" rx="3" ry="6" fill="#fff" opacity=".55"/>
   `) },
 
   polish: { vb: VB, body: pack(`
@@ -202,14 +203,19 @@ export const HAND: Record<string, V2Mark> = {
   `) },
 
   hairdryer: { vb: VB, body: pack(`
-    ${sh(48, 30)}
-    <rect x="8" y="22" width="60" height="38" rx="18" fill="#d4eeff" ${ink()}/>
-    <rect x="40" y="26" width="24" height="30" rx="12" fill="#7eb4dc"/>
-    <ellipse cx="78" cy="40" rx="14" ry="18" fill="#ffc8dd" ${ink()}/>
-    <ellipse cx="80" cy="40" rx="7" ry="10" fill="#fff" ${ink(2)}/>
-    <path d="M58 52 L66 90 Q66 96 58 96 H52 Q46 96 48 88 Z" fill="#bde0fe" ${ink()}/>
-    <path d="M58 58 L64 88 H56 Z" fill="#7eb4dc"/>
-    <circle cx="24" cy="36" r="6" fill="#fff" opacity=".75"/>
+    ${sh(46, 28)}
+    <path d="M44 92 C36 99 20 96 12 88" fill="none" stroke="${O}" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M42 50 L34 84 Q33 92 41 92 H50 Q57 90 55 82 L54 50 Z" fill="#bde0fe" ${ink()}/>
+    <path d="M50 54 L52 82 H46 L47 54 Z" fill="#7eb4dc"/>
+    <rect x="43" y="64" width="8" height="6" rx="1.5" fill="#5a3d5c"/>
+    <circle cx="47" cy="67" r="1.1" fill="#fff"/>
+    <path d="M62 31 L86 35 Q92 40 86 45 L62 49 Z" fill="#d4eeff" ${ink()}/>
+    <path d="M74 34 L86 36.5 Q89 40 86 43.5 L76 46 Z" fill="#7eb4dc"/>
+    <rect x="26" y="26" width="40" height="28" rx="8" fill="#e7f6ff" ${ink()}/>
+    <path d="M50 28 H62 V52 H50 Q58 40 50 28 Z" fill="#9ecae6"/>
+    <circle cx="28" cy="40" r="13" fill="#f4fbff" ${ink()}/>
+    <circle cx="28" cy="40" r="8" fill="none" stroke="${O}" stroke-width="1.2"/>
+    <path d="M18 35 H38 M17 40 H39 M18 45 H38" fill="none" stroke="${O}" stroke-width="1.3" stroke-linecap="round"/>
   `) },
 
   stool: { vb: VB, body: pack(`
@@ -226,10 +232,20 @@ export const HAND: Record<string, V2Mark> = {
   `) },
 
   'cloud-rug': { vb: VB, body: pack(`
-    <path d="M18 82 C18 70 28 66 36 70 C38 58 50 54 60 62 C66 54 82 58 84 70 C96 72 96 86 86 90 C74 97 56 95 46 90 C34 97 16 94 18 82 Z" fill="#d7f1fb"/>
-    <path d="M54 64 C62 56 84 60 86 72 C96 74 96 88 86 92 C76 97 60 94 54 86 C60 80 60 70 54 64 Z" fill="#9ed4ee"/>
-    <path d="M18 82 C18 70 28 66 36 70 C38 58 50 54 60 62 C66 54 82 58 84 70 C96 72 96 86 86 90 C74 97 56 95 46 90 C34 97 16 94 18 82 Z" fill="none" ${ink()}/>
-    <path d="M32 82 H48 M56 86 H72" fill="none" stroke="${O}" stroke-width="1.1" stroke-linecap="round" opacity=".22"/>
+    <rect x="8.2" y="74.2" width="4.2" height="2.5" rx="0.6" fill="#7eb8d4" ${ink(1.1)}/>
+    <rect x="9.4" y="77.4" width="4.2" height="2.5" rx="0.6" fill="#7eb8d4" ${ink(1.1)}/>
+    <rect x="10.2" y="80.6" width="4.2" height="2.5" rx="0.6" fill="#7eb8d4" ${ink(1.1)}/>
+    <rect x="9.4" y="83.8" width="4.2" height="2.5" rx="0.6" fill="#7eb8d4" ${ink(1.1)}/>
+    <rect x="8.2" y="87" width="4.2" height="2.5" rx="0.6" fill="#7eb8d4" ${ink(1.1)}/>
+    <rect x="87.6" y="74.2" width="4.2" height="2.5" rx="0.6" fill="#7eb8d4" ${ink(1.1)}/>
+    <rect x="86.4" y="77.4" width="4.2" height="2.5" rx="0.6" fill="#7eb8d4" ${ink(1.1)}/>
+    <rect x="85.6" y="80.6" width="4.2" height="2.5" rx="0.6" fill="#7eb8d4" ${ink(1.1)}/>
+    <rect x="86.4" y="83.8" width="4.2" height="2.5" rx="0.6" fill="#7eb8d4" ${ink(1.1)}/>
+    <rect x="87.6" y="87" width="4.2" height="2.5" rx="0.6" fill="#7eb8d4" ${ink(1.1)}/>
+    <ellipse cx="50" cy="80" rx="40" ry="12" fill="#9ed4ee" ${ink()}/>
+    <path d="M28 84 Q50 96 78 84 Q50 90 28 84 Z" fill="#6eb6d6"/>
+    <ellipse cx="50" cy="79" rx="32" ry="8" fill="#f3fbff" ${ink(2)}/>
+    <ellipse cx="50" cy="79" rx="10" ry="3.2" fill="#d7f1fb" ${ink(1.6)}/>
   `) },
 
   'crib-mobile': { vb: VB, body: pack(`

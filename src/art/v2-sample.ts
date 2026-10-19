@@ -137,28 +137,22 @@ const MARKS: Record<string, V2Mark> = {
   `) },
 
   rug: { vb: VB, body: pack(`
-    <ellipse cx="50" cy="82" rx="38" ry="11" fill="#ffc8dd" ${ink()}/>
-    <path d="M18 86 Q50 95 82 86 Q50 90 18 86 Z" fill="#e888a8"/>
-    <ellipse cx="50" cy="81" rx="28" ry="6.5" fill="none" stroke="#fff" stroke-width="2"/>
-    <ellipse cx="50" cy="81" rx="28" ry="6.5" fill="none" stroke="#e45d88" stroke-width="2" stroke-dasharray="1.4 3.4"/>
-    <ellipse cx="50" cy="81" rx="14" ry="3.4" fill="#fff6fa" ${ink(2)}/>
-    <circle cx="32" cy="80" r="2" fill="#ff8fab"/>
-    <circle cx="44" cy="84" r="1.8" fill="#bde0fe"/>
-    <circle cx="58" cy="77" r="1.9" fill="#ffd166"/>
-    <circle cx="68" cy="82" r="1.8" fill="#90e0a8"/>
-    <path d="M50 79 l1.1 2.2 2.4 .2 -1.8 1.6 .6 2.4 -2.3 -1.4 -2.3 1.4 .6 -2.4 -1.8 -1.6 2.4 -.2 z" fill="#ff8fab"/>
-    <rect x="20.7" y="71.7" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
-    <rect x="11.6" y="75.2" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
-    <rect x="7.9" y="78.7" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
-    <rect x="7.9" y="82.2" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
-    <rect x="11.3" y="85.7" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
-    <rect x="20.5" y="89.2" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
-    <rect x="74.3" y="71.7" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
-    <rect x="83.4" y="75.2" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
-    <rect x="87.1" y="78.7" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
-    <rect x="87.1" y="82.2" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
-    <rect x="83.7" y="85.7" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
-    <rect x="74.5" y="89.2" width="5.0" height="3" rx="0.8" fill="#cca0b1" stroke="#5a3d5c" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round"/>
+    <rect x="6.4" y="73.6" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="7.6" y="77" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="8.4" y="80.4" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="7.6" y="83.8" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="6.4" y="87.2" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="89.2" y="73.6" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="88" y="77" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="87.2" y="80.4" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="88" y="83.8" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="89.2" y="87.2" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <ellipse cx="50" cy="80" rx="40" ry="12" fill="#ffc8dd" ${ink()}/>
+    <path d="M24 84 Q50 96 80 84 Q50 90 24 84 Z" fill="#e888a8"/>
+    <ellipse cx="50" cy="79" rx="32" ry="8" fill="#fff6fa" ${ink(2)}/>
+    <path d="M50 73 L57 79 L50 85 L43 79 Z" fill="#ff8fab" ${ink(1.6)}/>
+    <path d="M32 79 l2.4 2.4 -2.4 2.4 -2.4 -2.4 z" fill="#bde0fe"/>
+    <path d="M68 79 l2.4 2.4 -2.4 2.4 -2.4 -2.4 z" fill="#ffd166"/>
   `) },
 
   plant: { vb: VB, body: pack(`
