@@ -57,7 +57,7 @@ body.mode-play .drawer, body.mode-play .toolbar, body.mode-play .bin { display: 
 
 body.phone .modeToggle { left: 6px; bottom: 6px; padding: 4px; gap: 4px; border-width: 3px; }
 body.phone .modeToggle button { min-height: 44px; min-width: 44px; padding: 4px 8px; font-size: 14px; gap: 4px; }
-body.phone .modeToggle .modeWord { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+body.phone .modeToggle .modeWord { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 body.phone .modeToggle .modeIco { width: 28px; height: 28px; flex-basis: 28px; }
 body.phone .mailCue { font-size: 16px; padding: 8px 12px; top: 8px; max-width: calc(100% - 16px); }
 body.phone .mailSheet .card { width: 100% !important; }
