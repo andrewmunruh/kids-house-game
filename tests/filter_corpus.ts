@@ -25,6 +25,11 @@ export const BLOCK_LINES: string[] = [
   'sh\u200bit', 'f\u200buck', 'fu\u200dck', 'sh\u00adit', 's\u0336h\u0336i\u0336t',
   's.h.i.t', 's.h.i.t.', 's h i t!', 'sh i t', 's-h-i-t!', 'f.u.c.k!', 'f u c k!', 'b.i.t.c.h!', 'k.y.s!',
   'a.s.s.h.o.l.e!', '$h it', 'a ss hole',
+  'cunt', 'cuuuunt', 'c u n t', 'c.u.n.t', 'c\u200bunt', '\u0441unt',
+  'dick', 'd1ck', 'd.i.c.k', 'dickhead', 'dick head', 'cock', 'c0ck', 'pussy', 'pu$$y',
+  'bastard', 'whore', 'slut', 'a-hole', 'ahole', 'a hole', 'twat', 'prick', 'wanker',
+  'kike', 'chink', 'spic', 'coon', 'wetback', 'wet back', 'tranny', 'dyke', 'dykes',
+  'beaner', 'gook', 'raghead', 'rag head', 'towelhead', 'towel head', 'heil hitler', 'heilhitler',
 ];
 
 /** Everyday kid lines, on top of the named allow list. School, pets, sports, shopping, and games. */
@@ -112,6 +117,9 @@ export const ALLOW_LINES: string[] = [
   'The witch is in a story', 'Assemble the puzzle', 'We have an assignment due', 'Be an assistant to the teacher',
   'I wish it would snow', 'Is it a fact or opinion', 'A cat is fat and happy', 'My dog is ugly but cute',
   'Go to hell! haha', 'You are a loser lol', 'Shut up! no way', 'The class hamster', 'I am shy at school',
+  'Moby Dick', 'cockatoo', 'peacock', 'hancock', 'raccoon', 'cocoon', 'spice', 'spicy', 'spices',
+  'grape', 'shell', 'prickly pear', 'pussycat', 'a hole in the wall', 'dig a hole', "there's a hole in my sock",
+  'kiss my ass', 'crap', 'goddamn', 'piss off', 'nazi',
   ...KID_EVERYDAY,
 ];
 

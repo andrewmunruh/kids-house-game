@@ -74,6 +74,8 @@ async def main():
         print('errors:', errs)
         print(f"\n{sum(res.values())}/{len(res)} checks passed")
         await b.close()
+        if not res or not all(res.values()):
+            sys.exit(1)
 
 async def run(P, K2, K3, mk, errs, check):
         # ---- parent creates the street on the family iPad, then joins as a kid bringing the local house ----
