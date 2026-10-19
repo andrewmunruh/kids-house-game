@@ -40,7 +40,17 @@ const cottageArt = `<svg viewBox="0 0 120 100"><ellipse cx="60" cy="72" rx="50" 
 const kennelArt = `<svg viewBox="0 0 120 100"><path d="M16 50 L60 14 L104 50" fill="#ff8fab" stroke="${O}" stroke-width="4" stroke-linejoin="round"/><rect x="26" y="48" width="68" height="40" rx="10" fill="#fff6ea" stroke="${O}" stroke-width="4"/><path d="M42 88 V60 Q60 44 78 60 V88" fill="#ffe8c7" stroke="${O}" stroke-width="3"/><circle cx="82" cy="64" r="7" fill="#bde0fe" stroke="${O}" stroke-width="3"/><circle cx="80" cy="62" r="2" fill="#fff"/></svg>`;
 const mailArt = `<svg viewBox="0 0 120 100"><rect x="28" y="38" width="64" height="42" rx="8" fill="#8ecae6" stroke="${O}" stroke-width="4"/><path d="M28 44 L60 68 L92 44" fill="none" stroke="${O}" stroke-width="4"/><path d="M76 30 V16" stroke="${O}" stroke-width="4" stroke-linecap="round"/><path d="M76 16 H96 L90 23 L96 30 H76 Z" fill="#ff6b6b" stroke="${O}" stroke-width="3"/></svg>`;
 const playArt = `<svg viewBox="0 0 120 100"><rect x="8" y="32" width="48" height="40" rx="14" fill="#fff3b0" stroke="${O}" stroke-width="4"/><rect x="64" y="32" width="48" height="40" rx="14" fill="#fff" stroke="${O}" stroke-width="4"/><path d="M26 44 L40 52 L26 60 Z" fill="${O}"/><circle cx="88" cy="52" r="6" fill="#ff8fab" stroke="${O}" stroke-width="3"/></svg>`;
+const skyArt = `<svg viewBox="0 0 120 100"><rect x="6" y="10" width="108" height="80" rx="18" fill="#2a2158" stroke="${O}" stroke-width="4"/><circle cx="34" cy="42" r="14" fill="#ffd166" stroke="${O}" stroke-width="3"/><path d="M78 28 a16 16 0 1 0 0 32 a12 12 0 1 1 0 -32z" fill="#fff6e4" stroke="${O}" stroke-width="3"/><circle cx="92" cy="30" r="2" fill="#fff"/><circle cx="70" cy="24" r="1.6" fill="#fff"/><circle cx="100" cy="48" r="1.6" fill="#fff"/></svg>`;
+const clockArt = `<svg viewBox="0 0 120 100"><circle cx="60" cy="52" r="34" fill="#fff6e4" stroke="${O}" stroke-width="4"/><path d="M60 52 V32 M60 52 L76 60" stroke="${O}" stroke-width="4" stroke-linecap="round"/><circle cx="60" cy="52" r="3" fill="${O}"/><path d="M28 22 l4 6 M92 22 l-4 6" stroke="#ffb15c" stroke-width="4" stroke-linecap="round"/></svg>`;
+const undoArt = `<svg viewBox="0 0 120 100"><rect x="16" y="28" width="88" height="48" rx="16" fill="#fff3b0" stroke="${O}" stroke-width="4"/><path d="M48 42 H78 M48 52 L36 42 L48 32" fill="none" stroke="${O}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><text x="70" y="58" text-anchor="middle" font-size="16" font-weight="900" fill="${O}" font-family="Nunito, ui-rounded, system-ui, sans-serif">Undo</text></svg>`;
+// B2 shares v9 with the menu declutter. These lines stay on v9 so the popup
+// can join them with that entry. Winter Cheer is v10. Critter Corner is v11.
 export const CHANGELOG: ChangeEntry[] = [
+  { v: 9, title: 'Day and night!', lines: [
+    { art: wrap(skyArt), text: 'The world follows the <b>clock</b>: morning, day, golden evening, and night.' },
+    { art: wrap(clockArt), text: 'Tap the <b>sun</b> and the <b>moon</b>. <b>Auto</b> follows the clock.' },
+    { art: wrap(undoArt), text: 'In <b>Decorate</b>, tap <b>Undo</b> to put something back.' },
+  ] },
   { v: 8, title: 'Make your look!', lines: [
     { art: wrap(mailArt), text: 'Leave a <b>letter</b> in a friend\'s mailbox!' },
     { art: wrap(playArt), text: 'Tap <b>Play</b> or <b>Decorate</b>!' },
@@ -105,7 +115,7 @@ export function markSeen() { try { localStorage.setItem(SEEN_KEY, String(LATEST)
 export function whatsNewHTML(kind: 'welcome' | 'news', entries: ChangeEntry[]): string {
   const title = kind === 'welcome' ? WELCOME.title : entries[0].title;
   const lines = entries.flatMap(e => e.lines).slice(0, 5); // newest first, never a wall of text
-  return `<div class="wnBadge">${kind === 'welcome' ? pawIcon : entries[0].v >= 8 ? shirtArt : entries[0].v >= 7 ? cribArt : entries[0].v >= 6 ? clubIcon : entries[0].v >= 5 ? brushArt : entries[0].v >= 4 ? mapIcon : entries[0].v >= 3 ? rainbowIcon : treeIcon}</div>
+  return `<div class="wnBadge">${kind === 'welcome' ? pawIcon : entries[0].v >= 9 ? skyArt : entries[0].v >= 8 ? shirtArt : entries[0].v >= 7 ? cribArt : entries[0].v >= 6 ? clubIcon : entries[0].v >= 5 ? brushArt : entries[0].v >= 4 ? mapIcon : entries[0].v >= 3 ? rainbowIcon : treeIcon}</div>
     <h2 class="wnTitle">${title}</h2>
     <div class="wnList ${lines.length > 3 ? 'many' : ''}">${lines.map((l, i) => `<div class="wnLine" style="animation-delay:${0.15 + i * 0.18}s">${l.art}<p>${l.text}</p></div>`).join('')}</div>
     <button class="wnGo" id="wnGo">Let's play!</button>`;

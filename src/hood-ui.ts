@@ -26,9 +26,9 @@ export function houseSVG(style: number, opts: { lit?: boolean } = {}) {
   <rect x="${round ? 232 : 220}" y="${round ? 36 : 44}" width="30" height="56" rx="6" fill="${p.trim}" ${s}/>
   <rect x="44" y="124" width="232" height="168" rx="20" fill="${p.body}" ${s}/>
   ${roof}
-  <circle cx="160" cy="${round ? 92 : 98}" r="18" fill="${glow}" ${s}/><path d="M160 ${round ? 74 : 80} V${round ? 110 : 116} M142 ${round ? 92 : 98} H178" ${s}/>
-  <rect x="62" y="160" width="62" height="58" rx="18" fill="${glow}" ${s}/><path d="M93 160 V218 M62 189 H124" ${s}/>
-  <rect x="196" y="160" width="62" height="58" rx="18" fill="${glow}" ${s}/><path d="M227 160 V218 M196 189 H258" ${s}/>
+  <g class="houseWin" fill="${glow}"><circle cx="160" cy="${round ? 92 : 98}" r="18" ${s}/><rect x="62" y="160" width="62" height="58" rx="18" ${s}/><rect x="196" y="160" width="62" height="58" rx="18" ${s}/></g>
+  <path d="M160 ${round ? 74 : 80} V${round ? 110 : 116} M142 ${round ? 92 : 98} H178" ${s}/>
+  <path d="M93 160 V218 M62 189 H124" ${s}/><path d="M227 160 V218 M196 189 H258" ${s}/>
   <rect x="56" y="216" width="74" height="16" rx="8" fill="${p.trim}" ${s}/><rect x="190" y="216" width="74" height="16" rx="8" fill="${p.trim}" ${s}/>
   <circle cx="72" cy="212" r="7" fill="#ff8fab" ${s}/><circle cx="92" cy="208" r="7" fill="#ffd166" ${s}/><circle cx="112" cy="212" r="7" fill="#ff8fab" ${s}/>
   <circle cx="208" cy="212" r="7" fill="#c9a0dc" ${s}/><circle cx="228" cy="208" r="7" fill="#80ed99" ${s}/><circle cx="248" cy="212" r="7" fill="#c9a0dc" ${s}/>
