@@ -28,7 +28,7 @@ const tub = `${shadow(70, 52)}
 <path d="M14 88 h10 l1 7 h-12 z M40 88 h10 l1 7 h-12 z M92 88 h10 l2 7 h-12 z M114 88 h10 l1 7 h-12 z" fill="#e7b56e" ${S}/>
 <path d="M16 90 h6 M42 90 h6 M94 90 h6 M116 90 h6" ${S}/>
 <path d="M16 58 Q14 84 36 90 H108 Q128 84 126 58 V50 H16 Z" fill="#f7fbff" ${I}/>
-<path d="M80 54 H124 V62 Q122 82 108 88 H80 Z" fill="#d5e6f0"/>
+<path d="M80 54 H124 V62 Q122 82 108 88 H80 Z" fill="#c5d4e2"/>
 <ellipse cx="72" cy="64" rx="44" ry="12" fill="#7ec8e3" ${S}/>
 <ellipse cx="70" cy="62" rx="36" ry="8" fill="#b7e4f6"/>
 <path d="M88 56 H114 Q118 64 106 70 H88 Z" fill="#5eb0d4"/>
@@ -44,36 +44,37 @@ ${hi('M22 52 Q48 44 66 48')}
 <circle cx="104" cy="28" r="3.4" fill="#f0c36a" ${S}/><circle cx="118" cy="24" r="3.4" fill="#f0c36a" ${S}/>
 ${hi('M114 36 V44')}`;
 
-// Glass stall, base tray, curtain pulled to the side, rain head.
-const shower = `${shadow(45, 28, 116)}
-<path d="M10 98 H80 L74 114 H16 Z" fill="#f7fbff" ${I}/>
-<path d="M52 100 H78 L74 112 H54 Z" fill="#d5e6f0"/>
-<rect x="20" y="32" width="50" height="68" rx="5" fill="#e7f6ff" ${I}/>
-<path d="M48 34 H68 V98 H48 Z" fill="#b9ddf4"/>
-${hi('M26 42 V92')}
-<rect x="56" y="62" width="8" height="5" rx="2" fill="#f0c36a" ${S}/>
-<path d="M10 28 H80" stroke="#d4a373" stroke-width="5" stroke-linecap="round"/>
-<path d="M10 28 H80" fill="none" ${S}/>
-<circle cx="20" cy="28" r="2.4" fill="none" ${S}/><circle cx="28" cy="28" r="2.4" fill="none" ${S}/><circle cx="36" cy="28" r="2.4" fill="none" ${S}/>
-<path d="M12 30 C8 52 10 84 16 102 C26 78 22 50 28 30 Z" fill="#ffb7cc" ${I}/>
-<path d="M18 32 C16 58 18 86 22 100 C28 76 24 54 30 32 Z" fill="#e888a8"/>
-${hi('M14 42 V84')}
-<rect x="44" y="8" width="8" height="16" rx="3" fill="#f4f7f8" ${S}/>
-<path d="M46 10 H52 V22 H46 Z" fill="#c5d0d8"/>
-<circle cx="48" cy="28" r="7" fill="#e8eef2" ${S}/>
-<circle cx="46" cy="26" r="1.1" fill="#7ec8e3"/><circle cx="50" cy="26" r="1.1" fill="#7ec8e3"/><circle cx="48" cy="30" r="1.1" fill="#7ec8e3"/>
-<path d="M42 38 V54 M48 38 V60 M54 38 V50" stroke="#7ec8e3" stroke-width="2.2" stroke-linecap="round"/>`;
+// Tall stall standing on its tray: glass, curtain pulled aside, rain head.
+const shower = `${shadow(24, 14, 172)}
+<path d="M6 156 H42 L38 170 H10 Z" fill="#f7fbff" ${I}/>
+<path d="M26 158 H40 L38 168 H28 Z" fill="#c5d4e2"/>
+<rect x="12" y="36" width="26" height="122" rx="3" fill="#e7f6ff" ${I}/>
+<path d="M26 38 H36 V156 H26 Z" fill="#b7d4ea"/>
+${hi('M16 46 V146')}
+<rect x="30" y="96" width="5" height="4" rx="1.4" fill="#f0c36a" ${S}/>
+<rect x="4" y="28" width="40" height="6" rx="3" fill="#e7b56e" ${I}/>
+<path d="M28 29 H42 V33 H28 Z" fill="#c9924a"/>
+<circle cx="10" cy="31" r="1.5" fill="#f3d2aa" ${S}/><circle cx="18" cy="31" r="1.5" fill="#f3d2aa" ${S}/>
+<path d="M6 34 C4 72 5 124 8 158 C16 122 12 72 16 34 Z" fill="#ffb7cc" ${I}/>
+<path d="M11 36 C10 76 11 126 13 156 C17 124 15 76 18 36 Z" fill="#e888a8"/>
+${hi('M8 50 V132')}
+<rect x="19" y="8" width="6" height="18" rx="2" fill="#f4f7f8" ${S}/>
+<path d="M22 10 H25 V24 H22 Z" fill="#c5d0d8"/>
+<ellipse cx="22" cy="30" rx="8" ry="3.6" fill="#e8eef2" ${S}/>
+<path d="M26 28 H30 V32 H26 Z" fill="#c5d0d8"/>
+<circle cx="19" cy="29" r="1" fill="#7ec8e3"/><circle cx="22" cy="28" r="1" fill="#7ec8e3"/><circle cx="25" cy="29" r="1" fill="#7ec8e3"/>
+<path d="M17 40 V68 M22 40 V78 M27 40 V64" stroke="#7ec8e3" stroke-width="2.2" stroke-linecap="round"/>`;
 
 // Cabinet, counter, inset basin and faucet, round mirror above.
 const vanity = `${shadow(40, 26, 116)}
 <rect x="8" y="72" width="64" height="38" rx="5" fill="#fff" ${I}/>
-<path d="M46 74 H70 V108 H46 Z" fill="#e7eef3"/>
+<path d="M46 74 H70 V108 H46 Z" fill="#c5d4e2"/>
 <path d="M40 72 V110" ${S}/>
 <circle cx="32" cy="92" r="2.2" fill="${O}"/><circle cx="50" cy="92" r="2.2" fill="${O}"/>
 ${hi('M12 80 H28')}
 <path d="M14 100 H30" ${vein}/>
 <rect x="6" y="64" width="68" height="10" rx="3" fill="#f7fbff" ${I}/>
-<path d="M48 66 H72 V72 H48 Z" fill="#d5e6f0"/>
+<path d="M48 66 H72 V72 H48 Z" fill="#b7c9d8"/>
 <ellipse cx="38" cy="68" rx="16" ry="6" fill="#d7eef8" ${S}/>
 <ellipse cx="38" cy="68" rx="10" ry="3.4" fill="#9fd4ee"/>
 <path d="M30 62 V54 H46 V62" fill="none" ${S}/>
@@ -84,44 +85,47 @@ ${hi('M12 80 H28')}
 ${hi('M28 20 Q34 14 42 16')}
 <path d="M36 4 H44" ${S}/>`;
 
-// Side view: tall tank, oval bowl joined to it, closed lid, seat rim, pedestal.
-const toilet = `${shadow(48, 24, 116)}
-<path d="M30 104 H66 L70 116 H26 Z" fill="#f7fbff" ${I}/>
-<path d="M50 106 H66 L70 116 H52 Z" fill="#d5e6f0"/>
-<path d="M38 90 H58 L60 106 H36 Z" fill="#f7fbff" ${I}/>
-<path d="M50 92 H58 L60 106 H52 Z" fill="#d5e6f0"/>
-<rect x="4" y="18" width="34" height="56" rx="5" fill="#f7fbff" ${I}/>
-<path d="M26 20 H36 V72 H26 Q30 46 26 20 Z" fill="#d5e6f0"/>
-<path d="M2 18 H40 Q42 8 22 8 Q2 8 2 18 Z" fill="#fff" ${I}/>
-<path d="M26 10 H38 Q40 16 36 20 H26 Z" fill="#e4eef4"/>
-<circle cx="18" cy="42" r="4.4" fill="#f4f7f8" ${S}/>
-<circle cx="18" cy="42" r="1.7" fill="#f0c36a"/>
-${hi('M8 26 H20')}
-<ellipse cx="46" cy="76" rx="30" ry="18" fill="#f7fbff" ${I}/>
-<path d="M46 62 H74 A28 16 0 0 1 70 90 H46 Z" fill="#d5e6f0"/>
-<ellipse cx="48" cy="64" rx="26" ry="8" fill="#eef6fb" ${I}/>
-<path d="M48 58 H72 A24 7 0 0 1 68 70 H48 Z" fill="#d5e6f0"/>
-<ellipse cx="48" cy="61" rx="21" ry="6" fill="#fff" ${I}/>
-<path d="M48 57 H66 A18 5 0 0 1 64 65 H48 Z" fill="#e7eef3"/>
-${hi('M32 60 Q40 56 48 58')}
-${daisy(46, 61)}`;
+// Side view: tank, clean oval bowl, seat, closed lid, pedestal. The side plane is an ellipse inside the bowl, so the front stays an oval.
+const toilet = `${shadow(44, 20, 116)}
+<path d="M30 102 H58 L62 116 H26 Z" fill="#f7fbff" ${I}/>
+<path d="M46 104 H58 L62 116 H48 Z" fill="#c5d4e2"/>
+<path d="M36 88 H54 L56 104 H34 Z" fill="#f7fbff" ${I}/>
+<path d="M46 90 H54 L56 104 H48 Z" fill="#c5d4e2"/>
+<rect x="4" y="16" width="30" height="56" rx="4" fill="#f7fbff" ${I}/>
+<path d="M22 18 H32 V70 H22 Z" fill="#c5d4e2"/>
+<path d="M2 16 H36 Q38 6 18 6 Q2 6 2 16 Z" fill="#fff" ${I}/>
+<path d="M22 8 H34 V16 H22 Z" fill="#d5e2ee"/>
+<circle cx="16" cy="40" r="4" fill="#f4f7f8" ${S}/>
+<circle cx="16" cy="40" r="1.5" fill="#f0c36a"/>
+${hi('M8 24 H18')}
+<ellipse cx="46" cy="76" rx="26" ry="15" fill="#f7fbff"/>
+<ellipse cx="56" cy="78" rx="13" ry="12" fill="#c5d4e2"/>
+<ellipse cx="46" cy="76" rx="26" ry="15" fill="none" ${I}/>
+<ellipse cx="48" cy="64" rx="22" ry="7" fill="#eef5fb"/>
+<ellipse cx="56" cy="65" rx="11" ry="5" fill="#d5e2ee"/>
+<ellipse cx="48" cy="64" rx="22" ry="7" fill="none" ${I}/>
+<ellipse cx="48" cy="60" rx="18" ry="5" fill="#fff"/>
+<ellipse cx="54" cy="61" rx="8" ry="3.6" fill="#e4eef4"/>
+<ellipse cx="48" cy="60" rx="18" ry="5" fill="none" ${I}/>
+${hi('M34 58 Q42 54 48 56')}
+${daisy(46, 59)}`;
 
-// Two rails, four rungs, a towel hanging in two tails over a rung.
-const ladder = `${shadow(50, 26)}
-<path d="M26 6 H36 L40 94 H28 Z" fill="#f3d2aa" ${I}/>
-<path d="M32 8 H36 L40 92 H34 Z" fill="#e7b56e"/>
-<path d="M64 6 H74 L78 94 H66 Z" fill="#e7b56e" ${I}/>
-<path d="M70 8 H74 L78 92 H72 Z" fill="#c9924a"/>
-<rect x="28" y="20" width="46" height="5" rx="1.5" fill="#f0d2b0" ${S}/>
-<rect x="28" y="38" width="47" height="5" rx="1.5" fill="#e7c49a" ${S}/>
-<rect x="27" y="56" width="49" height="5" rx="1.5" fill="#f0d2b0" ${S}/>
-<rect x="26" y="74" width="51" height="5" rx="1.5" fill="#e7c49a" ${S}/>
-<path d="M32 36 H70 L66 58 H56 L52 44 H46 L40 60 H34 Z" fill="#fff" ${I}/>
-<path d="M54 38 H68 L64 56 H56 Z" fill="#ffe4ea"/>
-<path d="M36 46 H48 M58 42 H66" stroke="#8ecae6" stroke-width="2.2" stroke-linecap="round"/>
-<path d="M30 54 H72 L68 84 H58 L52 66 H44 L38 86 H32 Z" fill="#ffb7cc" ${I}/>
-<path d="M54 56 H70 L66 82 H56 Z" fill="#e888a8"/>
-${hi('M36 40 H50')}<path d="M32 16 H38" ${vein}/>`;
+// Two rails the full height of the tile, four rungs, a towel in two tails.
+const ladder = `${shadow(26, 14, 124)}
+<path d="M8 4 H16 L18 120 H10 Z" fill="#f3d2aa" ${I}/>
+<path d="M13 6 H16 L18 118 H14 Z" fill="#e7b56e"/>
+<path d="M34 4 H42 L44 120 H36 Z" fill="#e7b56e" ${I}/>
+<path d="M38 6 H42 L44 118 H39 Z" fill="#c9924a"/>
+<rect x="12" y="22" width="28" height="5" rx="1.5" fill="#f0d2b0" ${S}/>
+<rect x="12" y="44" width="29" height="5" rx="1.5" fill="#e7c49a" ${S}/>
+<rect x="11" y="66" width="30" height="5" rx="1.5" fill="#f0d2b0" ${S}/>
+<rect x="11" y="88" width="31" height="5" rx="1.5" fill="#e7c49a" ${S}/>
+<path d="M14 42 H40 L36 64 H30 L26 50 H22 L16 66 H14 Z" fill="#fff" ${I}/>
+<path d="M28 44 H38 L36 62 H30 Z" fill="#ffe4ea"/>
+<path d="M18 52 H26 M30 48 H36" stroke="#8ecae6" stroke-width="2.2" stroke-linecap="round"/>
+<path d="M14 62 H40 L36 96 H30 L24 74 H20 L14 98 Z" fill="#ffb7cc" ${I}/>
+<path d="M28 64 H38 L36 94 H30 Z" fill="#e888a8"/>
+${hi('M16 46 H26')}<path d="M12 14 H18" ${vein}/>`;
 
 const towelBar = `<path d="M18 28 V18 H28 V28 M102 28 V18 H112 V28" fill="none" ${S}/>
 <path d="M16 30 H114" stroke="#d4a373" stroke-width="7" stroke-linecap="round"/>
@@ -178,10 +182,11 @@ const cupboard = `${shadow(40, 24, 116)}
 <circle cx="34" cy="86" r="2.2" fill="${O}"/><circle cx="48" cy="86" r="2.2" fill="${O}"/>
 ${hi('M14 20 H30')}<path d="M16 60 H30" ${vein}/>`;
 
-const mat = `<path d="M10 30 Q24 12 38 28 Q52 12 66 28 Q80 12 94 28 Q108 12 122 28 Q134 22 132 40 Q128 58 114 58 Q100 72 86 56 Q72 72 58 56 Q44 72 30 56 Q16 70 8 48 Q4 36 10 30 Z" fill="#fff6f2" ${I}/>
-<path d="M72 24 Q86 16 98 30 Q112 18 124 36 Q126 50 114 54 Q100 66 88 52 Q76 64 72 46 Z" fill="#ffd6e4"/>
-<ellipse cx="66" cy="42" rx="34" ry="10" fill="#ffe4ea"/>
-${hi('M22 32 Q42 22 58 30')}<path d="M30 44 H54 M80 46 H104" ${vein}/>`;
+const mat = `<rect x="6" y="8" width="128" height="32" rx="6" fill="#ffb7cc" ${I}/>
+<rect x="14" y="14" width="112" height="20" rx="4" fill="#fff6f2" ${S}/>
+<path d="M96 10 H130 V38 H96 Q104 24 96 10 Z" fill="#e888a8"/>
+${hi('M18 16 H48')}
+<path d="M28 24 H70 M88 26 H118" ${vein}/>`;
 
 const ducky = `${shadow(48, 28)}
 <ellipse cx="40" cy="70" rx="28" ry="18" fill="#ffe08a" ${I}/>
@@ -278,30 +283,20 @@ const timer = `${shadow(50, 16)}
 <path d="M50 46 V56" stroke="#f4c95d" stroke-width="2" stroke-linecap="round"/>
 ${hi('M40 24 H52')}`;
 
-function frond(x0: number, y0: number, cx: number, cy: number, x1: number, y1: number, fill: string): string {
-  let s = `<g stroke="${O}" stroke-width="1.6"><path d="M${x0} ${y0} Q${cx} ${cy} ${x1} ${y1}" fill="none" stroke="#2f6b45" stroke-width="1.8" stroke-linecap="round"/>`;
-  for (let i = 1; i <= 4; i++) {
-    const t = i / 4.6;
-    const u = 1 - t;
-    const x = +(u * u * x0 + 2 * u * t * cx + t * t * x1).toFixed(0);
-    const y = +(u * u * y0 + 2 * u * t * cy + t * t * y1).toFixed(0);
-    const rx = (7 - i * 0.6).toFixed(0);
-    const rot = x1 < 50 ? -50 : 50;
-    s += `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="2.4" fill="${fill}" transform="rotate(${rot} ${x} ${y})"/>`;
-    s += `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="2.4" fill="${i % 2 ? '#74c69d' : fill}" transform="rotate(${-rot} ${x} ${y})"/>`;
-  }
-  return s + '</g>';
-}
-
-const fern = `${shadow(50, 24)}
-<path d="M34 74 H66 L60 96 H40 Z" fill="#e8845a" ${I}/>
-<path d="M52 76 H66 L60 94 H52 Z" fill="#c45c38"/>
-<rect x="28" y="66" width="44" height="10" rx="3" fill="#f0a078" ${I}/>
-<path d="M52 68 H70 V74 H52 Z" fill="#d47848"/>
-${hi('M34 70 H48')}
-${frond(50, 70, 28, 48, 18, 22, '#95d5b2')}
-${frond(50, 70, 36, 36, 40, 12, '#d8f6e4')}
-${frond(50, 70, 70, 40, 84, 16, '#3d9a68')}`;
+const fern = `${shadow(50, 28)}
+<ellipse cx="32" cy="48" rx="15" ry="24" fill="#95d5b2" ${I} transform="rotate(-36 32 48)"/>
+<ellipse cx="42" cy="36" rx="13" ry="26" fill="#b7ebc8" ${I} transform="rotate(-14 42 36)"/>
+<ellipse cx="54" cy="30" rx="14" ry="28" fill="#d8f6e4" ${I} transform="rotate(8 54 30)"/>
+<ellipse cx="68" cy="38" rx="13" ry="24" fill="#52b788" ${I} transform="rotate(24 68 38)"/>
+<ellipse cx="76" cy="50" rx="11" ry="18" fill="#3d9a68" ${I} transform="rotate(38 76 50)"/>
+<path d="M58 22 C72 34 86 52 80 68 C70 50 66 36 58 22 Z" fill="#2f7a52"/>
+<path d="M54 20 V60" ${vein}/>
+${hi('M36 32 Q46 18 56 24')}
+<path d="M30 70 H70 L64 96 H36 Z" fill="#e8845a" ${I}/>
+<path d="M54 72 H70 L64 94 H56 Z" fill="#c45c38"/>
+<rect x="24" y="64" width="52" height="10" rx="4" fill="#f0a078" ${I}/>
+<path d="M56 66 H74 V72 H56 Z" fill="#d47848"/>
+${hi('M30 68 H46')}`;
 
 function coins(x: number, fill: string): string {
   let s = `<g stroke="${O}" stroke-width="1.6" stroke-linejoin="round"><path d="M${x} 24 V84" fill="none" stroke="#3d9a68" stroke-width="2" stroke-linecap="round"/>`;
@@ -412,17 +407,17 @@ const herb = `${shadow(50, 16)}
 ${hi('M38 74 H50')}`;
 
 export const BATHROOM_ITEMS: ItemDef[] = [
-  { kind: 'clawfoot-tub', name: 'Clawfoot Tub', cat: 'furniture', w: 128, h: 100, vb: '0 0 140 100', svg: tub },
-  { kind: 'rain-shower', name: 'Rain Shower', cat: 'furniture', w: 82, h: 140, vb: '0 0 90 120', svg: shower },
-  { kind: 'mirror-vanity', name: 'Mirror Vanity', cat: 'furniture', w: 82, h: 155, vb: '0 0 80 120', svg: vanity },
-  { kind: 'little-toilet', name: 'Little Toilet', cat: 'furniture', w: 64, h: 100, vb: '0 0 80 120', svg: toilet },
-  { kind: 'towel-ladder', name: 'Towel Ladder', cat: 'furniture', w: 120, svg: ladder },
+  { kind: 'clawfoot-tub', name: 'Clawfoot Tub', cat: 'furniture', w: 110, h: 100, vb: '0 0 140 100', svg: tub },
+  { kind: 'rain-shower', name: 'Rain Shower', cat: 'furniture', w: 68, h: 250, vb: '0 0 48 176', svg: shower },
+  { kind: 'mirror-vanity', name: 'Mirror Vanity', cat: 'furniture', w: 74, h: 150, vb: '0 0 80 120', svg: vanity },
+  { kind: 'little-toilet', name: 'Little Toilet', cat: 'furniture', w: 58, h: 90, vb: '0 0 78 120', svg: toilet },
+  { kind: 'towel-ladder', name: 'Towel Ladder', cat: 'furniture', w: 78, h: 192, vb: '0 0 52 128', svg: ladder },
   { kind: 'wall-towel-bar', name: 'Wall Towel Bar', cat: 'decor', w: 170, wall: true, vb: '0 0 130 100', svg: towelBar },
-  { kind: 'bath-cubby', name: 'Bath Cubby', cat: 'furniture', w: 62, h: 84, svg: cubby },
+  { kind: 'bath-cubby', name: 'Bath Cubby', cat: 'furniture', w: 62, h: 80, svg: cubby },
   { kind: 'clothes-hamper', name: 'Clothes Hamper', cat: 'furniture', w: 130, svg: hamper },
   { kind: 'sink-step', name: 'Sink Step', cat: 'furniture', w: 110, svg: step },
   { kind: 'linen-cupboard', name: 'Linen Cupboard', cat: 'furniture', w: 120, h: 180, vb: '0 0 80 120', svg: cupboard },
-  { kind: 'puddle-mat', name: 'Puddle Bath Mat', cat: 'decor', w: 108, h: 62, vb: '0 0 140 80', svg: mat },
+  { kind: 'puddle-mat', name: 'Puddle Bath Mat', cat: 'decor', w: 90, h: 32, vb: '0 0 140 48', svg: mat },
   { kind: 'sunny-ducky', name: 'Sunny Ducky', cat: 'decor', w: 80, svg: ducky },
   { kind: 'shell-soap', name: 'Shell Soap Dish', cat: 'decor', w: 70, svg: soap },
   { kind: 'bubble-bottle', name: 'Bubble Bottle', cat: 'decor', w: 55, svg: bottle },

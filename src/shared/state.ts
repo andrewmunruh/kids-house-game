@@ -130,10 +130,12 @@ export function initialState(): GameState {
       // Same shape as the Salon: old saves gain these pieces, version stays 3.
       nursery: { wallpaper: '#d6f3ff', floor: '#f3ddc4', pattern: 1, items: [
         it('cloud-rug', 480, 545, 0), it('crib', 470, 480, 1), it('crib-mobile', 470, 155, 2), it('rocker', 780, 490, 3)] },
-      // Shower back-left, cubby front-left, tub on the rug, vanity on the right wall, toilet in front. Only the rug meets the tub.
+      // Shower on the floor at the back left. Cubby in front of it. Tub to the right.
+      // Mat in front of the tub. Vanity on the right, toilet in front of the vanity.
+      // The open floor to the left of the shower is where she stands.
       bathroom: { wallpaper: '#d7f6f8', floor: '#f3e0c8', pattern: 1, items: [
-        it('puddle-mat', 234, 546, 0), it('rain-shower', 120, 448, 1), it('clawfoot-tub', 234, 524, 3),
-        it('mirror-vanity', 348, 478, 2), it('little-toilet', 430, 542, 4), it('bath-cubby', 39, 542, 5)] },
+        it('puddle-mat', 263, 568, 0), it('rain-shower', 162, 488, 1), it('clawfoot-tub', 263, 522, 3),
+        it('mirror-vanity', 367, 460, 2), it('little-toilet', 381, 562, 4), it('bath-cubby', 162, 576, 5)] },
       // Empty on purpose. The backyard scene ships later; the room key has to exist so edits are not dropped.
       backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [] },
     },

@@ -1,6 +1,6 @@
 # Bathroom starter. Every piece stays inside the stage at the seven sizes,
 # clear of the nav arrows and the Surprises chip. Wall pieces stay off the
-# window and off each other. The rug sits under the tub, and no other pair overlaps.
+# window and off each other. Nothing overlaps. The mat sits in front of the tub.
 # Fresh page per size so the camera is the one the room opens with.
 import asyncio, sys
 from playwright.async_api import async_playwright
@@ -38,15 +38,22 @@ CHECK = """() => {
       if (hits(a, walls[j].getBoundingClientRect())) problems.push(walls[i].dataset.kind + ' hits ' + walls[j].dataset.kind);
     }
   }
-  const rugPair = (a, b) => (a === 'puddle-mat' && b === 'clawfoot-tub') || (a === 'clawfoot-tub' && b === 'puddle-mat');
+  let mat = null, tub = null, shower = null;
   for (let i = 0; i < items.length; i++) {
+    const k = items[i].dataset.kind;
+    const b = items[i].getBoundingClientRect();
+    if (k === 'puddle-mat') mat = b;
+    if (k === 'clawfoot-tub') tub = b;
+    if (k === 'rain-shower') shower = b;
     for (let j = i + 1; j < items.length; j++) {
-      const ak = items[i].dataset.kind, bk = items[j].dataset.kind;
-      const overlap = hits(items[i].getBoundingClientRect(), items[j].getBoundingClientRect());
-      if (rugPair(ak, bk)) { if (!overlap) problems.push('rug misses tub'); }
-      else if (overlap) problems.push(ak + ' overlaps ' + bk);
+      if (hits(b, items[j].getBoundingClientRect())) problems.push(k + ' overlaps ' + items[j].dataset.kind);
     }
   }
+  if (mat && tub) {
+    const xOverlap = mat.right > tub.left + 1 && mat.left < tub.right - 1;
+    if (!(mat.top >= tub.bottom - 1 && xOverlap)) problems.push('mat is not in front of the tub');
+  }
+  if (shower && tub && shower.height < tub.height * 1.6) problems.push('shower is short');
   return { n: items.length, problems };
 }"""
 
