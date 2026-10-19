@@ -7,7 +7,7 @@ import {
   sanitizeLook2, fillLook2, legacyFromLook2, look2FromLegacy, patchFromLook2, randomLook2, withRandomStarter,
   HAIR_IDS, EYE_IDS, ACC_IDS, accSlot, LOOK2_MAX,
 } from '../src/shared/avatar';
-import { cleanHouseState, cleanLook, cleanLookPatch, cleanAction, PROTOCOL } from '../src/shared/hood';
+import { applyLook, cleanHouseState, cleanLook, cleanLookPatch, cleanAction, PROTOCOL } from '../src/shared/hood';
 import { initialState, migrate, reduce } from '../src/shared/state';
 
 let pass = 0;
@@ -106,6 +106,9 @@ check('a legacy patch keeps look2 and the new shirt', state.characters[0].look2?
 const classicPatch = cleanLookPatch({ look2: null, shirt: '#ffffff' });
 const cleared = reduce(state, { type: 'char/update', id: 'c1', patch: classicPatch! });
 check('an explicit look2 clears the chibi look', classicPatch?.look2 === null && cleared.characters[0].look2 === undefined && cleared.characters[0].shirt === '#ffffff');
+const keptLook = applyLook({ ...legacy, look2: maya }, { ...legacy, shirt: '#80ed99' });
+const classicLook = applyLook(keptLook, { ...legacy, look2: null });
+check('a legacy player look keeps look2 and a classic look clears it', keptLook.look2?.hair === 'puffs' && keptLook.shirt === '#80ed99' && classicLook.look2 === undefined);
 state = reduce(initialState(), { type: 'char/update', id: 'c1', patch: { ...patched, size: 'kid' } });
 state = reduce(state, { type: 'char/update', id: 'c1', patch: cleanLookPatch({ flip: true })! });
 check('a flip leaves look2 alone', state.characters[0].flip === true && state.characters[0].look2?.hair === 'puffs');

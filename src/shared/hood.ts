@@ -223,6 +223,7 @@ function mailNames(text: string, roster: string[]): boolean {
     if (!/^[A-Z][a-z]+$/.test(a) || !/^[A-Z][a-z]+$/.test(b)) continue;
     const al = a.toLowerCase(), bl = b.toLowerCase();
     if (COMMON_WORD.has(al) || COMMON_WORD.has(bl)) continue;
+    if (al === ITEM_WORD && bl === ITEM_WORD) continue;
     if (known.has(al) && COMMON_WORD.has(bl)) continue;
     return true;
   }
@@ -251,9 +252,10 @@ const CATALOG_RE = (() => {
   const phrases = [...new Set(CATALOG_NAMES.map(n => mailForms(n)).filter(n => n.length >= 2))].sort((a, b) => b.length - a.length);
   return new RegExp(`(^|[^A-Za-z])(?:${phrases.map(escapeReg).join('|')})(?![A-Za-z])`, 'gi');
 })();
-/** Furniture names are not a last name, a phone, or a street. */
+const ITEM_WORD = 'item';
+/** An item name becomes one ordinary word, so it cannot hide the word next to it. */
 function maskCatalog(text: string): string {
-  return text.replace(CATALOG_RE, (m, pre: string) => pre + ' '.repeat(m.length - pre.length));
+  return text.replace(CATALOG_RE, (m, pre: string) => pre + 'Item');
 }
 /** "cool drive in my house" is the game. A capitalised Name drive plus an address still blocks. */
 function coolDriveOk(text: string): boolean {
@@ -295,7 +297,7 @@ function mailBlocked(raw: string, roster: string[]): boolean {
   if (/\bplay\s+for\s+the\b/i.test(text) || /\b(?:soccer|softball|dance)\s+team\b/i.test(text)) return true;
   if (mailSchool(text)) return true;
   if (mailMeetup(text)) return true;
-  if (mailDigits(text)) return true;
+  if (mailDigits(text) || mailDigits(maskCatalog(text))) return true;
   if (mailMean(text)) return true;
   const safe = maskSafePhrases(text);
   if (mailStreet(safe)) return true;
@@ -341,6 +343,12 @@ export function cleanLook(p: any): Look {
   const out: Look = { skin: pickOr('skin'), hair: pickOr('hair'), hairStyle: pickOr('hairStyle'), shirt: pickOr('shirt'), pants: pickOr('pants'), size: pickOr('size'), acc: pickOr('acc') };
   if (p && typeof p === 'object' && 'look2' in p) { const s = sanitizeLook2(p.look2); if (s) out.look2 = s; }
   return out;
+}
+/** A legacy look update omits look2. Keep the chibi look already stored. An explicit look2 replaces or clears it. */
+export function applyLook(prev: Look | null | undefined, incoming: unknown): Look {
+  const next = cleanLook(incoming);
+  if (prev?.look2 && !(incoming && typeof incoming === 'object' && 'look2' in incoming)) next.look2 = prev.look2;
+  return next;
 }
 function cleanCharacter(c: any): Character | null {
   const id = str(c?.id, ID_RE); if (!id || !isRoom(c?.room)) return null;
