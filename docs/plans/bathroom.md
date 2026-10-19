@@ -108,7 +108,7 @@ Generic decor still appears, the way it does in the nursery: plants, and decor w
 
 Thirty names, ten to a shelf. None of these strings are in `src/shared/catalog-names.ts`. Kinds are new. Wall pieces use `wall: true` and snap to the wall the way the crib mobile does. Small decor is holdable. Furniture is not.
 
-Art for all thirty is one pass: plum outline `#5a3d5c`, soft plum shading at low opacity, a white highlight, a contact shadow, and a few specks of texture. No blur filter, no `color-mix()`, no extra bitmap. That is the direction the avatar shading already uses in `src/avatar/geom.ts`, so a later art pass should not have to redraw the pack. The contact sheet is the first twelve, in that style. Nobody is in the water. The toilet is a closed lid and a daisy.
+Art for all thirty is one pass: plum outline `#5a3d5c`, soft plum shading at low opacity, a white highlight, a contact shadow, and a few specks of texture. No blur filter, no `color-mix()`, no extra bitmap. That is the direction the avatar shading already uses in `src/avatar/geom.ts`, so a later art pass should not have to redraw the pack. The contact sheets show all thirty, in that style. Nobody is in the water. The toilet is a closed lid and a daisy.
 
 ### Furniture
 
@@ -169,15 +169,16 @@ Drawn at the real artboard sizes. The top row is the declutter Menu row, because
 
 | file | size | what it shows |
 | --- | --- | --- |
-| [bathroom-play-ipad.png](mockups/bathroom-play-ipad.png) | 820×1180 | Play, shelf hidden, starter cluster |
+| [bathroom-play-ipad.png](mockups/bathroom-play-ipad.png) | 820×1180 | Play, shelf hidden, dressed bathroom |
 | [bathroom-play-phone.png](mockups/bathroom-play-phone.png) | 390×844 | Play on a phone, short tab Bath |
 | [bathroom-decorate-ipad.png](mockups/bathroom-decorate-ipad.png) | 820×1180 | Decorate, furniture shelf open |
 | [bathroom-decorate-phone.png](mockups/bathroom-decorate-phone.png) | 390×844 | Decorate, shelf open |
 | [bathroom-tabs-ipad.png](mockups/bathroom-tabs-ipad.png) | 820×1180 | where the sixth tab sits on iPad |
 | [bathroom-tabs-phone.png](mockups/bathroom-tabs-phone.png) | 390×844 | where Bath sits on the phone row |
-| [bathroom-contact.png](mockups/bathroom-contact.png) | 820×1180 | twelve pieces in the richer outline style |
+| [bathroom-contact.png](mockups/bathroom-contact.png) | 820×1180 | pieces 1–15, with display names |
+| [bathroom-contact-2.png](mockups/bathroom-contact-2.png) | 820×1180 | pieces 16–30, with display names |
 
-The portrait camera is the existing narrow window (`VIEW_W` floors at 480). The pictures frame the starter cluster inside that window: tub, mat, vanity, towel ladder, plus the duck, a fern, and the girl, so the room reads as a bathroom without changing the stage.
+The portrait camera is the existing narrow window (`VIEW_W` floors at 480, the stage is that width by 600). The pictures show a finished, tidy bathroom in that window, at the same scale as the girl. Tile wainscot sits under the wallpaper. A glass shower has a curtain and a door. The clawfoot tub is full of foam, with a roll-top rim, four claw feet, a faucet, and the duck on the rim. The toilet is a closed lid with a daisy. The mat is a fluffy scalloped rug on the floor. A wall shelf holds jars, a water glass, and a soap pump, and a towel hangs from a hook. She stands beside the tub, dressed, not in the water.
 
 ## Open questions
 
