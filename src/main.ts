@@ -590,7 +590,7 @@ function renderItems(s: GameState) {
     if (!el) {
       el = document.createElement('div');
       el.className = 'item'; el.dataset.id = it.id;
-      el.innerHTML = `<div class="inner">${svgOf(def)}</div>`;
+      el.innerHTML = `<div class="inner">${svgOf(def, true)}</div>`;
       layer.appendChild(el);
       el.addEventListener('pointerdown', e => onItemPointer(el!, e));
     }

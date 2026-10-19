@@ -1,5 +1,6 @@
 # Living-room WebPs load by item id. ?art=v1 ignores them, a clear pixel is not a hit,
-# and a broken URL falls back to the SVG.
+# and a broken URL falls back to the SVG. The tray, outfit tab, and room tabs never
+# render a contact shadow; only a floor piece on the stage does.
 import sys
 from playwright.sync_api import sync_playwright
 
@@ -14,9 +15,10 @@ JS = r'''async () => {
   ok('each living raster is a real item', living.every(k => a.ids.indexOf(k) >= 0 && a.has(k) === true));
   ok('sofa has its own raster', typeof a.rasterUrl('sofa') === 'string' && a.rasterUrl('sofa').indexOf('sofa') >= 0);
   a.setArtFromSearch('');
-  const sofa = a.svgOf(a.sofa);
+  const sofa = a.svgOf(a.sofa, true);
   ok('a floor raster gets a contact shadow', sofa.indexOf('artshade') >= 0 && sofa.indexOf('artimg') >= 0);
-  ok('a wall raster does not', a.svgOf(a.window).indexOf('artshade') < 0 && a.svgOf(a.window).indexOf('artimg') >= 0);
+  ok('a tray thumbnail has no contact shadow', a.svgOf(a.sofa).indexOf('artshade') < 0 && a.svgOf(a.sofa).indexOf('artimg') >= 0);
+  ok('a wall raster does not', a.svgOf(a.window, true).indexOf('artshade') < 0 && a.svgOf(a.window).indexOf('artimg') >= 0);
   const img = new Image();
   img.style.cssText = 'position:absolute;left:0;top:0';
   const src = a.rasterUrl('lamp');
@@ -42,7 +44,7 @@ JS = r'''async () => {
   const markup = a.svgOf(a.sofa);
   ok('default can use the webp', markup.indexOf('artimg') >= 0 && markup.indexOf('sofa') >= 0);
   a.rememberRaster('sofa', '/no-such-art.webp');
-  document.body.innerHTML = a.svgOf(a.sofa);
+  document.body.innerHTML = a.svgOf(a.sofa, true);
   const fell = await new Promise(res => {
     const start = Date.now();
     const tick = () => {
@@ -57,15 +59,61 @@ JS = r'''async () => {
   return notes;
 }'''
 
+# The catalog tray, the outfit tab, and the room tabs must not draw a contact shadow.
+# Only a floor piece on the stage does.
+TRAY = r'''async () => {
+  const notes = [];
+  const ok = (name, cond) => notes.push((cond ? 'PASS ' : 'FAIL ') + name);
+  const n = (sel) => document.querySelectorAll(sel).length;
+  const chrome = '#shelf .artshade, #cats .artshade, #tabs .artshade, #sheet .artshade, .ghost .artshade';
+  const waitArt = () => new Promise(res => {
+    const start = Date.now();
+    const tick = () => {
+      const imgs = [...document.querySelectorAll('#layer img.artimg')];
+      if (imgs.length >= 5 && imgs.every(i => i.complete && i.naturalWidth > 0)) res(true);
+      else if (Date.now() - start > 8000) res(false);
+      else requestAnimationFrame(tick);
+    };
+    tick();
+  });
+  ok('paintings are on the stage', await waitArt());
+  const shaded = [...document.querySelectorAll('#layer .artshade')].map(el => el.closest('.item')?.dataset.kind).sort();
+  ok('the tray, category tabs, and room tabs have no contact shadow', n(chrome) === 0);
+  ok('stage shadows sit only on the floor pieces', shaded.join(',') === 'armchair,bookshelf,lamp,plant,rug,sofa');
+  ok('the window on the stage has no contact shadow', n('#layer .item[data-kind="window"] .artshade') === 0);
+  document.querySelector('#cats button[data-cat="decor"]')?.click();
+  ok('decor thumbnails have no contact shadow', n('#shelf .artshade') === 0 && n('#shelf img.artimg') > 0);
+  document.querySelector('#cats button[data-cat="__people"]')?.click();
+  ok('the outfit tab has no contact shadow', n(chrome) === 0 && n('#shelf .thing.person') > 0);
+  document.querySelector('#btnDress')?.click();
+  await new Promise(r => setTimeout(r, 250));
+  ok('the outfit sheet has no contact shadow', n('#sheet .artshade') === 0 && !document.querySelector('#sheet')?.classList.contains('hidden'));
+  document.querySelector('#sheet [data-act="close"]')?.click();
+  document.querySelector('#tabs button[data-room="bedroom"]')?.click();
+  await new Promise(r => setTimeout(r, 400));
+  ok('a room tab keeps the tray free of contact shadows', n('#shelf .artshade, #cats .artshade, #tabs .artshade') === 0);
+  ok('the bedroom lamp keeps its stage shadow', n('#layer .item[data-kind="lamp"] .artshade') === 1);
+  ok('the bedroom window stays unshaded', n('#layer .item[data-kind="window"] .artshade') === 0);
+  document.querySelector('#cats button[data-cat="furniture"]')?.click();
+  ok('bedroom furniture thumbnails have no contact shadow', n('#shelf .artshade') === 0 && n('#shelf .thing img.artimg') > 0);
+  return notes;
+}'''
+
 def main():
     fails = 0
+    notes = []
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page()
+        context = browser.new_context()
+        context.add_init_script("localStorage.setItem('cozy-whatsnew','8'); localStorage.setItem('avatar-intro','1');")
+        page = context.new_page()
         page.on('pageerror', lambda e: print('PAGEERROR', e, flush=True))
         page.goto(URL, wait_until='domcontentloaded')
         page.wait_for_function('window.__artReady === true', timeout=20000)
-        notes = page.evaluate(JS)
+        notes.extend(page.evaluate(JS))
+        origin = URL.split('/tests/')[0] + '/'
+        page.goto(origin, wait_until='domcontentloaded')
+        notes.extend(page.evaluate(TRAY))
         browser.close()
     for line in notes:
         print(line, flush=True)

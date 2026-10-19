@@ -121,7 +121,7 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .rf.on { background: #fff3b0; border-color: var(--ink); }
 .packimg { display: block; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; pointer-events: none; -webkit-user-drag: none; }
 /* Soft contact shadow under a raster floor piece. The SVG shadow stays in the drawing for ?art=v1. */
-.artshade { position: absolute; left: 12%; width: 76%; bottom: 0; height: 8%; border-radius: 50%; background: rgba(70, 44, 62, .20); filter: blur(2px); pointer-events: none; }
+.item .artshade { position: absolute; left: 12%; width: 76%; bottom: 0; height: 8%; border-radius: 50%; background: rgba(70, 44, 62, .20); filter: blur(2px); pointer-events: none; }
 .item.flipped .inner .packimg, .ghost.flipped .packimg { transform: scaleX(-1); }
 .ghost .packimg, .thing .packimg { object-position: 50% 50%; }
 .empty { align-self: center; margin: auto; font-weight: 800; opacity: .5; font-size: 18px; }

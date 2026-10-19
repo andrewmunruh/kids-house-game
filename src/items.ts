@@ -92,12 +92,13 @@ export const svgMarkup = (d: ItemDef) => d.img
   : `<svg viewBox="${d.vb ?? '0 0 100 100'}" xmlns="http://www.w3.org/2000/svg">${d.svg}</svg>`;
 // A 3× WebP replaces the SVG only when this page asked for raster and the file loaded.
 // The footprint stays the item's w/h. A broken image falls back through installArtFallback.
-// Floor pieces get a separate contact shadow, so the painting's own feet stay on the SVG's feet.
-export const svgOf = (d: ItemDef) => {
+// A contact shadow is only for a piece standing on the stage. Tray thumbnails, tab
+// icons, and the drag ghost stay the clean painting.
+export const svgOf = (d: ItemDef, shade = false) => {
   const url = rasterOn() ? rasterUrl(d.kind) : undefined;
   if (!url) return svgMarkup(d);
-  const shade = d.wall ? '' : '<i class="artshade" aria-hidden="true"></i>';
-  return `${shade}<img class="packimg artimg" data-kind="${esc(d.kind)}" src="${esc(url)}" alt="${esc(d.name)}" draggable="false" />`;
+  const shadow = shade && !d.wall ? '<i class="artshade" aria-hidden="true"></i>' : '';
+  return `${shadow}<img class="packimg artimg" data-kind="${esc(d.kind)}" src="${esc(url)}" alt="${esc(d.name)}" draggable="false" />`;
 };
 
 let artFallbackOn = false;
