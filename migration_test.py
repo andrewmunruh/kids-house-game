@@ -308,6 +308,10 @@ async def main():
             await P.wait_for_timeout(800)
             synced = await K2.evaluate("""(pid) => { const L = (__hood().players.get(pid) || {}).look; return L ? { hair: L.hair, style: L.look2 && L.look2.hair, acc: L.acc } : null; }""", pid_p)
             check('new look2 syncs to another iPad with a legacy hair color', synced and synced.get('style') == 'puffs' and synced.get('hair') == '#2b1d16' and synced.get('acc') == 2, str(synced))
+            await P.evaluate("""(id) => { __hood().sendMail(id, 'Come play in the yard!', 1, 2); }""", k2house)
+            await P.wait_for_timeout(900)
+            mailed = await K2.evaluate("""(id) => { const L = (__hood().view(id).mailbox || {}).letters; return L && L[0] && L[0].text.indexOf('yard') >= 0 && !!L[0].from; }""", k2house)
+            check('a letter lands in her mailbox', mailed)
             # old client (27cfcac) against this new server, visiting the house that now has a nursery
             serve_build('/tmp/prod-dist')
             old_errs = []
@@ -326,6 +330,7 @@ async def main():
             check('old client house body has no chibi markup', body is None and not old_errs, str(body))
             await P.screenshot(path='/opt/cursor/artifacts/old-client-view.png')
             await P.click('#btnMap'); await P.wait_for_timeout(500)
+            check('old client does not show mailboxes', await P.locator('.mapMail').count() == 0)
             await P.evaluate("""() => {
               const L = __hood().players.get(__hood().pid).look;
               __hood().setLook({ skin: L.skin, hair: L.hair, hairStyle: L.hairStyle, shirt: '#80ed99', pants: L.pants, size: L.size, acc: L.acc });
@@ -347,6 +352,9 @@ async def main():
                         disk_old = v['state']
             check('old client edit syncs and the server copy keeps the nursery', k2_sees['edit'] and 'friend-nur' in k2_sees['nursery'] and disk_old and any(i['id'] == 'friend-nur' for i in disk_old['rooms']['nursery']['items']) and any(i['id'] == 'old-client-edit' for i in disk_old['rooms']['living']['items']) and not old_errs, str(k2_sees) + ' ' + '; '.join(old_errs[:2]))
             check('old client round-trip keeps the kennel state', bool(disk_old and disk_old.get('dogKennel') and disk_old['dogKennel'].get('item') == 'keep-kennel' and any(i['id'] == 'keep-kennel' for i in disk_old['rooms']['living']['items']) and not old_errs), str(None if not disk_old else disk_old.get('dogKennel')))
+            kept_mail = [L for L in ((disk_old or {}).get('mailbox') or {}).get('letters') or [] if 'yard' in (L.get('text') or '')]
+            k2_mail = await K2.evaluate("""(id) => { const L = ((__hood().view(id).mailbox || {}).letters || [])[0]; return L && L.text; }""", k2house)
+            check('old client edit keeps the mail', bool(kept_mail) and k2_mail and 'yard' in k2_mail and await K2.locator('.mapMail').count() >= 1, str(kept_mail)[:160] + ' k2=' + str(k2_mail))
             # rollback: old client opens a save that already contains a nursery
             rolled = json.loads(json.dumps(solo_a))
             rolled['rooms']['nursery'] = {'wallpaper': '#d6f3ff', 'floor': '#f3ddc4', 'pattern': 1, 'items': [{'id': 'keep-crib', 'kind': 'crib', 'x': 100, 'y': 200, 'flip': False, 'z': 1, 'scale': 1}]}
@@ -354,14 +362,15 @@ async def main():
             rolled['currentRoom'] = 'living'
             rolled['dogKennel'] = {'item': 'keep-kennel'}
             rolled['rooms']['living']['items'].append({'id': 'keep-kennel', 'kind': 'kennel', 'x': 400, 'y': 500, 'flip': False, 'z': 2, 'scale': 1})
+            rolled['mailbox'] = {'letters': [{'id': 'mkeepmail01', 'from': 'Quinn', 'fromPid': 'poldclient', 'text': 'Hi from the mailbox', 'color': 1, 'sticker': 2, 'at': int(time.time() * 1000)}]}
             rb = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
             await rb.add_init_script("localStorage.setItem('cozy-whatsnew','6'); localStorage.setItem('cozy-house', " + json.dumps(json.dumps(rolled)) + ");")
             rpg = await rb.new_page(); rpg.on('pageerror', lambda e: old_errs.append('rollback ' + str(e)))
             await rpg.goto(f'{BASE}/kids-house-game/?hood=http://localhost:{PORT_HOOD}'); await rpg.wait_for_selector('#stage .char'); await rpg.wait_for_timeout(400)
             await rpg.evaluate("""() => __store.dispatch({type:'room/wallpaper', room:'living', color:'#ddeeff'})""")
             await rpg.wait_for_timeout(500)
-            kept = await rpg.evaluate("""() => { const s = JSON.parse(localStorage.getItem('cozy-house')); return { tabs: [...document.querySelectorAll('.tab')].length, nursery: (s.rooms.nursery.items || []).map(i => i.id), yard: (s.rooms.backyard.items || []).map(i => i.id), wall: s.rooms.living.wallpaper, kennel: s.dogKennel || null, kennelItem: (s.rooms.living.items || []).some(i => i.id === 'keep-kennel') }; }""")
-            check('old client keeps a nursery that was already in the save', kept['tabs'] == 4 and kept['nursery'] == ['keep-crib'] and kept['yard'] == ['keep-yard'] and kept['wall'] == '#ddeeff' and kept['kennel'] and kept['kennel']['item'] == 'keep-kennel' and kept['kennelItem'] and not any(e.startswith('rollback') for e in old_errs), str(kept))
+            kept = await rpg.evaluate("""() => { const s = JSON.parse(localStorage.getItem('cozy-house')); const mail = (s.mailbox && s.mailbox.letters || [])[0]; return { tabs: [...document.querySelectorAll('.tab')].length, nursery: (s.rooms.nursery.items || []).map(i => i.id), yard: (s.rooms.backyard.items || []).map(i => i.id), wall: s.rooms.living.wallpaper, kennel: s.dogKennel || null, kennelItem: (s.rooms.living.items || []).some(i => i.id === 'keep-kennel'), mail: mail && mail.text, boxes: document.querySelectorAll('.mapMail').length }; }""")
+            check('old client keeps a nursery that was already in the save', kept['tabs'] == 4 and kept['nursery'] == ['keep-crib'] and kept['yard'] == ['keep-yard'] and kept['wall'] == '#ddeeff' and kept['kennel'] and kept['kennel']['item'] == 'keep-kennel' and kept['kennelItem'] and kept['mail'] == 'Hi from the mailbox' and kept['boxes'] == 0 and not any(e.startswith('rollback') for e in old_errs), str(kept))
             await rb.close()
             serve_build('/tmp/new-dist')
             # ================= Phase C: preview build on the same origin =================

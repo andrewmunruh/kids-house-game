@@ -51,7 +51,8 @@ export const ICONS = {
 
 export function toast(msg: string, ms = 2600) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
-  document.body.appendChild(t); setTimeout(() => t.classList.add('out'), ms); setTimeout(() => t.remove(), ms + 400);
+  const lane = document.getElementById('toastLane');
+  (lane ?? document.body).appendChild(t); setTimeout(() => t.classList.add('out'), ms); setTimeout(() => t.remove(), ms + 400);
 }
 
 /** Simple grown-up gate: a multiplication question answered on a number pad. Resolves true when solved. */

@@ -3,6 +3,7 @@ import { sanitizeLook2, withRandomStarter, type Look2 } from './avatar';
 // All game state is plain serializable JSON. All changes go through `Action`s
 // so a future multiplayer server can validate/relay the same actions.
 import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plot, type RanchOp } from './ranch';
+import { keepMailbox, type Mailbox } from './mail';
 export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon' | 'nursery' | 'backyard';
 /** Display order is the client's tab list. Backyard is a room id only until its scene ships. */
 export const ROOM_IDS: RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard'];
@@ -68,6 +69,8 @@ export interface GameState {
   cat?: Cat | null;          // optional: older saves simply have no pets
   dog?: Dog | null;
   dogKennel?: DogKennel | null;
+  /** Letters in the mailbox out front. Absent when empty so older saves stay identical. */
+  mailbox?: Mailbox | null;
   basket?: Basket;           // Rainbow Ranch (solo play): her basket, garden plots, last egg time
   garden?: (Plot | null)[];
   lastEgg?: number;
@@ -280,7 +283,14 @@ export function migrate(raw: any): GameState {
   const next = ensureRooms({ ...base, ...s, rooms: { ...base.rooms, ...s.rooms }, characters });
   const dogKennel = validKennel(next);
   const withKennel = dogKennel === next.dogKennel ? next : { ...next, dogKennel };
-  return showKnownRoom(withKennel);
+  const mailbox = keepMailbox((withKennel as { mailbox?: unknown }).mailbox);
+  let kept: GameState = withKennel;
+  if (mailbox) kept = { ...kept, mailbox };
+  else if (kept.mailbox) {
+    const { mailbox: _drop, ...rest } = kept;
+    kept = rest;
+  }
+  return showKnownRoom(kept);
 }
 
 /**

@@ -3,7 +3,7 @@ import { storeKey } from './shared/storekey';
 // not-yet-confirmed actions sit in `pending` and are re-applied on top (optimistic UI that never diverges).
 import type { Plot, RanchOp } from './shared/ranch';
 import { reduce, migrate, type Action, type GameState, type RoomId } from './shared/state';
-import { PROTOCOL, type ClientMsg, type ServerMsg, type PlayerPub, type HouseMeta, type Presence, type Bubble, type Look, type RosterEntry, type Fx } from './shared/hood';
+import { PROTOCOL, type ClientMsg, type ServerMsg, type PlayerPub, type HouseMeta, type Presence, type Bubble, type Look, type RosterEntry, type Fx, type StreetSettings } from './shared/hood';
 import type { Dog } from './shared/state';
 import type { TableOp, TablePub } from './shared/games/index';
 
@@ -46,7 +46,7 @@ const coalesceKey = (a: Action) => a.type === 'item/move' ? 'im:' + a.id : a.typ
 
 export class HoodClient {
   ws: WebSocket | null = null;
-  pid = ''; settings = { freeChat: true };
+  pid = ''; settings: StreetSettings = { freeChat: true };
   players = new Map<string, PlayerPub>();
   houses = new Map<string, HouseRec>();
   presence = new Map<string, Presence>();
@@ -113,8 +113,8 @@ export class HoodClient {
       this.ws = ws;
       if (prev && prev !== ws) { try { prev.close(); } catch { /* already closed */ } }
       ws.onopen = () => {
-        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1 });
-        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1 });
+        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1 });
+        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1 });
         else done('notoken');
       };
       ws.onmessage = e => { const m: ServerMsg = JSON.parse(e.data); this.handle(m); if (m.t === 'welcome') { this.armStable(); done('ok'); } if (m.t === 'error') done(m.code + (m.msg ? ':' + m.msg : '')); if (m.t === 'removed') done('removed'); };
@@ -189,6 +189,13 @@ export class HoodClient {
       case 'table': { const t = this.stampTable(m.table); this.tables.set(t.tb, t); this.emit('table', t); break; }
       case 'tblFail': this.emit('tblFail', m.tb, m.reason); break;
       case 'sayFail': this.emit('sayFail', m.reason); break;
+      case 'mailbox': {
+        const h = this.houses.get(m.houseId); if (!h) return;
+        if (m.mailbox?.letters?.length) h.confirmed = { ...h.confirmed, mailbox: m.mailbox };
+        else { const { mailbox: _drop, ...rest } = h.confirmed; h.confirmed = rest; }
+        h.view = null; this.emit('mailbox', m.houseId); break;
+      }
+      case 'mailFail': this.emit('mailFail', m.reason); break;
       case 'parentInfo': this.emit('parentInfo', m); break;
       case 'error': this.emit('error', m.code); if (m.code === 'badtoken') { this.cfg.token = undefined; this.cfg.pid = undefined; saveHoodConfig(this.cfg); } break;
       case 'removed': this.closedByUs = true; this.emit('removed'); break;
@@ -241,6 +248,9 @@ export class HoodClient {
   fx(fx: Fx) { this.reliable({ t: 'fx', fx }); }
   ranchOp(o: RanchOp) { this.reliable({ t: 'ranch', o }); }
   tbl(op: TableOp) { this.reliable({ t: 'tbl', ...op }); }
+  sendMail(houseId: string, text: string, color: number, sticker: number) { this.reliable({ t: 'mail', op: 'send', houseId, text, color, sticker }); }
+  readMail(houseId: string, id: string) { this.reliable({ t: 'mail', op: 'read', houseId, id }); }
+  dropMail(houseId: string, id: string) { this.reliable({ t: 'mail', op: 'drop', houseId, id }); }
   now() { return Date.now() + this.ranch.skew; }
   parent(op: any) { if (this.cfg.parentKey) this.reliable({ t: 'parent', key: this.cfg.parentKey, ...op }); }
 }

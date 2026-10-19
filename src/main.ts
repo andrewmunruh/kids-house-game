@@ -1,10 +1,16 @@
 import './style.css';
+import './juice.css';
+import './scenery.css';
+import './mail.css';
 import './avatar.css';
 import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapTreesSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
 import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
-import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, cleanPetName, CAT_NAMES, DOG_NAMES, PARK_W, PARK_SPOTS, SLIDE, DOG_AREA, type Presence, type Bubble, type Look, type Fx } from './shared/hood';
+import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, cleanPetName, CAT_NAMES, DOG_NAMES, PARK_W, PARK_SPOTS, SLIDE, DOG_AREA, mailIsFree, type Presence, type Bubble, type Look, type Fx } from './shared/hood';
 import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } from './pets';
+import { mailboxArt, installMail } from './mail';
+import { installPlayMode, playGesture } from './playmode';
+import { unreadCount } from './shared/mail';
 import { parkSceneSVG, swingSVG, ballSVG, treeIcon, pawIcon, gateIcon, streetGateSVG, PARK_H, SWING_BAR } from './park';
 import { houseSVG, ICONS, toast, adultCheck } from './hood-ui';
 import { initEggs, foundSet, EGGS } from './eggs';
@@ -16,6 +22,11 @@ import { stampAvatar, richAvatars } from './avatar/motion';
 import { avatarSheetHTML, avatarAct, avatarIntroPending, markAvatarIntro } from './avatar/sheet';
 import { chibiRideLeg } from './avatar/ride';
 import { sfx, setSound } from './sound';
+import { catalogShows } from './roomfilter';
+import { resolveFrame } from './framekid';
+import { layoutNameTags } from './nametags';
+import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
+import { emptyRoomStarters, syncScenery } from './scenery';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
@@ -57,8 +68,7 @@ const TABS: Tab[] = [
 TABS.push({ id: 'secrets', name: 'Secrets', icon: 'egg:chloe-starlamp', kind: 'cat' });
 for (const it of ITEMS) if (!TABS.some(t => t.kind === 'cat' && t.id === it.cat)) TABS.push({ id: it.cat, name: it.cat, icon: it.kind, kind: 'cat' });
 for (const it of ITEMS) if (it.pack && !TABS.some(t => t.id === 'pack:' + it.pack)) TABS.push({ id: 'pack:' + it.pack, name: packLabel(it.pack), icon: it.kind, kind: 'pack' });
-const matchesRoom = (rooms: string[] | undefined, f: string) => f === 'all' || !rooms || rooms.includes('any') || rooms.includes(f);
-const tabItems = (tab: string, rf: string) => ITEMS.filter(i => (!i.secret || foundSet().has(i.secret)) && (tab.startsWith('pack:') ? i.pack === tab.slice(5) : i.cat === tab) && matchesRoom(i.rooms, rf));
+const tabItems = (tab: string) => ITEMS.filter(i => catalogShows(i, tab, store.get().currentRoom, roomFilter === 'all', foundSet()));
 
 const WALLS = ['#ffd6e0', '#d9ccff', '#cdf3dc', '#cfe8ff', '#fff1b8', '#ffe0c7', '#ffffff', '#f6c1ff'];
 const FLOORS = ['#e8b98a', '#f2d0a4', '#c99366', '#ffe7a8', '#bfe3d0', '#d6d6f5', '#ffc8dd', '#9fb4c7'];
@@ -102,6 +112,7 @@ app.innerHTML = `
   <div class="stage" id="stage">
     <div class="world" id="world">
       <div class="wall" id="wall"></div><div class="floor" id="floor"></div><div class="baseboard"></div>
+      <div class="scenery" id="scenery"></div>
       <div class="layer" id="layer"></div>
       <div class="toolbar hidden" id="toolbar">
         <button data-a="flip">${ICON.flip}</button><button data-a="front">${ICON.front}</button><button data-a="back">${ICON.back}</button><button data-a="delete" class="danger">${ICON.trash}</button>
@@ -117,6 +128,10 @@ app.innerHTML = `
 <div class="drawer">
   <div class="drawerBar" id="drawerBar">
     <div class="drawerTop">
+      <div class="modeToggle" id="modeToggle">
+        <button type="button" id="modePlay" data-mode="play" aria-label="Play" aria-pressed="false"><span class="modeIco"></span><span class="modeWord">Play</span></button>
+        <button type="button" id="modeDecorate" data-mode="decorate" aria-label="Decorate" aria-pressed="true"><span class="modeIco"></span><span class="modeWord">Decorate</span></button>
+      </div>
       <div class="rooms" id="roomFilter"></div>
       <div class="cats" id="cats"></div>
     </div>
@@ -129,10 +144,11 @@ app.innerHTML = `
 <div class="street park hidden" id="park"><div class="streetScroll" id="parkScroll"><div class="parkWorld" id="parkWorld"></div></div></div>
 <div class="street grRoom hidden" id="gameroom"><div class="streetScroll" id="grScroll"><div class="parkWorld grWorld" id="grWorld"></div></div><div id="grSolo" class="grSolo hidden">Play with friends on your street</div></div>
 <div id="tableOverlay" class="tableOverlay hidden"></div>
-<div class="street mapView hidden" id="street"><div class="mapWorld" id="mapWorld"></div></div>
+<div class="street mapView hidden" id="street"><button class="mailCue" id="mailCue" type="button">You've got mail!</button><div class="mapWorld" id="mapWorld"></div></div>
 <div class="chatTray hidden" id="chatTray"></div>
 <div class="sheet hidden" id="sheet"><div class="card" id="card"></div></div>
 <div class="fx" id="fx"></div>
+<div id="toastLane"></div>
 <div class="phoneNote" id="phoneNote"><div class="card"><h2>Turn sideways</h2><p>Turn your phone sideways for more room to play!</p><button class="phoneOk" id="phoneOk" type="button">OK!</button></div></div>
 <div class="elsewhere hidden" id="elsewhere"><div class="card"><h2>You're playing on another screen</h2><p>This screen can rest. Your house is safe.</p><button class="playHere" id="elsewhereGo" type="button">Tap to play here!</button></div></div>`;
 
@@ -144,6 +160,7 @@ let selected: string | null = null;          // selected room item (UI only)
 let activeChar: string | null = store.get().characters[0]?.id ?? null; // character being edited (UI only)
 let currentTab = 'furniture';
 let roomFilter = ''; // '' follows the room you're in; 'all' shows every room's things
+let tabMode = '';
 let uid = Date.now() % 100000;
 const newId = (p: string) => `${p}-${Date.now().toString(36)}${(++uid).toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 const ME = '__me';
@@ -153,11 +170,30 @@ let view: 'house' | 'street' | 'park' | 'ranch' | 'gameroom' = 'house'; // 'stre
 let inBarn = false; // inside Rainbow Ranch: the yard, or the barn (petting zoo)
 let currentHouseId = '';
 let houseStores = new Map<string, ReturnType<typeof houseStore>>();
+let modeFit = false;
+const play = installPlayMode($('modeToggle'), {
+  ownHouse: () => !hood || !currentHouseId || currentHouseId === hood.myHouseId(),
+  onChange: () => { if (modeFit) fit(); },
+});
+const mailUI = installMail({
+  send: (houseId, text, color, sticker) => hood?.sendMail(houseId, text, color, sticker),
+  read: (houseId, id) => hood?.readMail(houseId, id),
+  drop: (houseId, id) => hood?.dropMail(houseId, id),
+  houseOf: pid => [...(hood?.players.values() ?? [])].find(p => p.pid === pid)?.houseId ?? '',
+  houseName: houseId => hood?.houses.get(houseId)?.meta.name ?? 'My House',
+  lettersOf: houseId => hood?.houses.get(houseId)?.confirmed.mailbox?.letters ?? [],
+  mine: houseId => !!hood && hood.houses.get(houseId)?.meta.ownerId === hood.pid,
+  toast,
+  openOwn: () => { const id = hood?.myHouseId(); if (id) openMailbox(id); },
+  freeType: () => !hood || mailIsFree(hood.settings),
+});
+play.sync(true);
 const avatarEls = new Map<string, HTMLElement>();
 
 // ---------- camera (view-only, not part of game state) ----------
 const cams: Record<string, number> = {};
 let camX = V1_OFFSET, inertia = 0;
+modeFit = true;
 let glideTarget: number | null = null;
 const stopGlide = () => { cancelAnimationFrame(inertia); glideTarget = null; };
 const clampCam = (x: number) => Math.max(0, Math.min(maxCam(), x));
@@ -224,34 +260,53 @@ function fit() {
   syncChrome();
   const wrap = $('stageWrap');
   const phone = document.body.classList.contains('phone');
-  // iPad keeps the original test. On a phone, a tall tool row can make the stage almost square;
-  // still frame it as portrait so the room fills the screen instead of shrinking to a wide sliver.
-  const portrait = phone
-    ? wrap.clientHeight > wrap.clientWidth * 0.85
-    : wrap.clientHeight > wrap.clientWidth + 40;
+  const boxW = wrap.clientWidth;
+  const boxH = wrap.clientHeight;
+  // Portrait uses the whole wrap. iPad keeps the original test. On a phone, a tall
+  // tool row can make the stage almost square; still frame it as portrait so the room fills the screen.
+  const portrait = phone ? boxH > boxW * 0.85 : boxH > boxW + 40;
   if (portrait) {
-    // Match the free space's shape so the room scales up and fills the height.
-    const aspect = wrap.clientWidth / Math.max(1, wrap.clientHeight);
+    const aspect = boxW / Math.max(1, boxH);
     VIEW_W = Math.round(Math.max(480, Math.min(860, H * aspect)));
   } else if (phone) {
-    // Landscape phone: the free box is short and wide. Open the window to that shape
-    // (never wider than the room, never stretched) so the stage uses the width and the height.
-    const aspect = wrap.clientWidth / Math.max(1, wrap.clientHeight);
+    const aspect = boxW / Math.max(1, boxH);
     VIEW_W = Math.round(Math.max(480, Math.min(W, H * aspect)));
   } else VIEW_W = 1000;
   stage.style.width = VIEW_W + 'px';
   stage.style.height = H + 'px';
-  const sc = Math.min(wrap.clientWidth / VIEW_W, wrap.clientHeight / H);
+  const sc = Math.min(boxW / VIEW_W, boxH / H);
+  stage.style.left = '';
+  stage.style.top = '';
   stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
-  if (document.body.classList.contains('phone')) stage.style.setProperty('--fit', String(sc));
+  if (phone) stage.style.setProperty('--fit', String(stageScale()));
+  placePhoneNudges();
   if (camX > maxCam()) setCam(camX);
   else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
-  // Phone portrait narrows the window after the camera was aimed at a wider view.
   phoneShowKids();
+  if (!phone && view === 'house') frameHouseKid(false);
+  syncTabMode();
   if (view === 'ranch') requestAnimationFrame(frameRanchSign);
   clampPhoneBubbles();
   if (phone && view === 'ranch') layoutPaddock();
   placeSecretsPill();
+  play.hint();
+}
+/** Phone arrows live on the wrap in screen pixels. Centre them on the stage. */
+function placePhoneNudges() {
+  const wrap = $('stageWrap');
+  const on = document.body.classList.contains('phone') && view === 'house';
+  for (const n of [$('nudgeL'), $('nudgeR')]) {
+    if (!on || n.parentElement !== wrap) {
+      n.style.top = ''; n.style.marginTop = ''; n.style.left = ''; n.style.right = '';
+      continue;
+    }
+    const stageBox = stage.getBoundingClientRect();
+    const wrapBox = wrap.getBoundingClientRect();
+    const mid = (stageBox.top + stageBox.bottom) / 2 - wrapBox.top;
+    n.style.top = mid + 'px';
+    n.style.marginTop = (-n.offsetHeight / 2) + 'px';
+    n.style.left = ''; n.style.right = '';
+  }
 }
 /**
  * Short phone landscape letterboxes the room. The full Surprises pill is wider than
@@ -325,7 +380,10 @@ function nudgeScroll(scroll: HTMLElement, nodes: HTMLElement[]) {
   else scroll.scrollLeft -= overflowL;
   return Math.abs(scroll.scrollLeft - before) > 0.5;
 }
-function phoneShowHouseKid() {
+function phoneShowHouseKid() { frameHouseKid(false); }
+/** Pan so the kid and her name tag sit inside the stage. On a drop, step her inward if the camera is already at the end of the room. */
+function frameHouseKid(nudgeX: boolean) {
+  if (view !== 'house') return;
   const kid = document.querySelector<HTMLElement>('#layer .char.avatar.mine') ?? document.querySelector<HTMLElement>('#layer .char');
   if (!kid) return;
   const sc = stageScale() || 1;
@@ -360,10 +418,37 @@ function phoneShowHouseKid() {
     const delta = (minL + maxR) / 2 - (leftLimit + rightLimit) / 2;
     if (Math.abs(delta) > 3) { setCam(camX + delta / sc); return; }
   }
-  if (overflowR <= 1 && overflowL <= 1) return;
-  if (overflowR > 1 && overflowL > 1) setCam(camX - overflowL / sc);
-  else if (overflowR > 1) setCam(camX + overflowR / sc);
-  else setCam(camX - overflowL / sc);
+  const curX = kidWorldX(kid);
+  const res = resolveFrame({ cam: camX, maxCam: maxCam(), kidX: curX, overflowL, overflowR, scale: sc, nudgeX });
+  if (Math.abs(res.cam - camX) > 0.5) setCam(res.cam);
+  if (nudgeX && Math.abs(res.kidX - curX) > 0.5) moveKidX(kid, res.kidX);
+}
+function kidWorldX(kid: HTMLElement): number {
+  if (kid.dataset.pid && hood) {
+    const p = kid.dataset.pid === hood.pid ? myPres() : hood.presence.get(kid.dataset.pid);
+    if (p && p.where === 'house') return p.x;
+  }
+  return store.get().characters.find(ch => ch.id === kid.dataset.cid)?.x ?? 0;
+}
+function moveKidX(kid: HTMLElement, x: number) {
+  if (kid.dataset.pid && hood && kid.classList.contains('mine')) {
+    const cur = myPres(); if (!cur || cur.where !== 'house') return;
+    setMyPres({ ...cur, x }); renderAvatars(); return;
+  }
+  const id = kid.dataset.cid; if (!id) return;
+  const c = store.get().characters.find(ch => ch.id === id); if (!c) return;
+  store.dispatch({ type: 'char/move', id, room: store.get().currentRoom, x, y: c.y });
+}
+const TAB_SHORT: Record<string, string> = { living: 'Living', bedroom: 'Bed', kitchen: 'Kitchen', salon: 'Salon', nursery: 'Nursery' };
+const TAB_ICO = `<svg class="tabIco" viewBox="0 0 16 12" aria-hidden="true"><path d="M1 6 L8 1 L15 6 V11 H1 Z" fill="currentColor"/></svg>`;
+function tabsCompact() {
+  return window.matchMedia('(max-width: 900px) and (min-height: 700px)').matches && !document.body.classList.contains('phone');
+}
+function syncTabMode() {
+  const next = tabsCompact() ? 'c' : 'f';
+  if (next === tabMode) return;
+  tabMode = next;
+  renderTabs(store.get());
 }
 window.addEventListener('resize', fit);
 phoneMQ.addEventListener('change', fit);
@@ -458,6 +543,7 @@ function renderRoomBg(s: GameState) {
   floor.style.backgroundImage = ft ? `${cssUrl(ft.url)}, linear-gradient(rgba(0,0,0,.06), transparent 50%)` : FLOOR_BOARDS;
   floor.style.backgroundSize = ft ? '180px auto, auto' : 'auto';
   $('mmWall').style.background = room.wallpaper; $('mmFloor').style.background = room.floor;
+  syncScenery($('scenery'), s.currentRoom, room.items);
 }
 function renderMinimap(s: GameState) {
   const room = s.rooms[s.currentRoom];
@@ -466,7 +552,13 @@ function renderMinimap(s: GameState) {
   $('mmDots').innerHTML = dots + me;
 }
 function renderTabs(s: GameState) {
-  $('tabs').innerHTML = ROOMS.map(r => `<button class="tab ${s.currentRoom === r.id ? 'on' : ''}" data-room="${r.id}" style="--c:${r.color}">${r.name}</button>`).join('');
+  const compact = tabsCompact();
+  tabMode = compact ? 'c' : 'f';
+  document.body.classList.toggle('tabs-compact', compact);
+  $('tabs').innerHTML = ROOMS.map(r => {
+    const label = compact ? (TAB_SHORT[r.id] ?? r.name) : r.name;
+    return `<button class="tab ${s.currentRoom === r.id ? 'on' : ''}" data-room="${r.id}" style="--c:${r.color}" aria-label="${r.name}">${compact ? TAB_ICO : ''}${label}</button>`;
+  }).join('');
 }
 function placeEl(el: HTMLElement, x: number, y: number, w: number, h: number) {
   el.style.left = (x - w / 2) / W * 100 + '%';
@@ -509,6 +601,7 @@ function renderItems(s: GameState) {
     el.classList.toggle('sel', selected === it.id);
   }
   layer.querySelectorAll<HTMLElement>('.item').forEach(el => { if (!seen.has(el.dataset.id!)) el.remove(); });
+  syncScenery($('scenery'), s.currentRoom, room.items);
   renderToolbar(s); renderMinimap(s);
 }
 
@@ -654,6 +747,7 @@ function startDrag(e: PointerEvent, ctx: DragCtx) {
 function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
   e.preventDefault(); e.stopPropagation();
   if (twoFinger) return;
+  if (play.isPlay()) { onPlayTap(el, el.dataset.id!); return; }
   if (!canEdit()) { lockedNudge(el); return; }
   const s = store.get(); const room = s.currentRoom;
   const id = el.dataset.id!; const it = s.rooms[room].items.find(i => i.id === id); if (!it) return;
@@ -677,8 +771,8 @@ function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
       el.classList.remove('lifted'); bin.classList.remove('show', 'hot'); showHoldTarget(null);
       if (moved && overBin(ev.clientX, ev.clientY)) { selected = null; store.dispatch({ type: 'item/delete', room, id }); poof(ev.clientX, ev.clientY); return; }
       if (moved && target) { holdInto(target, id); return; }
-      if (moved) sfx.drop(); else { sfx.click(); onPlaceTap(id); }
-      bounce(el); renderItems(store.get());
+      if (moved) { sfx.drop(); bounce(el); } else { sfx.click(); onPlaceTap(id); wiggleItem(el); }
+      renderItems(store.get());
     },
   });
 }
@@ -686,7 +780,7 @@ function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
 /** Drag a held item off a hand: it is released into the room and becomes a normal dragged item. */
 function beginHeldDrag(charEl: HTMLElement, heldEl: HTMLElement, e: PointerEvent) {
   e.preventDefault(); e.stopPropagation();
-  if (twoFinger) return;
+  if (twoFinger || play.isPlay()) return;
   const cid = charEl.dataset.cid!, hand = heldEl.dataset.hand as Hand;
   const c = store.get().characters.find(c => c.id === cid); const it = c?.held[hand]; if (!c || !it) return;
   const r = heldEl.getBoundingClientRect(); const p = toRoom(r.left + r.width / 2, r.bottom);
@@ -698,7 +792,7 @@ function beginHeldDrag(charEl: HTMLElement, heldEl: HTMLElement, e: PointerEvent
 function attachCharDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
     const heldEl = (e.target as HTMLElement).closest<HTMLElement>('.held');
-    if (heldEl) { if (!canEdit()) { e.stopPropagation(); lockedNudge(el); return; } return beginHeldDrag(el, heldEl, e); }
+    if (heldEl) { if (play.isPlay()) { e.preventDefault(); e.stopPropagation(); return; } if (!canEdit()) { e.stopPropagation(); lockedNudge(el); return; } return beginHeldDrag(el, heldEl, e); }
     e.preventDefault(); e.stopPropagation();
     if (twoFinger) return;
     if (!canEdit()) { lockedNudge(el); return; }
@@ -729,6 +823,7 @@ function attachCharDrag(el: HTMLElement) {
           return;
         }
         sfx.drop(); bounce(el);
+        if (moved) requestAnimationFrame(() => frameHouseKid(true));
       },
     });
   });
@@ -738,6 +833,7 @@ function attachCharDrag(el: HTMLElement) {
 function attachShelfDrag(btn: HTMLElement, def: ItemDef) {
   btn.addEventListener('pointerdown', e => {
     e.preventDefault();
+    if (play.isPlay()) { e.stopPropagation(); return; }
     if (!canEdit()) { lockedNudge(btn); return; }
     const ghost = document.createElement('div'); ghost.className = 'ghost'; ghost.innerHTML = svgOf(def);
     document.body.appendChild(ghost);
@@ -762,6 +858,10 @@ function attachShelfDrag(btn: HTMLElement, def: ItemDef) {
         else if (inStage(ev.clientX, ev.clientY)) { const p = toRoom(ev.clientX, ev.clientY); x = p.x; y = snapY(def, p.y + hOf(def) * .2); }
         else return;
         const item: PlacedItem = { id: newId(def.kind.replace(/[^a-z0-9-]/gi, '')), kind: def.kind, x, y, flip: false, z: 0, scale: 1 };
+        if (store.get().rooms[room].items.length === 0) {
+          const starters = emptyRoomStarters(kind => newId(kind));
+          for (let i = 0; i < starters.length; i++) store.dispatch({ type: 'item/add', room, item: starters[i] });
+        }
         store.dispatch({ type: 'item/add', room, item });
         if (!tapped && target) { holdInto(target, item.id); return; }
         selected = item.id; renderItems(store.get());
@@ -775,6 +875,7 @@ function attachShelfDrag(btn: HTMLElement, def: ItemDef) {
 function attachPersonCard(btn: HTMLElement, id: string) {
   btn.addEventListener('pointerdown', e => {
     e.preventDefault();
+    if (play.isPlay()) return;
     if (!canEdit()) { lockedNudge(btn); return; }
     const c = store.get().characters.find(c => c.id === id); if (!c) return;
     const sc = charScale(c), gw = CHAR_W * sc * stageScale(), gh = CHAR_H * sc * stageScale();
@@ -816,9 +917,9 @@ function renderDrawer() {
   const rname = ROOMS.find(r => r.id === room)?.name ?? 'This room';
   const all = rf === 'all';
   $('roomFilter').innerHTML = `<button class="rf ${all ? 'on' : ''}" data-rf="${all ? 'room' : 'all'}">${all ? 'Just ' + rname : 'All rooms'}</button>`;
-  const hasSecrets = tabItems('secrets', 'all').length > 0;
+  const hasSecrets = tabItems('secrets').length > 0;
   // Pack tabs stay on screen in every room (Glossy is all salon pieces, and kids still need to see it).
-  const visible = TABS.filter(t => t.id !== 'secrets' && (t.kind === 'people' || t.kind === 'pack' || tabItems(t.id, rf).length));
+  const visible = TABS.filter(t => t.id !== 'secrets' && (t.kind === 'people' || t.kind === 'pack' || tabItems(t.id).length));
   if (!(currentTab === 'secrets' && hasSecrets) && !visible.some(t => t.id === currentTab)) currentTab = visible[1]?.id ?? '__people';
   $('cats').innerHTML = visible.map(t => `<button class="cat ${t.kind} ${t.id === currentTab ? 'on' : ''}" data-cat="${t.id}" aria-label="${t.name}" title="${t.name}">${t.kind === 'people' ? PEOPLE_ICON : t.kind === 'pack' ? `<span class="packicon">${svgOf(ITEM_MAP[t.icon])}</span><span class="packname">${t.name}</span>` : svgOf(ITEM_MAP[t.icon])}</button>`).join('')
     + (hasSecrets ? `<button class="cat secretTab ${currentTab === 'secrets' ? 'on' : ''}" data-cat="secrets" aria-label="Secrets" title="Secrets">🎁</button>` : '');
@@ -844,7 +945,7 @@ function renderDrawer() {
     }
     return;
   }
-  const list = tabItems(currentTab, currentTab.startsWith('pack:') ? 'all' : rf);
+  const list = tabItems(currentTab);
   if (!list.length) shelf.innerHTML = `<div class="empty">Nothing here yet!</div>`;
   for (const d of list) {
     const b = document.createElement('button'); b.className = 'thing'; b.setAttribute('aria-label', d.name);
@@ -1028,6 +1129,8 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorke
 (window as any).__cam = { get: () => camX, set: setCam };
 (window as any).__phoneShowKids = () => phoneShowKids();
 (window as any).__avatar = { richAvatars, randomLook2, look2FromLegacy, legacyFromLook2, sanitizeLook2, handsFor };
+(window as any).__frameHouseKid = () => frameHouseKid(true);
+(window as any).__layoutNameTags = () => layoutNameTags();
 
 
 // =====================================================================================
@@ -1101,7 +1204,7 @@ function attachMyAvatarDrag(el: HTMLElement) {
         const flip = Math.abs(x - lastX) > 3 ? x < lastX : cur.flip; if (Math.abs(x - lastX) > 3) lastX = x;
         setMyPres({ ...cur, x, y, flip }); renderAvatars(); renderMinimap(store.get());
       },
-      onUp() { el.classList.remove('lifted'); sfx.drop(); bounce(el); },
+      onUp() { el.classList.remove('lifted'); sfx.drop(); bounce(el); requestAnimationFrame(() => frameHouseKid(true)); },
     });
   });
 }
@@ -1189,7 +1292,7 @@ function renderHoodChrome() {
   const inHouse = !!hood && inner !== local && view === 'house';
   const h = inHouse ? hood!.houses.get(currentHouseId) : undefined;
   const own = !!h && h.meta.ownerId === hood!.pid;
-  b.toggle('mode-hood', !!hood); b.toggle('view-street', view !== 'house'); b.toggle('view-park', view === 'park'); b.toggle('view-ranch', view === 'ranch'); b.toggle('view-map', view === 'street'); b.toggle('view-gameroom', view === 'gameroom'); b.toggle('in-barn', view === 'ranch' && inBarn); renderBasketChip();
+  b.toggle('mode-hood', !!hood); b.toggle('view-street', view !== 'house'); b.toggle('view-park', view === 'park'); b.toggle('view-ranch', view === 'ranch'); b.toggle('view-map', view === 'street'); b.toggle('view-gameroom', view === 'gameroom'); b.toggle('in-barn', view === 'ranch' && inBarn); b.toggle('mode-play', view === 'house' && play.isPlay()); renderBasketChip(); syncMailCue();
   b.toggle('own-house', own); b.toggle('locked', !!h && !canEdit()); b.toggle('has-hood', !!hoodServerUrl());
   if (h) {
     const owner = hood!.players.get(h.meta.ownerId)?.nickname ?? '';
@@ -1216,7 +1319,7 @@ function renderMap(force = false) {
   if (view !== 'street') return;
   const sc = mapScale(), w = $('mapWorld');
   const houses = mapHouses();
-  const key = sc.toFixed(3) + JSON.stringify(houses) + (hood ? houses.map(h => (hood!.players.get(h.ownerId)?.online ? 1 : 0)).join('') + hood.pid : 'solo');
+  const key = sc.toFixed(3) + JSON.stringify(houses) + (hood ? houses.map(h => (hood!.players.get(h.ownerId)?.online ? 1 : 0) + (houseUnread(h.id) ? 'u' : '')).join('') + hood.pid : 'solo');
   if (!force && key === mapKey && w.querySelector('#mapFaces')) { renderMapFaces(); return; }
   mapKey = key;
   w.style.width = MAP_W * sc + 'px'; w.style.height = MAP_H * sc + 'px'; w.style.setProperty('--sc', String(sc));
@@ -1238,7 +1341,13 @@ function renderMap(force = false) {
     const c = spotsXY[i];
     const go = h ? `house:${h.id}` : 'home', name = h ? h.name : 'My House';
     mapAnchors.set(h ? 'house:' + h.id : 'home', { x: c.x, y: c.y - hh / 2 - 4 });
+    const flag = !!(h && houseUnread(h.id));
+    // Lower-right of the house, clear of the door's center so a tap on the house still goes inside.
+    const mw = 34, mh = 40;
+    const mx = Math.max(4, Math.min(MAP_W - mw - 4, c.x + hw * 0.28));
+    const my = Math.max(4, Math.min(MAP_H - mh - 4, c.y + hh * 0.28));
     html += `<button class="mapSpot mapHouse ${h?.mine || !h ? 'mine' : ''}" data-go="${go}" aria-label="${esc(name)}" style="left:${px(c.x - hw / 2)};top:${px(c.y - hh / 2)};width:${px(hw)};height:${px(hh)}">${houseSVG(h ? h.style : 0, { lit: h ? h.lit : true })}${h?.locked ? '<span class="lockBadge">🔒</span>' : ''}${h?.mine || !h ? '<span class="homeBadge">★</span>' : ''}</button>
+      <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>
       <div class="mapSign ${h?.mine || !h ? 'mine' : ''} ${c.x > MAP_W - 130 ? 'edgeR' : c.x < 130 ? 'edgeL' : ''}" style="left:${px(c.x > MAP_W - 130 ? MAP_W - 8 : c.x < 130 ? 8 : c.x)};top:${px(c.y + hh / 2 - 2)}">${esc(name)}</div>`;
   });
   html += `<button class="mapSpot mapPark" data-go="park" aria-label="The park" style="left:${px(PARK.x - 100)};top:${px(PARK.y - 85)};width:${px(200)};height:${px(170)}">${parkMiniSVG}</button><div class="mapSign place" style="left:${px(PARK.x)};top:${px(PARK.y + 70)}">Park</div>`;
@@ -1353,8 +1462,25 @@ function goToFriend(pid: string) {
     toast(`You found ${name}! 💕`);
   }, 420);
 }
+function houseUnread(id: string) {
+  if (!hood) return false;
+  const h = hood.houses.get(id);
+  return !!h && h.meta.ownerId === hood.pid && unreadCount(h.confirmed.mailbox) > 0;
+}
+function syncMailCue() {
+  const show = !!hood && view === 'street' && houseUnread(hood.myHouseId());
+  mailUI.syncCue(show);
+}
+function openMailbox(id: string) {
+  if (!hood || id === 'home' || !hood.houses.has(id)) { toast('Join a street to send letters!'); return; }
+  const h = hood.houses.get(id)!;
+  mailUI.open(id, h.meta.name, h.meta.ownerId === hood.pid, h.confirmed.mailbox?.letters ?? []);
+  sfx.click();
+}
 $('mapWorld').addEventListener('click', e => {
   const t = e.target as HTMLElement; if (view !== 'street') return;
+  const box = t.closest<HTMLElement>('.mapMail');
+  if (box) { openMailbox(box.dataset.mail || 'home'); return; }
   const f = t.closest<HTMLElement>('.mapFace');
   if (f) { if (f.classList.contains('mine')) { bounce(f); sfx.pop(); toast("That's you! Tap a place to go there"); } else goToFriend(f.dataset.pid!); return; }
   const sp = t.closest<HTMLElement>('[data-go]'); if (!sp) return;
@@ -1374,12 +1500,13 @@ function goMap() {
 /** Back to her own house (solo: the local house; neighborhood: her house on the street). */
 function goHome() {
   if (hood) { const id = hood.myHouseId(); if (id && hood.houses.has(id)) enterHouse(id); return; }
-  hideScenes(); view = 'house'; soloPark = null; renderHoodChrome(); renderAll(); sceneIn($('stageWrap')); sfx.sparkle();
+  hideScenes(); view = 'house'; soloPark = null; play.sync(true); renderHoodChrome(); renderAll(); sceneIn($('stageWrap')); sfx.sparkle();
   fitPhone();
 }
 function enterHouse(houseId: string, room: RoomId = 'living') {
   if (!hood || !hood.houses.has(houseId)) return;
   currentHouseId = houseId; view = 'house'; inBarn = false;
+  play.sync(houseId === hood.myHouseId());
   let st = houseStores.get(houseId);
   if (!st) { st = houseStore(hood, houseId, { get: () => local.get().soundOn, set: on => local.dispatch({ type: 'settings/sound', on }) }); houseStores.set(houseId, st); }
   st.dispatch({ type: 'room/switch', room });
@@ -1391,7 +1518,7 @@ function enterHouse(houseId: string, room: RoomId = 'living') {
 function goSolo() {
   hood?.close(); hood = null; houseStores = new Map(); view = 'house'; currentHouseId = ''; soloPark = null; fetchSt = null; walkQueue = []; inBarn = false; $('elsewhere').classList.add('hidden');
   hideScenes();
-  useStore(local); renderHoodChrome();
+  play.sync(true); useStore(local); renderHoodChrome();
 }
 $('btnMap').addEventListener('click', () => { if (view === 'street') { sfx.pop(); return; } goMap(); });
 $('btnHome').addEventListener('click', () => { if (view === 'house' && (!hood || currentHouseId === hood.myHouseId())) { sfx.pop(); return; } goHome(); });
@@ -1424,7 +1551,9 @@ function enterNeighborhood(client: HoodClient) {
   client.on('fx', (pid: string, fx: Fx) => { if (hood === client) onFx(pid, fx); });
   client.on('bubble', (pid: string, b: Bubble) => { if (hood === client) showBubble(pid, b); });
   client.on('sayFail', (r: string) => toast(r === 'presetsOnly' ? 'Typing is turned off: pick a bubble!' : FILTER_MSG[r] || "Couldn't send that"));
-  client.on('settings', () => { if (!$('chatTray').classList.contains('hidden')) renderChatTray(); });
+  client.on('mailbox', () => { if (hood !== client) return; if (view === 'street') renderMap(true); syncMailCue(); mailUI.refresh(); });
+  client.on('mailFail', (r: string) => { if (hood === client) mailUI.fail(r); });
+  client.on('settings', () => { if (hood !== client) return; if (!$('chatTray').classList.contains('hidden')) renderChatTray(); mailUI.refresh(); });
   client.on('removed', () => { toast('A grown-up took this iPad off the street'); const c = client.cfg; saveHoodConfig({ url: c.url, code: c.code, id: c.id, parentKey: c.parentKey }); goSolo(); });
   client.on('status', (st: string) => {
     if (hood !== client) return;
@@ -1572,15 +1701,27 @@ async function parentScreen() {
     const a = t.closest<HTMLElement>('[data-p]'); if (!a) return;
     const op = a.dataset.p;
     if (op === 'free') c.parent({ op: 'freeChat', on: a.dataset.on !== '1' });
+    if (op === 'freeMail') c.parent({ op: 'freeMail', on: a.dataset.on !== '1' });
     if (op === 'rename') c.parent({ op: 'rename', houseId: a.dataset.hid, name: val(`input[data-hid="${a.dataset.hid}"]`) });
     if (op === 'add') c.parent({ op: 'rosterAdd', name: a.dataset.name ?? val('#rosterInput') });
     if (op === 'unname') c.parent({ op: 'rosterRemove', name: a.dataset.name });
     if (op === 'unclaim') { if (a.dataset.sure !== '1') { a.dataset.sure = '1'; a.textContent = 'Tap again'; return; } c.parent({ op: 'unclaim', name: a.dataset.name }); }
     if (op === 'setcode') c.parent({ op: 'setCode', code: val('#codeEdit') });
     if (op === 'remove') { if (a.dataset.sure !== '1') { a.dataset.sure = '1'; a.textContent = 'Tap again to remove'; return; } c.parent({ op: 'remove', pid: a.dataset.pid }); }
+    if (op === 'mailClear' || op === 'mailClearAll') {
+      if (a.dataset.sure !== '1') { a.dataset.sure = '1'; a.textContent = op === 'mailClearAll' ? 'Tap again to clear every mailbox' : (a.dataset.id ? 'Tap again' : 'Tap again to clear this mailbox'); return; }
+      if (op === 'mailClearAll') c.parent({ op: 'mailClearAll' });
+      else c.parent({ op: 'mailClear', houseId: a.dataset.hid, ...(a.dataset.id ? { id: a.dataset.id } : {}) });
+    }
     if (op === 'leave') { if (a.dataset.sure !== '1') { a.dataset.sure = '1'; a.textContent = 'Tap again: forget this street here'; return; } saveHoodConfig(null); m.close(); goSolo(); toast('This iPad left the street'); }
   }, 'wide parent');
   m.root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).id; if (f === 'rosterForm') c.parent({ op: 'rosterAdd', name: val('#rosterInput') }); if (f === 'codeForm2') c.parent({ op: 'setCode', code: val('#codeEdit') }); });
+  const letterDate = (at: number) => {
+    const d = new Date(at);
+    if (!Number.isFinite(d.getTime())) return '';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+  };
   c.on('parentInfo', (info: any) => {
     const body = m.root.querySelector('#parentBody'); if (!body) return;
     // remember the current code on this device (sockets use the permanent id, so changing the code never kicks anyone)
@@ -1589,9 +1730,18 @@ async function parentScreen() {
     const names = new Set(roster.map(r => r.name.toLowerCase()));
     const sugg = ROSTER_SUGGEST.filter(n => !names.has(n.toLowerCase()));
     const firstName = roster[0]?.name ?? 'Reagan';
+    const boxes: { houseId: string; name: string; letters: { id: string; from: string; text: string; at: number }[] }[] = Array.isArray(info.mail) ? info.mail : [];
+    const anyLetters = boxes.some(b => b.letters && b.letters.length);
+    const mailOn = mailIsFree(info.settings);
+    const mailHtml = boxes.map(b => `<div class="pMailHouse"><div class="pMailName">${esc(b.name || 'House')}</div>${
+      (b.letters || []).slice().reverse().map(l => `<div class="pLetter"><b>${esc(l.from)}</b><span class="pWhen">${esc(letterDate(l.at))}</span><p>${esc(l.text)}</p><button type="button" class="danger" data-p="mailClear" data-hid="${esc(b.houseId)}" data-id="${esc(l.id)}">Clear</button></div>`).join('')
+      || '<p class="hint">No letters.</p>'
+    }${(b.letters || []).length ? `<button type="button" class="danger" data-p="mailClear" data-hid="${esc(b.houseId)}">Clear this mailbox</button>` : ''}</div>`).join('');
     body.innerHTML = `${info.note ? `<p class="err" id="pNote">${esc(PARENT_NOTES[info.note] ?? info.note)}</p>` : ''}
       <div class="pRow"><div><div class="label">Invite code</div><div class="code small" id="pCode">${esc(info.code)}</div></div>
-        <div><div class="label">Free typing in chat</div><button class="toggle ${info.settings.freeChat ? 'on' : ''}" data-p="free" data-on="${info.settings.freeChat ? 1 : 0}" id="pFree">${info.settings.freeChat ? 'On' : 'Off (presets only)'}</button></div></div>
+        <div><div class="label">Free typing</div><button class="toggle ${info.settings.freeChat ? 'on' : ''}" data-p="free" data-on="${info.settings.freeChat ? 1 : 0}" id="pFree">${info.settings.freeChat ? 'On' : 'Off (presets only)'}</button><p class="hint small">Chat bubbles. Off means preset phrases only.</p></div>
+        <div><div class="label">Let kids type their own letters</div><button class="toggle ${mailOn ? 'on' : ''}" data-p="freeMail" data-on="${mailOn ? 1 : 0}" id="pFreeMail">${mailOn ? 'On' : 'Off (presets only)'}</button><p class="hint small">Letters only. Off means preset phrases only.</p></div></div>
+      <div class="label">Letters</div><div id="parentMail">${mailHtml || '<p class="hint">No letters right now.</p>'}${anyLetters ? '<button type="button" class="danger" data-p="mailClearAll" id="mailClearAll">Clear every mailbox</button>' : ''}</div>
       <form class="pAdd" id="codeForm2"><input id="codeEdit" maxlength="${CODE_MAX}" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="e.g. ${esc(normCode(firstName))}${7}"/><button data-p="setcode" type="button">Use this code</button></form>
       <p class="hint small">Tip: a word plus a number (like ${esc(normCode(firstName))}7) is easy to remember and harder to guess. Not case-sensitive.</p>
       <div class="label">Kids' names (sign-in list)</div>
@@ -1602,7 +1752,7 @@ async function parentScreen() {
       ${sugg.length ? `<div class="sugg">${sugg.map(n => `<button data-p="add" data-name="${n}">+ ${n}</button>`).join('')}</div>` : ''}
       <div class="label">Houses</div>${info.houses.map((h: any) => `<div class="pHouse"><input data-hid="${h.id}" value="${esc(h.name)}" maxlength="24"/><button data-p="rename" data-hid="${h.id}">Rename</button></div>`).join('') || '<p class="hint">No houses yet.</p>'}
       <div class="label">Players</div>${info.players.map((p: any) => `<div class="pPlayer"><span class="dot ${p.online ? 'on' : ''}"></span>${esc(p.nickname)}<button class="danger" data-p="remove" data-pid="${p.pid}">Remove</button></div>`).join('') || '<p class="hint">Nobody has joined yet.</p>'}
-      <p class="hint small">Only the first names you add here are stored: no emails, last names, or chat history. "Reset" signs a name out of its iPad so it can sign in again on another one (her house stays). Chat bubbles are only relayed to kids standing nearby.</p>
+      <p class="hint small">Letters stay on the server for up to 30 days. They are filtered, and only a first name is stored. You can clear them here, or turn off “Let kids type their own letters” so new letters use preset phrases. Chat bubbles are only relayed to kids standing nearby and are not saved. No emails or last names. "Reset" signs a name out of its iPad so it can sign in again on another one (her house stays).</p>
       <button class="danger wideBtn" data-p="leave">Forget this street on this device</button>`;
   });
   c.on('error', (code: string) => { if (code === 'badkey') { toast("That grown-up key didn't work"); cfg.parentKey = undefined; saveHoodConfig(cfg); m.close(); } });
@@ -1829,7 +1979,7 @@ function tickDogs(now: number, dt: number) {
     }
     const tricking = now < r.trickUntil;
     const dx = tx - r.x, dy = ty - r.y, d = Math.hypot(dx, dy); let moving = false;
-    if (d > (fetchSt ? 4 : 10) && !tricking) { const step = Math.min(d, speed * dt); r.x += dx / d * step; r.y += dy / d * step; moving = true; if (Math.abs(dx) > 1.5) r.flip = dx < 0; r.idle = 0; }
+    if (d > (fetchSt ? 4 : 10) && !tricking) { const step = prefersReducedMotion() ? d : Math.min(d, speed * dt); r.x += dx / d * step; r.y += dy / d * step; moving = true; if (Math.abs(dx) > 1.5) r.flip = dx < 0; r.idle = 0; }
     else { r.idle += dt; if (!tricking && r.idle > 0.3 && Math.abs(o.x - r.x) > 4) r.flip = o.x < r.x; }
     const pose = tricking && r.sitTrick ? 'sit' : moving ? 'stand' : r.idle > 0.9 ? 'sit' : 'stand';
     const look = pose + o.dog.breed;
@@ -1937,6 +2087,28 @@ function onPlaceTap(id: string) {
   if (it.kind === 'kennel') { if (inMyHouse()) toggleKennel(it.id); return; }
   if (it.kind === 'cat-tower') tapTower();
 }
+function onPlayTap(el: HTMLElement, id: string) {
+  const s = store.get();
+  const it = s.rooms[s.currentRoom]?.items.find(i => i.id === id); if (!it) return;
+  const g = playGesture(it.kind);
+  el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle');
+  sfx.click();
+  if (g === 'kennel' || g === 'tower') { onPlaceTap(id); return; }
+  if (g === 'lamp') { el.classList.toggle('lamp-on'); return; }
+  if (g === 'open') { el.classList.toggle('opened'); return; }
+  if (g === 'sit') sitAt(it);
+}
+function sitAt(it: PlacedItem) {
+  const y = Math.max(FLOOR_Y + 40, it.y - 8);
+  if (hood && view === 'house') {
+    const me = myPres();
+    if (me && me.where === 'house') { setMyPres({ ...me, x: it.x, y, flip: false }); renderAvatars(); }
+    return;
+  }
+  const s = store.get();
+  const c = s.characters.find(ch => ch.id === activeChar && ch.room === s.currentRoom) ?? s.characters.find(ch => ch.room === s.currentRoom);
+  if (c) store.dispatch({ type: 'char/move', id: c.id, room: s.currentRoom, x: it.x, y });
+}
 function syncKennelBtn(el: HTMLElement, key: string, inside: boolean) {
   const mine = hood ? key === hood.pid : key === 'solo';
   let b = el.querySelector<HTMLButtonElement>('.kennelBtn');
@@ -1973,11 +2145,12 @@ function tickKennels() {
       el.addEventListener('click', ev => { if ((ev.target as HTMLElement).closest('.kennelBtn')) return; ev.stopPropagation(); petBubble(el, `${el.dataset.name ?? 'Puppy'} is resting`); });
       r = { el, pose: '', look: '', x: spot.item.x, y }; kennelRuns.set(spot.key, r);
     }
-    if (r.pose !== 'sit' || r.look !== look + spot.dog.breed) {
+    const pose = look === 'rest' ? 'sleep' : 'sit';
+    if (r.pose !== pose || r.look !== look + spot.dog.breed) {
       const keep = [...r.el.querySelectorAll('.bubble, .kennelBtn')];
-      r.el.innerHTML = `<div class="inner">${dogSVG(spot.dog.breed, 'sit')}</div>${look === 'rest' ? '<div class="zzz"><i>z</i><i>z</i><i>z</i></div>' : ''}`;
+      r.el.innerHTML = `<div class="inner">${dogSVG(spot.dog.breed, pose)}</div>${look === 'rest' ? '<div class="zzz"><b>Zzz</b><i>z</i><i>z</i><i>z</i></div>' : ''}`;
       for (const node of keep) r.el.appendChild(node);
-      r.pose = 'sit'; r.look = look + spot.dog.breed;
+      r.pose = pose; r.look = look + spot.dog.breed;
     }
     r.el.dataset.name = spot.dog.name;
     r.el.classList.toggle('rest', look === 'rest'); r.el.classList.toggle('peek', look === 'peek');
@@ -1996,6 +2169,18 @@ function roomTower(s: GameState): PlacedItem | null {
   const items = s.rooms[s.currentRoom]?.items.filter(i => i.kind === 'cat-tower') ?? [];
   return items.reduce<PlacedItem | null>((a, b) => !a || b.z >= a.z ? b : a, null);
 }
+function petBedKind(kind: string) {
+  return kind === 'cat-bed' || kind === 'pet-bed' || kind === 'dog-bed' || kind === 'pack:cat-bed' || /(?:^|:)cat-bed$|(?:^|:)pet-bed$/.test(kind);
+}
+function roomBed(s: GameState): { x: number; y: number; h: number; pet: boolean } | null {
+  const items = s.rooms[s.currentRoom]?.items ?? [];
+  const pets = items.filter(i => petBedKind(i.kind));
+  const beds = items.filter(i => i.kind === 'bed');
+  const pick = (pets.length ? pets : beds).reduce<PlacedItem | null>((a, b) => !a || b.z >= a.z ? b : a, null);
+  if (!pick) return null;
+  const def = ITEM_MAP[pick.kind];
+  return { x: pick.x, y: pick.y, h: def ? hOf(def) * pick.scale : 80, pet: petBedKind(pick.kind) };
+}
 function tapTower() {
   const s = store.get();
   if (!s.cat || s.cat.room !== s.currentRoom || !roomTower(s)) return;
@@ -2010,9 +2195,10 @@ function tickCat() {
     catEl.addEventListener('click', ev => { ev.stopPropagation(); purr(); if (hood) hood.fx({ k: 'purr' }); });
   }
   const tower = roomTower(s);
+  const bed = tower ? null : roomBed(s);
   const def = tower ? ITEM_MAP[tower.kind] : undefined;
   const th = tower && def ? hOf(def) * tower.scale : 0;
-  const b = catAt(cat, Date.now(), tower ? { x: tower.x } : null);
+  const b = catAt(cat, Date.now(), tower ? { x: tower.x } : null, bed ? { x: bed.x } : null, prefersReducedMotion());
   const leaping = !!tower && performance.now() < leapUntil;
   const perch = leaping ? 2 : b.perch;
   const x = leaping && tower ? tower.x : b.x;
@@ -2029,12 +2215,14 @@ function tickCat() {
   }
   if (perch > 0 && catPerch === 0) { catEl.classList.add('hop'); const el = catEl; setTimeout(() => el.classList.remove('hop'), 420); }
   catPerch = perch;
-  catEl.dataset.name = cat.name; catEl.dataset.mood = mood; catEl.dataset.perch = String(perch); catEl.dataset.leap = leaping ? '1' : '0';
-  catEl.classList.toggle('walking', mood === 'walk'); catEl.classList.toggle('groom', mood === 'groom'); catEl.classList.toggle('play', mood === 'play' && !leaping); catEl.classList.toggle('leap', leaping); catEl.classList.toggle('flipped', b.flip);
+  catEl.dataset.name = cat.name; catEl.dataset.mood = mood; catEl.dataset.perch = String(perch); catEl.dataset.leap = leaping ? '1' : '0'; catEl.dataset.curl = b.curl ? '1' : '0';
+  catEl.classList.toggle('walking', mood === 'walk'); catEl.classList.toggle('groom', mood === 'groom'); catEl.classList.toggle('play', mood === 'play' && !leaping); catEl.classList.toggle('leap', leaping); catEl.classList.toggle('flipped', b.flip); catEl.classList.toggle('curl', b.curl === 1);
+  layer.querySelectorAll<HTMLElement>('.item.toy-live').forEach(el => el.classList.remove('toy-live'));
+  if (tower && mood === 'play' && perch && !leaping) layer.querySelector<HTMLElement>(`.item[data-id="${tower.id}"]`)?.classList.add('toy-live');
   // __pinCat holds her on a character's feet for tests. She stays under characters (5000 + y).
   const pin = (window as any).__pinCat as { x: number } | null;
   const pinned = !!(pin && Number.isFinite(pin.x));
-  const foot = !pinned && perch && tower ? towerFootY(tower.y, th, perch as 1 | 2) : CAT_Y;
+  const foot = !pinned && perch && tower ? towerFootY(tower.y, th, perch as 1 | 2) : !pinned && b.curl && bed ? bed.y - bed.h * (bed.pet ? 0.38 : 0.2) : CAT_Y;
   placeEl(catEl, pinned ? pin!.x : x, foot, !pinned && perch ? 110 : 150, !pinned && perch ? 92 : 128);
   catEl.style.zIndex = String(4000 + Math.round(foot));
   catSpot = { x: pinned ? pin!.x : x, perch, leap: leaping };
@@ -2056,7 +2244,7 @@ function onFx(pid: string, fx: Fx) {
 }
 function petTick(now: number) {
   const dt = Math.min(0.05, Math.max(0, (now - lastTick) / 1000)); lastTick = now;
-  try { tickDogs(now, dt); tickKennels(); tickCat(); tickRanch(now, dt); tickGameRoom(dt); } catch { /* never let an animation frame break the game */ }
+  try { tickDogs(now, dt); tickKennels(); tickCat(); tickRanch(now, dt); tickGameRoom(dt); layoutNameTags(); } catch { /* never let an animation frame break the game */ }
   requestAnimationFrame(petTick);
 }
 
@@ -2126,7 +2314,7 @@ $('btnPets').addEventListener('click', () => openPets(view === 'house' ? 'cat' :
 requestAnimationFrame(petTick);
 (window as any).__pets = () => {
   const spot = kennelSpot(); const run = spot ? kennelRuns.get(spot.key) : undefined;
-  return { dogs: [...dogRuns.keys()], dogPos: Object.fromEntries([...dogRuns].map(([k, r]) => [k, { x: Math.round(r.x), y: Math.round(r.y) }])), cat: catEl ? { mood: catEl.dataset.mood, name: catEl.dataset.name, perch: catSpot.perch, x: Math.round(catSpot.x), leap: catSpot.leap } : null, kennel: spot && run ? { x: Math.round(run.x), y: Math.round(run.y), pose: run.pose, name: spot.dog.name, item: spot.item.id } : null, dogKennel: store.get().dogKennel ?? null, fetch: fetchSt?.phase ?? null, ball: ballPos, view };
+  return { dogs: [...dogRuns.keys()], dogPos: Object.fromEntries([...dogRuns].map(([k, r]) => [k, { x: Math.round(r.x), y: Math.round(r.y) }])), cat: catEl ? { mood: catEl.dataset.mood, name: catEl.dataset.name, perch: catSpot.perch, x: Math.round(catSpot.x), leap: catSpot.leap, curl: catEl.dataset.curl === '1' } : null, kennel: spot && run ? { x: Math.round(run.x), y: Math.round(run.y), pose: run.pose, name: spot.dog.name, item: spot.item.id } : null, dogKennel: store.get().dogKennel ?? null, fetch: fetchSt?.phase ?? null, ball: ballPos, view };
 };
 
 // =====================================================================================
@@ -2623,13 +2811,14 @@ setTimeout(showWhatsNew, 500);
 (window as any).__whatsnew = firstRun;
 (window as any).__hood = () => hood;
 (window as any).__hood_url = () => hoodServerUrl();
-(window as any).__ui = () => ({ view, currentHouseId, mode: hood ? 'hood' : 'solo' });
+(window as any).__ui = () => ({ view, currentHouseId, mode: hood ? 'hood' : 'solo', play: play.mode() });
 bindGameRoom({
   hood: () => hood, view: () => view, solo: () => soloPark, myPres, setPres: setParkPres, toast, refreshNear: updateNear, sfx, goMap,
   soloLook: () => { const s = local.get(); return { look: cleanLook(s.characters[0] ?? {}), dog: s.dog ?? null }; },
 });
 
 // ---------- start ----------
+installJuice();
 renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
 // ---------- hidden surprises ----------
 const renderSecrets = () => {

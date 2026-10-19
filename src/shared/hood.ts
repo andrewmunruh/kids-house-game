@@ -4,6 +4,8 @@ import { RANCH_W, BARN_W, RANCH_Y0, RANCH_Y1, HORSES, ANIMALS, FOODS, type Baske
 import { GAMEROOM_W, type TablePub, type TableOp } from './games/index';
 import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, validKennel, ROOM_W, ROOM_H, MAX_CHARS, ROOM_IDS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
 import { sanitizeLook2, type Look2 } from './avatar';
+import { CATALOG_NAMES } from './catalog-names';
+import { MAIL_COLORS, MAIL_MAX, MAIL_STICKERS, keepMailbox, stripUrls, type Mailbox } from './mail';
 
 export const MAX_PLAYERS = 12;
 export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L
@@ -51,13 +53,13 @@ const EMAIL_RE = /\S+\s*(@|\(at\)|\sat\s)\s*\S+\s*(\.|\sdot\s)\s*\w{2,}/i;
 const HANDLE_RE = /@\w/;
 const ADDRESS_RE = /\b\d{1,6}\s+([a-z]+\s+){0,3}(street|st|road|rd|avenue|ave|lane|ln|drive|dr|court|ct|blvd|boulevard|way|place|pl|circle|cir|terrace|parkway|pkwy|highway|hwy|apt|apartment|unit)\b/i;
 
-export type FilterResult = { ok: true; text: string } | { ok: false; reason: 'empty' | 'long' | 'link' | 'contact' | 'personal' | 'words' };
-export function filterChat(raw: unknown): FilterResult {
+export type FilterResult = { ok: true; text: string } | { ok: false; reason: 'empty' | 'long' | 'link' | 'contact' | 'personal' | 'words' | 'mail' };
+export function filterChat(raw: unknown, max = MAX_CHAT): FilterResult {
   if (typeof raw !== 'string') return { ok: false, reason: 'empty' };
   // strip control/zero-width chars, collapse whitespace
   const text = raw.normalize('NFKC').replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g, '').replace(/\s+/g, ' ').trim();
   if (!text) return { ok: false, reason: 'empty' };
-  if (text.length > MAX_CHAT) return { ok: false, reason: 'long' };
+  if (text.length > max) return { ok: false, reason: 'long' };
   if (URL_RE.test(text)) return { ok: false, reason: 'link' };
   if (EMAIL_RE.test(text) || HANDLE_RE.test(text)) return { ok: false, reason: 'contact' };
   const digits = (text.match(/\d/g) ?? []).length;
@@ -74,8 +76,232 @@ export function filterChat(raw: unknown): FilterResult {
 }
 export const FILTER_MSG: Record<string, string> = {
   long: 'That is a bit long!', link: 'No links, please!', contact: 'Keep numbers and contact info secret!', personal: 'Keep personal info secret!',
-  words: "Let's use kind words!", empty: '',
+  words: "Let's use kind words!", mail: 'Oops, try different words!', empty: '',
 };
+
+// Letters are stricter than chat bubbles. The reason sent to the kid is only "mail":
+// the screen says "Oops, try different words!" and does not name the rule.
+const MEAN = new Set<string>([...BAD, 'fat', 'ugly', 'stoopid', 'dummy', 'hateyou', 'hateu', 'shutup']);
+const MEAN_PHRASE = new Set(['hateyou', 'hateu', 'shutup']);
+const DIGIT_WORDS = ['three', 'seven', 'eight', 'four', 'five', 'nine', 'zero', 'one', 'two', 'six', 'ten', 'oh'];
+const COMMON_WORD = new Set([
+  'hi', 'hey', 'hello', 'bye', 'yes', 'no', 'ok', 'okay', 'oh', 'wow', 'yay', 'dear', 'love', 'house', 'cat', 'bed', 'play', 'slay',
+  'cute', 'why', 'your', 'want', 'come', 'look', 'nice', 'the', 'and', 'my', 'our', 'so', 'too', 'very', 'good', 'fun', 'cool',
+  'best', 'friend', 'friends', 'please', 'thanks', 'thank', 'happy', 'birthday', 'morning', 'night', 'day', 'today', 'room', 'home',
+]);
+const STREET_SKIP = new Set(['the', 'my', 'on', 'at', 'to', 'a', 'an', 'our', 'your', 'in', 'of', 'and', 'is', 'it', 'me', 'we', 'go', 'up', 'so', 'no', 'ok', 'be', 'do', 'or']);
+const STREET_SUFFIX = 'street|st|ave|avenue|road|rd|lane|ln|drive|dr|court|ct|way|blvd';
+const IN_GAME_PLACE = /\b(?:house|garden|backyard|ranch|treehouse|game\s*room|clubhouse|bedroom|kitchen|nursery|salon|park)\b/i;
+const HOMO: Record<string, string> = {};
+for (const pair of ['АA', 'аa', 'ВB', 'вb', 'ЕE', 'еe', 'КK', 'кk', 'МM', 'мm', 'НH', 'нh', 'ОO', 'оo', 'РP', 'рp', 'СC', 'сc', 'ТT', 'тt', 'УY', 'уy', 'ХX', 'хx', 'ІI', 'іi', 'ЈJ', 'јj', 'ЅS', 'ѕs', 'ЁE', 'ёe', 'ЇI', 'їi', 'ΑA', 'ΕE', 'ΖZ', 'ΗH', 'ΙI', 'ΚK', 'ΜM', 'ΝN', 'ΟO', 'ΡP', 'ΤT', 'ΥY', 'ΧX', 'αa', 'εe', 'ζz', 'ιi', 'κk', 'νv', 'οo', 'ρp', 'τt', 'υu', 'χx']) HOMO[pair[0]] = pair[1];
+
+function spelledDigits(token: string): number {
+  const n = token.length;
+  const dp: number[] = [];
+  for (let i = 0; i <= n; i++) dp.push(-1);
+  dp[0] = 0;
+  for (let i = 0; i < n; i++) {
+    if (dp[i] < 0) continue;
+    for (let w = 0; w < DIGIT_WORDS.length; w++) {
+      const word = DIGIT_WORDS[w];
+      if (!token.startsWith(word, i)) continue;
+      const j = i + word.length;
+      const v = dp[i] + (word === 'ten' ? 2 : 1);
+      if (v > dp[j]) dp[j] = v;
+    }
+  }
+  return dp[n];
+}
+
+function mapHomoglyphs(s: string): string {
+  let out = '';
+  for (const ch of s) out += HOMO[ch] ?? ch;
+  return out;
+}
+
+/** Spaced copy keeps phrase gaps. Squeezed copy drops emoji, symbols, and punctuation so f🌸i🌸v🌸e becomes five. */
+function mailForms(raw: string): string {
+  const cleaned = mapHomoglyphs(String(raw).normalize('NFKC'))
+    .replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff\p{M}]/gu, '');
+  return cleaned.replace(/[\p{Extended_Pictographic}\p{S}\p{P}]+/gu, '').replace(/\s+/g, ' ').trim();
+}
+
+function letterForms(tok: string): string[] {
+  const one = tok.replace(/(.)\1{2,}/g, '$1');
+  const two = tok.replace(/(.)\1{2,}/g, '$1$1');
+  return one === tok ? [tok] : [tok, one, two];
+}
+
+function mailMean(text: string): boolean {
+  const leet = text.toLowerCase().replace(/[01345$@]/g, ch => LEET[ch] ?? ch);
+  const words = leet.replace(/[*.]/g, '').split(/[^a-z]+/).filter(Boolean);
+  const hit = (tok: string) => letterForms(tok).some(t => MEAN.has(t) || t === 'kys' || /^sto+pid$/.test(t));
+  if (words.some(hit)) return true;
+  let buf = '';
+  const singles: string[] = [];
+  const flush = () => { if (buf.length > 1) singles.push(buf); buf = ''; };
+  for (let i = 0; i < words.length; i++) {
+    if (words[i].length === 1) buf += words[i];
+    else flush();
+  }
+  flush();
+  if (singles.some(hit)) return true;
+  for (let i = 0; i < words.length - 1; i++) if (MEAN_PHRASE.has(words[i] + words[i + 1])) return true;
+  return false;
+}
+
+function mailSchool(text: string): boolean {
+  if (/\b(?:middle|high)\s+school\b/i.test(text)) return true;
+  const re = /\b([A-Z][a-z]+)\s+(Elementary|School|Academy|Middle|High)\b/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (COMMON_WORD.has(m[1].toLowerCase())) continue;
+    return true;
+  }
+  return false;
+}
+
+function mailStreet(text: string): boolean {
+  const re = new RegExp(`\\b([A-Za-z]{2,})\\s+(?:${STREET_SUFFIX})\\b`, 'gi');
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (STREET_SKIP.has(m[1].toLowerCase())) continue;
+    return true;
+  }
+  return false;
+}
+
+function joinSingleLetters(parts: string[]): string[] {
+  const out: string[] = [];
+  let buf = '';
+  const flush = () => { if (buf) { out.push(buf); buf = ''; } };
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i].length === 1 && parts[i] >= 'a' && parts[i] <= 'z') buf += parts[i];
+    else { flush(); out.push(parts[i]); }
+  }
+  flush();
+  return out;
+}
+
+function mailDigits(text: string): boolean {
+  const parts = text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  let spelled = 0;
+  for (let i = 0; i < parts.length; i++) {
+    const n = spelledDigits(parts[i]);
+    if (n > 0) spelled += n;
+    if (n >= 3) return true;
+  }
+  if ((text.match(/\d/g) ?? []).length + spelled >= 5) return true;
+  const lists = [parts, joinSingleLetters(parts)];
+  for (let L = 0; L < lists.length; L++) {
+    let run = 0;
+    for (let i = 0; i < lists[L].length; i++) {
+      const tok = lists[L][i];
+      const isNum = /^\d+$/.test(tok) || spelledDigits(tok) > 0;
+      run = isNum ? run + 1 : 0;
+      if (run >= 3) return true;
+    }
+  }
+  return false;
+}
+
+/** A fullwidth or compatibility digit-word (ｆｉｖｅ) is a number even when it is only one word. Plain "five" is not. */
+function obfuscatedNumber(raw: string): boolean {
+  const norm = String(raw).normalize('NFKC');
+  if (norm === raw) return false;
+  const tokens = norm.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  for (let i = 0; i < tokens.length; i++) if (/^\d+$/.test(tokens[i]) || spelledDigits(tokens[i]) > 0) return true;
+  return false;
+}
+
+/** A capitalised First Last pair. A roster first name is allowed only when the second word is ordinary. */
+function mailNames(text: string, roster: string[]): boolean {
+  const words = text.match(/[A-Za-z]+/g) ?? [];
+  const known = new Set(roster.map(n => n.toLowerCase()));
+  for (let i = 0; i < words.length - 1; i++) {
+    const a = words[i], b = words[i + 1];
+    if (!/^[A-Z][a-z]+$/.test(a) || !/^[A-Z][a-z]+$/.test(b)) continue;
+    const al = a.toLowerCase(), bl = b.toLowerCase();
+    if (COMMON_WORD.has(al) || COMMON_WORD.has(bl)) continue;
+    if (known.has(al) && COMMON_WORD.has(bl)) continue;
+    return true;
+  }
+  return false;
+}
+
+function mailAgePlace(text: string): boolean {
+  if (!/\b(?:i'm|im|i am)\b/i.test(text)) return false;
+  if (!/\b(?:\d{1,2}|zero|oh|one|two|three|four|five|six|seven|eight|nine|ten)\b/i.test(text)) return false;
+  return /\blive\s+(?:on|at)\b/i.test(text) || mailStreet(text);
+}
+
+function mailMeetup(text: string): boolean {
+  if (/\bat\s+\d{1,2}\b/.test(text) || /\b\d{1,2}\s*(?:am|pm)\b/i.test(text) || /\b\d{1,2}:\d{2}\b/.test(text)) return true;
+  const invite = /\b(?:come to|meet me)\b/i.test(text);
+  if (invite && IN_GAME_PLACE.test(text)) return false;
+  if (invite) return true;
+  if (/\bat the park\b/i.test(text)) return true;
+  return false;
+}
+
+function escapeReg(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+const CATALOG_RE = (() => {
+  const phrases = [...new Set(CATALOG_NAMES.map(n => mailForms(n)).filter(n => n.length >= 2))].sort((a, b) => b.length - a.length);
+  return new RegExp(`(^|[^A-Za-z])(?:${phrases.map(escapeReg).join('|')})(?![A-Za-z])`, 'gi');
+})();
+/** Furniture names are not a last name, a phone, or a street. */
+function maskCatalog(text: string): string {
+  return text.replace(CATALOG_RE, (m, pre: string) => pre + ' '.repeat(m.length - pre.length));
+}
+/** "cool drive in my house" is the game. A capitalised Name drive plus an address still blocks. */
+function coolDriveOk(text: string): boolean {
+  if (!/\bcool drive in my house\b/i.test(text)) return false;
+  const stripped = text.replace(/\bcool drive\b/ig, ' ');
+  if (!/\b[A-Z][a-z]+\s+drive\b/.test(stripped)) return true;
+  const address = ADDRESS_RE.test(text) || /\b(?:address|apt|apartment)\b/i.test(text) || /\blive\s+(?:on|at)\b/i.test(text) || mailStreet(stripped);
+  return !address;
+}
+function maskSafePhrases(text: string): string {
+  let out = maskCatalog(text);
+  out = out.replace(/\bbest way to play\b/gi, m => ' '.repeat(m.length));
+  if (coolDriveOk(text)) out = out.replace(/\bcool drive in my house\b/gi, m => ' '.repeat(m.length));
+  out = out.replace(/\bmy favorite number is\b/gi, m => ' '.repeat(m.length));
+  return out;
+}
+function textMeBlocked(text: string): boolean {
+  if (/\bcall\s+me\b/i.test(text)) return true;
+  if (!/\btext\s+me\b/i.test(text)) return false;
+  return !/\btext\s+me\b[\s\S]{0,48}?\b(?:with\s+a\s+letter|in\s+the\s+game)\b/i.test(text);
+}
+function phoneNumberBlocked(text: string): boolean {
+  if (/\bkys\b/i.test(text)) return true;
+  const masked = maskSafePhrases(text);
+  return /\bphone\b/i.test(masked) || /\bnumber\b/i.test(masked);
+}
+
+function mailBlocked(raw: string, roster: string[]): boolean {
+  if (obfuscatedNumber(raw)) return true;
+  const text = mailForms(raw);
+  if (/\b(?:fortnite|roblox|minecraft|tiktok|snapchat|discord|instagram|youtube|twitch|xbox|psn)\b/i.test(text)) return true;
+  if (/\b(?:snap|insta)\b/i.test(text)) return true;
+  if (/\b(?:add|friend)\s+me\b[\s,.:!\-]*[A-Za-z0-9_]{2,}/i.test(text)) return true;
+  if (/\b(?:user|username)\b[\s:._-]*[@#]?[A-Za-z0-9_]{2,}/i.test(text)) return true;
+  if (/(^|\s)@[A-Za-z0-9_]{2,}/.test(text)) return true;
+  if (mailAgePlace(text)) return true;
+  if (/\blive\s+(?:on|at)\b/i.test(text) || /\b(?:my\s+)?address\b/i.test(text) || /\blast\s+name\b/i.test(text)) return true;
+  if (textMeBlocked(text) || phoneNumberBlocked(text)) return true;
+  if (/\bplay\s+for\s+the\b/i.test(text) || /\b(?:soccer|softball|dance)\s+team\b/i.test(text)) return true;
+  if (mailSchool(text)) return true;
+  if (mailMeetup(text)) return true;
+  if (mailDigits(text)) return true;
+  if (mailMean(text)) return true;
+  const safe = maskSafePhrases(text);
+  if (mailStreet(safe)) return true;
+  if (mailNames(safe, roster)) return true;
+  return false;
+}
 
 // ---------- validation (server-authoritative; also used when importing a local house) ----------
 const ROOMS: RoomId[] = ROOM_IDS;
@@ -123,7 +349,7 @@ function cleanCharacter(c: any): Character | null {
 }
 
 // ---------- pets ----------
-export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, backyard, and dogKennel ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know.
+export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1. A grown-up mailbox listing is an optional field on parentInfo; old clients ignore it. settings.freeMail is optional too: missing means letters follow freeChat.
 export const PROTO_PETS = 2, PROTO_RANCH = 3, PROTO_GAMES = 4;
 export const CAT_NAMES = ['Mittens', 'Luna', 'Biscuit', 'Pumpkin', 'Whiskers', 'Mochi', 'Pepper', 'Noodle', 'Ginger', 'Socks'];
 export const DOG_NAMES = ['Buddy', 'Coco', 'Max', 'Daisy', 'Peanut', 'Rocket', 'Bella', 'Waffles', 'Scout', 'Honey'];
@@ -187,8 +413,47 @@ export function cleanHouseState(raw: any): GameState {
   const characters = (Array.isArray(s.characters) ? s.characters : []).slice(0, MAX_CHARS).map(cleanCharacter).filter(Boolean) as Character[];
   const cat = (s as any).cat ? cleanCat((s as any).cat) : null;
   const dogKennel = validKennel({ dogKennel: (s as any).dogKennel, rooms });
-  return { ...base, rooms, characters, currentRoom: 'living', soundOn: true, cat, dog: null, dogKennel };
+  const mailbox = filterMailbox((s as any).mailbox);
+  const house: GameState = { ...base, rooms, characters, currentRoom: 'living', soundOn: true, cat, dog: null, dogKennel };
+  return mailbox ? { ...house, mailbox } : house;
 }
+
+/** Chat filter, then a stricter letter-only pass. Roster names are the street's first names. */
+export function cleanMailText(raw: unknown, roster: string[] = []): FilterResult {
+  const f = filterChat(raw, MAIL_MAX);
+  if (!f.ok) return f;
+  const text = stripUrls(f.text);
+  if (!text || text !== f.text) return { ok: false, reason: 'link' };
+  if (mailBlocked(typeof raw === 'string' ? raw : text, roster)) return { ok: false, reason: 'mail' };
+  return { ok: true, text };
+}
+
+/** Letters follow this when a street has never set freeMail.
+ *  'follow freeChat' uses the chat switch, which is today's behavior.
+ *  Set this to false and new streets are presets-only until a grown-up says otherwise. */
+export const MAIL_FREE_DEFAULT: 'follow freeChat' | boolean = 'follow freeChat';
+
+export interface StreetSettings { freeChat: boolean; freeMail?: boolean }
+
+export function mailIsFree(settings: { freeChat: boolean; freeMail?: boolean }): boolean {
+  if (typeof settings.freeMail === 'boolean') return settings.freeMail;
+  if (MAIL_FREE_DEFAULT === 'follow freeChat') return settings.freeChat;
+  return MAIL_FREE_DEFAULT;
+}
+
+/** Drop letters the chat filter would block. Shape, cap, and the 30-day fade happen in keepMailbox. */
+export function filterMailbox(raw: unknown, now = Date.now()): Mailbox | null {
+  const box = keepMailbox(raw, now);
+  if (!box) return null;
+  const letters = box.letters.filter(l => {
+    const f = filterChat(l.text, MAIL_MAX);
+    return f.ok && stripUrls(f.text) === f.text && f.text === l.text;
+  });
+  return letters.length ? { letters } : null;
+}
+
+export function mailColor(n: unknown): number { return Number.isInteger(n) && (n as number) >= 0 && (n as number) < MAIL_COLORS ? n as number : -1; }
+export function mailSticker(n: unknown): number { return Number.isInteger(n) && (n as number) >= 0 && (n as number) < MAIL_STICKERS ? n as number : -1; }
 
 // ---------- presence ----------
 // The park: a fixed, shared scene at the end of the street (and in solo play).
@@ -254,8 +519,8 @@ export interface HouseFull extends HouseMeta { state: GameState }
 export type Bubble = { kind: 'phrase' | 'emote'; v: number } | { kind: 'text'; v: string };
 
 export type ClientMsg =
-  | { t: 'hello'; token: string; v?: number; pet?: number }
-  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number }
+  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number }
+  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number }
   | { t: 'dog'; dog: Dog | null }
   | { t: 'fx'; fx: Fx }
   | { t: 'ranch'; o: RanchOp }
@@ -264,20 +529,23 @@ export type ClientMsg =
   | { t: 'look'; look: Look }
   | { t: 'lock'; houseId: string; locked: boolean }
   | { t: 'say'; b: Bubble }
+  | { t: 'mail'; op: 'send'; houseId: string; text: string; color: number; sticker: number }
+  | { t: 'mail'; op: 'read' | 'drop'; houseId: string; id: string }
   | ({ t: 'tbl' } & TableOp)
   | { t: 'parent'; key: string; op: 'info' } | { t: 'parent'; key: string; op: 'rename'; houseId: string; name: string }
-  | { t: 'parent'; key: string; op: 'remove'; pid: string } | { t: 'parent'; key: string; op: 'freeChat'; on: boolean }
-  | { t: 'parent'; key: string; op: 'rosterAdd' | 'rosterRemove' | 'unclaim'; name: string } | { t: 'parent'; key: string; op: 'setCode'; code: string };
+  | { t: 'parent'; key: string; op: 'remove'; pid: string } | { t: 'parent'; key: string; op: 'freeChat' | 'freeMail'; on: boolean }
+  | { t: 'parent'; key: string; op: 'rosterAdd' | 'rosterRemove' | 'unclaim'; name: string } | { t: 'parent'; key: string; op: 'setCode'; code: string }
+  | { t: 'parent'; key: string; op: 'mailClear'; houseId: string; id?: string } | { t: 'parent'; key: string; op: 'mailClearAll' };
 
 export type ServerMsg =
   | { t: 'joined'; token: string; pid: string }
-  | { t: 'welcome'; pid: string; settings: { freeChat: boolean }; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[] }
+  | { t: 'welcome'; pid: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[] }
   | { t: 'act'; houseId: string; by: string; cid: number; action: Action }
   | { t: 'nack'; houseId: string; cid: number; reason: string; state?: GameState }
   | { t: 'pres'; pid: string; p: Presence | null }
   | { t: 'players'; players: PlayerPub[] }
   | { t: 'house'; house: HouseFull } | { t: 'houseMeta'; meta: HouseMeta } | { t: 'houseGone'; houseId: string }
-  | { t: 'settings'; settings: { freeChat: boolean } }
+  | { t: 'settings'; settings: StreetSettings }
   | { t: 'bubble'; pid: string; b: Bubble }
   | { t: 'fx'; pid: string; fx: Fx }
   | { t: 'ranch'; plots: (Plot | null)[]; now: number }
@@ -286,7 +554,9 @@ export type ServerMsg =
   | { t: 'table'; table: TablePub }
   | { t: 'tblFail'; tb: number; reason: string }
   | { t: 'sayFail'; reason: string }
-  | { t: 'parentInfo'; code: string; settings: { freeChat: boolean }; players: PlayerPub[]; houses: HouseMeta[]; roster: RosterEntry[]; note?: string }
+  | { t: 'mailbox'; houseId: string; mailbox: Mailbox }
+  | { t: 'mailFail'; houseId: string; reason: string }
+  | { t: 'parentInfo'; code: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseMeta[]; roster: RosterEntry[]; note?: string; mail?: { houseId: string; name: string; letters: { id: string; from: string; text: string; at: number }[] }[] }
   | { t: 'error'; code: 'nohood' | 'badtoken' | 'nickname' | 'full' | 'badkey' | 'bad'; msg?: string }
   | { t: 'removed' };
 

@@ -299,6 +299,14 @@ body.reconnecting::after { content: 'Reconnecting…'; position: fixed; top: 70p
 .pPlayer .dot { width: 12px; height: 12px; box-shadow: none; border: 2px solid var(--ink); background: #ddd; }
 .pPlayer .dot.on { background: #5cc985; }
 .pPlayer button { margin-left: auto; }
+.pMailHouse { margin: 8px 0; padding: 8px 10px; border: 3px solid var(--ink); border-radius: 16px; background: #fff6fa; }
+.pMailName { font-weight: 900; font-size: 16px; }
+.pLetter { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 6px 0 0; padding-top: 6px; border-top: 2px solid rgba(90,61,92,.15); }
+.pLetter b { font-size: 16px; }
+.pLetter .pWhen { font-weight: 800; opacity: .65; font-size: 14px; }
+.pLetter p { flex: 1 0 100%; margin: 0; font-weight: 800; overflow-wrap: anywhere; }
+.pLetter button { margin-left: auto; }
+#mailClearAll { margin-top: 8px; }
 .danger { background: #ffe0e6; border: 3px solid var(--ink); border-radius: 14px; padding: 6px 14px; font-weight: 900; }
 .wideBtn { width: 100%; margin-top: 12px; padding: 10px; }
 .adult .card { min-width: 340px; text-align: center; }
@@ -411,10 +419,10 @@ body.mode-hood.view-park #btnChat { display: block !important; }
 .pet.walking .inner { animation: bob .32s ease-in-out infinite alternate; }
 .pet .breathe { transform-box: fill-box; transform-origin: 50% 100%; animation: breathe 2.4s ease-in-out infinite; }
 .pet.pet-cat.groom .inner { animation: groom 1.1s ease-in-out infinite; }
-.pet.spin .inner { animation: spin .8s ease-in-out; }
-.pet.hop .inner { animation: hop .35s ease-out 3; }
-.pet.happy .inner { animation: hop .4s ease-out 2; }
-.pet.pet-cat.play .inner { animation: hop .5s ease-in-out infinite; }
+.pet.spin .inner { animation: petSpin .8s ease-in-out; }
+.pet.hop .inner { animation: petHop .35s ease-out 3; }
+.pet.happy .inner { animation: petHop .4s ease-out 2; }
+.pet.pet-cat.play .inner { animation: catSwat .5s ease-in-out infinite; }
 .pet.pet-cat.leap .inner { animation: towerLeap .7s ease-out; }
 .pet.kenneled.rest .tail { animation: none; }
 .kennelBtn { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); min-width: 44px; min-height: 44px; padding: 4px 10px; font: inherit; font-size: 14px; font-weight: 800; border-radius: 14px; border: 3px solid var(--ink); background: #fff3b0; color: var(--ink); pointer-events: auto; z-index: 2; }
@@ -424,8 +432,8 @@ body.mode-hood.view-park #btnChat { display: block !important; }
 @keyframes bob { from { transform: translateY(0); } to { transform: translateY(-4%); } }
 @keyframes breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.06); } }
 @keyframes groom { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-5deg) translateY(2%); } }
-@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
-@keyframes hop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-22%); } }
+@keyframes petSpin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes petHop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-22%); } }
 @keyframes towerLeap { 0% { transform: translateY(16px) scale(.92); } 45% { transform: translateY(-26px) scale(1.06); } 100% { transform: translateY(0) scale(1); } }
 .pet .heart { position: absolute; bottom: 60%; font-size: 26px; font-weight: 900; pointer-events: none; animation: heartUp 1.6s ease-out forwards; opacity: 0; }
 @keyframes heartUp { 0% { transform: translateY(0) scale(.5); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-110px) scale(1.2); opacity: 0; } }
@@ -504,7 +512,7 @@ body.view-ranch #btnParent, body.view-ranch #btnSolo { display: none !important;
 .ranchWorld .animal .leg, .ranchWorld .horse .leg, .mount .leg { transform-box: fill-box; transform-origin: 50% 0; }
 .ranchWorld .animal.walking .leg.a { animation: legA .4s ease-in-out infinite alternate; }
 .ranchWorld .animal.walking .leg.b { animation: legA .4s ease-in-out infinite alternate-reverse; }
-.ranchWorld .animal.hop svg, .ranchWorld .horse.hop svg { animation: hop .4s ease-out 2; }
+.ranchWorld .animal.hop svg, .ranchWorld .horse.hop svg { animation: petHop .4s ease-out 2; }
 .ranchWorld .munch .head, .mount.munch .head { animation: munch .25s ease-in-out 5 !important; }
 @keyframes munch { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(14deg) translateY(4%); } }
 .ranchWorld .horse.away { opacity: 0; pointer-events: none; transition: opacity .2s; }
@@ -519,7 +527,7 @@ body.phone.phone-portrait .ranchWorld .horse.stallOff svg * { pointer-events: no
 .ranchWorld .heart, .mount .heart { position: absolute; bottom: 60%; font-size: 26px; font-weight: 900; pointer-events: none; animation: heartUp 1.6s ease-out forwards; opacity: 0; z-index: 3; }
 .ranchWorld .abubble, .mount .abubble { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); white-space: nowrap; font-size: 17px; z-index: 6; }
 .feedHover { filter: drop-shadow(0 0 10px #ffd43b) drop-shadow(0 0 4px #fff); }
-.henHouse.lay .hen { animation: hop .3s ease-out 2; transform-box: fill-box; }
+.henHouse.lay .hen { animation: petHop .3s ease-out 2; transform-box: fill-box; }
 .tractor.bounce svg { animation: tractorBounce .5s ease-in-out 2; }
 @keyframes tractorBounce { 0%, 100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-6%) rotate(-3deg); } 60% { transform: translateY(0) rotate(2deg); } }
 .appleTree.shake svg { animation: shake .45s ease-in-out; transform-origin: 50% 100%; }
@@ -531,9 +539,9 @@ body.phone.phone-portrait .ranchWorld .horse.stallOff svg * { pointer-events: no
 .feedGhost svg { width: 100%; height: 100%; }
 .bucket { cursor: grab; touch-action: none; }
 .bucket:active { transform: scale(1.08); }
-.plot.grow svg { animation: hop .5s ease-out; }
+.plot.grow svg { animation: petHop .5s ease-out; }
 .plot.watering::after { content: '💧💧'; position: absolute; left: 50%; top: -10%; transform: translateX(-50%); font-size: 20px; animation: heartUp 1.2s ease-out forwards; }
-.plot .needWater, .plot .ready { animation: hop 1.2s ease-in-out infinite; transform-box: fill-box; }
+.plot .needWater, .plot .ready { animation: petHop 1.2s ease-in-out infinite; transform-box: fill-box; }
 .seedPick { position: absolute; transform: translate(-50%, -100%); z-index: 2000; display: flex; gap: 8px; background: #fff; border: 4px solid var(--ink); border-radius: 20px; padding: 8px; box-shadow: 0 6px 0 rgba(90,61,92,.25); }
 .seedPick button { width: 74px; display: flex; flex-direction: column; align-items: center; font-weight: 900; font-size: 14px; border-radius: 14px; padding: 4px; background: #f4fbf6; }
 .seedPick svg { width: 44px; height: 44px; }
@@ -555,7 +563,7 @@ body.phone.phone-portrait .ranchWorld .horse.stallOff svg * { pointer-events: no
 .basketChip .bIcon { width: 44px; height: 38px; } .basketChip .bIcon svg { width: 100%; height: 100%; }
 .basketChip .bcount { display: flex; align-items: center; gap: 2px; font-size: 19px; font-weight: 900; color: var(--ink); touch-action: none; }
 .basketChip .bcount svg { width: 28px; height: 28px; }
-.basketChip.bump { animation: hop .35s ease-out; }
+.basketChip.bump { animation: petHop .35s ease-out; }
 body.view-house:not(.mode-hood) .basketChip, .basketChip { }
 .stageWrap ~ .basketChip { }
 .flyEgg { position: fixed; width: 36px; height: 36px; z-index: 40000; transition: left .6s cubic-bezier(.3,.7,.4,1), top .6s cubic-bezier(.5,-0.6,.6,1), transform .6s; pointer-events: none; }
@@ -699,7 +707,7 @@ body.view-street .stage { visibility: hidden; }
   body.phone #app { overflow: hidden; max-width: 100%; }
   body.phone .top { flex: 0 0 auto; max-width: 100%; min-width: 0; align-items: center; padding: 4px 6px; gap: 4px; }
   body.phone .tabs { min-width: 0; gap: 4px; }
-  body.phone .tab { flex: 1 1 auto; min-width: max-content; min-height: 44px; padding: 0 6px; font-size: 12px; line-height: 1; white-space: nowrap; text-align: center; }
+  body.phone .tab { flex: 1 1 auto; min-width: max-content; min-height: 44px; padding: 0 2px; font-size: 14px; line-height: 1; white-space: nowrap; text-align: center; }
   body.phone .tools { flex: 0 0 auto; gap: 4px; min-width: 0; }
   body.phone .round { width: 44px; height: 44px; flex: 0 0 44px; padding: 6px; }
   body.phone .minimap { height: 44px; min-width: 64px; }
@@ -714,8 +722,9 @@ body.view-street .stage { visibility: hidden; }
   body.phone .shelf { height: 80px; width: 100%; margin-right: 0; padding: 6px 8px; gap: 8px; }
   body.phone .thing { flex: 0 0 64px; width: 64px; height: 64px; min-width: 44px; min-height: 44px; padding: 6px; border-radius: 16px; }
   body.phone.is-preview .shelf { width: 100%; margin-right: 0; }
-  body.phone .previewRibbon { top: calc(var(--chrome-h, 48px) + 2px); right: max(0px, env(safe-area-inset-right)); bottom: auto; left: auto;
-    border-radius: 0 0 0 12px; border-top: 0; border-right: 0; }
+  /* Top-left, clear of the mail composer's ✕ (that button sits in the top-right corner). */
+  body.phone .previewRibbon { top: calc(var(--chrome-h, 48px) + 2px); left: max(0px, env(safe-area-inset-left)); right: auto; bottom: auto;
+    border-radius: 0 0 12px 0; border-top: 0; border-left: 0; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); }
   body.phone .nudge { top: 50%; width: 44px; height: 64px; margin-top: -32px; }
   body.phone .nudge.left { left: max(4px, env(safe-area-inset-left)); }
   body.phone .nudge.right { right: max(4px, env(safe-area-inset-right)); }
@@ -737,6 +746,7 @@ body.view-street .stage { visibility: hidden; }
   /* Grown-up roster: the × (was ~19×24) and Reset (was ~52×24) need a real tap target. */
   body.phone .rName button { min-width: 44px; min-height: 44px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
   body.phone .rName button.x { min-width: 44px; min-height: 44px; font-size: 22px; padding: 0; }
+  body.phone .pLetter button, body.phone .pMailHouse > .danger, body.phone #mailClearAll { min-height: 44px; min-width: 44px; }
   body.phone .petName, body.phone .pHouse input, body.phone .pAdd input, body.phone .typed input { font-size: 16px; min-height: 44px; max-width: 100%; }
   body.phone .kennelBtn { min-width: calc(44px / var(--fit, 1)); min-height: calc(44px / var(--fit, 1)); font-size: calc(14px / var(--fit, 1)); padding: calc(4px / var(--fit, 1)) calc(10px / var(--fit, 1)); }
   body.phone .petName { width: 100%; }
@@ -801,7 +811,7 @@ body.view-street .stage { visibility: hidden; }
   body.phone #app { top: var(--vvt, 0px); height: var(--vvh, 100dvh); bottom: auto; }
   body.phone .top { flex-wrap: nowrap; padding: 2px 2px 0; gap: 2px; }
   body.phone .tabs { flex: 1 1 auto; order: 0; min-width: 0; }
-  body.phone .tab { font-size: 12px; padding: 0 5px; }
+  body.phone .tab { font-size: 14px; padding: 0 4px; }
   body.phone .tab.on { transform: none; }
   body.phone .minimap { flex: 0 1 48px; width: 48px; min-width: 44px; height: 44px; order: 0; max-width: none; }
   body.phone .tools { order: 0; margin-left: 0; gap: 2px; }
@@ -836,8 +846,10 @@ body.view-street .stage { visibility: hidden; }
 /* 667×375: five tabs were touching the minimap. A few pixels of gap and padding free the row.
    Lock and chat do not fit on that same row, so on a street they wrap under the tabs. */
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) and (max-width: 700px) {
-  body.phone .tabs { gap: 3px; }
-  body.phone .tab { padding: 0 4px; }
+  /* 14px names on a 667-wide phone. Padding stays inside the 44px target and clear of the minimap. */
+  body.phone .tabs { gap: 2px; }
+  body.phone .tab { padding: 0; }
+  body.phone .minimap { flex-basis: 44px; width: 44px; min-width: 44px; }
   body.phone.mode-hood .top { flex-wrap: wrap; row-gap: 2px; }
   body.phone.mode-hood .tabs { flex: 1 1 auto; }
   body.phone.mode-hood .minimap { flex: 0 0 48px; }
@@ -879,7 +891,7 @@ body.view-street .stage { visibility: hidden; }
 .grSolo { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 30; pointer-events: none;
   background: #fff; border: 4px solid var(--ink); border-radius: 22px; padding: 10px 18px; font-weight: 900; font-size: 22px;
   box-shadow: 0 6px 0 rgba(90, 61, 92, .25); color: #e0558a; text-align: center; max-width: 92vw; }
-.grSolo.bump { animation: hop .45s ease; }
+.grSolo.bump { animation: petHop .45s ease; }
 #gavatars { pointer-events: none; }
 #gavatars .savatar.other { pointer-events: none; }
 #gavatars .savatar.mine { pointer-events: auto; }

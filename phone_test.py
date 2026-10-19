@@ -67,8 +67,8 @@ async def tabs_fit(pg, tag):
       const mb = vis(mini) ? mini.getBoundingClientRect() : null;
       const boxes = tabs.map(el => {
         const b = el.getBoundingClientRect();
-        return {name: (el.textContent || '').trim(), x: b.x, y: b.y, r: b.right, b: b.bottom, w: b.width, h: b.height,
-          clipped: el.scrollWidth > el.clientWidth + 1};
+        return {name: (el.getAttribute('aria-label') || el.textContent || '').trim(), x: b.x, y: b.y, r: b.right, b: b.bottom, w: b.width, h: b.height,
+          font: parseFloat(getComputedStyle(el).fontSize), clipped: el.scrollWidth > el.clientWidth + 1};
       });
       const tools = [...document.querySelectorAll('.tools .round')].filter(vis).map(el => {
         const b = el.getBoundingClientRect();
@@ -179,6 +179,28 @@ async def pet_targets(pg, tag, save, w, h):
       s.dispatch({type:'cat/set', cat:null});
     }""")
 
+# These viewports were shipping 36px Play/Decorate buttons. The tap has to be 44px
+# and the catalog row has to stay 44px so the room does not shrink.
+TAP_SIZES = {(375, 667), (390, 844), (844, 390), (932, 430)}
+
+async def mode_tap(pg, tag):
+    box = await pg.evaluate("""() => {
+      const t = document.getElementById('modeToggle');
+      const row = document.querySelector('.drawerTop');
+      const cat = document.querySelector('.cat');
+      const tb = t.getBoundingClientRect();
+      const rb = row.getBoundingClientRect();
+      const cb = cat ? cat.getBoundingClientRect() : null;
+      const btns = [...t.querySelectorAll('button')].map(b => {
+        const r = b.getBoundingClientRect();
+        return { w: Math.round(r.width), h: Math.round(r.height), label: (b.querySelector('.modeWord') || b).textContent.trim() };
+      });
+      return { th: Math.round(tb.height), rh: Math.round(rb.height), catH: cb ? Math.round(cb.height) : 0, btns };
+    }""")
+    tall = len(box['btns']) == 2 and all(b['h'] >= 44 for b in box['btns'])
+    row_ok = box['th'] <= 44 and box['rh'] <= max(44, box['catH'])
+    check(f'{tag} play and decorate taps are at least 44px', tall and row_ok, str(box))
+
 async def phone_pass(b, w, h, save):
     tag = f'{w}x{h}'
     # Welcome + the turn-sideways hint, on a fresh save.
@@ -226,6 +248,7 @@ async def phone_pass(b, w, h, save):
           and info['shelf']['h'] >= min_shelf and info['shelf']['y'] >= 0 and info['shelf']['b'] <= h + 1,
           f"shelf h {info['shelf']['h']:.0f}")
     check(f'{tag} room is not a sliver', info['stage']['h'] >= 140 and info['wrap']['h'] >= 160, f"stage {info['stage']['h']:.0f} wrap {info['wrap']['h']:.0f}")
+    if (w, h) in TAP_SIZES: await mode_tap(pg, tag)
     char = await pg.evaluate("""() => {
       const c = document.querySelector('#layer .char').getBoundingClientRect();
       const s = document.querySelector('.stage').getBoundingClientRect();
@@ -820,6 +843,13 @@ async def ipad_pass(b, w, h):
         }""")
         check('ipad 820x1180 minimap is at least 100px wide', mini['w'] >= 100 and mini['h'] >= 44, str(mini))
         check('ipad 820x1180 street shows seven tools and Map', len(mini['tools']) == 7 and 'btnMap' in mini['tools'], str(mini['tools']))
+        tabs = await pg.evaluate("""() => [...document.querySelectorAll('.tab')].map(el => ({
+          label: el.getAttribute('aria-label'), shown: (el.textContent || '').replace(/\\s+/g, ' ').trim(),
+          font: parseFloat(getComputedStyle(el).fontSize), clipped: el.scrollWidth > el.clientWidth + 1
+        }))""")
+        check('ipad 820x1180 room tabs are at least 14px',
+              tabs and all(t['font'] >= 14 and not t['clipped'] for t in tabs) and any(t['label'] == 'Living Room' and 'Living' in t['shown'] for t in tabs),
+              str(tabs))
     if (w, h) == (1024, 768):
         chips = await pg.evaluate("""async () => {
           const row = document.querySelector('.drawerTop');

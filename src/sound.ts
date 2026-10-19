@@ -7,10 +7,19 @@ function tone(freq: number, dur: number, type: OscillatorType = 'sine', slide = 
     ctx ??= new (window.AudioContext || (window as any).webkitAudioContext)();
     if (ctx.state === 'suspended') ctx.resume();
     const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime;
-    o.type = type; o.frequency.setValueAtTime(freq, t);
-    if (slide) o.frequency.exponentialRampToValueAtTime(freq * slide, t + dur);
-    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + dur);
+    const f = Math.max(40, freq * (0.94 + Math.random() * 0.12));
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, f * slide), t + dur);
+    const attack = Math.min(0.02, Math.max(0.008, dur * 0.22));
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), t + attack);
+    g.gain.exponentialRampToValueAtTime(0.001, t + Math.max(dur, attack + 0.02));
+    if (type === 'square' || type === 'sawtooth') {
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass'; filter.frequency.setValueAtTime(1400, t); filter.Q.setValueAtTime(0.7, t);
+      o.connect(filter).connect(g).connect(ctx.destination);
+    } else o.connect(g).connect(ctx.destination);
+    o.start(t); o.stop(t + dur + 0.02);
   } catch {}
 }
 export const sfx = {

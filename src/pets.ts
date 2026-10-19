@@ -67,8 +67,9 @@ export function catSVG(coat: number, pose: CatPose = 'stand') {
     ${head(90, 40, 17, false)}</svg>`;
 }
 
-export function dogSVG(breed: number, pose: 'stand' | 'sit' = 'stand') {
+export function dogSVG(breed: number, pose: 'stand' | 'sit' | 'sleep' = 'stand') {
   const b = DOG_BREEDS[breed] ?? DOG_BREEDS[0];
+  const sleep = pose === 'sleep';
   const long = breed === 2, poodle = breed === 1, golden = breed === 3, spotty = breed === 4;
   const bodyY = long ? 66 : 58, legTop = long ? 70 : 62, legH = 94 - legTop;
   const hx = long ? 102 : 92, hy = long ? 50 : 40;
@@ -90,14 +91,16 @@ export function dogSVG(breed: number, pose: 'stand' | 'sit' = 'stand') {
     <ellipse cx="${hx + 13}" cy="${hy + 7}" rx="11" ry="8" fill="${b.snout}" ${st}/>
     <circle cx="${hx + 22}" cy="${hy + 4}" r="4" fill="${O}"/>
     <path d="M${hx + 14} ${hy + 12} q4 3 8 0" fill="none" ${st} stroke-width="2"/>
-    <path class="tongue" d="M${hx + 16} ${hy + 13} q2 7 6 0" fill="#ff8fab" ${st} stroke-width="2"/>
-    <circle cx="${hx + 5}" cy="${hy - 3}" r="3" fill="${O}"/><circle cx="${hx + 6}" cy="${hy - 4}" r="1" fill="#fff"/>
+    ${sleep ? '' : `<path class="tongue" d="M${hx + 16} ${hy + 13} q2 7 6 0" fill="#ff8fab" ${st} stroke-width="2"/>`}
+    ${sleep
+      ? `<path d="M${hx + 2} ${hy - 4} q3 3 6 0" fill="none" ${st} stroke-width="2.4"/>`
+      : `<circle cx="${hx + 5}" cy="${hy - 3}" r="3" fill="${O}"/><circle cx="${hx + 6}" cy="${hy - 4}" r="1" fill="#fff"/>`}
     ${blush(hx + 2, hy + 8)}
     ${poodle ? `<circle cx="${hx - 9}" cy="${hy + 8}" r="9" fill="${b.ear}" ${st}/>` : `<ellipse class="ear" cx="${hx - 9}" cy="${hy + 4}" rx="7" ry="${golden || long ? 14 : 12}" fill="${b.ear}" ${st} transform="rotate(12 ${hx - 9} ${hy + 4})"/>`}
     <path d="M${hx - 12} ${hy + 14} q10 6 20 2" fill="none" stroke="#ff6b6b" stroke-width="5" stroke-linecap="round"/><circle cx="${hx - 1}" cy="${hy + 19}" r="3" fill="#ffd166" ${st} stroke-width="1.5"/>`;
   const sitTail = poodle ? `<g class="tail"><path d="M42 86 L28 80" ${st}/><circle cx="25" cy="78" r="7" fill="${b.body}" ${st}/></g>`
     : `<path class="tail" d="M42 88 Q24 90 24 74" fill="none" stroke="${O}" stroke-width="9" stroke-linecap="round"/><path class="tail" d="M42 88 Q24 90 24 74" fill="none" stroke="${b.body}" stroke-width="4.5" stroke-linecap="round"/>`;
-  if (pose === 'sit') return `<svg viewBox="0 0 130 100" class="dogsvg sit">${sitTail}
+  if (pose === 'sit' || pose === 'sleep') return `<svg viewBox="0 0 130 100" class="dogsvg ${sleep ? 'sleep' : 'sit'}">${sitTail}
     <ellipse cx="60" cy="70" rx="22" ry="24" fill="${b.body}" ${st}/>${spotty ? `<circle cx="54" cy="66" r="5" fill="${O}"/><circle cx="64" cy="80" r="4" fill="${O}"/>` : ''}
     ${leg(62, 'a')}${leg(74, 'b')}<g transform="translate(-22 -2)">${head}</g></svg>`;
   return `<svg viewBox="0 0 130 100" class="dogsvg stand">${tail}${tailFill}
@@ -112,7 +115,7 @@ const hash = (s: string) => { let h = 2166136261; for (const ch of s) { h ^= ch.
 const rnd = (seed: number, k: number) => { let x = (seed ^ Math.imul(k, 2654435761)) >>> 0; x ^= x >>> 15; x = Math.imul(x, 2246822507); x ^= x >>> 13; x = Math.imul(x, 3266489909); x ^= x >>> 16; return (x >>> 0) / 4294967296; };
 const SEG = 18; // seconds per little "activity"
 export type CatMood = 'walk' | 'sit' | 'nap' | 'groom' | 'play';
-export type CatSpot = { x: number; mood: CatMood; flip: boolean; perch: 0 | 1 | 2 };
+export type CatSpot = { x: number; mood: CatMood; flip: boolean; perch: 0 | 1 | 2; curl: 0 | 1 };
 /** How far up a cat tower (as a fraction of its height) each platform sits. Matches the tower art. */
 export const TOWER_LIFT = { 1: 0.35, 2: 0.60 } as const;
 export function towerFootY(itemY: number, itemH: number, perch: 1 | 2) {
@@ -123,15 +126,21 @@ export function kennelLook(name: string, nowMs: number): 'rest' | 'peek' {
   const seg = 2.8, k = Math.floor(nowMs / 1000 / seg);
   return rnd(hash(name || 'pup'), k) < 0.62 ? 'rest' : 'peek';
 }
-export function catAt(cat: Cat, nowMs: number, tower?: { x: number } | null): CatSpot {
+export function catAt(cat: Cat, nowMs: number, tower?: { x: number } | null, bed?: { x: number } | null, settle = false): CatSpot {
   const seed = hash(cat.name + ':' + cat.coat + ':' + cat.room + ':' + Math.round(cat.x) + (tower ? ':t' + Math.round(tower.x) : ''));
   const t = nowMs / 1000, k = Math.floor(t / SEG), into = t - k * SEG;
   if (!tower) {
     const target = (i: number) => Math.max(160, Math.min(2240, cat.x + (rnd(seed, i) - 0.5) * 760));
-    const from = target(k - 1), to = target(k), dist = Math.abs(to - from), walkT = Math.min(5, dist / 110);
+    const from = target(k - 1);
+    let to = target(k);
     const r = rnd(seed + 7, k), mood: CatMood = r < 0.45 ? 'nap' : r < 0.75 ? 'sit' : 'groom';
-    if (into < walkT) return { x: from + (to - from) * (into / walkT), mood: 'walk', flip: to < from, perch: 0 };
-    return { x: to, mood, flip: to < from, perch: 0 };
+    // A tower wins over a bed. With no bed, the walk is the same as before (the extra roll is a new salt).
+    const curl = !!(bed && mood === 'nap' && rnd(seed + 13, k) < 0.72);
+    if (curl && bed) to = Math.max(160, Math.min(2240, bed.x));
+    const dist = Math.abs(to - from), walkT = Math.min(5, dist / 110);
+    // Reduced motion (settle): no walking; she is simply at her spot (or curled on the bed).
+    if (into < walkT && !settle) return { x: from + (to - from) * (into / walkT), mood: 'walk', flip: to < from, perch: 0, curl: 0 };
+    return { x: to, mood, flip: to < from, perch: 0, curl: curl ? 1 : 0 };
   }
   // With a tower in her room she walks over, then sits, naps, or plays on a platform.
   const home = Math.max(160, Math.min(2240, tower.x));
@@ -139,8 +148,8 @@ export function catAt(cat: Cat, nowMs: number, tower?: { x: number } | null): Ca
   const from = Math.max(160, Math.min(2240, home + (rnd(seed, k) - 0.5) * 420));
   const dist = Math.abs(home - from), walkT = Math.min(4.2, Math.max(0.6, dist / 160));
   const flip = home < from;
-  if (into < walkT) return { x: from + (home - from) * (into / walkT), mood: 'walk', flip, perch: 0 };
+  if (into < walkT && !settle) return { x: from + (home - from) * (into / walkT), mood: 'walk', flip, perch: 0, curl: 0 };
   const r = rnd(seed + 11, k);
   const mood: CatMood = r < 0.34 ? 'nap' : r < 0.67 ? 'sit' : 'play';
-  return { x: home, mood, flip, perch };
+  return { x: home, mood, flip, perch, curl: 0 };
 }

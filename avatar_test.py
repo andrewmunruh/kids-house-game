@@ -139,7 +139,7 @@ async def customizer(b):
         await ctx.close()
 
 async def lineup_and_perf(b):
-    ctx = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
+    ctx = await b.new_context(viewport={'width': 820, 'height': 1180}, device_scale_factor=1, has_touch=True)
     await ctx.add_init_script(SKIP_WN)
     pg = await ctx.new_page()
     errs = []
@@ -193,6 +193,12 @@ async def lineup_and_perf(b):
     await pg.screenshot(path=f'{SHOT}/kid-holding.png')
     vis = await pg.evaluate("""() => document.querySelectorAll('#stage .char .held').length""")
     check('a chibi kid holds the teddy', held['kind'] == 'teddy' and held['chibi'] and vis >= 1, str(held) + ' shown ' + str(vis))
+    modes = await pg.evaluate("""() => {
+      const p = document.querySelector('#modePlay').getBoundingClientRect();
+      const d = document.querySelector('#modeDecorate').getBoundingClientRect();
+      return { ph: Math.round(p.height), dh: Math.round(d.height), words: (document.querySelector('#modePlay').innerText + ' ' + document.querySelector('#modeDecorate').innerText) };
+    }""")
+    check('Play and Decorate render beside the chibi kids', 'Play' in modes['words'] and 'Decorate' in modes['words'] and modes['ph'] >= 40 and modes['dh'] >= 40, str(modes))
     await ctx.close()
 
 async def ride_shot(b, name, dress):
@@ -381,6 +387,73 @@ async def street(b):
     await ctxp.close()
     await ctxk.close()
 
+async def letter_shot(b):
+    """An open letter on the street, with chibi kids standing around it."""
+    names = ['Reagan', 'Quinn', 'Chloe', 'Cada', 'Sloane']
+    ctxs = []
+    pages = []
+    for _ in names:
+        ctx = await b.new_context(viewport={'width': 820, 'height': 1180}, device_scale_factor=1, has_touch=True)
+        await ctx.add_init_script(SKIP_WN)
+        ctxs.append(ctx)
+        pages.append(await ctx.new_page())
+    errs = []
+    for pg in pages:
+        pg.on('pageerror', lambda e: errs.append(str(e)))
+        await pg.goto(URL)
+        await pg.wait_for_timeout(300)
+    P = pages[0]
+    await P.click('#btnHood')
+    await P.click('[data-m="create"]')
+    await adult(P)
+    await P.wait_for_selector('#newCode')
+    code = (await P.inner_text('#newCode')).strip()
+    await P.click('[data-m="setup"]')
+    await P.wait_for_selector('#pCode')
+    for n in names:
+        await P.click(f'.sugg button:has-text("{n}")')
+        await P.wait_for_timeout(120)
+    await P.click('.hoodSheet [data-m="close"]')
+    async def join(pg, nick):
+        await pg.click('#btnHood')
+        await pg.click('[data-m="join"]')
+        await pg.fill('#codeInput', code)
+        await pg.click('#codeForm button')
+        await pg.click(f'.nicks button:has-text("{nick}")')
+        await pg.click('[data-m="fresh"]')
+        await pg.wait_for_selector('body.view-map #mapWorld .mapHouse', timeout=8000)
+    for pg, nick in zip(pages, names):
+        await join(pg, nick)
+        await pg.evaluate("""() => {
+          const look2 = __avatar.sanitizeLook2(__avatar.randomLook2());
+          const legacy = __avatar.legacyFromLook2(look2);
+          __hood().setLook(Object.assign({ size: 'kid' }, legacy, { look2: look2 }));
+        }""")
+    await P.wait_for_timeout(600)
+    house = await P.evaluate('__hood().myHouseId()')
+    await pages[1].evaluate("""(id) => __hood().sendMail(id, 'Come see my Ring Light!', 2, 1)""", house)
+    await P.wait_for_function("""(id) => { const L = (__hood().view(id).mailbox || {}).letters; return L && L[0] && L[0].text.indexOf('Ring Light') >= 0; }""", arg=house, timeout=8000)
+    who = await P.evaluate("""(id) => (__hood().view(id).mailbox.letters[0] || {}).from""", house)
+    check('the letter sender is the kid who wrote it', who == 'Quinn', str(who))
+    await P.click('.mapMail.up, .mapHouse.mine .mapMail, .mapMail')
+    await P.wait_for_selector('#mailSheet .letter', timeout=5000)
+    await P.click('#mailSheet .letter')
+    await P.wait_for_selector('#mailSheet .letter.open .words', timeout=5000)
+    faces = await P.evaluate("""() => document.querySelectorAll('.mapFace svg[data-chibi="1"]').length""")
+    words = await P.inner_text('#mailSheet .letter.open .words')
+    shown = await P.inner_text('#mailSheet .letter.open .who')
+    check('the open letter shows her words and the chibi kids stay on the street', 'Ring Light' in words and shown == 'Quinn' and faces >= 5 and not errs, f'faces={faces} who={shown} errs={errs[:2]}')
+    await P.screenshot(path=f'{SHOT}/letter-chibi-820.png')
+    await P.click('#mailSheet [data-m="close"]')
+    await P.wait_for_timeout(200)
+    await P.click('#btnParent')
+    await adult(P)
+    await P.wait_for_selector('#parentMail', timeout=5000)
+    grown = await P.inner_text('#parentMail')
+    check('the grown-up mail view shows the letter', 'Ring Light' in grown and 'Quinn' in grown and not errs, grown[:180])
+    for ctx in ctxs:
+        await ctx.close()
+
 async def main():
     os.makedirs(SHOT, exist_ok=True)
     async with async_playwright() as p:
@@ -389,6 +462,7 @@ async def main():
         await customizer(b)
         await lineup_and_perf(b)
         await riding(b)
+        await letter_shot(b)
         await street(b)
         await b.close()
     print(f"\n{sum(res.values())}/{len(res)} checks passed", flush=True)
