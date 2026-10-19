@@ -55,6 +55,9 @@ body.mode-play .drawer, body.mode-play .toolbar, body.mode-play .bin { display: 
 .statusChip.read { background: #d3f9d8; }
 
 body.phone .modeToggle { left: 6px; bottom: 0; padding: 4px; gap: 4px; border-width: 3px; }
+/* Very short landscape: the lane would shrink the room, so the toggle stacks in the side gutter. */
+body.mode-side .modeToggle { flex-direction: column; left: 2px; right: auto; top: 50%; bottom: auto; transform: translateY(-50%); padding: 3px; gap: 3px; }
+body.mode-side .modeToggle button { min-width: 44px; min-height: 44px; }
 body.phone .modeToggle button { min-height: 44px; min-width: 44px; padding: 4px 8px; font-size: 14px; gap: 4px; }
 body.phone .modeToggle .modeWord { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 body.phone .modeToggle .modeIco { width: 28px; height: 28px; flex-basis: 28px; }

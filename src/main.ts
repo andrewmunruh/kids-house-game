@@ -254,8 +254,22 @@ let modeLaneCache = 0;
 function modeLane(): number {
   if (view !== 'house') return 0;
   const el = $('modeToggle');
-  if (getComputedStyle(el).display !== 'none' && el.offsetHeight > 0) modeLaneCache = Math.ceil(el.offsetHeight) + 6;
+  // The stacked side toggle is taller than the row. Measuring it would inflate the lane.
+  const stacked = document.body.classList.contains('mode-side');
+  if (!stacked && getComputedStyle(el).display !== 'none' && el.offsetHeight > 0)
+    modeLaneCache = Math.ceil(el.offsetHeight) + 6;
   return modeLaneCache || (document.body.classList.contains('phone') ? 64 : 84);
+}
+/** How the room would scale in a box. Mirrors the branches in fit(). */
+function predictFit(boxW: number, boxH: number, phone: boolean, portrait: boolean) {
+  const aspect = boxW / Math.max(1, boxH);
+  const viewW = portrait
+    ? Math.round(Math.max(480, Math.min(860, H * aspect)))
+    : phone
+      ? Math.round(Math.max(480, Math.min(W, H * aspect)))
+      : 1000;
+  const sc = Math.min(boxW / viewW, boxH / H);
+  return { sc, screenW: viewW * sc, screenH: H * sc };
 }
 function fit() {
   syncPhone();
@@ -263,9 +277,22 @@ function fit() {
   syncChrome();
   const wrap = $('stageWrap');
   const phone = document.body.classList.contains('phone');
-  const lane = modeLane();
+  const wantLane = modeLane();
   const boxW = wrap.clientWidth;
   const fullH = wrap.clientHeight;
+  const portraitGuess = phone ? fullH > boxW * 0.85 : fullH > boxW + 40;
+  // A short phone cannot spare a strip under the room: the stage would stop filling the screen.
+  let lane = wantLane;
+  if (phone && wantLane > 0) {
+    const bare = predictFit(boxW, fullH, true, portraitGuess);
+    const withLane = predictFit(boxW, Math.max(1, fullH - wantLane), true, portraitGuess);
+    // Score against the whole wrap. A lane that fills only the shortened box still
+    // leaves the room short of the screen, which is what the layout checks measure.
+    const fills = (p: { sc: number; screenW: number; screenH: number }) =>
+      (p.screenW / Math.max(1, boxW) >= 0.85 || p.screenH / Math.max(1, fullH) >= 0.85) && 120 * p.sc >= 24;
+    if (!fills(withLane) && fills(bare)) lane = 0;
+  }
+  document.body.classList.toggle('mode-side', lane === 0 && wantLane > 0);
   const boxH = Math.max(1, fullH - lane);
   // Portrait uses the whole wrap (the lane is a strip under the room, not a new shape).
   // iPad keeps the original test. On a phone, a tall tool row can make the stage almost square;
@@ -287,9 +314,11 @@ function fit() {
   stage.style.height = H + 'px';
   const sc = Math.min(boxW / VIEW_W, boxH / H);
   // Centre the stage in the area above the toggle so the lane never covers a tap.
+  stage.style.left = '';
   stage.style.top = lane > 0 ? `calc(50% - ${lane / 2}px)` : '';
   stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
-  if (document.body.classList.contains('phone')) stage.style.setProperty('--fit', String(sc));
+  if (document.body.classList.contains('mode-side')) parkToggleBesideStage(sc);
+  if (document.body.classList.contains('phone')) stage.style.setProperty('--fit', String(stageScale()));
   placePhoneNudges();
   if (camX > maxCam()) setCam(camX);
   else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
@@ -302,17 +331,47 @@ function fit() {
   if (phone && view === 'ranch') layoutPaddock();
   placeSecretsPill();
 }
+/**
+ * Short landscape parks the toggle in the left gutter. If that gutter is narrower
+ * than the toggle, narrow the window and shift the stage right so the toggle
+ * stays off the room and the right gutter (Surprises) stays put.
+ */
+function parkToggleBesideStage(sc: number) {
+  const wrap = $('stageWrap');
+  const toggle = $('modeToggle');
+  const wrapW = wrap.clientWidth;
+  const screenW = stage.getBoundingClientRect().width;
+  const gutter = (wrapW - screenW) / 2;
+  const need = toggle.offsetWidth + 6;
+  if (gutter + 0.5 >= need) return;
+  const rightGutter = Math.max(0, gutter);
+  const targetW = Math.max(120, wrapW - need - rightGutter);
+  VIEW_W = Math.max(480, Math.round(targetW / Math.max(0.05, sc)));
+  stage.style.width = VIEW_W + 'px';
+  const sc2 = Math.min(wrapW / VIEW_W, wrap.clientHeight / H);
+  stage.style.transform = `translate(-50%,-50%) scale(${sc2})`;
+  const screenW2 = VIEW_W * sc2;
+  stage.style.left = (need + screenW2 / 2) + 'px';
+}
 /** Phone arrows live on the wrap in screen pixels. Centre them on the stage, above the mode lane. */
 function placePhoneNudges() {
   const wrap = $('stageWrap');
   const on = document.body.classList.contains('phone') && view === 'house';
+  const side = document.body.classList.contains('mode-side');
   for (const n of [$('nudgeL'), $('nudgeR')]) {
-    if (!on || n.parentElement !== wrap) { n.style.top = ''; n.style.marginTop = ''; continue; }
+    if (!on || n.parentElement !== wrap) {
+      n.style.top = ''; n.style.marginTop = ''; n.style.left = ''; n.style.right = '';
+      continue;
+    }
     const stageBox = stage.getBoundingClientRect();
     const wrapBox = wrap.getBoundingClientRect();
     const mid = (stageBox.top + stageBox.bottom) / 2 - wrapBox.top;
     n.style.top = mid + 'px';
     n.style.marginTop = (-n.offsetHeight / 2) + 'px';
+    // The stacked toggle owns the left gutter. Keep the arrows on the stage edge.
+    if (side && n.id === 'nudgeL') { n.style.left = Math.max(0, stageBox.left - wrapBox.left + 4) + 'px'; n.style.right = ''; }
+    else if (side && n.id === 'nudgeR') { n.style.right = Math.max(0, wrapBox.right - stageBox.right + 4) + 'px'; n.style.left = ''; }
+    else { n.style.left = ''; n.style.right = ''; }
   }
 }
 /**
