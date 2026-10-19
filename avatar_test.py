@@ -2,12 +2,13 @@
 # a held teddy, a chibi rider, and 6 kids animating under 4x CPU throttle.
 # Needs the preview on :4173 and the node hood (HOOD, default :8787).
 # If /tmp/prod-dist exists, an old build is served so a 1f0aa5c client can see the new kids.
-import asyncio, os, subprocess, sys, time
+import asyncio, os, subprocess, sys, tempfile, time
 from playwright.async_api import async_playwright
 from testnav import tap, SKIP_WN, go, local_page
 
 URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
-SHOT = '/opt/cursor/artifacts'
+SHOT = os.environ.get('ARTIFACT_DIR') or tempfile.mkdtemp(prefix='avatar-artifacts-')
+KIT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tests', 'fixtures', 'chibi')
 OLD_DIST = '/tmp/prod-dist'
 OLD_PORT = 4191
 res = {}
@@ -284,10 +285,16 @@ async def riding(b):
     await ride_shot(b, 'kid-riding-pants.png', '')
 
 async def proofs(b):
-    subprocess.check_call(['npx', 'tsx', 'tests/avatar_proof.ts'], cwd='/workspace')
+    needed = ['kid-maya-v2.svg', 'kid-ivy-v2.svg', 'kid-zara-v2.svg', 'kid-lily-v2.svg']
+    if not all(os.path.isfile(os.path.join(KIT, name)) for name in needed):
+        print('SKIP side-by-side proof (no chibi fixtures)', flush=True)
+        return
+    html = os.path.join(SHOT, 'avatar-proof.html')
+    env = dict(os.environ, CHIBI_KIT=KIT, AVATAR_PROOF_HTML=html)
+    subprocess.check_call(['npx', 'tsx', 'tests/avatar_proof.ts'], cwd=os.path.dirname(os.path.abspath(__file__)), env=env)
     ctx = await b.new_context(viewport={'width': 1200, 'height': 800}, device_scale_factor=1)
     pg = await ctx.new_page()
-    await pg.goto('file:///tmp/avatar-proof.html')
+    await pg.goto('file://' + html)
     await pg.locator('#compare').screenshot(path=f'{SHOT}/side-by-side.png')
     await pg.locator('#hats').screenshot(path=f'{SHOT}/hat-hair-grid.png')
     check('side-by-side and hat grid were captured', os.path.getsize(f'{SHOT}/side-by-side.png') > 20000 and os.path.getsize(f'{SHOT}/hat-hair-grid.png') > 20000)

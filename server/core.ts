@@ -6,7 +6,7 @@
 import { reduce, initialState, ensureRooms, type GameState, type Dog } from '../src/shared/state';
 import { withRandomStarter } from '../src/shared/avatar';
 import {
-  MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, cleanPresence, cleanHouseName,
+  MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, applyLook, cleanPresence, cleanHouseName,
   filterChat, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, fxAllowedAt, PROTOCOL, PROTO_PETS, PROTO_RANCH, PROTO_GAMES, RANCH_FX, normCode, validInvite, MAX_ROSTER, cleanMailText, filterMailbox, mailColor, mailSticker, mailIsFree, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble, type StreetSettings,
 } from '../src/shared/hood';
 import { MAIL_CAP, MAIL_RATE_MAX, MAIL_RATE_WINDOW_MS, keepMailbox, projectMailbox, type Letter, type Mailbox } from '../src/shared/mail';
@@ -462,7 +462,7 @@ export class Neighborhood {
         }
         return;
       }
-      case 'look': { me.look = cleanLook(m.look); this.save('meta'); this.broadcast({ t: 'players', players: this.players() }); return; }
+      case 'look': { me.look = applyLook(me.look, m.look); this.save('meta'); this.broadcast({ t: 'players', players: this.players() }); return; }
       case 'lock': {
         const h = this.houses.get(m.houseId); if (!h || h.ownerId !== me.pid || typeof m.locked !== 'boolean') return;
         h.locked = m.locked; this.save(h.id); this.broadcast({ t: 'houseMeta', meta: this.metaOf(h) }); return;
