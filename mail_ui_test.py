@@ -34,10 +34,12 @@ async def shot(pg, name):
     print('SHOT', path, flush=True)
 
 async def flow(browser, w, h, tag):
-    ctx = await browser.new_context(viewport={'width': w, 'height': h}, device_scale_factor=1, has_touch=True, is_mobile=(w < 500))
-    await ctx.add_init_script(SKIP_WN)
-    P = await ctx.new_page()
-    K = await ctx.new_page()
+    async def ctx():
+        c = await browser.new_context(viewport={'width': w, 'height': h}, device_scale_factor=1, has_touch=True, is_mobile=(w < 500))
+        await c.add_init_script(SKIP_WN)
+        return c
+    P = await (await ctx()).new_page()
+    K = await (await ctx()).new_page()
     await P.goto(URL)
     await K.goto(URL)
     await P.wait_for_timeout(400)
@@ -50,6 +52,11 @@ async def flow(browser, w, h, tag):
     await adult(P)
     await P.wait_for_selector('#newCode')
     code = (await P.inner_text('#newCode')).strip()
+    await P.click('[data-m="setup"]')
+    await P.wait_for_selector('#pCode')
+    for n in ('Reagan', 'Quinn'):
+        await P.click(f'.sugg button:has-text("{n}")')
+        await P.wait_for_timeout(200)
     await P.click('.hoodSheet [data-m="close"]')
     await join(P, code, 'Reagan', True)
     await join(K, code, 'Quinn', False)
@@ -94,7 +101,8 @@ async def flow(browser, w, h, tag):
         after = await K.evaluate("__store.get().rooms.living.items[0].x")
         drawer = await K.evaluate("getComputedStyle(document.querySelector('.drawer')).display")
         check('play mode blocks a furniture drag and hides the drawer', before == after and drawer == 'none' and await K.evaluate("__ui().play") == 'play', f'{before}->{after} drawer={drawer}')
-    await ctx.close()
+    await P.context.close()
+    await K.context.close()
 
 async def main():
     async with async_playwright() as p:

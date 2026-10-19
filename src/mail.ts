@@ -105,6 +105,7 @@ export function installMail(opts: {
 
   function draw() {
     if (!openId) return;
+    const draft = sheet().querySelector<HTMLTextAreaElement>('#mailText')?.value ?? '';
     const mine = opts.mine(openId);
     const letters = opts.lettersOf(openId);
     const name = opts.houseName(openId);
@@ -120,6 +121,8 @@ export function installMail(opts: {
         ${err ? `<p class="mailErr" id="mailErr">${esc(err)}</p>` : ''}
         <button class="mailSend" id="mailSend" type="button">Send</button>
         ${mine && letters.length ? '<button class="mailRow" data-act="back" type="button" style="margin-top:8px">Back to my mail</button>' : ''}`;
+      const area = sheet().querySelector<HTMLTextAreaElement>('#mailText');
+      if (area && draft) { area.value = draft; const n = document.getElementById('mailCount'); if (n) n.textContent = `${draft.length}/${MAIL_MAX}`; }
       return;
     }
     const rows = letters.length ? letters.slice().reverse().map(l => {
