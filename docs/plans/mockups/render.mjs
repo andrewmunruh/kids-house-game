@@ -94,24 +94,23 @@ const vanity = wrap(`${shadow}
 
 const toilet = svg('0 0 100 124', `<defs>${PORC('toiPorc')}${CHROME('toiChrome')}</defs>
   <ellipse cx="50" cy="118" rx="26" ry="3.2" fill="#1f1020" opacity=".16"/>
-  <path d="M36 100 H64 L68 116 H32 Z" fill="url(#toiPorc)" ${st}/>
-  <path d="M40 104 H60" stroke="#fff" stroke-width="2" opacity=".55"/>
-  <rect x="27" y="16" width="46" height="38" rx="8" fill="url(#toiPorc)" ${st}/>
-  <rect x="22" y="8" width="56" height="14" rx="6" fill="#fff" ${st}/>
-  ${shade('M56 20 H68 V50 H56 Z', '.1')}
-  ${hi(34, 14, 12, 2.4)}
-  <rect x="70" y="30" width="14" height="7" rx="3.5" fill="url(#toiChrome)" ${st}/>
-  <circle cx="84" cy="33.5" r="3.4" fill="#f4d58a" ${st}/>
-  <path d="M12 66 H88 Q94 66 94 74 V90 Q94 108 50 108 Q6 108 6 90 V74 Q6 66 12 66 Z" fill="url(#toiPorc)" ${st}/>
-  ${shade('M64 74 H90 Q86 102 52 104 Q72 92 64 74 Z', '.12')}
-  <path d="M22 86 Q50 98 80 84" fill="none" stroke="#fff" stroke-width="3" opacity=".4"/>
-  <ellipse cx="50" cy="69" rx="36" ry="11" fill="#e7eef3"/>
-  <ellipse cx="50" cy="65" rx="36" ry="12" fill="url(#toiPorc)" ${st}/>
-  ${hi(32, 62, 14, 3.2)}
-  <rect x="28" y="56" width="8" height="8" rx="2" fill="#fff" ${st}/>
-  <rect x="64" y="56" width="8" height="8" rx="2" fill="#fff" ${st}/>
-  ${daisy(50, 66, 0.72)}
-  ${speck([[40, 28], [58, 90]])}`);
+  <path d="M38 102 H62 L66 116 H34 Z" fill="url(#toiPorc)" ${st}/>
+  <rect x="28" y="18" width="44" height="34" rx="7" fill="url(#toiPorc)" ${st}/>
+  <rect x="24" y="10" width="52" height="12" rx="5" fill="#fff" ${st}/>
+  ${shade('M56 22 H68 V48 H56 Z', '.1')}
+  ${hi(36, 15, 10, 2.2)}
+  <rect x="70" y="28" width="12" height="6" rx="3" fill="url(#toiChrome)" ${st}/>
+  <circle cx="82" cy="31" r="3.2" fill="#f4d58a" ${st}/>
+  <path d="M18 78 H82 Q88 78 88 86 V94 Q88 108 50 108 Q12 108 12 94 V86 Q12 78 18 78 Z" fill="url(#toiPorc)" ${st}/>
+  ${shade('M60 84 H84 Q80 102 52 104 Q66 94 60 84 Z', '.1')}
+  <path d="M28 92 Q50 100 74 90" fill="none" stroke="#fff" stroke-width="2.5" opacity=".4"/>
+  <ellipse cx="50" cy="78" rx="32" ry="10" fill="#dfeaf1" ${st}/>
+  <ellipse cx="50" cy="70" rx="32" ry="11" fill="url(#toiPorc)" ${st}/>
+  <ellipse cx="50" cy="66" rx="18" ry="4.2" fill="#fff" opacity=".7"/>
+  <rect x="30" y="62" width="8" height="7" rx="2" fill="#fff" ${st}/>
+  <rect x="62" y="62" width="8" height="7" rx="2" fill="#fff" ${st}/>
+  ${daisy(50, 71, 0.58)}
+  ${speck([[40, 28], [58, 96]])}`);
 
 const ladder = wrap(`${shadow}
   <path d="M28 16 L22 92 M72 16 L78 92" ${st}/>
@@ -124,14 +123,17 @@ const ladder = wrap(`${shadow}
   <path d="M46 42 q4 2 8 0" fill="none" stroke="#fff" stroke-width="2" opacity=".7"/>
   ${speck([[40, 66], [58, 46]])}`);
 
-const bar = wrap(`
-  <rect x="14" y="28" width="72" height="8" rx="4" fill="#f3d2b5" ${st}/>
-  <circle cx="22" cy="32" r="3" fill="#fff" ${st}/><circle cx="78" cy="32" r="3" fill="#fff" ${st}/>
-  <path d="M30 36 H70 L64 88 H36 Z" fill="#d9f3ea" ${st}/>
-  ${shade('M40 50 H64 L60 88 H44 Z', '.1')}
-  <path d="M40 48 q10 6 20 0" fill="none" stroke="#fff" stroke-width="3" opacity=".65"/>
-  <path d="M36 70 H64" stroke="#fff" stroke-width="2" opacity=".4"/>
-  ${speck([[46, 60], [56, 74]])}`);
+const bar = svg('0 0 130 100', `
+  <circle cx="24" cy="30" r="5" fill="#fff7ee" ${st}/>
+  <circle cx="106" cy="30" r="5" fill="#fff7ee" ${st}/>
+  <rect x="16" y="26" width="98" height="9" rx="4.5" fill="#f3d2b5" ${st}/>
+  <path d="M38 30 H92 L88 48 H42 Z" fill="#f7c9d4"/>
+  <path d="M32 27 H98 C97 42 94 86 86 90 H44 C36 86 33 42 32 27 Z" fill="#fff6f2" ${st}/>
+  <path d="M36 40 H94 M35 50 H93 M34 60 H92 M35 70 H91 M38 80 H88" stroke="#5eb0d4" stroke-width="4" stroke-linecap="round"/>
+  <path d="M37 45 H93 M36 65 H90" stroke="#ff8fab" stroke-width="3" stroke-linecap="round"/>
+  <path d="M34 27 Q65 40 96 27" fill="#ffe4ea" ${st}/>
+  <path d="M44 30 Q65 35 86 30" fill="none" stroke="#fff" stroke-width="2.2" opacity=".9"/>
+  ${shade('M70 44 H94 L90 84 H74 Z', '.08')}`);
 
 const cubby = wrap(`${shadow}
   <rect x="14" y="16" width="72" height="74" rx="8" fill="#f6e2c4" ${st}/>
@@ -158,12 +160,15 @@ const hamper = wrap(`${shadow}
   ${speck([[40, 60], [58, 72]])}`);
 
 const step = wrap(`${shadow}
-  <path d="M18 78 H82 L76 92 H24 Z" fill="#f6e2c4" ${st}/>
-  <path d="M28 58 H72 L68 76 H32 Z" fill="#fff3d6" ${st}/>
-  ${shade('M48 60 H70 L66 76 H46 Z', '.12')}
-  ${hi(36, 64, 8, 2)}
-  <rect x="34" y="88" width="8" height="8" rx="2" fill="${O}"/><rect x="58" y="88" width="8" height="8" rx="2" fill="${O}"/>
-  ${speck([[40, 70], [60, 84]])}`);
+  <rect x="20" y="86" width="10" height="12" rx="2" fill="#e0b080" ${st}/>
+  <rect x="70" y="86" width="10" height="12" rx="2" fill="#e0b080" ${st}/>
+  <path d="M12 68 H88 V86 H12 Z" fill="#e7b56e" ${st}/>
+  <path d="M12 68 L22 58 H78 L88 68 Z" fill="#ffe0b8" ${st}/>
+  ${shade('M60 72 H84 V86 H60 Z', '.12')}
+  <path d="M30 42 H70 V60 H30 Z" fill="#f0c48a" ${st}/>
+  <path d="M30 42 L38 34 H62 L70 42 Z" fill="#fff0d2" ${st}/>
+  ${hi(40, 38, 8, 2)}
+  <path d="M22 62 H78" stroke="#fff" stroke-width="2" opacity=".5"/>`);
 
 const cupboard = wrap(`${shadow}
   <rect x="22" y="12" width="56" height="78" rx="8" fill="#e7f6f2" ${st}/>
@@ -420,130 +425,118 @@ function sceneSvg() {
       <path d="M100 512 V600 M200 512 V600 M310 512 V600 M410 512 V600"/>
     </g>
 
-    <circle cx="36" cy="214" r="8" fill="#f3d2b5" ${S}/>
-    <path d="M36 214 v14" ${S}/>
-    <path d="M28 228 q-18 10 -16 42 q22 6 30 -10 q8 18 26 10 q-4 -32 -40 -42 Z" fill="#7ec8e3" ${S}/>
-    <path d="M22 252 q12 8 18 0" fill="none" stroke="#fff" stroke-width="3" opacity=".65"/>
-    <path d="M30 268 q8 4 14 0" fill="none" stroke="#fff" stroke-width="2" opacity=".5"/>
-
     <g>
-      <path d="M78 28 V150" ${S}/>
-      <ellipse cx="58" cy="58" rx="16" ry="7" fill="#8fd4a8" ${S} transform="rotate(-30 58 58)"/>
-      <ellipse cx="98" cy="78" rx="16" ry="7" fill="#b7e4c7" ${S} transform="rotate(28 98 78)"/>
-      <ellipse cx="56" cy="102" rx="15" ry="6" fill="#74c69d" ${S} transform="rotate(-22 56 102)"/>
-      <ellipse cx="100" cy="124" rx="14" ry="6" fill="#95d5b2" ${S} transform="rotate(24 100 124)"/>
+      <path d="M48 36 V118" stroke="${O}" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="36" cy="58" rx="12" ry="5" fill="#8fd4a8" stroke="${O}" stroke-width="2.4" transform="rotate(-28 36 58)"/>
+      <ellipse cx="62" cy="74" rx="12" ry="5" fill="#b7e4c7" stroke="${O}" stroke-width="2.4" transform="rotate(26 62 74)"/>
+      <ellipse cx="38" cy="96" rx="11" ry="4.5" fill="#74c69d" stroke="${O}" stroke-width="2.4" transform="rotate(-20 38 96)"/>
     </g>
 
-    <path d="M132 150 Q112 48 162 28 Q132 78 142 150 Z" fill="#ffd0e0" ${S}/>
-    <path d="M214 150 Q236 48 186 28 Q214 78 204 150 Z" fill="#ffc2d4" ${S}/>
-    <circle cx="172" cy="86" r="44" fill="#f4d58a" ${S}/>
-    <circle cx="172" cy="86" r="32" fill="#cfefff" ${S}/>
-    <path d="M150 70 l12 -10 M154 92 l18 -16" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+    <path d="M168 132 Q156 78 186 68 Q164 96 172 132 Z" fill="#ffd0e0" stroke="${O}" stroke-width="2.6" stroke-linejoin="round"/>
+    <path d="M214 132 Q228 78 198 68 Q218 96 210 132 Z" fill="#ffc2d4" stroke="${O}" stroke-width="2.6" stroke-linejoin="round"/>
+    <circle cx="190" cy="96" r="18" fill="#f4d58a" stroke="${O}" stroke-width="2.8"/>
+    <circle cx="190" cy="96" r="12" fill="#cfefff" stroke="${O}" stroke-width="2.4"/>
+    <path d="M182 90 l6 -5 M184 100 l8 -7" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
 
-    <path d="M292 178 H462 Q470 178 470 186 V196 H284 V186 Q284 178 292 178 Z" fill="url(#scWood)" ${S}/>
-    <path d="M310 196 V222 M448 196 V222" ${S}/>
-    <rect x="300" y="112" width="34" height="66" rx="10" fill="#fff" ${S}/>
-    <rect x="305" y="138" width="24" height="36" rx="6" fill="#ffb7d1"/>
-    <path d="M312 150 h10" stroke="#fff" stroke-width="2" opacity=".7"/>
-    <rect x="306" y="96" width="22" height="18" rx="4" fill="url(#scChrome)" ${S}/>
-    <rect x="304" y="86" width="26" height="14" rx="4" fill="url(#scChrome)" ${S}/>
-    <path d="M304 93 H284" stroke="#d5dee6" stroke-width="7" stroke-linecap="round"/>
-    <path d="M304 93 H284" fill="none" ${s2}/>
-    <rect x="274" y="86" width="14" height="12" rx="3" fill="#f4d58a" ${S}/>
-    <path d="M278 98 v10" stroke="#9fd4ea" stroke-width="2.4" stroke-linecap="round"/>
-    <circle cx="278" cy="112" r="2.6" fill="#9fd4ea"/>
-    <rect x="310" y="74" width="14" height="14" rx="3" fill="#fff" ${S}/>
-    <path d="M372 96 L408 96 L400 178 L380 178 Z" fill="#e5f6ff" fill-opacity=".95" ${S}/>
-    <ellipse cx="390" cy="96" rx="20" ry="7" fill="#f7fdff" ${S}/>
-    <path d="M380 128 L384 178 L398 178 L402 128 Q390 136 380 128 Z" fill="#7ec8e3" opacity=".92"/>
-    <ellipse cx="390" cy="128" rx="14" ry="5" fill="#3d9ec4"/>
-    <path d="M380 104 L384 168" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".85"/>
-    <rect x="418" y="132" width="22" height="46" rx="8" fill="#fff" ${S}/>
-    <rect x="422" y="152" width="14" height="22" rx="4" fill="#c9eef6"/>
-    <rect x="420" y="124" width="18" height="12" rx="4" fill="#f3d2b5" ${S}/>
-    <rect x="444" y="128" width="22" height="50" rx="8" fill="#fff" ${S}/>
-    <rect x="448" y="150" width="14" height="24" rx="4" fill="#ffe08a"/>
-    <rect x="446" y="120" width="18" height="12" rx="4" fill="#e7f6f2" ${S}/>
+    <circle cx="128" cy="168" r="5" fill="#f3d2b5" stroke="${O}" stroke-width="2.4"/>
+    <path d="M128 168 v8" stroke="${O}" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M122 176 q-10 6 -8 24 q12 3 16 -6 q4 10 14 6 q-2 -18 -22 -24 Z" fill="#7ec8e3" stroke="${O}" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M120 190 q6 4 10 0" fill="none" stroke="#fff" stroke-width="1.6" opacity=".7"/>
 
-    <ellipse cx="58" cy="540" rx="46" ry="5" fill="#1f1020" opacity=".13"/>
-    <path d="M16 508 H102 Q112 508 112 518 V528 Q112 546 58 546 Q6 546 6 528 V518 Q6 508 16 508 Z" fill="#e7f3f6" ${S}/>
-    <path d="M22 268 H96 V516 H22 Z" fill="#f7fcfe" ${S}/>
-    <path d="M26 280 H92 V508 H26 Z" fill="url(#scGlass)" ${S}/>
-    <path d="M58 272 V516" ${S}/>
-    <path d="M34 310 L52 470" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".55"/>
-    <rect x="80" y="372" width="10" height="22" rx="4" fill="#f4d58a" ${S}/>
-    <rect x="12" y="252" width="96" height="14" rx="5" fill="url(#scWood)" ${S}/>
-    <path d="M20 266 Q2 340 16 512 Q38 470 40 266 Z" fill="#ffd0e0" ${S}/>
-    <path d="M24 320 q8 12 2 20" fill="none" stroke="#fff" stroke-width="3" opacity=".75"/>
-    <rect x="70" y="274" width="20" height="10" rx="4" fill="url(#scChrome)" ${S}/>
-    <path d="M76 284 v18 M84 282 v24 M92 286 v16" stroke="#7ec4de" stroke-width="2.6" stroke-linecap="round"/>
-    <circle cx="76" cy="306" r="2.2" fill="#fff"/><circle cx="84" cy="310" r="2.4" fill="#fff"/><circle cx="92" cy="306" r="1.8" fill="#fff"/>
+    <path d="M300 156 H424 Q430 156 430 162 V168 H294 V162 Q294 156 300 156 Z" fill="url(#scWood)" stroke="${O}" stroke-width="2.2"/>
+    <path d="M312 168 V180 M412 168 V180" stroke="${O}" stroke-width="2.2" stroke-linecap="round"/>
+    <rect x="304" y="140" width="12" height="16" rx="3" fill="#fff" stroke="${O}" stroke-width="1.8"/>
+    <rect x="306" y="148" width="8" height="7" rx="2" fill="#ffb7d1"/>
+    <rect x="305" y="136" width="10" height="6" rx="2" fill="#f3d2b5" stroke="${O}" stroke-width="1.6"/>
+    <rect x="322" y="142" width="12" height="14" rx="3" fill="#fff" stroke="${O}" stroke-width="1.8"/>
+    <rect x="324" y="148" width="8" height="6" rx="1.5" fill="#c9eef6"/>
+    <rect x="323" y="138" width="10" height="6" rx="2" fill="#e7f6f2" stroke="${O}" stroke-width="1.6"/>
+    <path d="M346 132 L362 132 L358 156 L350 156 Z" fill="#e5f6ff" fill-opacity=".95" stroke="${O}" stroke-width="1.8"/>
+    <ellipse cx="354" cy="132" rx="9" ry="3.2" fill="#f7fdff" stroke="${O}" stroke-width="1.8"/>
+    <path d="M350 142 L352 156 L356 156 L358 142 Q354 145 350 142 Z" fill="#7ec8e3" opacity=".92"/>
+    <ellipse cx="354" cy="142" rx="6" ry="2" fill="#3d9ec4"/>
+    <path d="M349 136 L351 152" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".85"/>
+    <rect x="372" y="138" width="14" height="18" rx="3" fill="#fff" stroke="${O}" stroke-width="1.8"/>
+    <rect x="375" y="146" width="8" height="8" rx="2" fill="#ffb7d1"/>
+    <rect x="374" y="130" width="10" height="9" rx="2" fill="url(#scChrome)" stroke="${O}" stroke-width="1.5"/>
+    <rect x="373" y="124" width="12" height="8" rx="2" fill="url(#scChrome)" stroke="${O}" stroke-width="1.5"/>
+    <path d="M385 128 H396" stroke="#d5dee6" stroke-width="3" stroke-linecap="round"/>
+    <path d="M385 128 H396" fill="none" stroke="${O}" stroke-width="1.3" stroke-linecap="round"/>
+    <rect x="392" y="124" width="6" height="6" rx="1.5" fill="#f4d58a" stroke="${O}" stroke-width="1.3"/>
+    <rect x="376" y="118" width="6" height="7" rx="1.5" fill="#fff" stroke="${O}" stroke-width="1.4"/>
+    <circle cx="398" cy="136" r="1.3" fill="#9fd4ea"/>
 
-    <g transform="translate(-34,0)">
-    <ellipse cx="132" cy="546" rx="34" ry="4.4" fill="#1f1020" opacity=".13"/>
-    <path d="M110 508 H154 L160 548 H104 Z" fill="url(#scPorc)" ${S}/>
-    <rect x="106" y="400" width="52" height="46" rx="8" fill="url(#scPorc)" ${S}/>
-    <rect x="98" y="388" width="68" height="18" rx="7" fill="#fff" ${S}/>
-    ${shade('M140 404 H154 V442 H140 Z', '.1')}
-    <rect x="154" y="418" width="16" height="8" rx="4" fill="url(#scChrome)" ${S}/>
-    <circle cx="170" cy="422" r="4" fill="#f4d58a" ${S}/>
-    <path d="M90 452 H174 Q182 452 182 462 V484 Q182 514 132 514 Q82 514 82 484 V462 Q82 452 90 452 Z" fill="url(#scPorc)" ${S}/>
-    ${shade('M146 468 H178 Q172 506 132 510 Q150 490 146 468 Z', '.1')}
-    <path d="M100 486 Q132 504 164 482" fill="none" stroke="#fff" stroke-width="3" opacity=".45"/>
-    <ellipse cx="132" cy="458" rx="44" ry="13" fill="#e7eef3"/>
-    <ellipse cx="132" cy="452" rx="44" ry="14" fill="url(#scPorc)" ${S}/>
-    <rect x="102" y="442" width="10" height="10" rx="2" fill="#fff" ${S}/>
-    <rect x="152" y="442" width="10" height="10" rx="2" fill="#fff" ${S}/>
-    ${daisy(132, 452, 0.85)}
-    </g>
+    <ellipse cx="50" cy="500" rx="34" ry="4" fill="#1f1020" opacity=".13"/>
+    <path d="M22 476 H78 Q86 476 86 484 V492 Q86 504 50 504 Q14 504 14 492 V484 Q14 476 22 476 Z" fill="#e7f3f6" ${S}/>
+    <path d="M26 276 H74 V478 H26 Z" fill="#f7fcfe" ${S}/>
+    <path d="M30 288 H70 V470 H30 Z" fill="url(#scGlass)" ${S}/>
+    <path d="M50 280 V478" ${S}/>
+    <path d="M36 320 L46 450" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".55"/>
+    <rect x="60" y="360" width="8" height="16" rx="3" fill="#f4d58a" ${S}/>
+    <rect x="18" y="264" width="64" height="12" rx="4" fill="url(#scWood)" ${S}/>
+    <path d="M24 276 Q16 340 22 470 Q36 440 38 276 Z" fill="#ffd0e0" ${S}/>
+    <path d="M28 318 q5 8 1 12" fill="none" stroke="#fff" stroke-width="2" opacity=".75"/>
+    <rect x="52" y="286" width="14" height="7" rx="3" fill="url(#scChrome)" ${S}/>
+    <path d="M56 293 v12 M62 291 v16 M68 294 v10" stroke="#7ec4de" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="56" cy="308" r="1.6" fill="#fff"/><circle cx="62" cy="310" r="1.8" fill="#fff"/>
 
-    <ellipse cx="444" cy="546" rx="30" ry="4.2" fill="#1f1020" opacity=".13"/>
-    <rect x="412" y="478" width="64" height="68" rx="8" fill="#fff7ee" ${S}/>
-    <path d="M412 512 H476" ${S}/>
-    <circle cx="430" cy="496" r="2.4" fill="${O}"/><circle cx="458" cy="496" r="2.4" fill="${O}"/>
-    <rect x="408" y="466" width="72" height="16" rx="6" fill="#ffd0e0" ${S}/>
-    <path d="M444 348 C468 348 480 382 480 424 C480 448 464 456 444 456 C424 456 408 448 408 424 C408 382 420 348 444 348 Z" fill="#f4d58a" ${S}/>
-    <ellipse cx="444" cy="406" rx="22" ry="30" fill="#e7f6ff" ${S}/>
-    <path d="M428 388 l10 -8 M432 406 l16 -14" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+    <ellipse cx="278" cy="542" rx="62" ry="4.5" fill="#1f1020" opacity=".14"/>
+    <path d="M236 500 C230 516 226 530 232 540 C238 546 244 538 242 526 C240 514 238 506 236 500 Z" fill="#f7f1e8" ${S}/>
+    <path d="M262 508 C256 522 252 534 258 542 C264 548 270 540 268 528 C266 516 264 510 262 508 Z" fill="#f7f1e8" ${S}/>
+    <path d="M300 508 C294 522 290 534 296 542 C302 548 308 540 306 528 C304 516 302 510 300 508 Z" fill="#f7f1e8" ${S}/>
+    <path d="M326 500 C320 516 316 530 322 540 C328 546 334 538 332 526 C330 514 328 506 326 500 Z" fill="#f7f1e8" ${S}/>
+    <path d="M232 520 l-3 3 M260 528 l-2 3 M298 528 l-2 3 M326 520 l-3 3" fill="none" stroke="${O}" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M230 468 Q222 516 258 524 H304 Q338 516 330 468 Z" fill="url(#scPorc)" ${S}/>
+    ${shade('M300 482 Q332 496 328 516 Q300 522 288 500 Z', '.1')}
+    <path d="M240 490 Q280 506 328 488" fill="none" stroke="#fff" stroke-width="3" opacity=".45"/>
+    <path d="M214 450 Q212 424 280 420 Q348 424 346 450 Q346 478 280 484 Q214 478 214 450 Z" fill="url(#scPorc)" ${S}/>
+    <ellipse cx="280" cy="450" rx="52" ry="13" fill="#f5fcfe"/>
+    ${foam([[246, 440, 11], [270, 432, 13], [298, 438, 12], [236, 448, 8], [258, 450, 8], [286, 448, 9], [316, 442, 10]])}
+    <path d="M220 462 Q280 488 340 462" fill="none" ${S}/>
+    <rect x="312" y="418" width="9" height="18" rx="3" fill="url(#scChrome)" ${S}/>
+    <path d="M316 422 C332 402 346 428 332 448" fill="none" stroke="url(#scChrome)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M316 422 C332 402 346 428 332 448" fill="none" ${s2}/>
+    <circle cx="308" cy="414" r="4" fill="url(#scChrome)" ${S}/>
+    <circle cx="324" cy="410" r="4" fill="url(#scChrome)" ${S}/>
+    <circle cx="332" cy="450" r="2" fill="#9fd4ea"/>
 
-    <g transform="translate(-46,0)">
-    <ellipse cx="262" cy="548" rx="86" ry="5" fill="#1f1020" opacity=".14"/>
-    <path d="M196 500 C188 520 182 536 190 548 C198 554 206 546 204 532 C202 516 198 506 196 500 Z" fill="#f7f1e8" ${S}/>
-    <path d="M236 512 C228 528 224 542 232 552 C240 558 248 548 246 534 C244 520 240 514 236 512 Z" fill="#f7f1e8" ${S}/>
-    <path d="M292 512 C284 528 280 542 288 552 C296 558 304 548 302 534 C300 520 296 514 292 512 Z" fill="#f7f1e8" ${S}/>
-    <path d="M332 500 C324 520 318 536 326 548 C334 554 342 546 340 532 C338 516 334 506 332 500 Z" fill="#f7f1e8" ${S}/>
-    <path d="M192 522 l-4 4 M236 532 l-3 4 M292 532 l-3 4 M334 522 l-4 4" fill="none" stroke="${O}" stroke-width="1.7" stroke-linecap="round"/>
-    <path d="M186 468 Q176 524 222 534 H310 Q354 524 344 468 Z" fill="url(#scPorc)" ${S}/>
-    ${shade('M300 486 Q346 502 340 526 Q300 534 284 506 Z', '.1')}
-    <path d="M200 496 Q268 516 340 494" fill="none" stroke="#fff" stroke-width="4" opacity=".45"/>
-    <path d="M164 448 Q162 418 262 414 Q362 418 360 448 Q360 482 262 490 Q164 482 164 448 Z" fill="url(#scPorc)" ${S}/>
-    <ellipse cx="262" cy="448" rx="78" ry="16" fill="#e7f5f8"/>
-    ${foam([[214, 434, 15], [248, 424, 18], [286, 432, 16], [200, 446, 11], [232, 450, 12], [274, 448, 13], [318, 438, 14], [336, 448, 10]])}
-    <path d="M172 462 Q262 494 352 462" fill="none" ${S}/>
-    <rect x="216" y="408" width="12" height="24" rx="4" fill="url(#scChrome)" ${S}/>
-    <path d="M222 412 C202 388 188 422 206 448" fill="none" stroke="url(#scChrome)" stroke-width="8" stroke-linecap="round"/>
-    <path d="M222 412 C202 388 188 422 206 448" fill="none" ${s2}/>
-    <circle cx="210" cy="402" r="5.5" fill="url(#scChrome)" ${S}/>
-    <circle cx="230" cy="398" r="5.5" fill="url(#scChrome)" ${S}/>
-    <circle cx="206" cy="450" r="2.6" fill="#9fd4ea"/>
-    </g>
+    <ellipse cx="268" cy="472" rx="16" ry="10" fill="#ffd86a" ${S}/>
+    <circle cx="282" cy="460" r="10" fill="#ffe08a" ${S}/>
+    <ellipse cx="278" cy="456" rx="3" ry="1.8" fill="#fff" opacity=".75"/>
+    <circle cx="285" cy="458" r="1.5" fill="${O}"/>
+    <path d="M290 462 l9 2 -9 3 z" fill="#ff9f43" ${S}/>
+    <ellipse cx="260" cy="482" rx="5" ry="2.4" fill="#ffb703" ${S}/>
+    <ellipse cx="274" cy="484" rx="4.5" ry="2.2" fill="#ffb703" ${S}/>
 
-    <g transform="translate(-46,18)">
-    <ellipse cx="300" cy="464" rx="24" ry="14" fill="#ffd86a" ${S}/>
-    <path d="M284 470 Q300 484 320 470 Q308 478 290 476 Z" fill="#3a1d3c" opacity=".12"/>
-    <circle cx="320" cy="448" r="14" fill="#ffe08a" ${S}/>
-    <ellipse cx="314" cy="442" rx="4.5" ry="2.6" fill="#fff" opacity=".75"/>
-    <circle cx="324" cy="446" r="2.1" fill="${O}"/><circle cx="325" cy="445" r=".9" fill="#fff"/>
-    <path d="M332 450 l14 3 -14 5 z" fill="#ff9f43" ${S}/>
-    <ellipse cx="308" cy="456" rx="4" ry="2.2" fill="#ff9bb5" opacity=".75"/>
-    <ellipse cx="290" cy="478" rx="7" ry="3.2" fill="#ffb703" ${S}/>
-    <ellipse cx="308" cy="480" rx="6" ry="2.8" fill="#ffb703" ${S}/>
-    </g>
+    <ellipse cx="383" cy="546" rx="28" ry="3.6" fill="#1f1020" opacity=".13"/>
+    <path d="M368 512 H398 L402 546 H364 Z" fill="url(#scPorc)" ${S}/>
+    <rect x="366" y="424" width="34" height="32" rx="6" fill="url(#scPorc)" ${S}/>
+    <rect x="362" y="416" width="42" height="12" rx="5" fill="#fff" ${S}/>
+    <rect x="396" y="434" width="12" height="6" rx="3" fill="url(#scChrome)" ${S}/>
+    <circle cx="408" cy="437" r="3" fill="#f4d58a" ${S}/>
+    <path d="M354 468 H412 Q418 468 418 476 V490 Q418 514 383 514 Q348 514 348 490 V476 Q348 468 354 468 Z" fill="url(#scPorc)" ${S}/>
+    <path d="M360 496 Q383 506 406 494" fill="none" stroke="#fff" stroke-width="2.4" opacity=".4"/>
+    <ellipse cx="383" cy="476" rx="28" ry="9" fill="#dfeaf1" ${S}/>
+    <ellipse cx="383" cy="466" rx="28" ry="10" fill="url(#scPorc)" ${S}/>
+    <ellipse cx="383" cy="462" rx="14" ry="3.2" fill="#fff" opacity=".7"/>
+    <rect x="360" y="456" width="7" height="6" rx="1.5" fill="#fff" ${S}/>
+    <rect x="398" y="456" width="7" height="6" rx="1.5" fill="#fff" ${S}/>
+    ${daisy(383, 466, 0.55)}
 
-    <path d="${scallop(214, 568, 86, 14, 16, 8)}" fill="#f3b7c8"/>
-    <path d="${scallop(214, 568, 92, 16, 16, 9)}" fill="#ffd0dc" ${S}/>
-    <path d="${scallop(214, 568, 64, 9, 12, 4)}" fill="#fff6f8"/>
-    <path d="M144 562 q10 -7 16 0 M178 554 q10 -8 16 0 M214 550 q10 -8 16 0 M250 554 q10 -7 16 0 M286 562 q8 -6 14 0" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity=".85"/>
+    <ellipse cx="446" cy="546" rx="22" ry="3.4" fill="#1f1020" opacity=".13"/>
+    <rect x="424" y="500" width="44" height="44" rx="6" fill="#fff7ee" ${S}/>
+    <path d="M424 522 H468" ${S}/>
+    <circle cx="436" cy="512" r="1.8" fill="${O}"/><circle cx="456" cy="512" r="1.8" fill="${O}"/>
+    <rect x="420" y="490" width="52" height="12" rx="5" fill="#ffd0e0" ${S}/>
+    <path d="M446 452 C460 452 468 468 468 484 C468 496 458 500 446 500 C434 500 424 496 424 484 C424 468 432 452 446 452 Z" fill="#f4d58a" ${S}/>
+    <ellipse cx="446" cy="478" rx="12" ry="16" fill="#e7f6ff" ${S}/>
+    <path d="M438 470 l5 -4 M440 480 l8 -7" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+
+    <path d="${scallop(278, 574, 62, 12, 14, 7)}" fill="#f3b7c8"/>
+    <path d="${scallop(278, 574, 66, 14, 14, 7)}" fill="#ffd0dc" ${S}/>
+    <path d="${scallop(278, 574, 44, 8, 10, 3)}" fill="#fff6f8"/>
+    <path d="M230 568 q8 -6 12 0 M258 562 q8 -6 12 0 M286 560 q8 -6 12 0 M314 566 q7 -5 11 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".85"/>
+
   </svg>`;
 }
 
@@ -551,7 +544,7 @@ function room() {
   const kidH = 186;
   const kidW = kidH * (200 / 320);
   const feet = 548;
-  const left = 308;
+  const left = 92;
   return `<div class="room">
     ${sceneSvg()}
     <div class="piece kid" style="left:${left / 480 * 100}%;top:${(feet - kidH) / 600 * 100}%;width:${kidW / 480 * 100}%;height:${kidH / 600 * 100}%">${kid}</div>
