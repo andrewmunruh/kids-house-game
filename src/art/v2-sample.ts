@@ -263,24 +263,23 @@ const MARKS: Record<string, V2Mark> = {
 
   crib: { vb: VB, body: pack(`
     ${shadow(50, 40)}
-    <rect x="8" y="34" width="12" height="56" rx="6" fill="#fff" ${ink()}/>
-    <rect x="80" y="34" width="12" height="56" rx="6" fill="#7eb4dc" ${ink()}/>
-    <rect x="14" y="36" width="72" height="14" rx="6" fill="#c5e8f8" ${ink()}/>
-    <rect x="56" y="38" width="26" height="10" rx="4" fill="#7eb4dc"/>
-    <path d="M50 46 C50 46 45 41.5 45 39.2 C45 37.2 47 36.4 48.6 37.6 C49.4 38.3 50 39.2 50 39.2 C50 39.2 50.6 38.3 51.4 37.6 C53 36.4 55 37.2 55 39.2 C55 41.5 50 46 50 46 Z" fill="#ff8fab"/>
-    <path d="M28 50 L32.5 59 L37 50 Z" fill="#ffb3c6"/>
-    <path d="M42 50 L46.5 59 L51 50 Z" fill="#ffe08a"/>
-    <path d="M56 50 L60.5 59 L65 50 Z" fill="#b9e4ff"/>
-    <rect x="20" y="48" width="7" height="30" rx="3.5" fill="#fff" ${ink(2.2)}/>
-    <rect x="34" y="48" width="7" height="30" rx="3.5" fill="#fff" ${ink(2.2)}/>
-    <rect x="48" y="48" width="7" height="30" rx="3.5" fill="#f4fbff" ${ink(2.2)}/>
-    <rect x="62" y="48" width="7" height="30" rx="3.5" fill="#d7f0fb" ${ink(2.2)}/>
-    <rect x="74" y="48" width="7" height="30" rx="3.5" fill="#7eb4dc" ${ink(2.2)}/>
-    <rect x="18" y="60" width="64" height="14" rx="4" fill="#ffe0ec"/>
-    <ellipse cx="34" cy="66" rx="8" ry="4" fill="#fff" ${ink(2)}/>
-    <ellipse cx="50" cy="67" rx="8" ry="4" fill="#d7ecff" ${ink(2)}/>
-    <rect x="12" y="76" width="76" height="10" rx="5" fill="#e7f6ff" ${ink()}/>
-    <rect x="58" y="78" width="26" height="6" rx="3" fill="#b9dff2"/>
+    <rect x="22" y="48" width="56" height="22" rx="4" fill="#ffe0ec"/>
+    <ellipse cx="34" cy="55" rx="8" ry="4.2" fill="#fff"/>
+    <ellipse cx="52" cy="56" rx="8" ry="4.2" fill="#d7ecff"/>
+    <rect x="8" y="12" width="14" height="72" rx="6" fill="#fff" ${ink()}/>
+    <rect x="78" y="12" width="14" height="72" rx="6" fill="#7eb4dc" ${ink()}/>
+    <rect x="16" y="20" width="68" height="12" rx="5" fill="#c5e8f8" ${ink()}/>
+    <rect x="54" y="22" width="26" height="8" rx="3" fill="#7eb4dc"/>
+    <rect x="16" y="72" width="68" height="11" rx="4" fill="#e7f6ff" ${ink()}/>
+    <rect x="54" y="74" width="26" height="7" rx="3" fill="#b9dff2"/>
+    <rect x="26" y="30" width="5" height="46" rx="2.4" fill="#fff" ${ink(2.2)}/>
+    <rect x="38" y="30" width="5" height="46" rx="2.4" fill="#fff" ${ink(2.2)}/>
+    <rect x="50" y="30" width="5" height="46" rx="2.4" fill="#f4fbff" ${ink(2.2)}/>
+    <rect x="62" y="30" width="5" height="46" rx="2.4" fill="#d7f0fb" ${ink(2.2)}/>
+    <rect x="74" y="30" width="5" height="46" rx="2.4" fill="#7eb4dc" ${ink(2.2)}/>
+    <path d="M50 30 C50 30 45.6 25.6 45.6 23.4 C45.6 21.4 47.5 20.6 49 21.8 C49.7 22.4 50 23.2 50 23.2 C50 23.2 50.3 22.4 51 21.8 C52.5 20.6 54.4 21.4 54.4 23.4 C54.4 25.6 50 30 50 30 Z" fill="#ff8fab"/>
+    <rect x="11" y="82" width="8" height="12" rx="2.4" fill="#fff" ${ink(2.2)}/>
+    <rect x="81" y="82" width="8" height="12" rx="2.4" fill="#7eb4dc" ${ink(2.2)}/>
   `) },
 };
 
