@@ -354,7 +354,7 @@ async function main() {
   const names = BATHROOM_ITEMS.map(i => i.name);
   const kinds = BATHROOM_ITEMS.map(i => i.kind);
   check('the bathroom shelf has 30 unique original names', names.length === 30 && new Set(names).size === 30 && new Set(kinds).size === 30);
-  const wall = new Set(['wall-towel-bar', 'porthole-mirror', 'robe-hooks', 'hanging-eucalyptus']);
+  const wall = new Set(['wall-towel-bar', 'porthole-mirror', 'robe-hooks', 'hanging-eucalyptus', 'bath-cubby']);
   const artBad = BATHROOM_ITEMS.filter(i => {
     const svg = i.svg;
     if (/feGaussianBlur|feDropShadow|filter=|color-mix|backdrop-filter/.test(svg)) return true;

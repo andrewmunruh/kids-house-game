@@ -36,8 +36,8 @@ Starter pieces match the approved mockup, and every box stays inside the stage a
 | `clawfoot-tub` | Clawfoot Tub | front row, feet on the floor |
 | `mirror-vanity` | Mirror Vanity | front row beside the tub, feet on the floor, sheet proportion |
 | `little-toilet` | Little Toilet | front row, about hip height, feet on the floor |
-| `bath-cubby` | Bath Cubby | front row, feet on the floor |
-| `towel-ladder` | Towel Ladder | back row, feet below the baseboard, about her height |
+| `bath-cubby` | Bath Cubby | wall shelf left of the window, brackets and a wall shadow |
+| `towel-ladder` | Towel Ladder | left of the window, feet below the baseboard, about her height |
 | `mist-fern` | Mist Fern | back row, feet below the baseboard, living-room plant footprint |
 
 `migrate` does not bump the version. A version-3 save with no bathroom key gains that starter and keeps every other room. `cleanHouseState` already rebuilds rooms from `ROOMS`, so once `bathroom` is on that list the new Worker keeps it, the same way it keeps a custom nursery.
