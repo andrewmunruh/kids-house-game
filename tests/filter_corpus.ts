@@ -26,12 +26,10 @@ export const BLOCK_LINES: string[] = [
   's.h.i.t', 's.h.i.t.', 's h i t!', 'sh i t', 's-h-i-t!', 'f.u.c.k!', 'f u c k!', 'b.i.t.c.h!', 'k.y.s!',
   'a.s.s.h.o.l.e!', '$h it', 'a ss hole',
   'cunt', 'cuuuunt', 'c u n t', 'c.u.n.t', 'c\u200bunt', '\u0441unt',
-  'dick', 'd1ck', 'd.i.c.k', 'dickhead', 'dick head', 'cock', 'c0ck', 'pussy', 'pu$$y',
-  'bastard', 'whore', 'slut', 'a-hole', 'ahole', 'a hole', 'twat', 'prick', 'wanker',
+  'a-hole', 'ahole',
   'kike', 'chink', 'spic', 'coon', 'wetback', 'wet back', 'tranny', 'dyke', 'dykes',
   'beaner', 'gook', 'raghead', 'rag head', 'towelhead', 'towel head', 'heil hitler', 'heilhitler',
-  'dickheads', 'you dickheads', 'dickheaddd', '\u043aike', 'coons',
-  'you a hole', "you're an a hole", 'ur a hole', 'what an a hole', 'such an a hole', "you're a hole",
+  '\u043aike', 'coons',
 ];
 
 /** Everyday kid lines, on top of the named allow list. School, pets, sports, shopping, and games. */
@@ -126,6 +124,11 @@ export const ALLOW_LINES: string[] = [
   'dug a hole in the yard', 'Maine Coon', 'my cat is a Maine Coon', 'the coon cat is fluffy',
   'Dick and Jane', 'Dick and Jane read books', 'Dick Grayson', 'Philip K. Dick',
   'cocky', 'chinking glasses', 'Spicer', 'gooky slime', 'slutty', 'slut walk', 'the slut walk', 'twatt',
+  'dick', 'd1ck', 'd.i.c.k', 'dickhead', 'dick head', 'cock', 'c0ck', 'pussy', 'pu$$y',
+  'bastard', 'whore', 'slut', 'a hole', 'twat', 'prick', 'wanker',
+  'dickheads', 'you dickheads', 'dickheaddd',
+  'you a hole', "you're an a hole", 'ur a hole', 'what an a hole', 'such an a hole', "you're a hole",
+  'Dick Van Dyke', 'Dick Tracy', 'Uncle Dick', 'the rooster is a cock', 'pussy cat', 'a prick from the rose', 'bastard file',
   ...KID_EVERYDAY,
 ];
 

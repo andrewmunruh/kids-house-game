@@ -93,16 +93,7 @@ function swearShape(s: string): boolean {
 /** Stems added after the first light list. Whole tokens only, so Scunthorpe and cocktail stay allowed. */
 function swearShapeMore(s: string): boolean {
   return /^c+u+n+t+$/.test(s)
-    || /^d+i+c+k+$/.test(s)
-    || /^c+o+c+k+$/.test(s)
-    || /^p+u+s+y+$/.test(s) || /^p+u+s+i+$/.test(s)
-    || /^b+a+s+t+a+r+d+$/.test(s)
-    || /^w+h+o+r+e+$/.test(s) || /^w+h+o+r+$/.test(s)
-    || /^s+l+u+t+$/.test(s)
     || /^a+h+o+l+e+$/.test(s)
-    || /^t+w+a+t+$/.test(s)
-    || /^p+r+i+c+k+$/.test(s)
-    || /^w+a+n+k+e+r+$/.test(s)
     || /^k+i+k+e+$/.test(s)
     || /^c+h+i+n+k+$/.test(s)
     || /^s+p+i+c+$/.test(s)
@@ -298,19 +289,6 @@ function killPhrase(tokens: string[]): boolean {
   }
   return false;
 }
-/** Dick the name, and only the exact letters. d1ck stays the slur. */
-function dickName(pieces: { text: string }[], plain: string[], i: number): boolean {
-  if (coreToken(pieces[i].text) !== 'dick') return false;
-  const prev = i > 0 ? plain[i - 1] : '';
-  const prev2 = i > 1 ? plain[i - 2] : '';
-  const next = plain[i + 1] || '';
-  const next2 = plain[i + 2] || '';
-  if (prev === 'moby') return true;
-  if (prev === 'k' && prev2 === 'philip') return true;
-  if (next === 'grayson') return true;
-  if (next === 'and' && next2 === 'jane') return true;
-  return false;
-}
 /** Maine Coon, and "coon cat". Bare coon and coons stay blocked. */
 function coonBreed(pieces: { text: string }[], plain: string[], i: number): boolean {
   if (coreToken(pieces[i].text) !== 'coon') return false;
@@ -324,17 +302,10 @@ function spacedAhole(pieces: { text: string; gap: 'start' | 'space' | 'hyphen' |
     && /^a+$/.test(piecePlain(pieces[i].text))
     && /^h+o+l+e+$/.test(piecePlain(pieces[j].text));
 }
-/** Spaced "a hole" only in insult phrasing, or as the whole message. */
-function aHoleInsult(plain: string[]): boolean {
-  for (let i = 0; i < plain.length - 1; i++) {
-    if (!/^a+$/.test(plain[i]) || !/^h+o+l+e+$/.test(plain[i + 1])) continue;
-    if (plain.length === 2) return true;
-    const prev = i > 0 ? plain[i - 1] : '';
-    const prev2 = i > 1 ? plain[i - 2] : '';
-    if (/^y+o+u+$/.test(prev) || /^u+r+$/.test(prev) || /^a+n+$/.test(prev) || /^y+o+u+r+e+$/.test(prev)) return true;
-    if (/^r+e+$/.test(prev) && /^y+o+u+$/.test(prev2)) return true;
-  }
-  return false;
+/** "Van Dyke" is a name. Bare dyke and dykes stay blocked. Exact letters only. v is not read as u here. */
+function vanDyke(pieces: { text: string }[], _plain: string[], i: number): boolean {
+  if (coreToken(pieces[i].text) !== 'dyke') return false;
+  return i > 0 && coreToken(pieces[i - 1].text) === 'van';
 }
 function heilHitler(plain: string[]): boolean {
   for (let i = 0; i < plain.length - 1; i++) {
@@ -352,8 +323,7 @@ function sendSwear(raw: string, extra = true): boolean {
   if (killPhrase(plain)) return true;
   if (extra && heilHitler(plain)) return true;
   for (let i = 0; i < reads.length; i++) {
-    if (extra && (dickName(pieces, plain, i) || coonBreed(pieces, plain, i))) continue;
-    if (extra && coreToken(pieces[i].text) === 'slut' && (plain[i + 1] || '') === 'walk') continue;
+    if (extra && (coonBreed(pieces, plain, i) || vanDyke(pieces, plain, i))) continue;
     for (let r = 0; r < reads[i].length; r++) {
       const forms = starForms(reads[i][r]);
       for (let j = 0; j < forms.length; j++) if (blockedWord(forms[j].replace(/\*/g, ''), extra)) return true;
@@ -388,7 +358,6 @@ function sendSwear(raw: string, extra = true): boolean {
       }
     }
   }
-  if (extra && aHoleInsult(plain)) return true;
   return false;
 }
 function filterLoose(raw: unknown, max: number, blocked: 'words' | 'mail', legacy = false): FilterResult {
