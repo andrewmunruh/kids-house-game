@@ -3,7 +3,7 @@ import './juice.css';
 import './scenery.css';
 import './mail.css';
 import './avatar.css';
-import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapPortraitBgSVG, mapTreesSVG, mapSkySVG, mapMeadowSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
+import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapPortraitBgSVG, mapTreesSVG, portraitMeadowSVG, mapSkySVG, mapMeadowSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
 import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
 import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, cleanPetName, CAT_NAMES, DOG_NAMES, PARK_W, PARK_SPOTS, SLIDE, DOG_AREA, mailIsFree, type Presence, type Bubble, type Look, type Fx } from './shared/hood';
@@ -1583,7 +1583,7 @@ function renderMap(force = false) {
       ...plan.houses.map(c => ({ x: c.x, y: c.y, r: 78 })),
     ];
     const mid = plan.w / 2;
-    clip.insertAdjacentHTML('beforeend', mapTreesSVG(taken, (x, y) => Math.abs(x - mid) < 34, plan.w, plan.h) + spots + '<div class="mapFaces" id="mapFaces"></div>');
+    clip.insertAdjacentHTML('beforeend', mapTreesSVG(taken, (x, y) => Math.abs(x - mid) < 34, plan.w, plan.h) + portraitMeadowSVG(plan.w, plan.h, taken) + spots + '<div class="mapFaces" id="mapFaces"></div>');
   } else {
     const road = w.querySelector<SVGPathElement>('#mapRoad')!, L = road.getTotalLength();
     const samples = Array.from({ length: 160 }, (_, i) => road.getPointAtLength(L * i / 159));
@@ -3270,6 +3270,7 @@ function keepDoorHintOnScreen() {
   const availL = Math.max(port.left, 0) + pad;
   const availR = Math.min(port.right, innerWidth) - pad;
   const availT = Math.max(port.top, 0) + pad;
+  const availB = Math.min(port.bottom, innerHeight) - pad;
   const b = hint.getBoundingClientRect();
   let dx = 0;
   if (b.right > availR) dx -= b.right - availR;
@@ -3289,6 +3290,27 @@ function keepDoorHintOnScreen() {
     if (overlaps) dy += (blockTop - 48) - (b.bottom + dy);
   }
   if (b.top + dy < availT) dy += availT - (b.top + dy);
+  // Phone portrait pulls this label left onto the gate, and clearing the nametag
+  // then drops it on the rainbow arch. Sit it above the arch instead.
+  if (document.body.classList.contains('phone-portrait')) {
+    const gate = document.querySelector<HTMLElement>('.ranchSign .ranchSignArt');
+    if (gate) {
+      const g = gate.getBoundingClientRect();
+      const left = b.left + dx, right = b.right + dx, top = b.top + dy, bottom = b.bottom + dy;
+      const onGate = g.width > 20 && g.height > g.width * 0.7
+        && right > g.left + 4 && left < g.right - 4 && bottom > g.top + 4 && top < g.bottom - 4;
+      if (onGate) {
+        let lift = (g.top - 16) - bottom;
+        if (top + lift < availT) lift += availT - (top + lift);
+        const tag = kid?.querySelector<HTMLElement>('.nametag');
+        const tb = tag?.getBoundingClientRect();
+        const liftedBottom = bottom + lift;
+        const clearsTag = !(tb && tb.width > 4 && tb.height > 4
+          && liftedBottom > tb.top - 12 && right > tb.left - 6 && left < tb.right + 6);
+        if (clearsTag && liftedBottom <= availB) dy += lift;
+      }
+    }
+  }
   if (dx || dy) hint.style.transform = `translate(calc(-50% + ${dx.toFixed(1)}px), ${dy.toFixed(1)}px)`;
 }
 const eggs = initEggs({

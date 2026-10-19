@@ -70,6 +70,51 @@ export function mapPortraitBgSVG(w: number, h: number) {
   </svg>`;
 }
 
+const bush = (x: number, y: number, s = 1, c = '#4fbf7a') => `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cx="0" cy="10" rx="28" ry="8" fill="#000" opacity=".08"/><circle cx="-14" cy="-2" r="16" fill="${c}" ${st(3)}/><circle cx="14" cy="0" r="18" fill="${c}" ${st(3)}/><circle cx="0" cy="-12" r="14" fill="${c}" ${st(3)}/><circle cx="-4" cy="-16" r="4" fill="#fff" opacity=".28"/></g>`;
+const butterfly = (x: number, y: number, c = '#ff8fab') => `<g transform="translate(${x} ${y})"><ellipse cx="-7" cy="-2" rx="8" ry="5" fill="${c}" ${st(2)} transform="rotate(-24)"/><ellipse cx="7" cy="-2" rx="8" ry="5" fill="${c}" ${st(2)} transform="rotate(24)"/><ellipse cx="-6" cy="4" rx="6" ry="4" fill="#b197fc" ${st(1.6)} transform="rotate(18)"/><ellipse cx="6" cy="4" rx="6" ry="4" fill="#b197fc" ${st(1.6)} transform="rotate(-18)"/><path d="M0 -6 V8" ${st(2)}/></g>`;
+
+/**
+ * Phone portrait only. Flowers, bushes, and a butterfly in the open grass under
+ * the houses. Spots already claimed by a house, the road, or the square are skipped.
+ * The iPad street never calls this.
+ */
+export function portraitMeadowSVG(w: number, h: number, avoid: { x: number; y: number; r: number }[]) {
+  const mid = w / 2;
+  const clear = (x: number, y: number, r: number) => y > h * 0.4 && y < h - 28
+    && Math.abs(x - mid) > 52
+    && !avoid.some(s => Math.hypot(s.x - x, s.y - y) < s.r + r);
+  const cols = [0.07, 0.15, 0.22, 0.78, 0.85, 0.93];
+  const rows = [0.46, 0.54, 0.62, 0.7, 0.78, 0.86, 0.93];
+  const colors = ['#ff8fab', '#b197fc', '#ffd43b', '#74c0fc', '#69db7c'];
+  const bits: string[] = [];
+  let n = 0;
+  rows.forEach((ry, ri) => {
+    cols.forEach((rx, ci) => {
+      const x = Math.round(w * rx + ((ri + ci) % 2 ? 8 : -6));
+      const y = Math.round(h * ry);
+      if ((ri + ci) % 3 === 0) {
+        if (!clear(x, y, 34)) return;
+        bits.push(bush(x, y, 0.85 + (ci % 2) * 0.15, ['#4fbf7a', '#5cc985', '#3dae6a'][(ri + ci) % 3]));
+      } else {
+        if (!clear(x, y, 18)) return;
+        const c = colors[(ri * 2 + ci) % colors.length];
+        bits.push(bloom(x, y, c, 0.85));
+        if ((ri + ci) % 2 === 0 && clear(x + 18, y + 12, 14)) bits.push(bloom(x + 18, y + 12, colors[(ri + ci + 2) % colors.length], 0.7));
+      }
+      n++;
+    });
+  });
+  const fly = [
+    [w * 0.2, h * 0.5],
+    [w * 0.8, h * 0.66],
+    [w * 0.18, h * 0.84],
+  ];
+  for (const [x, y] of fly) {
+    if (clear(x, y, 16)) bits.push(butterfly(Math.round(x), Math.round(y), n % 2 ? '#ffd43b' : '#ff8fab'));
+  }
+  return `<svg class="mapMeadowFill" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${bits.join('')}</svg>`;
+}
+
 /** Sky behind a portrait letterbox. Clouds sit in the band above the map card. */
 export const mapSkySVG = `<svg class="mapSkyArt" viewBox="0 0 900 200" preserveAspectRatio="xMidYMin slice" aria-hidden="true">
   ${puff(280, 28, 1.05)}${puff(430, 8, 0.8)}${puff(560, 36, 0.95)}
