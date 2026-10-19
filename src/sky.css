@@ -8,8 +8,11 @@
   --sky-glow: 0;
   --sky-stars: 0;
   --sky-tint: #322456;
-  --sky-glow-soft: rgb(255 214 140 / calc(var(--sky-glow) * 0.55));
-  --sky-glow-hot: rgb(255 236 180 / calc(var(--sky-glow) * 0.9));
+  /* Plain rgba so Safari 16 can paint them. The clock writes the same variables. */
+  --sky-glow-soft: rgba(255, 214, 140, 0);
+  --sky-glow-hot: rgba(255, 236, 180, 0);
+  --sky-glow-wash: rgba(255, 186, 96, 0);
+  --sky-glow-map: rgba(255, 196, 120, 0);
 }
 
 /* The room shell tints. Furniture, kids, and name tags stay in .layer, above this. */
@@ -38,12 +41,12 @@
 .ranchWorld::before {
   background-image:
     radial-gradient(circle at 28% 70%, var(--sky-glow-soft), transparent 24%),
-    radial-gradient(circle at 74% 64%, rgb(255 186 96 / calc(var(--sky-glow) * 0.35)), transparent 18%);
+    radial-gradient(circle at 74% 64%, var(--sky-glow-wash), transparent 18%);
 }
 .mapWorld::after {
   background-image:
     radial-gradient(circle at 18% 62%, var(--sky-glow-soft), transparent 12%),
-    radial-gradient(circle at 70% 40%, rgb(255 196 120 / calc(var(--sky-glow) * 0.28)), transparent 10%);
+    radial-gradient(circle at 70% 40%, var(--sky-glow-map), transparent 10%);
 }
 
 html.sky-live .world::after,
@@ -74,8 +77,8 @@ html.sky-live .grWorld::before {
 }
 .item.is-light > .inner { position: relative; z-index: 1; }
 .sceneWin::after,
-.sceneLamp::after { left: 10%; top: 8%; width: 80%; height: 70%; }
-.mapHouse::before { left: 18%; top: 46%; width: 64%; height: 28%; z-index: 1; }
+.sceneLamp::after { left: 10%; top: 8%; width: 80%; height: 70%; z-index: -1; }
+.mapHouse::before { left: 18%; top: 46%; width: 64%; height: 28%; z-index: -1; }
 
 /* Stars and fireflies. Only the street (the neighborhood map). Five tiny dots, not a filter. */
 .skyBits {

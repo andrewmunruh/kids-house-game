@@ -27,10 +27,15 @@ export function mountSkyToggle(host: HTMLElement): SkyHandle {
   const paint = (look: SkyLook) => {
     shown = look;
     const root = document.documentElement;
+    const g = Math.max(0, Math.min(1, look.glow));
     root.style.setProperty('--sky-opacity', look.opacity.toFixed(3));
-    root.style.setProperty('--sky-glow', look.glow.toFixed(3));
+    root.style.setProperty('--sky-glow', g.toFixed(3));
     root.style.setProperty('--sky-stars', look.stars.toFixed(3));
     root.style.setProperty('--sky-tint', look.tint);
+    root.style.setProperty('--sky-glow-soft', `rgba(255, 214, 140, ${(g * 0.55).toFixed(3)})`);
+    root.style.setProperty('--sky-glow-hot', `rgba(255, 236, 180, ${(g * 0.9).toFixed(3)})`);
+    root.style.setProperty('--sky-glow-wash', `rgba(255, 186, 96, ${(g * 0.35).toFixed(3)})`);
+    root.style.setProperty('--sky-glow-map', `rgba(255, 196, 120, ${(g * 0.28).toFixed(3)})`);
     root.dataset.sky = look.phase;
     root.dataset.skyChoice = choice;
     root.classList.toggle('sky-static', simple);
@@ -66,7 +71,11 @@ export function mountSkyToggle(host: HTMLElement): SkyHandle {
   if (map) keepStreetBits(map);
   try {
     const mq = matchMedia('(prefers-reduced-motion: reduce)');
-    mq.addEventListener?.('change', () => { document.documentElement.classList.toggle('sky-static', skyIsSimple()); });
+    mq.addEventListener?.('change', () => {
+      const quiet = skyIsSimple();
+      document.documentElement.classList.toggle('sky-static', quiet);
+      document.documentElement.classList.toggle('sky-live', !quiet);
+    });
   } catch { /* old matchMedia */ }
 
   return {
