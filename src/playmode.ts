@@ -87,12 +87,17 @@ export function installPlayMode(root: HTMLElement, opts: { ownHouse: () => boole
     tip.className = 'modeHint';
     tip.textContent = 'Play: tap things! Decorate: move things!';
     root.appendChild(tip);
+    let closed = false;
     const done = () => {
+      if (closed) return;
+      closed = true;
       tip.remove();
+      window.removeEventListener('pointerdown', done);
       try { localStorage.setItem(key, '1'); } catch { /* private mode */ }
     };
-    window.setTimeout(done, 6500);
+    window.setTimeout(done, 2800);
     tip.addEventListener('click', done);
+    window.addEventListener('pointerdown', done);
   };
   return {
     mode: () => mode,

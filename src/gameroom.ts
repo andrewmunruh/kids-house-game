@@ -46,7 +46,7 @@ const pouf = (x: number, y: number, c: string) => `<g transform="translate(${x} 
 </g>`;
 
 function poster(x: number, y: number, rot: number, bg: string, art: string): string {
-  return `<g transform="translate(${x} ${y}) rotate(${rot})">
+  return `<g class="photoFrame" transform="translate(${x} ${y}) rotate(${rot})">
     <rect x="-40" y="-52" width="80" height="104" rx="6" fill="#fff" ${st(3.5)}/>
     <rect x="-32" y="-44" width="64" height="72" rx="4" fill="${bg}"/>
     ${art}
@@ -161,7 +161,7 @@ export function gameRoomSVG(): string {
     </g>
   </g>
 
-  ${poster(250, 250, -6, '#ffe0f0', `${heart(0, 8, 1.4)}${star(-18, -16, 0.7, '#ffd43b')}${star(18, -10, 0.55, '#66d9e8')}`)}
+  ${poster(500, 340, -6, '#ffe0f0', `${heart(0, 8, 1.4)}${star(-18, -16, 0.7, '#ffd43b')}${star(18, -10, 0.55, '#66d9e8')}`)}
   ${poster(980, 240, 5, '#e7fbff', `<ellipse cx="0" cy="6" rx="16" ry="12" fill="#fff" ${st(2)}/><path d="M-6 6 Q0 -8 6 6" fill="none" stroke="${O}" stroke-width="2"/><path d="M0 18 V28 M-12 24 H12" ${st(2)}/>`)}
   ${poster(1680, 255, -4, '#fff3c4', `${star(0, 2, 1.5, '#ffd43b')}`)}
   ${poster(2360, 245, 6, '#f3e8ff', `${heart(0, 4, 1.3, '#d0bfff')}`)}

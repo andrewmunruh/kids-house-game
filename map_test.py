@@ -69,6 +69,34 @@ async def main():
         check('street map: every kid\'s house with her name sign', await P.locator('.mapHouse').count() == 3 and all(any(n[:12] in s for s in signs) for n in names), json.dumps(signs))
         offs = await P.evaluate("(() => { const W = innerWidth; return [...document.querySelectorAll('.mapSign')].filter(e => { const r = e.getBoundingClientRect(); return r.left < 0 || r.right > W || e.scrollWidth > e.clientWidth + 1; }).map(e => e.textContent); })()")
         check('every map sign is fully on screen (not cut off)', offs == [], json.dumps(offs))
+        async def pois_in_view(pg):
+            return await pg.evaluate("""() => {
+              const pad = 2, bad = [];
+              for (const el of document.querySelectorAll('.mapHouse,.mapPark,.mapRanch,.mapClub,.mapSign,.mapMail,.mapFace,.fname')) {
+                const r = el.getBoundingClientRect();
+                if (r.width < 1 || r.height < 1) { bad.push('empty ' + (el.className || '')); continue; }
+                if (r.left < -pad || r.top < -pad || r.right > innerWidth + pad || r.bottom > innerHeight + pad)
+                  bad.push(((el.getAttribute('aria-label') || el.textContent || el.className) + '').trim().slice(0, 28)
+                    + '@' + Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.right) + 'x' + Math.round(r.bottom));
+                if (el.classList.contains('mapSign') && el.scrollWidth > el.clientWidth + 1) bad.push('cut:' + el.textContent);
+              }
+              const signs = [...document.querySelectorAll('.mapSign')].map(e => e.getBoundingClientRect());
+              for (const m of document.querySelectorAll('.mapMail')) {
+                const b = m.getBoundingClientRect();
+                for (const s of signs) {
+                  if (Math.min(b.right, s.right) - Math.max(b.left, s.left) > 2 && Math.min(b.bottom, s.bottom) - Math.max(b.top, s.top) > 2)
+                    bad.push('mailbox-on-' + (s.width ? 'label' : 'sign'));
+                }
+              }
+              return bad;
+            }""")
+        for w, h in ((1024, 768), (820, 1180), (1180, 820), (390, 844), (375, 667)):
+            await P.set_viewport_size({'width': w, 'height': h})
+            await P.wait_for_timeout(700)
+            bad = await pois_in_view(P)
+            check(f'map POIs fit inside {w}x{h}', bad == [], json.dumps(bad))
+        await P.set_viewport_size({'width': 1024, 'height': 768})
+        await P.wait_for_timeout(700)
         check('everyone shows as a face on every map', [await pg.locator('.mapFace').count() for pg in (P, K2, K3)] == [3, 3, 3])
         k2pid, k3pid, ppid = [await pg.evaluate('__hood().pid') for pg in (K2, K3, P)]
         p_house = await P.evaluate('__hood().myHouseId()')
