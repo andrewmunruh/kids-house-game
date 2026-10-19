@@ -135,18 +135,18 @@ export function horseSVG(coat: number, saddle = false) {
 
 // ---------- props ----------
 export const henHouseSVG = `<svg viewBox="0 0 180 170"><path d="M10 70 L90 14 L170 70" fill="#ffa94d" ${st(5)}/>
-  <rect x="24" y="66" width="132" height="84" rx="8" fill="#fff6e6" ${st()}/>${RAINBOW.map((c, i) => `<rect x="${24 + i * 22}" y="66" width="22" height="10" fill="${c}"/>`).join('')}
+  <rect x="24" y="66" width="132" height="84" rx="8" fill="#fff6e6" ${st()}/><rect x="100" y="78" width="50" height="64" rx="6" fill="#f0dcc8"/>${RAINBOW.map((c, i) => `<rect x="${24 + i * 22}" y="66" width="22" height="10" fill="${c}"/>`).join('')}
   <rect x="24" y="66" width="132" height="10" fill="none" ${st(3)}/><circle cx="90" cy="108" r="22" fill="#5a3d5c"/>
   <path d="M60 150 l-12 16 M120 150 l12 16" ${st(5)}/>
   <g class="hen"><ellipse cx="90" cy="118" rx="20" ry="14" fill="#fff" ${st(3)}/><circle cx="104" cy="104" r="10" fill="#fff" ${st(3)}/><path d="M100 94 q3 -8 8 0" fill="#ff6b6b" ${st(2)}/>
   <path d="M113 104 l7 2 -7 3 Z" fill="#ffa94d" ${st(2)}/>${eye(106, 102, 2)}</g>
   <text x="90" y="54" text-anchor="middle" font-size="16" font-weight="900" fill="${O}" font-family="Nunito, system-ui, sans-serif">EGGS</text></svg>`;
 export const tractorSVG = `<svg viewBox="0 0 170 130"><rect x="80" y="30" width="54" height="50" rx="8" fill="#bde6f7" ${st()}/><rect x="74" y="24" width="66" height="10" rx="4" fill="#ff6b6b" ${st(3)}/>
-  <rect x="20" y="62" width="130" height="34" rx="12" fill="#ff6b6b" ${st()}/><rect x="28" y="40" width="10" height="24" rx="3" fill="#868e96" ${st(3)}/>
+  <rect x="20" y="62" width="130" height="34" rx="12" fill="#ff8a8a" ${st()}/><rect x="96" y="66" width="50" height="26" rx="8" fill="#e45d5d"/><rect x="28" y="40" width="10" height="24" rx="3" fill="#b0b8c0" ${st(3)}/>
   <circle cx="122" cy="98" r="28" fill="${O}"/><circle cx="122" cy="98" r="13" fill="#ffd43b" ${st(3)}/><circle cx="44" cy="106" r="18" fill="${O}"/><circle cx="44" cy="106" r="8" fill="#ffd43b" ${st(3)}/>
   <circle cx="26" cy="76" r="5" fill="#fff3b0" ${st(2)}/></svg>`;
 export const appleTreeSVG = `<svg viewBox="0 0 240 300"><rect x="104" y="160" width="32" height="140" rx="10" fill="#c99366" ${st()}/>
-  <circle cx="120" cy="110" r="90" fill="#5cc985" ${st()}/><circle cx="62" cy="140" r="50" fill="#5cc985" ${st()}/><circle cx="180" cy="140" r="52" fill="#5cc985" ${st()}/>
+  <circle cx="120" cy="110" r="90" fill="#5cc985" ${st()}/><circle cx="62" cy="140" r="50" fill="#7dcea0" ${st()}/><circle cx="180" cy="140" r="52" fill="#3d9a68" ${st()}/><circle cx="78" cy="86" r="10" fill="#fff" opacity=".35"/>
   ${[[80, 90], [150, 70], [175, 140], [100, 150], [130, 115], [60, 140]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="11" fill="#ff6b6b" ${st(3)}/><path d="M${x} ${y - 10} q2 -6 6 -7" fill="none" ${st(2)}/>`).join('')}</svg>`;
 export const APPLE_SPOTS = [[80, 90], [150, 70], [175, 140], [100, 150]]; // in apple-tree svg units
 export const appleSVG = `<svg viewBox="0 0 40 40"><circle cx="20" cy="23" r="14" fill="#ff6b6b" ${st(3)}/><path d="M20 10 q2 -6 6 -7" fill="none" ${st(2.5)}/><ellipse cx="27" cy="8" rx="5" ry="3" fill="#5cc985" ${st(2)}/><circle cx="14" cy="18" r="3" fill="#fff" opacity=".6"/></svg>`;

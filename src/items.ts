@@ -1,6 +1,7 @@
 import { PACK_ITEMS } from './packs';
 import { SECRET_ITEMS } from './eggs';
 import { NURSERY_ITEMS } from './nursery';
+import { artV2Markup } from './art/catalog';
 // Original rounded SVG art. Each item: viewBox 0 0 100 100, anchored bottom-center.
 export type Category = string; // built-ins: furniture | decor | plants | food | pets (packs may add more)
 export interface ItemDef { kind: string; name: string; cat: Category; w: number; h?: number; svg: string; wall?: boolean; img?: string; rooms?: string[]; pack?: string; holdable?: boolean; secret?: string; vb?: string }
@@ -85,6 +86,11 @@ export const ITEM_MAP: Record<string, ItemDef> = Object.fromEntries(ITEMS.map(i 
 const esc = (t: string) => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 /** Height in room units (square unless the art says otherwise). */
 export const hOf = (d: ItemDef) => d.h ?? d.w;
-export const svgOf = (d: ItemDef) => d.img
-  ? `<img class="packimg" src="${esc(d.img)}" alt="${esc(d.name)}" draggable="false" />`
-  : `<svg viewBox="${d.vb ?? '0 0 100 100'}" xmlns="http://www.w3.org/2000/svg">${d.svg}</svg>`;
+// Opt-in sample (?art=v2). The catalog string and the footprint stay put either way.
+export const svgOf = (d: ItemDef) => {
+  const alt = artV2Markup(d.kind);
+  if (alt) return `<svg viewBox="${alt.vb}" xmlns="http://www.w3.org/2000/svg">${alt.body}</svg>`;
+  return d.img
+    ? `<img class="packimg" src="${esc(d.img)}" alt="${esc(d.name)}" draggable="false" />`
+    : `<svg viewBox="${d.vb ?? '0 0 100 100'}" xmlns="http://www.w3.org/2000/svg">${d.svg}</svg>`;
+};
