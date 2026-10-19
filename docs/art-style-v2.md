@@ -2,7 +2,9 @@
 
 This is the canonical drawing guide for the catalog. Bathroom, backyard, and any new pack follow these rules. Winter Cheer and Critter Corner are restyled after those branches ship. Characters and the avatar pets stay on avatar v2. Do not redraw them here.
 
-`ART_V2` in `src/art/flag.ts` is the one-line switch. `true` draws this style. `false` draws the previous art. `?art=v1` forces the old drawings for one visit and is not stored on the house. Nothing here changes a save, an item id, a footprint, or the protocol (it stays 4). Old clients keep the art they already have, because the drawing lives in the client, not in the house.
+`ART_V2` in `src/art/flag.ts` is the one-line switch. `true` draws this style. `false` draws the previous art. `?art=v1` forces the old catalog drawings for one visit and is not stored on the house. Nothing here changes a save, an item id, a footprint, or the protocol (it stays 4). Old clients keep the art they already have, because the drawing lives in the client, not in the house.
+
+`?art=v1` does not revert props that are built when their module loads. Those stay in this style either way: the empty-room rug, lamp, plant, and curtains in `src/scenery.ts`, the map trees in `src/map.ts`, and the park and ranch props drawn in `src/park.ts` and `src/ranch.ts` (the swing, ball, tree icon, hen house, tractor, and apple tree). They are not catalog items, so the visit flag never swaps them.
 
 ## What changed in the sample
 
@@ -77,13 +79,13 @@ Draw the thing the kid would name. A gloss line on the old shape is not a refres
 - Sofa: two seat cushions, piping, tuft buttons, curled arms, a patterned throw pillow.
 - Bed: the original side view (headboard on the left, footboard on the right, pillow, duvet), plus a heart cutout, quilt diamonds, and a folded sheet edge.
 - Fridge: a closed freezer over a closed door, both solid pastel blue, with a highlight, handles, and a few magnets. Not glass shelves.
-- Rug: flat on the floor, a pattern ring, and short tassels lying flat at the left and right ends only, in the rug color. Not rays around the oval.
+- Rug: flat on the floor, a pattern ring, and short rounded tassels lying on the left and right ends only, in the rug color, with no outline. Not thin rays sticking out past the oval. A cloud rug is a puffy cloud with a side plane and a couple of stitches, not a dashed ring.
 - Table: a top with thickness, grain, and turned legs.
 - Shelf: books of different heights, a small plant or trophy, grain, a darker side board.
 - Lamp: a pleated shade and a warm pool of light at the opening.
 - Plant: a terracotta pot with a rim band, and leaves that are not three copies.
 - Window: a frame, a sill, mullions, folded curtains with tiebacks, a sky.
-- Crib: rounded rails and a mobile.
+- Crib: rounded rails, a heart on the top rail, and a short bunting between the rails. The hanging mobile is the separate Crib Mobile item, so the crib drawing does not include one.
 - Teddy: a stitched tummy patch and a bow.
 - Wardrobe: inset panels and round knobs. Keep a face the current piece already has.
 

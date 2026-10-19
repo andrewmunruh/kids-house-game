@@ -137,8 +137,6 @@ const MARKS: Record<string, V2Mark> = {
   `) },
 
   rug: { vb: VB, body: pack(`
-    <path d="M14 78 H6 M14 82 H5 M14 86 H6" fill="none" stroke="#ffb7cc" stroke-width="2.6" stroke-linecap="round"/>
-    <path d="M86 78 H94 M86 82 H95 M86 86 H94" fill="none" stroke="#e888a8" stroke-width="2.6" stroke-linecap="round"/>
     <ellipse cx="50" cy="82" rx="38" ry="11" fill="#ffc8dd" ${ink()}/>
     <path d="M18 86 Q50 95 82 86 Q50 90 18 86 Z" fill="#e888a8"/>
     <ellipse cx="50" cy="81" rx="28" ry="6.5" fill="none" stroke="#fff" stroke-width="2"/>
@@ -149,6 +147,10 @@ const MARKS: Record<string, V2Mark> = {
     <circle cx="58" cy="77" r="1.9" fill="#ffd166"/>
     <circle cx="68" cy="82" r="1.8" fill="#90e0a8"/>
     <path d="M50 79 l1.1 2.2 2.4 .2 -1.8 1.6 .6 2.4 -2.3 -1.4 -2.3 1.4 .6 -2.4 -1.8 -1.6 2.4 -.2 z" fill="#ff8fab"/>
+    <ellipse cx="14" cy="78.5" rx="10" ry="3.4" fill="#ffc8dd"/>
+    <ellipse cx="12" cy="85" rx="11" ry="3.6" fill="#ffb7cc"/>
+    <ellipse cx="86" cy="78.5" rx="10" ry="3.4" fill="#ffb7cc"/>
+    <ellipse cx="88" cy="85" rx="11" ry="3.6" fill="#e888a8"/>
   `) },
 
   plant: { vb: VB, body: pack(`
@@ -261,16 +263,14 @@ const MARKS: Record<string, V2Mark> = {
 
   crib: { vb: VB, body: pack(`
     ${shadow(50, 40)}
-    <path d="M50 4 V14" ${ink(2.2)}/>
-    <path d="M26 14 H74" ${ink(2.4)}/>
-    <path d="M32 14 V24 M50 14 V28 M68 14 V24" fill="none" stroke="${O}" stroke-width="1.7" stroke-linecap="round"/>
-    <circle cx="32" cy="28" r="5" fill="#ffd166" ${ink(2)}/>
-    <circle cx="50" cy="33" r="5.2" fill="#ff8fab" ${ink(2)}/>
-    <path d="M68 28 l5 3.4 -5 3.4 -5 -3.4 z" fill="#8ecae6" ${ink(2)}/>
-    <rect x="8" y="38" width="10" height="52" rx="5" fill="#fff" ${ink()}/>
-    <rect x="82" y="38" width="10" height="52" rx="5" fill="#7eb4dc" ${ink()}/>
-    <rect x="12" y="40" width="76" height="10" rx="5" fill="#c5e8f8" ${ink()}/>
-    <rect x="58" y="42" width="26" height="6" rx="3" fill="#7eb4dc"/>
+    <rect x="8" y="34" width="12" height="56" rx="6" fill="#fff" ${ink()}/>
+    <rect x="80" y="34" width="12" height="56" rx="6" fill="#7eb4dc" ${ink()}/>
+    <rect x="14" y="36" width="72" height="14" rx="6" fill="#c5e8f8" ${ink()}/>
+    <rect x="56" y="38" width="26" height="10" rx="4" fill="#7eb4dc"/>
+    <path d="M50 46 C50 46 45 41.5 45 39.2 C45 37.2 47 36.4 48.6 37.6 C49.4 38.3 50 39.2 50 39.2 C50 39.2 50.6 38.3 51.4 37.6 C53 36.4 55 37.2 55 39.2 C55 41.5 50 46 50 46 Z" fill="#ff8fab"/>
+    <path d="M28 50 L32.5 59 L37 50 Z" fill="#ffb3c6"/>
+    <path d="M42 50 L46.5 59 L51 50 Z" fill="#ffe08a"/>
+    <path d="M56 50 L60.5 59 L65 50 Z" fill="#b9e4ff"/>
     <rect x="20" y="48" width="7" height="30" rx="3.5" fill="#fff" ${ink(2.2)}/>
     <rect x="34" y="48" width="7" height="30" rx="3.5" fill="#fff" ${ink(2.2)}/>
     <rect x="48" y="48" width="7" height="30" rx="3.5" fill="#f4fbff" ${ink(2.2)}/>

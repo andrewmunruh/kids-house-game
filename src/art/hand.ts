@@ -226,14 +226,10 @@ export const HAND: Record<string, V2Mark> = {
   `) },
 
   'cloud-rug': { vb: VB, body: pack(`
-    <path d="M18 78 H10 M18 84 H8 M18 90 H10" fill="none" stroke="#d6f0ff" stroke-width="2.6" stroke-linecap="round"/>
-    <path d="M82 78 H90 M82 84 H92 M82 90 H90" fill="none" stroke="#9fd4f2" stroke-width="2.6" stroke-linecap="round"/>
-    <ellipse cx="50" cy="80" rx="40" ry="14" fill="#e7f6ff" ${ink()}/>
-    <circle cx="28" cy="72" r="14" fill="#f4fbff" ${ink(2.2)}/>
-    <circle cx="50" cy="64" r="16" fill="#fff" ${ink(2.2)}/>
-    <circle cx="74" cy="72" r="14" fill="#b9dff2" ${ink(2.2)}/>
-    <ellipse cx="50" cy="78" rx="22" ry="6" fill="none" stroke="#fff" stroke-width="2"/>
-    <ellipse cx="50" cy="78" rx="22" ry="6" fill="none" stroke="#7eb4dc" stroke-width="2" stroke-dasharray="1.6 3.2"/>
+    <path d="M18 82 C18 70 28 66 36 70 C38 58 50 54 60 62 C66 54 82 58 84 70 C96 72 96 86 86 90 C74 97 56 95 46 90 C34 97 16 94 18 82 Z" fill="#d7f1fb"/>
+    <path d="M54 64 C62 56 84 60 86 72 C96 74 96 88 86 92 C76 97 60 94 54 86 C60 80 60 70 54 64 Z" fill="#9ed4ee"/>
+    <path d="M18 82 C18 70 28 66 36 70 C38 58 50 54 60 62 C66 54 82 58 84 70 C96 72 96 86 86 90 C74 97 56 95 46 90 C34 97 16 94 18 82 Z" fill="none" ${ink()}/>
+    <path d="M32 82 H48 M56 86 H72" fill="none" stroke="${O}" stroke-width="1.1" stroke-linecap="round" opacity=".22"/>
   `) },
 
   'crib-mobile': { vb: VB, body: pack(`
@@ -251,9 +247,9 @@ export const HAND: Record<string, V2Mark> = {
 
   rocker: { vb: VB, body: pack(`
     ${sh(50, 36)}
-    <path d="M12 90 Q50 100 88 86" fill="none" ${ink()}/>
-    <path d="M24 84 Q50 74 76 82" fill="#d4b4e8" ${ink(2.2)}/>
-    <path d="M58 78 Q72 74 78 82" fill="#b07cc8"/>
+    <path d="M8 82 Q48 98 94 74 L86 82 Q50 92 16 88 Z" fill="#d4b4e8" ${ink()}/>
+    <path d="M14 64 L8 84 L20 88 L26 68 Z" fill="#ead8f6" ${ink(2.2)}/>
+    <path d="M74 64 L92 76 L82 86 L70 70 Z" fill="#c49ad4" ${ink(2.2)}/>
     <rect x="30" y="28" width="40" height="36" rx="12" fill="#f3e4ff" ${ink()}/>
     <rect x="52" y="32" width="16" height="28" rx="8" fill="#c49ad4"/>
     <path d="M20 48 Q16 70 30 80 H70 Q84 70 80 48 Z" fill="#fff" ${ink()}/>

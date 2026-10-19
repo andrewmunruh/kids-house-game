@@ -197,16 +197,21 @@ function boost(slug, box, vb) {
   const y = Math.max(vb.y + 2, Math.min(vb.b - 8, box.y + box.h * 0.35));
   const s = slug.replace(/^pack:/, '');
   if (isRug(s)) {
-    const cx = vb.x + vb.w / 2;
-    const cy = vb.y + vb.h * 0.55;
-    const rx = vb.w * 0.28;
-    const ry = Math.max(2.4, vb.h * 0.18);
-    const left = vb.x + 1.5;
-    const right = vb.r - 1.5;
+    const cx = box.cx;
+    const cy = box.cy;
+    const rx = Math.max(8, Math.min(box.w * 0.32, vb.w * 0.28));
+    const ry = Math.max(2.2, Math.min(box.h * 0.2, vb.h * 0.22));
+    const tRx = Math.max(5, Math.min(10, box.w * 0.08));
+    const tRy = Math.max(2.4, Math.min(3.6, Math.max(box.h, 14) * 0.11));
+    const left = Math.max(vb.x + tRx * 0.8, box.x + tRx * 0.15);
+    const right = Math.min(vb.r - tRx * 0.8, box.x + box.w - tRx * 0.15);
+    const y1 = cy - tRy * 1.15;
+    const y2 = cy + tRy * 1.15;
+    const pill = (x, y, fill) => `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${tRx.toFixed(1)}" ry="${tRy.toFixed(1)}" fill="${fill}"/>`;
     return `<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="none" stroke="#fff" stroke-width="2"/>` +
       `<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="none" stroke="#e45d88" stroke-width="2" stroke-dasharray="1.6 3.2"/>` +
-      `<path d="M${left.toFixed(1)} ${(cy - 2).toFixed(1)} H${(left + 6).toFixed(1)} M${left.toFixed(1)} ${cy.toFixed(1)} H${(left + 7).toFixed(1)} M${left.toFixed(1)} ${(cy + 2).toFixed(1)} H${(left + 6).toFixed(1)}" fill="none" stroke="#ffb7cc" stroke-width="2.2" stroke-linecap="round"/>` +
-      `<path d="M${right.toFixed(1)} ${(cy - 2).toFixed(1)} H${(right - 6).toFixed(1)} M${right.toFixed(1)} ${cy.toFixed(1)} H${(right - 7).toFixed(1)} M${right.toFixed(1)} ${(cy + 2).toFixed(1)} H${(right - 6).toFixed(1)}" fill="none" stroke="#e888a8" stroke-width="2.2" stroke-linecap="round"/>`;
+      pill(left, y1, '#ffc8dd') + pill(left - 1.2, y2, '#ffb7cc') +
+      pill(right, y1, '#ffb7cc') + pill(right + 1.2, y2, '#e888a8');
   }
   if (/lamp|light|sconce/.test(s)) {
     return `<path d="M${(box.cx - 8).toFixed(1)} ${(box.y + 6).toFixed(1)} V${(box.y + box.h * 0.55).toFixed(1)} M${box.cx.toFixed(1)} ${(box.y + 4).toFixed(1)} V${(box.y + box.h * 0.6).toFixed(1)} M${(box.cx + 8).toFixed(1)} ${(box.y + 6).toFixed(1)} V${(box.y + box.h * 0.55).toFixed(1)}" fill="none" stroke="${O}" stroke-width="1.6" stroke-linecap="round" opacity=".35"/>`;
