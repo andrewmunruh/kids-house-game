@@ -6,7 +6,7 @@
 import { reduce, initialState, ensureRooms, type GameState, type Dog } from '../src/shared/state';
 import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, cleanPresence, cleanHouseName,
-  filterChat, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, fxAllowedAt, PROTOCOL, PROTO_PETS, PROTO_RANCH, PROTO_GAMES, RANCH_FX, normCode, validInvite, MAX_ROSTER, cleanMailText, filterMailbox, mailColor, mailSticker, mailIsFree, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble, type StreetSettings,
+  filterSay, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, fxAllowedAt, PROTOCOL, PROTO_PETS, PROTO_RANCH, PROTO_GAMES, RANCH_FX, normCode, validInvite, MAX_ROSTER, cleanMailText, filterMailbox, mailColor, mailSticker, mailIsFree, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble, type StreetSettings,
 } from '../src/shared/hood';
 import { MAIL_CAP, MAIL_RATE_MAX, MAIL_RATE_WINDOW_MS, keepMailbox, projectMailbox, type Letter, type Mailbox } from '../src/shared/mail';
 import { GAMES, TABLES, NUDGE_MS, cleanTableOp, type TablePub, type TablePhase } from '../src/shared/games/index';
@@ -566,7 +566,7 @@ export class Neighborhood {
   private cleanBubble(b: any): Bubble | string {
     if (!b || typeof b !== 'object') return 'bad';
     if (b.kind === 'phrase' || b.kind === 'emote') { const list = b.kind === 'phrase' ? PHRASES : EMOTES; return Number.isInteger(b.v) && b.v >= 0 && b.v < list.length ? { kind: b.kind, v: b.v } : 'bad'; }
-    if (b.kind === 'text') { if (!this.meta!.settings.freeChat) return 'presetsOnly'; const f = filterChat(b.v); return f.ok ? { kind: 'text', v: f.text } : f.reason; }
+    if (b.kind === 'text') { if (!this.meta!.settings.freeChat) return 'presetsOnly'; const f = filterSay(b.v); return f.ok ? { kind: 'text', v: f.text } : f.reason; }
     return 'bad';
   }
 

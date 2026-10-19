@@ -1,10 +1,11 @@
 // Mailbox: filter, cap, expiry, rate limit, author stamp, owner-only reading, old clients.
 import { Neighborhood, type KV, type Conn } from '../server/core';
-import { FILTER_MSG, MAIL_FREE_DEFAULT, NICKNAMES, PROTOCOL, cleanMailText, filterChat, mailIsFree } from '../src/shared/hood';
+import { FILTER_MSG, MAIL_FREE_DEFAULT, NICKNAMES, PROTOCOL, cleanFirstName, cleanHouseName, cleanMailText, cleanPetName, filterChat, filterMailbox, filterSay, mailIsFree } from '../src/shared/hood';
 import { initialState, type Cat } from '../src/shared/state';
 import { keepMailbox, stripUrls, MAIL_CAP, MAIL_MAX, MAIL_TTL_MS, type Letter } from '../src/shared/mail';
 import { catAt } from '../src/pets';
 import { dragAllowed, playGesture } from '../src/playmode';
+import { ALLOW_LINES, BLOCK_LINES, KID_EVERYDAY, corpusResult } from './filter_corpus';
 
 const mem = new Map<string, any>();
 const kv: KV = {
@@ -24,66 +25,68 @@ const letter = (over: Partial<Letter> = {}): Letter => ({
 
 async function main() {
   check('protocol stays 4', PROTOCOL === 4);
+  const corpus = corpusResult();
+  check('corpus blocks ' + corpus.blockPass + '/' + corpus.blockTotal, corpus.blockBad.length === 0 && corpus.disagree.length === 0, corpus.blockBad.concat(corpus.disagree).slice(0, 8).join(' | '));
+  check('corpus allows ' + corpus.allowPass + '/' + corpus.allowTotal, corpus.allowBad.length === 0 && KID_EVERYDAY.length === 60, corpus.allowBad.slice(0, 8).join(' | '));
+  console.log('CORPUS block ' + corpus.blockPass + '/' + corpus.blockTotal + ' allow ' + corpus.allowPass + '/' + corpus.allowTotal + ' everyday ' + KID_EVERYDAY.length + ' lines ' + (BLOCK_LINES.length + ALLOW_LINES.length));
   check('80 characters is a letter and 81 is too long', cleanMailText('a'.repeat(MAIL_MAX)).ok && cleanMailText('a'.repeat(MAIL_MAX + 1)).ok === false);
-  check('a link is refused', cleanMailText('come see www.example.com').ok === false && (cleanMailText('come see www.example.com') as { reason?: string }).reason === 'link');
-  check('an email is refused', cleanMailText('write me at a@b.com').ok === false);
-  check('a mean word is refused', cleanMailText('you are stupid').ok === false);
+  check('a link can be sent', cleanMailText('come see www.example.com').ok && filterSay('come see www.example.com', 80).ok);
+  check('an email can be sent', cleanMailText('write me at a@b.com').ok && filterSay('write me at a@b.com', 80).ok);
+  check('a mild insult can be sent', cleanMailText('you are stupid').ok && filterSay('you are stupid', 80).ok);
   const roster = ['Ava', 'Chloe', 'Cada'];
-  const blocked = [
+  const sendBlock = ['f*ck', 'f u c k', 'kys', 'shit', 'coon', 'dick'];
+  const sendPass = [
     'roblox user Jane2016', 'Ava Smith', 'I go to Lincoln Elementary', 'meet me at the park at 3',
-    'fivefivefive-oneoneone-twotwotwotwo', 'st00pid', 'fat', 'ugly', 'f*ck', 'f u c k',
-  ];
-  const alsoBlocked = [
+    'fivefivefive-oneoneone-twotwotwotwo', 'st00pid', 'fat', 'ugly',
     'minecraft please', 'snap me', 'insta friend', 'youtube channel', 'username coolkid',
     'Lincoln School', 'Lincoln Academy', 'Lincoln Middle', 'Lincoln High',
     'at the park', 'see you at 3', 'come at 3pm', 'hate you', 'shut up', 'dumb', 'loser', 'kill',
     'five five five one one', 'my tiktok', 'discord user',
-    'add me on fortnite SparkleQueen', 'my house is on Maple street', 'kys', 'im 8 and live on Oak ave',
+    'add me on fortnite SparkleQueen', 'my house is on Maple street', 'im 8 and live on Oak ave',
     'call me', 'text me', "my mom's phone is nine one two", 'f\u{1F338}i\u{1F338}v\u{1F338}e five five',
     '\uFF46\uFF49\uFF56\uFF45', '\u0456d\u0456ot', 'dummmmy', 'I play for the Tigers soccer team',
-    "what's your address", 'whats ur last name',
-  ];
-  const allowed = [
+    "what's your address", 'whats ur last name', 'call 12345', 'write me at a@b.com', '@cool_kid',
     'Why is your cat in my bed?', 'Your house is so cute!', 'Want to play Slay?', 'Hi Chloe!', 'father', 'skill', 'someone', 'snapshot of the cat', 'so high',
     'see you at school', 'Come to my garden', 'come to my house', 'meet me at the treehouse', 'want to play at the ranch?',
     'I love your bedroom', 'my cat is so cute', 'Hi Reagan!',
-  ];
-  const rows: { text: string; want: string }[] = [
-    ...blocked.map(text => ({ text, want: 'mail' })),
-    ...alsoBlocked.map(text => ({ text, want: 'block' })),
-    ...allowed.map(text => ({ text, want: 'ok' })),
+    'I found a hole', 'Maine Coon', 'Dick and Jane', 'Moby Dick', 'slutty', 'the slut walk',
   ];
   console.log('MAIL TABLE');
   console.log('result\texpect\treason\ttext');
   const tableBad: string[] = [];
-  for (const row of rows) {
-    const f = cleanMailText(row.text, roster);
-    const reason = f.ok ? 'ok' : (f as { reason?: string }).reason ?? '';
-    const chat = filterChat(row.text, 80);
-    let got = reason;
-    if (row.want === 'mail') got = reason === 'mail' ? 'mail' : (f.ok ? 'ok' : 'not-mail:' + reason);
-    else if (row.want === 'block') got = f.ok ? 'ok' : 'block';
-    else got = f.ok ? 'ok' : reason;
-    const passRow = got === row.want || (row.want === 'block' && !f.ok && !chat.ok);
-    if (row.want === 'block' && !f.ok) got = 'block';
-    if (!passRow) tableBad.push(row.text + ' -> ' + reason);
-    console.log((passRow ? 'PASS' : 'FAIL') + '\t' + row.want + '\t' + reason + '\t' + row.text);
+  for (const text of sendBlock) {
+    const f = cleanMailText(text, roster);
+    const say = filterSay(text, 80);
+    const reason = f.ok ? 'ok' : f.reason;
+    const passRow = !f.ok && reason === 'mail' && !say.ok && say.reason === 'words';
+    if (!passRow) tableBad.push(text + ' -> mail:' + reason + ' say:' + (say.ok ? 'ok' : say.reason));
+    console.log((passRow ? 'PASS' : 'FAIL') + '\tmail\t' + reason + '\t' + text);
   }
-  const blockedBad = blocked.filter(t => {
-    const f = cleanMailText(t, roster);
-    return f.ok || (f as { reason?: string }).reason !== 'mail';
+  for (const text of sendPass) {
+    const f = cleanMailText(text, roster);
+    const say = filterSay(text, 80);
+    const reason = f.ok ? 'ok' : f.reason;
+    const passRow = f.ok && say.ok;
+    if (!passRow) tableBad.push(text + ' -> mail:' + reason + ' say:' + (say.ok ? 'ok' : say.reason));
+    console.log((passRow ? 'PASS' : 'FAIL') + '\tok\t' + reason + '\t' + text);
+  }
+  check('swears are refused in bubbles and letters, and ordinary lines pass', tableBad.length === 0 && FILTER_MSG.mail === 'Oops, try different words!' && FILTER_MSG.words === "Let's use kind words!", tableBad.join(' | '));
+  check('Ava Smith can be sent', cleanMailText('Ava Smith', ['Ava']).ok === true);
+  check('five digits can be sent', cleanMailText('call 12345').ok === true);
+  const oldKept = ['Come play', 'Hi Chloe!', 'Why is your cat in my bed?', 'father', 'skill', 'the lamp is pretty'];
+  const lightKept = ['you are stupid', 'come see www.example.com', 'write me at a@b.com', 'call 12345', 'my house is on Maple street', 'Ava Smith', 'fat', 'loser', 'shut up', 'damn', '@cool_kid', 'I found a hole', 'Maine Coon', 'Dick and Jane', 'Moby Dick'];
+  // The old chat list already kept these, so a reload must keep the exact letter even though a new send refuses them.
+  const grandfather = ['f*ck', 'kys', 'coon'];
+  const keptLetters = [...oldKept, ...lightKept, ...grandfather].map((text, i) => letter({ id: 'mkeep' + String(i).padStart(4, '0'), text }));
+  const keptBox = filterMailbox({ letters: keptLetters });
+  const keptMiss = keptLetters.filter((l, i) => JSON.stringify(keptBox?.letters[i]) !== JSON.stringify(l));
+  const oldKeptThem = grandfather.filter(t => {
+    const f = filterChat(t, MAIL_MAX);
+    return f.ok && stripUrls(f.text) === f.text && f.text === t;
   });
-  const alsoBad = alsoBlocked.filter(t => {
-    const f = cleanMailText(t, roster);
-    if (f.ok) return true;
-    const chat = filterChat(t, 80);
-    return chat.ok && (f as { reason?: string }).reason !== 'mail';
-  });
-  const allowedBad = allowed.filter(t => !cleanMailText(t, roster).ok);
-  check('trickier letters are blocked without naming the rule', blockedBad.length === 0 && alsoBad.length === 0 && tableBad.length === 0 && FILTER_MSG.mail === 'Oops, try different words!' && !/roblox|school|stupid|fat/i.test(FILTER_MSG.mail), blockedBad.concat(alsoBad, tableBad).join(' | '));
-  check('ordinary letters still go through', allowedBad.length === 0, allowedBad.join(' | '));
-  check('Ava Smith is blocked even when Ava is on the roster', cleanMailText('Ava Smith', ['Ava']).ok === false);
-  check('five digits are still refused', cleanMailText('call 12345').ok === false);
+  const swearBox = filterMailbox({ letters: [letter({ id: 'mdropped01', text: 'fuck' }), letter({ id: 'mdropped02', text: 'shit' })] });
+  check('stored letters keep their words', keptMiss.length === 0 && oldKeptThem.length === grandfather.length && !swearBox, keptMiss.map(l => l.text).join(' | '));
+  check('pet and kid names stay on the old list', cleanPetName('Mochi') === 'Mochi' && cleanPetName('coon') === 'coon' && cleanPetName('ass') === null && cleanPetName('stupid') === null && cleanHouseName('Cozy House') === 'Cozy House' && cleanHouseName('shit') === null && cleanFirstName('Chloe') === 'Chloe' && cleanFirstName('Damn') === null);
   check('urls are stripped', stripUrls('hello') === 'hello' && stripUrls('see http://x.com now') !== 'see http://x.com now' && !stripUrls('see http://x.com now').includes('http'));
   const old = letter({ at: Date.now() - MAIL_TTL_MS - 86400000 });
   const fresh = Array.from({ length: MAIL_CAP + 1 }, (_, i) => letter({ id: 'm' + String(i).padStart(6, '0'), at: Date.now() - i * 1000 }));
@@ -148,10 +151,17 @@ async function main() {
   await hood.flush();
   check('throwing it away clears the mailbox', !disk0().mailbox && owner.c.last('mailbox').mailbox.letters.length === 0);
 
-  await send(pal.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'come see www.example.com', color: 0, sticker: 0 });
-  await send(pal.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'you are stupid', color: 0, sticker: 0 });
+  await send(owner.c, { t: 'mail', op: 'send', houseId: pal.hid, text: 'come see www.example.com', color: 1, sticker: 2 });
+  await send(pal.c, { t: 'say', b: { kind: 'text', v: 'you are stupid' } });
+  await hood.flush();
+  const hoodLink = new Neighborhood(kv, { flushMs: 5 });
+  await hoodLink.load();
+  const linked = hoodLink.houses.get(pal.hid)!.state.mailbox?.letters ?? [];
+  check('a link stays after reload and still shows her name', linked.length === 1 && linked[0].text === 'come see www.example.com' && linked[0].from === owner.nick && linked[0].sticker === 2);
   await send(pal.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'a'.repeat(81), color: 0, sticker: 0 });
-  check('the server refuses a link, a mean word, and a long letter', ['link', 'words', 'long'].every(r => pal.c.inbox.some(m => m.t === 'mailFail' && m.reason === r)) && !live().mailbox);
+  await send(pal.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'f*ck', color: 0, sticker: 0 });
+  await send(pal.c, { t: 'say', b: { kind: 'text', v: 'f*ck' } });
+  check('the server refuses a long letter and a swear', pal.c.inbox.some(m => m.t === 'mailFail' && m.reason === 'long') && pal.c.inbox.some(m => m.t === 'mailFail' && m.reason === 'mail') && pal.c.inbox.some(m => m.t === 'sayFail' && m.reason === 'nowhere') && pal.c.last('sayFail')?.reason === 'words' && !live().mailbox);
 
   const seeded = Array.from({ length: MAIL_CAP }, (_, i) => letter({ id: 'm' + String(i).padStart(6, '0') }));
   hood.houses.get(owner.hid)!.state = { ...hood.houses.get(owner.hid)!.state, mailbox: { letters: seeded } };
@@ -250,10 +260,10 @@ async function main() {
 
   await send(grown, { t: 'parent', key: parentKey, op: 'freeChat', on: true });
   await send(grown, { t: 'parent', key: parentKey, op: 'rosterAdd', name: 'Ava' });
-  const tricky = ['roblox user Jane2016', 'Ava Smith', 'I go to Lincoln Elementary', 'meet me at the park at 3', 'fivefivefive-oneoneone-twotwotwotwo', 'st00pid', 'fat', 'ugly', 'f*ck', 'f u c k'];
+  const tricky = ['f*ck', 'f u c k', 'kys'];
   for (const text of tricky) await send(locked.c, { t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
   const mailFails = locked.c.inbox.filter(m => m.t === 'mailFail' && m.reason === 'mail');
-  check('the server blocks trickier letters with a generic reason', mailFails.length === tricky.length && !live().mailbox, String(mailFails.length));
+  check('the server blocks swears with a generic reason', mailFails.length === tricky.length && !live().mailbox, String(mailFails.length));
   const passTexts = ['Why is your cat in my bed?', 'Your house is so cute!', 'Want to play Slay?', 'Hi Chloe!'];
   const passBox = () => hood.houses.get(fullKid.hid)!.state.mailbox?.letters ?? [];
   for (const text of passTexts) {

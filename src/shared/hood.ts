@@ -72,13 +72,342 @@ export function filterChat(raw: unknown, max = MAX_CHAT): FilterResult {
     return { ok: false, reason: 'words' };
   return { ok: true, text };
 }
+const SEND_LEET: Record<string, string> = {
+  '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b',
+  '@': 'a', '$': 's', '!': 'i', '+': 't', 'v': 'u', '|': 'k', '<': 'k', '#': 'h',
+};
+function swearShape(s: string): boolean {
+  return /^f+u+c+k+$/.test(s) || /^f+u+k+$/.test(s) || /^f+c+k+$/.test(s)
+    || /^s+h+i+t+$/.test(s) || /^s+h+t+$/.test(s)
+    || /^b+i+t+c+h+$/.test(s) || /^b+t+c+h+$/.test(s)
+    || /^a+s+h+o+l+e+$/.test(s)
+    || /^d+u+m+b+a+s+$/.test(s)
+    || /^n+i+g{2,}e+r+$/.test(s) || /^n+i+g{2,}a+$/.test(s)
+    || /^f+a+g+$/.test(s) || /^f+a+g+o+t+$/.test(s)
+    || /^r+e+t+a+r+d+$/.test(s)
+    || /^k+y+s+$/.test(s);
+}
+/** Stems added after the first light list. Whole tokens only, so Scunthorpe and cocktail stay allowed. */
+function swearShapeMore(s: string): boolean {
+  return /^c+u+n+t+$/.test(s)
+    || /^d+i+c+k+$/.test(s)
+    || /^c+o+c+k+$/.test(s)
+    || /^p+u+s+y+$/.test(s) || /^p+u+s+i+$/.test(s)
+    || /^b+a+s+t+a+r+d+$/.test(s)
+    || /^w+h+o+r+e+$/.test(s) || /^w+h+o+r+$/.test(s)
+    || /^s+l+u+t+$/.test(s)
+    || /^a+h+o+l+e+$/.test(s)
+    || /^t+w+a+t+$/.test(s)
+    || /^p+r+i+c+k+$/.test(s)
+    || /^w+a+n+k+e+r+$/.test(s)
+    || /^k+i+k+e+$/.test(s)
+    || /^c+h+i+n+k+$/.test(s)
+    || /^s+p+i+c+$/.test(s)
+    || /^c+o{2,}n+$/.test(s)
+    || /^w+e+t+b+a+c+k+$/.test(s)
+    || /^t+r+a+n+y+$/.test(s) || /^t+r+a+n+i+$/.test(s)
+    || /^d+y+k+e+$/.test(s)
+    || /^b+e+a+n+e+r+$/.test(s)
+    || /^g+o{2,}k+$/.test(s)
+    || /^r+a+g+h+e+a+d+$/.test(s)
+    || /^t+o+w+e+l+h+e+a+d+$/.test(s)
+    || /^h+e+i+l+h+i+t+l+e+r+$/.test(s);
+}
+// Full words that would lose a suffix and become a slur: spicy, cocky, chinking, Spicer, gooky.
+const FALSE_FRIEND = new Set(['spicy', 'spices', 'spicing', 'spicey', 'spicier', 'spiciest', 'cocky', 'chinking', 'spicer', 'gooky', 'slutty', 'twatt']);
+function swearToken(s: string, extra: boolean): boolean {
+  if (!/^[a-z]+$/.test(s)) return false;
+  if (extra && FALSE_FRIEND.has(s)) return false;
+  const stems = [s];
+  const sufs = ['ing', 'in', 'ers', 'er', 'ed', 'es', 'y', 's'];
+  for (let i = 0; i < sufs.length; i++) {
+    const suf = sufs[i];
+    if (s.endsWith(suf) && s.length > suf.length + 2) stems.push(s.slice(0, -suf.length));
+  }
+  for (let i = 0; i < stems.length; i++) {
+    if (swearShape(stems[i])) return true;
+    if (extra && swearShapeMore(stems[i])) return true;
+  }
+  return false;
+}
+function starForms(mapped: string): string[] {
+  if (!mapped.includes('*')) return [mapped];
+  const stars = mapped.split('*').length - 1;
+  const stripped = mapped.replace(/\*/g, '');
+  const out = stripped ? [stripped] : [];
+  if (stars < 1 || stars > 3) return out;
+  const chars = mapped.split('');
+  const pos: number[] = [];
+  for (let i = 0; i < chars.length; i++) if (chars[i] === '*') pos.push(i);
+  const walk = (n: number) => {
+    if (n === pos.length) { out.push(chars.join('')); return; }
+    for (let a = 97; a <= 122; a++) { chars[pos[n]] = String.fromCharCode(a); walk(n + 1); }
+  };
+  walk(0);
+  return out;
+}
+const COMPOUND_PREFIX = ['mother', 'sonofa', 'horse', 'bull', 'dip'];
+const COMPOUND_SUFFIX = ['face', 'head', 'you'];
+/** Whole word, a short ending, or a known compound such as bullshit or motherfucker. Not a loose substring. */
+function blockedWord(s: string, extra: boolean): boolean {
+  const t = s.replace(/ph(?=u+c+k)/g, 'f').replace(/ph(?=u+k)/g, 'f');
+  if (swearToken(t, extra)) return true;
+  if (/^w+t+f+$/.test(t) || /^s+t+f+u+$/.test(t)) return true;
+  for (let i = 0; i < COMPOUND_PREFIX.length; i++) {
+    const p = COMPOUND_PREFIX[i];
+    if (t.startsWith(p) && t.length > p.length + 2 && blockedWord(t.slice(p.length), extra)) return true;
+  }
+  for (let i = 0; i < COMPOUND_SUFFIX.length; i++) {
+    const head = compoundHead(t, COMPOUND_SUFFIX[i]);
+    if (head && blockedWord(head, extra)) return true;
+  }
+  // dickheads: the plural s sits outside head. A doubled s (class, jackass) is left alone.
+  if (t.length > 4 && t.endsWith('s') && !t.endsWith('ss') && blockedWord(t.slice(0, -1), extra)) return true;
+  return false;
+}
+/** head / face / you, with repeated letters, peeled off the end. The stem must be longer than two letters. */
+function compoundHead(t: string, tail: string): string | null {
+  let i = t.length;
+  for (let p = tail.length - 1; p >= 0; p--) {
+    const ch = tail[p];
+    if (i === 0 || t[i - 1] !== ch) return null;
+    while (i > 0 && t[i - 1] === ch) i--;
+  }
+  if (i <= 2) return null;
+  return t.slice(0, i);
+}
+function mapAll(token: string): string {
+  let out = '';
+  for (let i = 0; i < token.length; i++) out += SEND_LEET[token[i]] ?? token[i];
+  return out;
+}
+/** Cyrillic letters that look like Latin. у maps to y, к maps to k. */
+const CYRILLIC_LOOK: Record<string, string> = {
+  '\u0455': 's', '\u04bb': 'h', '\u0441': 'c', '\u0430': 'a', '\u0435': 'e', '\u043e': 'o',
+  '\u0440': 'p', '\u0456': 'i', '\u0445': 'x', '\u0443': 'y', '\u043a': 'k',
+};
+function foldSend(raw: string): string {
+  // Invisible marks come off first, so a soft hyphen or zero-width letter cannot split a word.
+  const stripped = raw.replace(/[\u00ad\u0336\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g, '');
+  const lower = stripped.normalize('NFKC').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  let out = '';
+  for (let i = 0; i < lower.length; i++) out += CYRILLIC_LOOK[lower[i]] ?? lower[i];
+  return out;
+}
+const SAFE_WORD = new Set(['it', 'its', "it's", 'is', 'as', 'a', 'i', 'uh', 'oh', 'so', 'he', 'she', 'hi', 'um', 'umm', 'hmm', 'hm', 'ah', 'eh', 'er', 'ow', 'ha', 'hey', 'yo', 'ok', 'yeah', 'yes', 'no', 'nah', 'wow', 'ho', 'ooh', 'ahh', 'uhh', 'ohh']);
+function isKeep(c: string): boolean {
+  return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || '@$!+*v|#<'.includes(c);
+}
+/** A single letter, ignoring bangs stuck to the edge. 't!' counts as t. A longer word does not. */
+function singleAtom(s: string, p: number): { ch: string; end: number } | null {
+  let i = p;
+  while (i < s.length && s[i] === '!') i++;
+  if (i >= s.length || !isKeep(s[i]) || s[i] === '!') return null;
+  const ch = s[i];
+  let j = i + 1;
+  while (j < s.length && s[j] === '!') j++;
+  if (j < s.length && isKeep(s[j])) return null;
+  return { ch, end: j };
+}
+/** s.h.i.t! and s h i t. Leading and trailing ! ? . , are not letters, so the run joins first. */
+function spelledBlocked(s: string, extra: boolean): boolean {
+  const n = s.length;
+  const sep = ' .-_~';
+  let i = 0;
+  while (i < n) {
+    if (i > 0 && isKeep(s[i - 1])) { i++; continue; }
+    const first = singleAtom(s, i);
+    if (!first) { i++; continue; }
+    const letters = [first.ch];
+    let end = first.end;
+    while (end < n && sep.includes(s[end])) {
+      const nxt = singleAtom(s, end + 1);
+      if (!nxt) break;
+      letters.push(nxt.ch);
+      end = nxt.end;
+    }
+    if (letters.length >= 2) {
+      const word = mapAll(letters.join('')).replace(/\*/g, '');
+      if (blockedWord(word, extra)) return true;
+    }
+    i = Math.max(i + 1, end);
+  }
+  return false;
+}
+function coreToken(text: string): string {
+  return text.replace(/^!+/, '').replace(/!+$/, '');
+}
+function piecePlain(text: string): string {
+  return mapAll(coreToken(text)).replace(/\*/g, '');
+}
+function pieceLeet(text: string): boolean {
+  return /[0-9@$!+*|#<]/.test(coreToken(text));
+}
+function pieceSingle(text: string): boolean {
+  return coreToken(text).length === 1;
+}
+/** Multi-letter interjections and small real words. A single letter and a leet disguise are not protected. */
+function pieceSafeMulti(text: string): boolean {
+  const c = coreToken(text);
+  if (c.length < 2 || pieceLeet(text)) return false;
+  return /^sh+$/.test(c) || SAFE_WORD.has(c);
+}
+function gapKind(sep: string): 'space' | 'hyphen' | 'punct' {
+  let kind: 'space' | 'hyphen' | 'punct' = 'space';
+  for (let i = 0; i < sep.length; i++) {
+    const c = sep[i];
+    if (c === ' ' || c === '\t' || c === '\n' || c === '\r') continue;
+    if (c === '-') { kind = 'hyphen'; continue; }
+    return 'punct';
+  }
+  return kind;
+}
+function splitPieces(folded: string): { text: string; gap: 'start' | 'space' | 'hyphen' | 'punct' }[] {
+  const out: { text: string; gap: 'start' | 'space' | 'hyphen' | 'punct' }[] = [];
+  let i = 0;
+  let pending = '';
+  while (i < folded.length) {
+    if (!isKeep(folded[i])) { pending += folded[i]; i++; continue; }
+    let j = i + 1;
+    while (j < folded.length && isKeep(folded[j])) j++;
+    out.push({ text: folded.slice(i, j), gap: out.length === 0 ? 'start' : gapKind(pending) });
+    pending = '';
+    i = j;
+  }
+  return out;
+}
+/** Bang at the edge is both the letter i and a separator. Block if either reading is a swear. */
+function readingsOf(token: string): string[] {
+  const out = [mapAll(token)];
+  if (token.charAt(0) === '!' || token.charAt(token.length - 1) === '!') {
+    const cut = token.replace(/^!+/, '').replace(/!+$/, '');
+    if (cut && cut !== token) out.push(mapAll(cut));
+  }
+  return out;
+}
+function killPhrase(tokens: string[]): boolean {
+  for (let i = 0; i < tokens.length; i++) {
+    if (!/^k+i+l+$/.test(tokens[i])) continue;
+    const a = tokens[i + 1] || '';
+    const b = tokens[i + 2] || '';
+    if (/^y+o+u+r+s+e+l+f+$/.test(a) || /^u+r+s+e+l+f+$/.test(a)) return true;
+    if (/^u+r+$/.test(a) && /^s+e+l+f+$/.test(b)) return true;
+  }
+  return false;
+}
+/** Dick the name, and only the exact letters. d1ck stays the slur. */
+function dickName(pieces: { text: string }[], plain: string[], i: number): boolean {
+  if (coreToken(pieces[i].text) !== 'dick') return false;
+  const prev = i > 0 ? plain[i - 1] : '';
+  const prev2 = i > 1 ? plain[i - 2] : '';
+  const next = plain[i + 1] || '';
+  const next2 = plain[i + 2] || '';
+  if (prev === 'moby') return true;
+  if (prev === 'k' && prev2 === 'philip') return true;
+  if (next === 'grayson') return true;
+  if (next === 'and' && next2 === 'jane') return true;
+  return false;
+}
+/** Maine Coon, and "coon cat". Bare coon and coons stay blocked. */
+function coonBreed(pieces: { text: string }[], plain: string[], i: number): boolean {
+  if (coreToken(pieces[i].text) !== 'coon') return false;
+  const prev = i > 0 ? plain[i - 1] : '';
+  const next = plain[i + 1] || '';
+  return prev === 'maine' || next === 'cat';
+}
+/** Spaced "a hole" is not glued into ahole. Hyphen "a-hole" is still the slur. */
+function spacedAhole(pieces: { text: string; gap: 'start' | 'space' | 'hyphen' | 'punct' }[], i: number, j: number): boolean {
+  return j === i + 1 && pieces[j].gap === 'space'
+    && /^a+$/.test(piecePlain(pieces[i].text))
+    && /^h+o+l+e+$/.test(piecePlain(pieces[j].text));
+}
+/** Spaced "a hole" only in insult phrasing, or as the whole message. */
+function aHoleInsult(plain: string[]): boolean {
+  for (let i = 0; i < plain.length - 1; i++) {
+    if (!/^a+$/.test(plain[i]) || !/^h+o+l+e+$/.test(plain[i + 1])) continue;
+    if (plain.length === 2) return true;
+    const prev = i > 0 ? plain[i - 1] : '';
+    const prev2 = i > 1 ? plain[i - 2] : '';
+    if (/^y+o+u+$/.test(prev) || /^u+r+$/.test(prev) || /^a+n+$/.test(prev) || /^y+o+u+r+e+$/.test(prev)) return true;
+    if (/^r+e+$/.test(prev) && /^y+o+u+$/.test(prev2)) return true;
+  }
+  return false;
+}
+function heilHitler(plain: string[]): boolean {
+  for (let i = 0; i < plain.length - 1; i++) {
+    if (/^h+e+i+l+$/.test(plain[i]) && /^h+i+t+l+e+r+$/.test(plain[i + 1])) return true;
+  }
+  return false;
+}
+/** Main swears, compounds, obvious disguises, severe slurs, kys, and "kill yourself". */
+function sendSwear(raw: string, extra = true): boolean {
+  const folded = foldSend(raw);
+  if (spelledBlocked(folded, extra)) return true;
+  const pieces = splitPieces(folded);
+  const reads = pieces.map(t => readingsOf(t.text));
+  const plain = pieces.map(t => piecePlain(t.text));
+  if (killPhrase(plain)) return true;
+  if (extra && heilHitler(plain)) return true;
+  for (let i = 0; i < reads.length; i++) {
+    if (extra && (dickName(pieces, plain, i) || coonBreed(pieces, plain, i))) continue;
+    if (extra && coreToken(pieces[i].text) === 'slut' && (plain[i + 1] || '') === 'walk') continue;
+    for (let r = 0; r < reads[i].length; r++) {
+      const forms = starForms(reads[i][r]);
+      for (let j = 0; j < forms.length; j++) if (blockedWord(forms[j].replace(/\*/g, ''), extra)) return true;
+    }
+  }
+  // Join a span when the whole thing is a blocked word. A multi-letter allowlisted word stops the join,
+  // unless two or more pieces are single letters ('sh i t') or one piece is a leet disguise ('$h it').
+  // A comma, ellipsis, or bang between pieces breaks the span.
+  // Spaced "a" + "hole" is not decided here: "a hole in the wall" must stay, and "a-hole" still blocks.
+  for (let i = 0; i < pieces.length; i++) {
+    let joined = '';
+    let singles = 0;
+    let safeMulti = false;
+    let leet = false;
+    for (let j = i; j < pieces.length && j < i + 8; j++) {
+      if (j > i) {
+        const gap = pieces[j].gap;
+        const left = pieces[j - 1].text;
+        if (gap === 'punct' || gap === 'start' || left.endsWith('!') || pieces[j].text.startsWith('!')) break;
+        if (gap !== 'space' && gap !== 'hyphen') break;
+      }
+      joined += piecePlain(pieces[j].text);
+      if (pieceSingle(pieces[j].text)) singles++;
+      if (pieceSafeMulti(pieces[j].text)) safeMulti = true;
+      if (pieceLeet(pieces[j].text)) leet = true;
+      if (j === i) continue;
+      if (safeMulti && singles < 2 && !leet) continue;
+      if (blockedWord(joined, extra)) {
+        // Stop this span at spaced "a hole". Gluing the next word ("in") would strip back to "ahole".
+        if (extra && spacedAhole(pieces, i, j)) break;
+        return true;
+      }
+    }
+  }
+  if (extra && aHoleInsult(plain)) return true;
+  return false;
+}
+function filterLoose(raw: unknown, max: number, blocked: 'words' | 'mail', legacy = false): FilterResult {
+  if (typeof raw !== 'string') return { ok: false, reason: 'empty' };
+  const text = raw.normalize('NFKC').replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g, '').replace(/\s+/g, ' ').trim();
+  if (!text) return { ok: false, reason: 'empty' };
+  if (text.length > max) return { ok: false, reason: 'long' };
+  if (sendSwear(text, !legacy)) return { ok: false, reason: blocked };
+  return { ok: true, text };
+}
+/** A new chat bubble. Light list: swears, slurs, and kys. */
+export function filterSay(raw: unknown, max = MAX_CHAT): FilterResult {
+  return filterLoose(raw, max, 'words');
+}
+
 export const FILTER_MSG: Record<string, string> = {
   long: 'That is a bit long!', link: 'No links, please!', contact: 'Keep numbers and contact info secret!', personal: 'Keep personal info secret!',
   words: "Let's use kind words!", mail: 'Oops, try different words!', empty: '',
 };
 
-// Letters are stricter than chat bubbles. The reason sent to the kid is only "mail":
-// the screen says "Oops, try different words!" and does not name the rule.
+// Old letter rules. New bubbles and new letters use filterLoose instead, so these
+// lists are not on the send path. The kid still only hears "Oops, try different words!"
 const MEAN = new Set<string>([...BAD, 'fat', 'ugly', 'stoopid', 'dummy', 'hateyou', 'hateu', 'shutup']);
 const MEAN_PHRASE = new Set(['hateyou', 'hateu', 'shutup']);
 const DIGIT_WORDS = ['three', 'seven', 'eight', 'four', 'five', 'nine', 'zero', 'one', 'two', 'six', 'ten', 'oh'];
@@ -373,14 +702,17 @@ export function cleanHouseState(raw: any): GameState {
   return mailbox ? { ...house, mailbox } : house;
 }
 
-/** Chat filter, then a stricter letter-only pass. Roster names are the street's first names. */
-export function cleanMailText(raw: unknown, roster: string[] = []): FilterResult {
-  const f = filterChat(raw, MAIL_MAX);
-  if (!f.ok) return f;
-  const text = stripUrls(f.text);
-  if (!text || text !== f.text) return { ok: false, reason: 'link' };
-  if (mailBlocked(typeof raw === 'string' ? raw : text, roster)) return { ok: false, reason: 'mail' };
-  return { ok: true, text };
+/** A new letter. Same light list as a chat bubble: main swears and severe slurs only. */
+export function cleanMailText(raw: unknown, _roster: string[] = []): FilterResult {
+  return filterLoose(raw, MAIL_MAX, 'mail');
+}
+
+/** A stored letter stays when the light list would send it, or when the fbd04db chat list already kept it. The words are never rewritten. */
+function storedLetterOk(text: string): boolean {
+  const light = filterLoose(text, MAIL_MAX, 'mail');
+  if (light.ok && light.text === text) return true;
+  const old = filterChat(text, MAIL_MAX);
+  return old.ok && stripUrls(old.text) === old.text && old.text === text;
 }
 
 /** Letters follow this when a street has never set freeMail.
@@ -396,14 +728,11 @@ export function mailIsFree(settings: { freeChat: boolean; freeMail?: boolean }):
   return MAIL_FREE_DEFAULT;
 }
 
-/** Drop letters the chat filter would block. Shape, cap, and the 30-day fade happen in keepMailbox. */
+/** Keep every letter the fbd04db chat list kept, and every letter the light list would send. Shape, cap, and the 30-day fade happen in keepMailbox. */
 export function filterMailbox(raw: unknown, now = Date.now()): Mailbox | null {
   const box = keepMailbox(raw, now);
   if (!box) return null;
-  const letters = box.letters.filter(l => {
-    const f = filterChat(l.text, MAIL_MAX);
-    return f.ok && stripUrls(f.text) === f.text && f.text === l.text;
-  });
+  const letters = box.letters.filter(l => storedLetterOk(l.text));
   return letters.length ? { letters } : null;
 }
 

@@ -51,7 +51,7 @@ export function friendlyWhen(at: number, now = Date.now()): string {
 
 /**
  * Structural keep: shape, length, 30-day expiry, cap 30 (newest stay).
- * Word filtering happens beside the chat filter; this only drops junk and links.
+ * Word filtering happens beside the chat filter. A link or an email stays in the letter.
  * Returns null when there is nothing to store, so the key stays off old saves.
  */
 export function keepMailbox(raw: unknown, now = Date.now()): Mailbox | null {
@@ -72,7 +72,7 @@ export function keepMailbox(raw: unknown, now = Date.now()): Mailbox | null {
     if (!Number.isInteger(l.sticker) || l.sticker! < 0 || l.sticker! >= MAIL_STICKERS) continue;
     const text = l.text.normalize('NFKC').replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g, '').replace(/\s+/g, ' ').trim();
     // Empty text is a sender's Delivered/Read copy (the words stay on the owner's letter only).
-    if (text.length > MAIL_MAX || (text && stripUrls(text) !== text)) continue;
+    if (text.length > MAIL_MAX) continue;
     const letter: Letter = { id: l.id, from, fromPid: l.fromPid, text, color: l.color!, sticker: l.sticker!, at: l.at };
     if (l.read === true) letter.read = true;
     letters.push(letter);
