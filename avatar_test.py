@@ -56,7 +56,8 @@ LINEUP = r"""() => {
   const xs = [780, 980, 1180, 1380, 1580, 1780];
   const a = __avatar;
   looks.forEach((L, i) => {
-    const patch = Object.assign({ size: sizes[i] }, a.patchFromLook2(L));
+    const clean = a.sanitizeLook2(L);
+    const patch = Object.assign({ size: sizes[i], look2: clean }, a.legacyFromLook2(clean));
     if (i === 0) __store.dispatch({ type: 'char/update', id: 'c1', patch });
     else {
       const leg = a.legacyFromLook2(a.sanitizeLook2(L));
@@ -204,7 +205,8 @@ async def riding(b):
     await pg.wait_for_selector('#stage .char')
     await pg.evaluate("""() => {
       const L = { v: 1, hair: 'puffs', hairC: '#2b1d16', skin: '#c68642', eyes: 'sparkle', eyeC: '#3d7ec4', freckles: true, blush: true, top: 'classic', topC: '#ff7aa8', bottom: 'pants', bottomC: '#5aa9e6', dress: 'twirl', dressC: '#f4a3c8', shoes: 'boots', shoesC: '#5a3d5c', acc: ['bow'], accC: '#ffd166' };
-      __store.dispatch({ type: 'char/update', id: 'c1', patch: Object.assign({ size: 'kid' }, __avatar.patchFromLook2(L)) });
+      const clean = __avatar.sanitizeLook2(L);
+      __store.dispatch({ type: 'char/update', id: 'c1', patch: Object.assign({ size: 'kid', look2: clean }, __avatar.legacyFromLook2(clean)) });
     }""")
     await go(pg, 'ranch')
     await pg.evaluate("""() => {
@@ -275,7 +277,7 @@ async def street(b):
     await P.click('[data-act="av-hairC"][data-v="#2b1d16"]')
     await P.wait_for_timeout(300)
     await P.click('.avDone')
-    await P.wait_for_selector('#sheet.hidden')
+    await P.wait_for_function("document.getElementById('sheet').classList.contains('hidden')")
     await P.click('#mapWorld .mapHouse.mine')
     await P.wait_for_timeout(700)
     await K2.click('#btnHood')
