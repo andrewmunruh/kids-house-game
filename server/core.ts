@@ -2,6 +2,7 @@
 // Adapters (server/node.ts, server/worker.ts) provide storage + sockets.
 // Privacy: no emails, names, IPs or chat are stored; chat is relayed to nearby players only and never logged.
 import { reduce, initialState, ensureRooms, type GameState, type Dog } from '../src/shared/state';
+import { withRandomStarter } from '../src/shared/avatar';
 import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, cleanPresence, cleanHouseName,
   filterChat, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, fxAllowedAt, PROTOCOL, PROTO_PETS, PROTO_RANCH, PROTO_GAMES, RANCH_FX, normCode, validInvite, MAX_ROSTER, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble,
@@ -293,7 +294,7 @@ export class Neighborhood {
         }
         if (Object.keys(meta.players).length >= MAX_PLAYERS) { this.send(c, { t: 'error', code: 'full' }); return; }
         const token = randomToken(), pid = 'p' + randomToken(5), houseId = 'h' + randomToken(5);
-        const state = m.house ? cleanHouseState(m.house) : initialState();
+        const state = m.house ? cleanHouseState(m.house) : withRandomStarter(initialState());
         const slot = meta.houseOrder.length;
         const house: HouseFull = { id: houseId, ownerId: pid, name: `${nickname}'s House`, locked: false, style: (meta.nextStyle + slot) % HOUSE_STYLES, slot, state };
         meta.players[pid] = { dog: cleanDog(m.dog), pid, nickname, houseId, tokenHash: await sha256(token), look: cleanLook(m.look), joinedAt: Date.now() };

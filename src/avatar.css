@@ -1,0 +1,75 @@
+/* Make your look. Primary layout is Reagan's iPad, 820×1180 portrait.
+   Phones stack the preview on top. No nesting, no :has(), no color-mix(). */
+
+.card.avCard { width: min(960px, 96vw); min-width: 0; }
+.avLook { width: 100%; min-width: 0; align-items: stretch; }
+.avStageWrap { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+.avStage { width: 220px; height: 352px; background: radial-gradient(circle at 50% 70%, #fff3b0, #ffe0ec 70%); border-radius: 28px; border: 4px solid var(--ink); overflow: hidden; display: flex; align-items: flex-end; justify-content: center; }
+.avStage svg { width: 86%; height: 92%; display: block; }
+.avSizes { display: flex; gap: 6px; }
+.avSide { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.avTabs { display: flex; gap: 6px; overflow-x: auto; min-width: 0; }
+.avTab { flex: 0 0 auto; min-width: 64px; min-height: 44px; padding: 8px 12px; border-radius: 16px; background: #fff3f7; font-weight: 900; color: var(--ink); }
+.avTab.on { background: #ff8fab; color: #fff; }
+.avPane { min-width: 0; }
+.avPane h3 { margin: 8px 0 6px; }
+.avGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; min-width: 0; }
+.avOpt { min-width: 44px; min-height: 44px; padding: 6px 8px; border-radius: 14px; background: #fff6ea; color: var(--ink); font-weight: 800; font-size: 14px; line-height: 1.15; }
+.avOpt.on { background: #c9a0dc; color: #fff; box-shadow: inset 0 0 0 3px var(--ink); }
+.avColors { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.avSw { width: 44px; height: 44px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px var(--ink); padding: 0; }
+.avSw.on { box-shadow: 0 0 0 3px var(--ink), 0 0 0 6px #ffd166; }
+.avToggles { display: flex; gap: 8px; margin-top: 8px; }
+.avHint { margin: 0 0 6px; font-size: 14px; opacity: .7; }
+.avBar { display: flex; gap: 8px; margin-top: 8px; }
+.avSurprise, .avDone { flex: 1 1 auto; min-height: 48px; border-radius: 18px; font-weight: 900; font-size: 18px; color: var(--ink); }
+.avSurprise { background: #ffe08a; }
+.avDone { background: #b6f0c2; }
+
+/* 820-wide portrait iPad: the layout this screen was drawn for. */
+@media (min-width: 700px) and (max-width: 900px) and (orientation: portrait) {
+  .avStage { width: 250px; height: 400px; }
+  .avOpt { min-height: 76px; font-size: 16px; }
+  .avSw { width: 64px; height: 64px; }
+  .avTab { min-height: 52px; font-size: 18px; padding: 10px 16px; }
+}
+
+@media (max-height: 820px) and (min-width: 900px) {
+  .avStage { width: 200px; height: 300px; }
+}
+
+/* Full-quality walk: arms swing outward only. Right arm uses a negative angle. */
+.chibi-move .arm.l { animation: armOutL .76s ease-in-out infinite alternate; animation-delay: -.38s; }
+.chibi-move .arm.r { animation: armOutR .76s ease-in-out infinite alternate; }
+.chibi-move .leg.l { animation: legStepL .76s ease-in-out infinite alternate; }
+.chibi-move .leg.r { animation: legStepR .76s ease-in-out infinite alternate; animation-delay: -.38s; }
+@keyframes armOutL { from { transform: rotate(2deg); } to { transform: rotate(16deg); } }
+@keyframes armOutR { from { transform: rotate(-2deg); } to { transform: rotate(-16deg); } }
+@keyframes legStepL { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-7px) rotate(6deg); } }
+@keyframes legStepR { from { transform: translateY(0) rotate(2deg); } to { transform: translateY(-7px) rotate(-6deg); } }
+
+/* Safari 16 floor: everyone else just bobs. The transform stays on the compositor. */
+.chibi-bob > .inner { animation: chibiBob 1.8s ease-in-out infinite alternate; }
+@keyframes chibiBob { from { transform: translateY(0); } to { transform: translateY(-4px); } }
+
+.char.chibi.hold-target::after { top: 72%; }
+.char.chibi.hold-target[data-hand="left"]::after { left: var(--hx-l); }
+.char.chibi.hold-target[data-hand="right"]::after { left: var(--hx-r); }
+.char.chibi.hold-target.flipped[data-hand="left"]::after { left: calc(100% - var(--hx-l)); }
+.char.chibi.hold-target.flipped[data-hand="right"]::after { left: calc(100% - var(--hx-r)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .chibi-move .leg, .chibi-move .arm, .chibi-bob > .inner, .char.chibi > .inner, .savatar.chibi > .inner { animation: none; }
+}
+
+body.phone .card.avCard { min-width: 0; }
+body.phone .avLook { flex-direction: column; align-items: stretch; width: 100%; }
+body.phone .avStageWrap { width: 100%; }
+body.phone .avStage { width: 100%; height: 34vh; max-height: 220px; min-height: 140px; }
+body.phone .avStage svg { width: auto; height: 100%; }
+body.phone .avGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+body.phone .avOpt { min-height: 44px; font-size: 13px; }
+body.phone .avSw { width: 44px; height: 44px; }
+body.phone .avTab { min-height: 44px; }
+body.phone .avBar { flex-wrap: wrap; }
+body.phone .avSurprise, body.phone .avDone { min-height: 44px; }

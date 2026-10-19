@@ -1,0 +1,340 @@
+# Avatar v2 in the browser. Customizer layout, first-run, Surprise me, two-client sync,
+# a held teddy, a chibi rider, and 6 kids animating under 4x CPU throttle.
+# Needs the preview on :4173 and the node hood (HOOD, default :8787).
+# If /tmp/prod-dist exists, an old build is served so a 1f0aa5c client can see the new kids.
+import asyncio, os, subprocess, sys, time
+from playwright.async_api import async_playwright
+from testnav import SKIP_WN, go, local_page
+
+URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
+SHOT = '/opt/cursor/artifacts'
+OLD_DIST = '/tmp/prod-dist'
+OLD_PORT = 4191
+res = {}
+
+def check(name, ok, extra=''):
+    res[name] = bool(ok)
+    print(('PASS ' if ok else 'FAIL ') + name, extra, flush=True)
+
+def serve_old():
+    www = '/tmp/avatar-old-www'
+    os.makedirs(www, exist_ok=True)
+    link = www + '/kids-house-game'
+    if os.path.islink(link) or os.path.exists(link):
+        os.remove(link) if not os.path.islink(link) else os.unlink(link)
+    os.symlink(OLD_DIST, link)
+    code = ("import http.server, functools\n"
+            "class H(http.server.SimpleHTTPRequestHandler):\n"
+            "    def end_headers(self): self.send_header('Cache-Control', 'no-store'); super().end_headers()\n"
+            "    def log_message(self, *a): pass\n"
+            f"http.server.ThreadingHTTPServer(('', {OLD_PORT}), functools.partial(H, directory='{www}')).serve_forever()")
+    pr = subprocess.Popen([sys.executable, '-c', code], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    import socket
+    end = time.time() + 10
+    while time.time() < end:
+        try:
+            socket.create_connection(('127.0.0.1', OLD_PORT), 0.4).close()
+            return pr
+        except OSError:
+            time.sleep(0.2)
+    return pr
+
+LINEUP = r"""() => {
+  const base = (hair, hairC, skin, top, topC, bottom, bottomC, dress, dressC, shoes, acc) => ({
+    v: 1, hair, hairC, skin, eyes: 'sparkle', eyeC: '#3d7ec4', freckles: true, blush: true,
+    top, topC, bottom, bottomC, dress, dressC, shoes, shoesC: '#ffffff', acc, accC: '#ffd166'
+  });
+  const looks = [
+    base('puffs', '#2b1d16', '#c68642', 'hoodie', '#ff7aa8', 'skirt', '#5aa9e6', '', '#ff7aa8', 'sneakers', ['glasses', 'bow']),
+    base('pony', '#ff8fab', '#f1c27d', 'stripes', '#ffd166', 'jeans', '#3d4a6b', '', '#ffd166', 'boots', ['flower']),
+    base('braids', '#1d1416', '#8d5524', 'classic', '#c9a0dc', 'pants', '#c9a0dc', 'party', '#c9a0dc', 'maryjanes', ['bow']),
+    base('buns', '#f4d58d', '#ffe0c4', 'classic', '#80ed99', 'shorts', '#ff9f68', '', '#80ed99', 'sandals', ['flower']),
+    base('afro', '#5b3a29', '#5c3a1e', 'jersey', '#ef6b6b', 'joggers', '#5a3d5c', '', '#ef6b6b', 'slippers', ['cap']),
+    base('locs', '#7a4b32', '#a86b3c', 'cardigan', '#7ec8c3', 'leggings', '#3d4a6b', '', '#7ec8c3', 'lightup', ['headband']),
+  ];
+  const sizes = ['kid', 'little', 'kid', 'adult', 'kid', 'little'];
+  const xs = [780, 980, 1180, 1380, 1580, 1780];
+  const a = __avatar;
+  looks.forEach((L, i) => {
+    const patch = Object.assign({ size: sizes[i] }, a.patchFromLook2(L));
+    if (i === 0) __store.dispatch({ type: 'char/update', id: 'c1', patch });
+    else {
+      const leg = a.legacyFromLook2(a.sanitizeLook2(L));
+      __store.dispatch({ type: 'char/add', char: Object.assign({
+        id: 'k' + i, name: 'Kid' + i, room: 'living', x: xs[i], y: 540, flip: i % 2 === 1, size: sizes[i],
+        held: { left: null, right: null }, look2: a.sanitizeLook2(L)
+      }, leg) });
+    }
+  });
+  __store.dispatch({ type: 'char/move', id: 'c1', room: 'living', x: xs[0], y: 540 });
+  __cam.set(700);
+  return __store.get().characters.length;
+}"""
+
+async def adult(pg):
+    await pg.wait_for_selector('.adultCard .q')
+    q = int(await pg.get_attribute('.adultCard .q', 'data-q'))
+    for d in str(q):
+        await pg.click(f'.adultCard [data-k="{d}"]')
+    await pg.click('.adultCard [data-k="OK"]')
+
+async def open_look(pg):
+    await pg.click('#btnDress')
+    await pg.wait_for_selector('#sheet:not(.hidden) .avLook')
+
+async def sheet_info(pg):
+    return await pg.evaluate("""() => {
+      const card = document.querySelector('.card');
+      const look = document.querySelector('.avLook');
+      const stage = document.querySelector('.avStage');
+      const opt = document.querySelector('.avOpt');
+      const sw = document.querySelector('.avSw');
+      const tab = document.querySelector('.avTab');
+      const box = el => el ? el.getBoundingClientRect() : null;
+      const inputs = document.querySelectorAll('#sheet input, #sheet textarea').length;
+      return {
+        phone: document.body.classList.contains('phone'),
+        dir: look ? getComputedStyle(look).flexDirection : '',
+        title: (document.querySelector('#sheet h2') || {}).textContent || '',
+        inputs,
+        cardW: card ? card.scrollWidth : 0,
+        cardClient: card ? card.clientWidth : 0,
+        optH: opt ? opt.getBoundingClientRect().height : 0,
+        swH: sw ? sw.getBoundingClientRect().height : 0,
+        tabH: tab ? tab.getBoundingClientRect().height : 0,
+        stage: box(stage),
+        closeFirst: document.querySelector('#sheet button') === document.querySelector('#sheet .close'),
+      };
+    }""")
+
+async def customizer(b):
+    pages = [
+        ('customizer-ipad-1024.png', 1024, 768, False, 'row'),
+        ('customizer-ipad-820.png', 820, 1180, False, 'row'),
+        ('customizer-iphone-390.png', 390, 844, True, 'column'),
+    ]
+    for name, w, h, mobile, direction in pages:
+        ctx = await b.new_context(viewport={'width': w, 'height': h}, device_scale_factor=1, has_touch=True, is_mobile=mobile)
+        await ctx.add_init_script(SKIP_WN)
+        pg = await ctx.new_page()
+        errs = []
+        pg.on('pageerror', lambda e, bucket=errs: bucket.append(str(e)))
+        await pg.goto(URL)
+        await pg.wait_for_selector('#stage .char')
+        classic = await pg.evaluate("""() => { const svg = document.querySelector('#stage .char svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
+        check(f'{w}x{h} starter kid is the classic avatar', classic is None, str(classic))
+        await open_look(pg)
+        info = await sheet_info(pg)
+        await pg.screenshot(path=f'{SHOT}/{name}')
+        fits = info['cardW'] <= info['cardClient'] + 2 and info['inputs'] == 0 and info['title'] == 'Make your look!'
+        targets = info['optH'] >= 44 and info['swH'] >= 44 and info['tabH'] >= 44 and info['closeFirst']
+        tall = info['optH'] >= 70 if w == 820 else True
+        phone = info['phone'] if mobile else not info['phone']
+        check(f'{w}x{h} customizer layout', fits and targets and tall and phone and info['dir'] == direction and not errs,
+              f"dir {info['dir']} opt {info['optH']:.0f} sw {info['swH']:.0f} card {info['cardW']}/{info['cardClient']} phone {info['phone']} {errs[:1]}")
+        await ctx.close()
+
+async def lineup_and_perf(b):
+    ctx = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
+    await ctx.add_init_script(SKIP_WN)
+    pg = await ctx.new_page()
+    errs = []
+    pg.on('pageerror', lambda e: errs.append(str(e)))
+    await pg.goto(URL)
+    await pg.wait_for_selector('#stage .char')
+    n = await pg.evaluate(LINEUP)
+    await pg.wait_for_timeout(400)
+    await pg.screenshot(path=f'{SHOT}/street-5-kids.png')
+    bodies = await pg.evaluate("""() => ({
+      n: document.querySelectorAll('#stage .char svg[data-chibi="1"]').length,
+      tilt: !!document.querySelector('#stage .char svg g[transform*="rotate"]'),
+      rich: __avatar.richAvatars(),
+      move: document.querySelectorAll('#stage .char.chibi-move').length,
+      bob: document.querySelectorAll('#stage .char.chibi-bob').length,
+      arm: getComputedStyle(document.querySelector('#stage .char.chibi .arm.l')).animationName,
+    })""")
+    check('five different kids stand in the room', n >= 5 and bodies['n'] >= 5 and bodies['tilt'], str(bodies))
+    moving = bodies['move'] >= 6 if bodies['rich'] else bodies['move'] >= 1 and bodies['bob'] >= 5
+    check('full-quality limbs play on every kid in this browser' if bodies['rich'] else 'Safari-16 floor animates one kid and bobs the rest',
+          moving and bodies['arm'] not in ('none', ''), str(bodies))
+    cdp = await ctx.new_cdp_session(pg)
+    await cdp.send('Emulation.setCPUThrottlingRate', {'rate': 4})
+    perf = await pg.evaluate("""() => new Promise(resolve => {
+      const times = [];
+      let last = 0, n = 0;
+      const frame = (t) => {
+        if (last) times.push(t - last);
+        last = t; n++;
+        if (n < 60) requestAnimationFrame(frame);
+        else {
+          times.sort((a, b) => a - b);
+          const sum = times.reduce((s, x) => s + x, 0);
+          resolve({ n: times.length, mean: sum / times.length, p95: times[Math.floor(times.length * 0.95)] || 0, max: times[times.length - 1] || 0 });
+        }
+      };
+      requestAnimationFrame(frame);
+    })""")
+    await cdp.send('Emulation.setCPUThrottlingRate', {'rate': 1})
+    print(f"PERF 6 kids, CPU throttle 4x, {perf['n']} frames: mean {perf['mean']:.2f}ms p95 {perf['p95']:.2f}ms max {perf['max']:.2f}ms (16.6ms is 60fps; this is a VM, not an A14)", flush=True)
+    check('6 kids keep drawing under 4x CPU throttle', perf['n'] >= 50 and perf['mean'] < 100 and not errs, str(perf) + ' ' + '; '.join(errs[:2]))
+    held = await pg.evaluate("""() => {
+      __store.dispatch({ type: 'char/move', id: 'c1', room: 'bedroom', x: 900, y: 540 });
+      __store.dispatch({ type: 'char/hold', id: 'c1', hand: 'right', room: 'bedroom', itemId: 'teddy-3' });
+      __store.dispatch({ type: 'room/switch', room: 'bedroom' });
+      __cam.set(700);
+      const c = __store.get().characters.find(x => x.id === 'c1');
+      return { kind: c && c.held.right && c.held.right.kind, chibi: !!c.look2 };
+    }""")
+    await pg.wait_for_timeout(300)
+    await pg.screenshot(path=f'{SHOT}/kid-holding.png')
+    vis = await pg.evaluate("""() => document.querySelectorAll('#stage .char .held').length""")
+    check('a chibi kid holds the teddy', held['kind'] == 'teddy' and held['chibi'] and vis >= 1, str(held) + ' shown ' + str(vis))
+    await ctx.close()
+
+async def riding(b):
+    ctx = await b.new_context(viewport={'width': 1180, 'height': 820}, device_scale_factor=1, has_touch=True)
+    await ctx.add_init_script(SKIP_WN)
+    pg = await ctx.new_page()
+    errs = []
+    pg.on('pageerror', lambda e: errs.append(str(e)))
+    await pg.goto(URL)
+    await pg.wait_for_selector('#stage .char')
+    await pg.evaluate("""() => {
+      const L = { v: 1, hair: 'puffs', hairC: '#2b1d16', skin: '#c68642', eyes: 'sparkle', eyeC: '#3d7ec4', freckles: true, blush: true, top: 'classic', topC: '#ff7aa8', bottom: 'pants', bottomC: '#5aa9e6', dress: 'twirl', dressC: '#f4a3c8', shoes: 'boots', shoesC: '#5a3d5c', acc: ['bow'], accC: '#ffd166' };
+      __store.dispatch({ type: 'char/update', id: 'c1', patch: Object.assign({ size: 'kid' }, __avatar.patchFromLook2(L)) });
+    }""")
+    await go(pg, 'ranch')
+    await pg.evaluate("""() => {
+      const s = document.getElementById('ranchScroll');
+      const sc = document.getElementById('ranch').clientHeight / 600;
+      s.scrollLeft = 2990 * sc - s.clientWidth / 2;
+    }""")
+    await pg.locator('.horse[data-horse="4"]').click(force=True)
+    await pg.wait_for_timeout(400)
+    pose = await pg.evaluate("""() => {
+      const av = document.querySelector('.savatar.riding.mine');
+      if (!av) return null;
+      const legs = [...av.querySelectorAll('.inner .leg')].map(el => getComputedStyle(el).opacity);
+      const ride = av.querySelector('.rideleg');
+      return {
+        chibi: !!av.querySelector('svg[data-chibi]'),
+        legs: legs,
+        thigh: ride ? !!ride.querySelector('.thigh') : false,
+        drape: ride ? !!ride.querySelector('.dress') : false,
+        hands: av.querySelectorAll('.inner .hand').length,
+      };
+    }""")
+    await pg.locator('.savatar.riding.mine').screenshot(path=f'{SHOT}/kid-riding.png')
+    hidden = pose and all(op == '0' for op in pose['legs']) and len(pose['legs']) >= 2
+    check('a chibi kid rides with the outfit leg', pose and pose['chibi'] and pose['thigh'] and pose['drape'] and pose['hands'] >= 2 and hidden and not errs, str(pose) + ' ' + '; '.join(errs[:2]))
+    await ctx.close()
+
+async def street(b):
+    ctxp = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
+    ctxk = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
+    await ctxp.add_init_script(SKIP_WN + "; window.__forceAvatarIntro = true;")
+    await ctxk.add_init_script(SKIP_WN)
+    P, K2 = await ctxp.new_page(), await ctxk.new_page()
+    errs = []
+    for pg in (P, K2):
+        pg.on('pageerror', lambda e: errs.append(str(e)))
+        await pg.goto(URL)
+        await pg.wait_for_timeout(400)
+    await P.click('#btnHood')
+    await P.click('[data-m="create"]')
+    await adult(P)
+    await P.wait_for_selector('#newCode')
+    code = (await P.inner_text('#newCode')).strip()
+    await P.click('[data-m="setup"]')
+    await P.wait_for_selector('#pCode')
+    for n in ('Reagan', 'Quinn', 'Chloe'):
+        await P.click(f'.sugg button:has-text("{n}")')
+        await P.wait_for_timeout(150)
+    await P.click('.hoodSheet [data-m="close"]')
+    await P.click('#btnHood')
+    await P.click('[data-m="join"]')
+    await P.fill('#codeInput', code)
+    await P.click('#codeForm button')
+    await P.click('.nicks button:has-text("Reagan")')
+    await P.click('[data-m="bring"]')
+    await P.wait_for_selector('#sheet:not(.hidden) h2:has-text("Make your look!")', timeout=8000)
+    check('first street join opens Make your look', await P.locator('#sheet:not(.hidden) .avSurprise').count() == 1)
+    before = await P.evaluate("""() => JSON.stringify((__hood().players.get(__hood().pid) || {}).look || {})""")
+    changed = None
+    for _ in range(4):
+        await P.click('.avSurprise')
+        await P.wait_for_timeout(200)
+        changed = await P.evaluate("""() => { const L = (__hood().players.get(__hood().pid) || {}).look || {}; return { raw: JSON.stringify(L), hair: L.look2 && L.look2.hair }; }""")
+        if changed['raw'] != before and changed['hair']:
+            break
+    check('Surprise me picks a new allow-listed look', changed and changed['raw'] != before and changed['hair'], str(changed and changed['hair']))
+    await P.click('[data-act="av-hair"][data-v="puffs"]')
+    await P.click('[data-act="av-hairC"][data-v="#2b1d16"]')
+    await P.wait_for_timeout(300)
+    await P.click('.avDone')
+    await P.wait_for_selector('#sheet.hidden')
+    await P.click('#mapWorld .mapHouse.mine')
+    await P.wait_for_timeout(700)
+    await K2.click('#btnHood')
+    await K2.click('[data-m="join"]')
+    await K2.fill('#codeInput', code)
+    await K2.click('#codeForm button')
+    await K2.click('.nicks button:has-text("Quinn")')
+    await K2.click('[data-m="fresh"]')
+    await K2.wait_for_selector('body.view-map #mapWorld .mapHouse', timeout=8000)
+    pid = await P.evaluate("__hood().pid")
+    seen = await K2.evaluate("""(pid) => { const L = (__hood().players.get(pid) || {}).look; return L ? { hair: L.look2 && L.look2.hair, legacy: L.hair } : null; }""", pid)
+    check('a friend sees the puffs look', seen and seen.get('hair') == 'puffs' and seen.get('legacy') == '#2b1d16', str(seen))
+    house = await P.evaluate("__hood().myHouseId()")
+    await K2.click(f'.mapHouse[data-go="house:{house}"]')
+    await K2.wait_for_timeout(800)
+    drawn = await K2.evaluate("""() => { const svg = document.querySelector('.char.avatar.other svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
+    check('the friend draws the new kid as a chibi', drawn == '1' and not errs, str(drawn) + ' ' + '; '.join(errs[:2]))
+    if os.path.isdir(OLD_DIST):
+        old = serve_old()
+        try:
+            hood = os.environ.get('HOOD', 'http://localhost:8787').rstrip('/')
+            ctxo = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
+            await ctxo.add_init_script("localStorage.setItem('cozy-whatsnew', '999')")
+            O = await ctxo.new_page()
+            oerrs = []
+            O.on('pageerror', lambda e: oerrs.append(str(e)))
+            await O.goto(f'http://localhost:{OLD_PORT}/kids-house-game/?hood={hood}')
+            await O.wait_for_timeout(500)
+            await O.click('#btnHood')
+            await O.click('[data-m="join"]')
+            await O.fill('#codeInput', code)
+            await O.click('#codeForm button')
+            await O.click('.nicks button:has-text("Chloe")')
+            await O.click('[data-m="fresh"]')
+            await O.wait_for_selector('body.view-map #mapWorld .mapHouse', timeout=8000)
+            await O.wait_for_timeout(600)
+            old_face = await O.evaluate("""(pid) => { const el = document.querySelector('.mapFace[data-pid="' + pid + '"] svg'); return el ? el.getAttribute('data-chibi') : 'missing'; }""", pid)
+            await O.screenshot(path=f'{SHOT}/old-client-view.png')
+            check('old client sees the new kid without chibi markup', old_face is None and not oerrs, str(old_face) + ' ' + '; '.join(oerrs[:2]))
+            await ctxo.close()
+        finally:
+            try:
+                os.killpg(old.pid, 15)
+            except Exception:
+                pass
+    else:
+        check('old client sees the new kid without chibi markup', False, 'missing /tmp/prod-dist')
+    await ctxp.close()
+    await ctxk.close()
+
+async def main():
+    os.makedirs(SHOT, exist_ok=True)
+    async with async_playwright() as p:
+        b = await p.chromium.launch()
+        await customizer(b)
+        await lineup_and_perf(b)
+        await riding(b)
+        await street(b)
+        await b.close()
+    print(f"\n{sum(res.values())}/{len(res)} checks passed", flush=True)
+    if not all(res.values()):
+        sys.exit(1)
+
+if __name__ == '__main__':
+    asyncio.run(main())

@@ -1,4 +1,7 @@
 import type { Character } from './shared/state';
+import type { Look2 } from './shared/avatar';
+import { chibiSVG, handsOf, poseFor } from './avatar/draw';
+import { richAvatars } from './avatar/motion';
 const O = '#5a3d5c';
 const s = `stroke="${O}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"`;
 
@@ -11,6 +14,10 @@ export const SIZES: Character['size'][] = ['little', 'kid', 'adult'];
 export const SIZE_SCALE: Record<Character['size'], number> = { little: 0.78, kid: 1, adult: 1.28 };
 /** Hand anchor points in the character's 100x160 viewBox (unflipped). */
 export const HANDS = { left: { x: 15, y: 113 }, right: { x: 85, y: 113 } } as const;
+export function handsFor(c: { look2?: Look2 | null }) {
+  if (c.look2) return handsOf(poseFor(c.look2));
+  return HANDS;
+}
 
 function accessory(a: number, c: string) {
   if (a === 1) return `<path d="M62 16 L76 8 L76 26 Z M62 16 L50 6 L48 24 Z" fill="#ff7aa8" stroke="${O}" stroke-width="3" stroke-linejoin="round"/><circle cx="62" cy="16" r="5" fill="#ffd166" stroke="${O}" stroke-width="3"/>`;
@@ -30,7 +37,8 @@ function hair(style: number, c: string, back: boolean) {
   return `<path d="M21 46 Q18 12 50 12 Q82 12 79 46 Q72 30 58 28 Q50 36 36 30 Q26 34 21 46 Z" fill="${c}" ${s}/>`;
 }
 
-export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants'> & { acc?: number }) {
+export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants'> & { acc?: number; look2?: Look2 | null }) {
+  if (c.look2) return chibiSVG(c.look2, { rich: richAvatars() });
   return `<svg viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">
   <ellipse class="shadow" cx="50" cy="156" rx="28" ry="4" fill="#000" opacity=".12"/>
   ${hair(c.hairStyle, c.hair, true)}

@@ -3,6 +3,7 @@
 import { RANCH_W, BARN_W, RANCH_Y0, RANCH_Y1, HORSES, ANIMALS, FOODS, type Basket, type Plot, type RanchOp } from './ranch';
 import { GAMEROOM_W, type TablePub, type TableOp } from './games/index';
 import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, validKennel, ROOM_W, ROOM_H, MAX_CHARS, ROOM_IDS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
+import { sanitizeLook2, type Look2 } from './avatar';
 
 export const MAX_PLAYERS = 12;
 export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L
@@ -93,8 +94,9 @@ export function cleanItem(i: any): PlacedItem | null {
   if (!id || !kind) return null;
   return { id, kind, x: num(i.x, 0, ROOM_W) ?? ROOM_W / 2, y: num(i.y, 0, ROOM_H) ?? 500, flip: i.flip === true, z: Math.round(num(i.z, -1e6, 1e6) ?? 0), scale: num(i.scale, 0.3, 3) ?? 1 };
 }
-export type Look = Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc'>;
-export function cleanLookPatch(p: any): Partial<Look & { flip: boolean }> | null {
+export type Look = Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc'> & { look2?: Look2 };
+const LEGACY_LOOK = ['skin', 'hair', 'shirt', 'pants', 'hairStyle', 'acc', 'size'];
+export function cleanLookPatch(p: any): Partial<Look & { flip: boolean; look2: Look2 | null }> | null {
   if (!p || typeof p !== 'object') return null;
   const out: any = {};
   for (const k of ['skin', 'hair', 'shirt', 'pants'] as const) if (k in p) { const c = str(p[k], COLOR_RE, 9); if (!c) return null; out[k] = c; }
@@ -102,13 +104,17 @@ export function cleanLookPatch(p: any): Partial<Look & { flip: boolean }> | null
   if ('acc' in p) { const v = num(p.acc, 0, 3); if (v === null) return null; out.acc = Math.round(v); }
   if ('size' in p) { if (!SIZES.includes(p.size)) return null; out.size = p.size; }
   if ('flip' in p) { if (typeof p.flip !== 'boolean') return null; out.flip = p.flip; }
+  if ('look2' in p) out.look2 = sanitizeLook2(p.look2) ?? null;
+  else if (LEGACY_LOOK.some(k => k in p)) out.look2 = null;
   return Object.keys(out).length ? out : null;
 }
 export function cleanLook(p: any): Look {
   const base = newCharacter({ id: 'x' });
   const c = cleanLookPatch({ skin: p?.skin, hair: p?.hair, hairStyle: p?.hairStyle, shirt: p?.shirt, pants: p?.pants, size: p?.size, acc: p?.acc }) ?? {};
   const pickOr = <K extends keyof Look>(k: K): Look[K] => ((c as any)[k] ?? base[k]);
-  return { skin: pickOr('skin'), hair: pickOr('hair'), hairStyle: pickOr('hairStyle'), shirt: pickOr('shirt'), pants: pickOr('pants'), size: pickOr('size'), acc: pickOr('acc') };
+  const out: Look = { skin: pickOr('skin'), hair: pickOr('hair'), hairStyle: pickOr('hairStyle'), shirt: pickOr('shirt'), pants: pickOr('pants'), size: pickOr('size'), acc: pickOr('acc') };
+  if (p && typeof p === 'object' && 'look2' in p) { const s = sanitizeLook2(p.look2); if (s) out.look2 = s; }
+  return out;
 }
 function cleanCharacter(c: any): Character | null {
   const id = str(c?.id, ID_RE); if (!id || !isRoom(c?.room)) return null;

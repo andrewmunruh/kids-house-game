@@ -1,4 +1,5 @@
 import './style.css';
+import './avatar.css';
 import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapTreesSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
 import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
@@ -9,7 +10,11 @@ import { houseSVG, ICONS, toast, adultCheck } from './hood-ui';
 import { initEggs, foundSet, EGGS } from './eggs';
 import { ITEMS, ITEM_MAP, svgOf, hOf, type Category, type ItemDef } from './items';
 import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
-import { characterSVG, SKINS, HAIRS, CLOTHES, HAIR_STYLES, ACCESSORIES, SIZES, SIZE_SCALE, HANDS } from './character';
+import { characterSVG, handsFor, SIZE_SCALE } from './character';
+import { lookStamp, look2FromLegacy, legacyFromLook2, randomLook2, patchFromLook2, sanitizeLook2, type Look2 } from './shared/avatar';
+import { stampAvatar, richAvatars } from './avatar/motion';
+import { avatarSheetHTML, avatarAct, avatarIntroPending, markAvatarIntro } from './avatar/sheet';
+import { chibiRideLeg } from './avatar/ride';
 import { sfx, setSound } from './sound';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
@@ -408,8 +413,8 @@ const overBin = (cx: number, cy: number) => { const r = bin.getBoundingClientRec
 // ---------- character geometry ----------
 const charScale = (c: Character) => SIZE_SCALE[c.size] ?? 1;
 function handWorld(c: Character, hand: Hand) {
-  const sc = charScale(c); let hx = HANDS[hand].x; if (c.flip) hx = 100 - hx;
-  return { x: c.x + (hx - 50) / 100 * CHAR_W * sc, y: c.y - CHAR_H * sc + HANDS[hand].y / 160 * CHAR_H * sc };
+  const sc = charScale(c); const pt = handsFor(c)[hand]; let hx = pt.x; if (c.flip) hx = 100 - hx;
+  return { x: c.x + (hx - 50) / 100 * CHAR_W * sc, y: c.y - CHAR_H * sc + pt.y / 160 * CHAR_H * sc };
 }
 /** Which character hand (if any) would catch a holdable item dropped at world point p. */
 function holdTarget(p: { x: number; y: number }): { c: Character; hand: Hand } | null {
@@ -510,11 +515,12 @@ function renderItems(s: GameState) {
 const charEls = new Map<string, HTMLElement>();
 function heldHTML(c: Character) {
   const sc = charScale(c), bw = CHAR_W * sc, bh = CHAR_H * sc;
+  const pts = handsFor(c), shrink = c.look2 ? 0.85 : 1;
   return (['left', 'right'] as Hand[]).map(hand => {
     const it = c.held[hand]; const def = it && ITEM_MAP[it.kind]; if (!it || !def) return '';
-    const k = Math.min(0.7, 120 * sc / Math.max(def.w, hOf(def)) / it.scale);
+    const k = Math.min(0.7, 120 * sc / Math.max(def.w, hOf(def)) / it.scale) * shrink;
     const iw = def.w * it.scale * k, ih = hOf(def) * it.scale * k;
-    const hx = HANDS[hand].x / 100 * bw, hy = HANDS[hand].y / 160 * bh;
+    const hx = pts[hand].x / 100 * bw, hy = pts[hand].y / 160 * bh;
     return `<div class="held ${it.flip ? 'flipped' : ''}" data-hand="${hand}" style="left:${(hx - iw / 2) / bw * 100}%;top:${(hy - ih * 0.62) / bh * 100}%;width:${iw / bw * 100}%;height:${ih / bh * 100}%"><div class="inner">${svgOf(def)}</div></div>`;
   }).join('');
 }
@@ -528,7 +534,7 @@ function renderChars(s: GameState) {
       el.innerHTML = `<div class="inner"></div><div class="hands"></div>`;
       layer.appendChild(el); charEls.set(c.id, el); attachCharDrag(el);
     }
-    const look = [c.skin, c.hair, c.hairStyle, c.shirt, c.pants, c.acc].join('|');
+    const look = lookStamp(c);
     if (el.dataset.look !== look) { el.querySelector('.inner')!.innerHTML = characterSVG(c); el.dataset.look = look; }
     const heldKey = JSON.stringify([c.held.left?.id, c.held.left?.flip, c.held.right?.id, c.held.right?.flip, c.size]);
     if (el.dataset.held !== heldKey) { el.querySelector('.hands')!.innerHTML = heldHTML(c); el.dataset.held = heldKey; }
@@ -537,6 +543,10 @@ function renderChars(s: GameState) {
     el.style.zIndex = String(5000 + Math.round(c.y));
     el.classList.toggle('flipped', c.flip);
     el.classList.toggle('active', c.id === activeChar);
+    stampAvatar(el, c, c.id === activeChar);
+    const pts = handsFor(c);
+    el.style.setProperty('--hx-l', pts.left.x + '%');
+    el.style.setProperty('--hx-r', pts.right.x + '%');
   }
   renderMinimap(s);
 }
@@ -788,12 +798,12 @@ function attachPersonCard(btn: HTMLElement, id: string) {
   });
 }
 
-const pick = <T,>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)];
 function addCharacter(): string | null {
   if (!canEdit()) { lockedNudge(null); return null; }
   const s = store.get(); if (s.characters.length >= MAX_CHARS) return null;
   const id = newId('c');
-  store.dispatch({ type: 'char/add', char: newCharacter({ id, skin: pick(SKINS), hair: pick(HAIRS), hairStyle: Math.floor(Math.random() * HAIR_STYLES), shirt: pick(CLOTHES), pants: pick(CLOTHES), room: s.currentRoom, x: camX + 300 + Math.random() * 400, y: 520 + Math.random() * 40 }) });
+  const look2 = randomLook2();
+  store.dispatch({ type: 'char/add', char: newCharacter({ id, ...legacyFromLook2(look2), look2, room: s.currentRoom, x: camX + 300 + Math.random() * 400, y: 520 + Math.random() * 40 }) });
   activeChar = id; renderChars(store.get());
   const el = charEls.get(id); bounce(el); sparkleAt(el); sfx.sparkle();
   return id;
@@ -858,9 +868,20 @@ function swatches(list: string[], cur: string, act: string) {
 }
 let sheetMode: 'paint' | 'dress' | null = null;
 let confirmDelete = false;
+function ensureLook(id: string) {
+  if (id === ME) {
+    const l = myLook(); if (!l || l.look2) return;
+    updateChar(ME, patchFromLook2(look2FromLegacy(l)));
+    return;
+  }
+  const cur = store.get().characters.find(x => x.id === id);
+  if (!cur || cur.look2) return;
+  updateChar(id, { ...patchFromLook2(look2FromLegacy(cur)), size: cur.size });
+}
 function renderSheet() {
   const s = store.get(); const card = $('card');
   if (sheetMode === 'paint') {
+    card.classList.remove('avCard');
     const r = s.rooms[s.currentRoom];
     const wallTiles = PATTERNS_FROM_PACKS.filter(p => p.kind === 'wallpaper'), floorTiles = PATTERNS_FROM_PACKS.filter(p => p.kind === 'floor');
     const tile = (p: typeof wallTiles[0], cur: string | null | undefined, act: string, bg: string) =>
@@ -871,22 +892,20 @@ function renderSheet() {
       <h3>Floor</h3>${swatches(FLOORS, r.floor, 'floor')}
       ${floorTiles.length ? `<h3>Floor style</h3><div class="sw"><button class="dot pat ${!r.floorTile ? 'on' : ''}" data-act="ftile" data-v="" style="background-color:${r.floor};background-image:${FLOOR_BOARDS}"></button>${floorTiles.map(p => tile(p, r.floorTile, 'ftile', r.floor)).join('')}</div>` : ''}`;
   } else if (sheetMode === 'dress') {
-    const meLook = myLook();
-    const meChar = meLook ? newCharacter({ id: ME, ...meLook }) : null;
-    let c = activeChar === ME && meChar ? meChar : s.characters.find(x => x.id === activeChar) ?? meChar ?? s.characters[0];
-    const picker = `<div class="picker">${meChar ? `<button class="pk me ${c?.id === ME ? 'on' : ''}" data-act="pickc" data-v="${ME}"><div class="face">${characterSVG(meChar)}</div><span class="meStar">★</span></button>` : ''}${s.characters.map(x => `<button class="pk ${x.id === c?.id ? 'on' : ''}" data-act="pickc" data-v="${x.id}"><div class="face">${characterSVG(x)}</div><span class="where" style="background:${roomColor(x.room)}"></span></button>`).join('')}${s.characters.length < MAX_CHARS ? `<button class="pk add" data-act="newc">${PLUS}</button>` : ''}</div>`;
-    if (!c) { card.innerHTML = `<button class="close" data-act="close">✕</button><h2>Characters</h2>${picker}<p class="hint">Tap + to make someone new!</p>`; return; }
+    card.classList.add('avCard');
+    let snap = s;
+    let meLook = myLook();
+    let meChar = meLook ? newCharacter({ id: ME, ...meLook }) : null;
+    let c = activeChar === ME && meChar ? meChar : snap.characters.find(x => x.id === activeChar) ?? meChar ?? snap.characters[0];
+    if (c && !c.look2) ensureLook(c.id);
+    snap = store.get();
+    meLook = myLook();
+    meChar = meLook ? newCharacter({ id: ME, ...meLook }) : null;
+    c = activeChar === ME && meChar ? meChar : snap.characters.find(x => x.id === activeChar) ?? meChar ?? snap.characters[0];
+    const picker = `<div class="picker">${meChar ? `<button class="pk me ${c?.id === ME ? 'on' : ''}" data-act="pickc" data-v="${ME}"><div class="face">${characterSVG(meChar)}</div><span class="meStar">★</span></button>` : ''}${snap.characters.map(x => `<button class="pk ${x.id === c?.id ? 'on' : ''}" data-act="pickc" data-v="${x.id}"><div class="face">${characterSVG(x)}</div><span class="where" style="background:${roomColor(x.room)}"></span></button>`).join('')}${snap.characters.length < MAX_CHARS ? `<button class="pk add" data-act="newc">${PLUS}</button>` : ''}</div>`;
+    if (!c) { card.innerHTML = `<button class="close" data-act="close">✕</button><h2>Make your look!</h2>${picker}<div class="dress"><p class="hint">Tap + to make someone new!</p></div>`; return; }
     activeChar = c.id;
-    const thumb = (patch: Partial<Character>) => characterSVG({ ...c, ...patch }).replace('<svg ', '<svg preserveAspectRatio="xMidYMin slice" ');
-    card.innerHTML = `<button class="close" data-act="close">✕</button>${picker}<div class="dress"><div class="previewCol"><div class="preview"><div style="height:${SIZE_SCALE[c.size] * 78}%">${characterSVG(c)}</div></div>
-        ${c.id === ME ? `<div class="meNote">This is you!</div>` : `<button class="del ${confirmDelete ? 'sure' : ''}" data-act="delc">`}${c.id === ME ? '' : `${ICON.trash}<span>${confirmDelete ? 'Tap again' : ''}</span></button>`}</div><div class="opts">
-      <div class="row2"><div class="optCol"><h3>Size</h3><div class="sw">${SIZES.map(z => `<button class="dot sz ${z === c.size ? 'on' : ''}" data-act="size" data-v="${z}"><div style="height:${SIZE_SCALE[z] * 70}%">${characterSVG(c)}</div></button>`).join('')}</div></div>
-      <div class="optCol"><h3>Extras</h3><div class="sw">${Array.from({ length: ACCESSORIES }, (_, i) => `<button class="dot hs ${i === c.acc ? 'on' : ''}" data-act="acc" data-v="${i}">${thumb({ acc: i })}</button>`).join('')}</div></div></div>
-      <h3>Skin</h3>${swatches(SKINS, c.skin, 'skin')}
-      <h3>Hair</h3>${swatches(HAIRS, c.hair, 'hair')}
-      <h3>Hair style</h3><div class="sw">${Array.from({ length: HAIR_STYLES }, (_, i) => `<button class="dot hs ${i === c.hairStyle ? 'on' : ''}" data-act="hs" data-v="${i}">${thumb({ hairStyle: i, acc: 0 })}</button>`).join('')}</div>
-      <h3>Shirt</h3>${swatches(CLOTHES, c.shirt, 'shirt')}
-      <h3>Pants</h3>${swatches(CLOTHES, c.pants, 'pants')}</div></div>`;
+    card.innerHTML = avatarSheetHTML(c, picker, confirmDelete, ICON.trash);
   }
 }
 function openSheet(m: 'paint' | 'dress') { sheetMode = m; confirmDelete = false; renderSheet(); $('sheet').classList.remove('hidden'); sfx.swish(); }
@@ -897,6 +916,18 @@ $('sheet').addEventListener('click', e => {
   const s = store.get(), room = s.currentRoom, v = t.dataset.v!, id = activeChar ?? '';
   const act = t.dataset.act;
   if (act !== 'delc') confirmDelete = false;
+  if (act && act.indexOf('av-') === 0) {
+    const cur = id === ME ? myLook() : store.get().characters.find(x => x.id === id);
+    if (act === 'av-surprise') {
+      updateChar(id, { ...patchFromLook2(randomLook2()), size: cur?.size ?? 'kid' });
+      sfx.sparkle(); renderSheet(); bounce(document.querySelector('.avStage')); return;
+    }
+    const base = cur?.look2 ?? look2FromLegacy(cur ?? {});
+    const next = avatarAct(base, act, v ?? '');
+    if (!next) { sfx.click(); renderSheet(); return; }
+    updateChar(id, { ...patchFromLook2(next), size: cur?.size ?? 'kid' });
+    sfx.sparkle(); renderSheet(); bounce(document.querySelector('.avStage')); return;
+  }
   switch (act) {
     case 'wall': store.dispatch({ type: 'room/wallpaper', room, color: v }); break;
     case 'floor': store.dispatch({ type: 'room/floor', room, color: v }); break;
@@ -906,7 +937,11 @@ $('sheet').addEventListener('click', e => {
     case 'skin': case 'hair': case 'shirt': case 'pants': updateChar(id, { [act]: v }); break;
     case 'hs': updateChar(id, { hairStyle: +v }); break;
     case 'acc': updateChar(id, { acc: +v }); break;
-    case 'size': updateChar(id, { size: v as Character['size'] }); renderChars(store.get()); break;
+    case 'size': {
+      const cur = id === ME ? myLook() : store.get().characters.find(x => x.id === id);
+      updateChar(id, { size: v as Character['size'], ...(cur?.look2 ? { look2: cur.look2 } : {}) });
+      renderChars(store.get()); break;
+    }
     case 'pickc': activeChar = v; renderChars(store.get()); sfx.click(); renderSheet(); return;
     case 'newc': if (!addCharacter()) return; break;
     case 'delc':
@@ -992,6 +1027,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorke
 (window as any).__items = Object.fromEntries(ITEMS.filter(i => i.img).map(i => [i.kind, { w: i.w, h: hOf(i), cat: i.cat, holdable: i.holdable, svg: i.img!.includes('.svg') }]));
 (window as any).__cam = { get: () => camX, set: setCam };
 (window as any).__phoneShowKids = () => phoneShowKids();
+(window as any).__avatar = { richAvatars, randomLook2, look2FromLegacy, legacyFromLook2, sanitizeLook2, handsFor };
 
 
 // =====================================================================================
@@ -1046,6 +1082,7 @@ function renderAvatars() {
       placeEl(el, p.x, p.y, CHAR_W * sc, CHAR_H * sc);
       el.style.zIndex = String(5000 + Math.round(p.y));
       el.classList.toggle('flipped', p.flip);
+      stampAvatar(el, look, pid === hood.pid);
     }
   }
   for (const [pid, el] of avatarEls) if (!keep.has(pid) || !el.isConnected) { if (!keep.has(pid)) el.remove(); avatarEls.delete(pid); }
@@ -1504,7 +1541,11 @@ async function connectJoin(url: string, code: string, id: string, nickname: stri
   const cfg: HoodConfig = { url, code, id, parentKey: prev?.id === id || prev?.code === code ? prev.parentKey : undefined };
   const dog = s.dog ? { name: s.dog.name, breed: s.dog.breed } : null; // her solo dog comes along
   const c = new HoodClient(cfg); const r = await c.connect({ nickname, look, house, dog });
-  if (r === 'ok') { saveHoodConfig(c.cfg); enterNeighborhood(c); toast(`Welcome to the street, ${nickname}!`); return; }
+  if (r === 'ok') {
+    saveHoodConfig(c.cfg); enterNeighborhood(c); toast(`Welcome to the street, ${nickname}!`);
+    if (avatarIntroPending()) { markAvatarIntro(); activeChar = ME; openSheet('dress'); }
+    return;
+  }
   c.close();
   if (r.startsWith('nickname')) joinWithCode(url, code, r.endsWith('notOnList') ? 'That name is not on the list anymore.' : 'That name is already signed in on another iPad. Ask a grown-up!');
   else toast(r === 'full' ? 'That street is full' : "Couldn't join right now");
@@ -1611,6 +1652,7 @@ function renderParkAvatars() {
     const k = (SIZE_SCALE[w.look.size] ?? 1) * sc * 0.95, wd = CHAR_W * k, h = CHAR_H * k;
     el.style.left = w.p.x * sc - wd / 2 + 'px'; el.style.top = w.p.y * sc - h + 'px'; el.style.width = wd + 'px'; el.style.height = h + 'px';
     el.style.zIndex = String(100 + Math.round(w.p.y)); el.classList.toggle('flipped', w.p.flip);
+    stampAvatar(el, w.look, w.mine);
     const pose = w.p.pose ?? '';
     if (el.dataset.pose !== pose) {
       el.classList.remove('pose-sit', 'pose-swing', 'pose-slide'); void el.offsetWidth;
@@ -2153,7 +2195,9 @@ function goWalk(x: number, y: number) {
   } else walkQueue = [dest];
 }
 /** Near-side riding leg, in the horse's 160×130 viewBox. Hip under the saddle, thigh forward along the seat, shin down by the front legs. */
-function rideLegHTML(pants: string) {
+function rideLegHTML(look: { pants: string; look2?: Look2 | null }) {
+  if (look.look2) return chibiRideLeg(look.look2);
+  const pants = look.pants;
   const ink = '#5a3d5c';
   const tube = (cls: string, d: string, outer: number, inner: number) =>
     `<path class="${cls}" d="${d}" fill="none" stroke="${ink}" stroke-width="${outer}" stroke-linecap="round"/>` +
@@ -2322,7 +2366,7 @@ function renderRanchAvatars() {
     const k = (SIZE_SCALE[w.look.size] ?? 1) * sc * 0.95 * (ride !== undefined ? RIDE_RIDER_SCALE : 1), wd = CHAR_W * k, h = CHAR_H * k;
     if (el.dataset.ride !== String(ride ?? '')) {
       el.querySelector('.mount')?.remove();
-      if (ride !== undefined) el.insertAdjacentHTML('afterbegin', `<div class="mount" data-mount="${ride}">${horseSVG(ride, true)}${rideLegHTML(w.look.pants)}</div>`);
+      if (ride !== undefined) el.insertAdjacentHTML('afterbegin', `<div class="mount" data-mount="${ride}">${horseSVG(ride, true)}${rideLegHTML(w.look)}</div>`);
       el.dataset.ride = String(ride ?? '');
     }
     el.classList.toggle('riding', ride !== undefined);
@@ -2345,6 +2389,7 @@ function renderRanchAvatars() {
     el.dataset.lx = String(w.p.x);
     el.style.left = w.p.x * sc - wd / 2 + 'px'; el.style.top = w.p.y * sc - h + 'px'; el.style.width = wd + 'px'; el.style.height = h + 'px';
     el.style.zIndex = depthZ(w.p.y); el.classList.toggle('flipped', w.p.flip);
+    stampAvatar(el, w.look, w.mine);
   }
   box.querySelectorAll<HTMLElement>('.savatar').forEach(el => { if (!keep.has(el.dataset.pid!)) el.remove(); });
   if (document.body.classList.contains('phone')) {

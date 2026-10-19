@@ -86,4 +86,6 @@ export const clubhouseMiniSVG = `<svg viewBox="0 0 190 156">
 export const mapIcon = `<svg viewBox="0 0 48 48"><path d="M6 12 L17 8 L31 13 L42 9 V36 L31 40 L17 35 L6 39 Z" fill="#fff3b0" ${st(3)}/><path d="M17 8 V35 M31 13 V40" ${st(2.5)}/><path d="M9 30 Q16 22 22 27 T38 18" fill="none" stroke="#ff8fab" stroke-width="3" stroke-linecap="round" stroke-dasharray="4 4"/><circle cx="36" cy="18" r="4" fill="#ff6b6b" ${st(2)}/></svg>`;
 
 /** A round face for map markers: the character art cropped to the head. */
-export const faceSVG = (charSvg: string) => charSvg.replace('viewBox="0 0 100 160"', 'viewBox="14 2 72 74"');
+export const faceSVG = (charSvg: string) => charSvg.indexOf('data-chibi') >= 0
+  ? charSvg.replace('viewBox="0 0 200 320"', 'viewBox="24 0 152 168"')
+  : charSvg.replace('viewBox="0 0 100 160"', 'viewBox="14 2 72 74"');
