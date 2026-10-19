@@ -1,16 +1,15 @@
 // Optional WebP drawings, one file per item id: assets/art/<group>/<id>.webp
 // A colon in an id is written as ~ (pack:slug → pack~slug.webp).
 // The file's folder does not decide who may use it. A lamp in the bedroom uses
-// the same painting as a lamp in the living room, loaded once up front.
-// The loader is a separate chunk. A missing file, a failed fetch, or ?art=v1
-// leaves the item on its SVG.
+// the same painting as a lamp in the living room.
+// Only kinds that are already in the save, or that the player just placed, are
+// fetched. The service worker serves /assets/art/ from its own cache, so the
+// page does not fetch a painting a second time. A missing file, a failed fetch,
+// or ?art=v1 leaves the item on its SVG.
 import { setArtFromSearch } from './flag';
 import { rememberRaster } from './cache';
 
 const loaders = import.meta.glob('../../assets/art/*/*.webp', { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
-
-// Same cache the service worker reads when the network is down.
-const OFFLINE = 'cozy-v1';
 
 function kindOf(path: string): string | null {
   const file = path.split('/').pop() || '';
@@ -20,47 +19,50 @@ function kindOf(path: string): string | null {
   return kind;
 }
 
-function keepOffline(url: string) {
-  if (typeof caches !== 'undefined') caches.open(OFFLINE).then(cache => cache.add(url)).catch(() => {});
-  const sw = typeof navigator !== 'undefined' ? navigator.serviceWorker : undefined;
-  sw?.controller?.postMessage({ art: [url] });
+const started = new Map<string, Promise<string | null>>();
+
+function loaderFor(kind: string): (() => Promise<string>) | undefined {
+  for (const path in loaders) if (kindOf(path) === kind) return loaders[path];
+  return undefined;
 }
 
-/** Load every item painting. Returns the ids that resolved. Repeated calls share one load. */
-export function loadArtRoom(room: string): Promise<string[]> {
-  const jobs: Promise<string>[] = [];
-  for (const path in loaders) {
-    const parts = path.split('/');
-    const folder = parts[parts.length - 2] || '';
-    if (folder !== room) continue;
-    const kind = kindOf(path);
-    if (!kind) continue;
-    jobs.push(loaders[path]().then(url => { rememberRaster(kind, url); keepOffline(url); return kind; }));
-  }
-  return Promise.all(jobs);
+function startKind(kind: string): Promise<string | null> {
+  const pending = started.get(kind);
+  if (pending) return pending;
+  const load = loaderFor(kind);
+  if (!load) return Promise.resolve(null);
+  const job = load().then(url => {
+    rememberRaster(kind, url);
+    return kind;
+  }).catch(() => {
+    started.delete(kind);
+    return null;
+  });
+  started.set(kind, job);
+  return job;
 }
 
-let all: Promise<string[]> | null = null;
+/** Fetch these item paintings. A kind that already started is not fetched again. */
+export function loadArtKinds(kinds: string[]): Promise<string[]> {
+  const unique = [...new Set(kinds)];
+  return Promise.all(unique.map(startKind)).then(ids => ids.filter((id): id is string => id !== null));
+}
 
-/** Every painting, whatever room the item is standing in. */
+/** Every painting. The game uses loadArtKinds; the harness uses this. */
 export function loadAllArt(): Promise<string[]> {
-  if (all) return all;
-  const jobs: Promise<string>[] = [];
+  const kinds: string[] = [];
   for (const path in loaders) {
     const kind = kindOf(path);
-    if (!kind) continue;
-    jobs.push(loaders[path]().then(url => { rememberRaster(kind, url); keepOffline(url); return kind; }));
+    if (kind) kinds.push(kind);
   }
-  all = Promise.all(jobs);
-  return all;
+  return loadArtKinds(kinds);
 }
 
 /**
- * Read the page switch, then load every item painting.
- * `room` is accepted so callers can still name the room they are showing;
- * the files are chosen by item id, not by that visit.
+ * Read the page switch, then load just these item ids.
+ * Pass the kinds placed in the save (every room, plus anything in a hand).
  */
-export function boot(search: string, _room?: string): Promise<string[]> {
+export function boot(search: string, kinds: string[] = []): Promise<string[]> {
   if (!setArtFromSearch(search)) return Promise.resolve([]);
-  return loadAllArt();
+  return loadArtKinds(kinds);
 }

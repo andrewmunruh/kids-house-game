@@ -671,6 +671,7 @@ function renderAll() {
 store.subscribe((s, a) => {
   switch (a.type) {
     case 'room/switch': if (hood && inner !== local) moveMeToRoom(a.room); renderAll(); renderDrawer(); void refreshArt(a.room); break;
+    case 'item/add': renderItems(s); void loadNewArt(); break;
     case 'game/reset': renderAll(); break;
     case 'room/wallpaper': case 'room/floor': case 'room/pattern': case 'room/wallTile': case 'room/floorTile': renderRoomBg(s); break;
     case 'char/update': case 'char/move': renderChars(s); if (view === 'ranch') renderRanchAvatars(); else if (view === 'park') renderParkAvatars(); break;
@@ -2842,16 +2843,30 @@ bindGameRoom({
   soloLook: () => { const s = local.get(); return { look: cleanLook(s.characters[0] ?? {}), dog: s.dog ?? null }; },
 });
 
-// Paintings load once, by item id, after the SVG is already on screen. A later
-// room change does not load a second set or swap a piece that is already raster.
-// ?art=v1 never asks for the files.
+// Paintings for items already in the save (any room, or in a hand) load once,
+// after the SVG is already on screen. A catalog piece that is not in the save
+// stays unloaded until the player places it. ?art=v1 never asks for the files.
+function artKinds(s: GameState): string[] {
+  const kinds = new Set<string>();
+  for (const room of Object.values(s.rooms)) for (const item of room.items) kinds.add(item.kind);
+  for (const c of s.characters) {
+    if (c.held.left) kinds.add(c.held.left.kind);
+    if (c.held.right) kinds.add(c.held.right.kind);
+  }
+  return [...kinds];
+}
 let artBoot: Promise<void> | null = null;
-function refreshArt(room: string): Promise<void> {
+function refreshArt(_room?: string): Promise<void> {
   if (artBoot) return artBoot;
-  artBoot = import('./art/load').then(m => m.boot(location.search, room)).then(ids => {
+  artBoot = import('./art/load').then(m => m.boot(location.search, artKinds(store.get()))).then(ids => {
     for (let i = 0; i < ids.length; i++) if (ITEM_MAP[ids[i]]) { renderAll(); renderDrawer(); return; }
   });
   return artBoot;
+}
+function loadNewArt(): Promise<void> {
+  return import('./art/load').then(m => m.boot(location.search, artKinds(store.get()))).then(ids => {
+    for (let i = 0; i < ids.length; i++) if (ITEM_MAP[ids[i]]) { renderItems(store.get()); renderDrawer(); return; }
+  });
 }
 
 // ---------- start ----------

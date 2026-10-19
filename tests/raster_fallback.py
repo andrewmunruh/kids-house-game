@@ -11,6 +11,9 @@ JS = r'''async () => {
   const ok = (name, cond) => notes.push((cond ? 'PASS ' : 'FAIL ') + name);
   ok('switch defaults on', a.ART_RASTER === true);
   const living = ['armchair','ball','balloon','bookshelf','chair','clock','lamp','picture','plant','rug','sofa','table','tv','window'];
+  ok('one placed item does not pull the whole catalog', a.ids.length === 1 && a.ids[0] === 'sofa' && !a.rasterUrl('ball') && !a.rasterUrl('tv'));
+  const rest = await a.loadAllArt();
+  a.ids = rest;
   ok('no probe id is loaded', a.ids.indexOf('_probe') < 0);
   ok('each living raster is a real item', living.every(k => a.ids.indexOf(k) >= 0 && a.has(k) === true));
   ok('sofa has its own raster', typeof a.rasterUrl('sofa') === 'string' && a.rasterUrl('sofa').indexOf('sofa') >= 0);
@@ -99,6 +102,32 @@ TRAY = r'''async () => {
   return notes;
 }'''
 
+SW = r'''async () => {
+  const notes = [];
+  const ok = (name, cond) => notes.push((cond ? 'PASS ' : 'FAIL ') + name);
+  await navigator.serviceWorker.register('/sw.js');
+  await navigator.serviceWorker.ready;
+  if (!navigator.serviceWorker.controller) {
+    await new Promise(res => {
+      const timer = setTimeout(res, 2000);
+      navigator.serviceWorker.addEventListener('controllerchange', () => { clearTimeout(timer); res(1); }, { once: true });
+    });
+  }
+  ok('the service worker is controlling the page', !!navigator.serviceWorker.controller);
+  let missingStatus = 0;
+  try {
+    const missing = await fetch('/assets/art/any/does-not-exist.webp');
+    missingStatus = missing.status;
+  } catch (e) {
+    missingStatus = -1;
+  }
+  ok('a missing painting does not throw in the service worker', missingStatus === 404);
+  const first = await fetch('/assets/art/any/lamp.webp');
+  const second = await fetch('/assets/art/any/lamp.webp');
+  ok('a painting can be read back from the service worker', first.ok === true && second.ok === true && first.status === 200);
+  return notes;
+}'''
+
 def main():
     fails = 0
     notes = []
@@ -112,8 +141,30 @@ def main():
         page.wait_for_function('window.__artReady === true', timeout=20000)
         notes.extend(page.evaluate(JS))
         origin = URL.split('/tests/')[0] + '/'
+        art_hits = []
+        def track(r):
+            path = r.url.split('?')[0]
+            if '/assets/art/' in path and path.endswith('.webp') and r.resource_type in ('image', 'fetch'):
+                art_hits.append(r.url)
+        page.on('request', track)
         page.goto(origin, wait_until='domcontentloaded')
         notes.extend(page.evaluate(TRAY))
+        def hits(kind):
+            return [u for u in art_hits if f'/{kind}.webp' in u.split('?')[0]]
+        notes.append(('PASS ' if len(hits('ball')) == 0 else 'FAIL ') + 'a fresh house does not fetch the ball')
+        notes.append(('PASS ' if len(hits('balloon')) == 0 and len(hits('tv')) == 0 else 'FAIL ') + 'a fresh house does not fetch unplaced catalog art')
+        notes.append(('PASS ' if len(hits('sofa')) == 1 and len(hits('chair')) == 1 else 'FAIL ') + f"save art is fetched once (sofa {len(hits('sofa'))}, chair {len(hits('chair'))})")
+        sw_page = context.new_page()
+        sw_errors = []
+        sw_page.on('pageerror', lambda e: sw_errors.append(str(e)))
+        sw_page.on('console', lambda msg: sw_errors.append(msg.text) if msg.type == 'error' else None)
+        def on_worker(worker):
+            worker.on('console', lambda msg: sw_errors.append(msg.text) if msg.type == 'error' else None)
+        context.on('serviceworker', on_worker)
+        sw_page.goto(origin, wait_until='domcontentloaded')
+        notes.extend(sw_page.evaluate(SW))
+        noisy = [e for e in sw_errors if 'Failed to execute' in e or 'Cache' in e]
+        notes.append(('PASS ' if not noisy else 'FAIL ') + 'the service worker stays quiet when an image is missing' + ((' ' + noisy[0]) if noisy else ''))
         browser.close()
     for line in notes:
         print(line, flush=True)

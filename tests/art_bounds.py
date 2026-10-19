@@ -25,14 +25,42 @@ JS = r'''async ({ b64, svg, vb }) => {
   ctx.drawImage(img, 0, 0);
   const data = ctx.getImageData(0, 0, c.width, c.height).data;
   let l = c.width, t = c.height, r = -1, b = -1, clear = 0;
+  const solid = new Uint8Array(c.width * c.height);
   for (let i = 0, p = 0; i < data.length; i += 4, p++) {
     if (data[i + 3] > 12) {
+      solid[p] = 1;
       const x = p % c.width, y = (p / c.width) | 0;
       if (x < l) l = x;
       if (y < t) t = y;
       if (x > r) r = x;
       if (y > b) b = y;
     } else clear++;
+  }
+  const seen = new Uint8Array(c.width * c.height);
+  const qx = new Int32Array(c.width * c.height);
+  const qy = new Int32Array(c.width * c.height);
+  let islands = 0;
+  for (let y = 0; y < c.height; y++) {
+    for (let x = 0; x < c.width; x++) {
+      const start = y * c.width + x;
+      if (!solid[start] || seen[start]) continue;
+      islands++;
+      let head = 0, tail = 0;
+      qx[tail] = x; qy[tail] = y; tail++;
+      seen[start] = 1;
+      while (head < tail) {
+        const cx = qx[head], cy = qy[head]; head++;
+        const nb = [cx + 1, cy, cx - 1, cy, cx, cy + 1, cx, cy - 1];
+        for (let k = 0; k < nb.length; k += 2) {
+          const nx = nb[k], ny = nb[k + 1];
+          if (nx < 0 || ny < 0 || nx >= c.width || ny >= c.height) continue;
+          const np = ny * c.width + nx;
+          if (!solid[np] || seen[np]) continue;
+          seen[np] = 1;
+          qx[tail] = nx; qy[tail] = ny; tail++;
+        }
+      }
+    }
   }
   const host = document.createElement('div');
   host.innerHTML = `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
@@ -59,7 +87,7 @@ JS = r'''async ({ b64, svg, vb }) => {
   minX = Math.max(0, minX); minY = Math.max(0, minY);
   maxX = Math.min(box.width, maxX); maxY = Math.min(box.height, maxY);
   return {
-    nw: img.naturalWidth, nh: img.naturalHeight, clear,
+    nw: img.naturalWidth, nh: img.naturalHeight, clear, islands,
     ax: l, ay: t, aw: r - l + 1, ah: b - t + 1,
     sx: minX, sy: minY, sw: maxX - minX, sh: maxY - minY,
     vx: box.width, vy: box.height,
@@ -87,6 +115,8 @@ def main():
                 notes.append(f'{size}B over 60KB')
             if m['clear'] <= 0:
                 notes.append('no transparent pixels')
+            if m['islands'] != 1:
+                notes.append(f"{m['islands']} alpha islands")
             sw, sh = m['sw'] / m['vx'], m['sh'] / m['vy']
             sx, sy = m['sx'] / m['vx'], m['sy'] / m['vy']
             rw, rh = m['aw'] / m['nw'], m['ah'] / m['nh']

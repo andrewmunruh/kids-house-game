@@ -1,6 +1,6 @@
 // The ?art=v1 switch, lazy WebP paintings, and SVG fallback.
 import { execFile, execSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
@@ -33,6 +33,11 @@ const walk = (dir: string) => {
 };
 walk(join(root, 'assets/art'));
 check('no probe asset is shipped', !names.some(n => n.includes('_probe')));
+
+const sw = readFileSync(join(root, 'public/sw.js'), 'utf8');
+check('art is served from the service worker cache', sw.includes('cache.match') && sw.includes('/assets/art/'));
+check('the service worker does not cache.add a missing image', !sw.includes('cache.add'));
+check('a missing image is a quiet 404', sw.includes('status:404') || sw.includes('status: 404'));
 
 const py = process.env.ART_PYTHON || ['/tmp/pwvenv/bin/python', 'python3'].find(p => { try { execSync(`test -x ${p}`); return true; } catch { return p === 'python3'; } });
 check('raster browser is available', !!py, 'playwright python');
