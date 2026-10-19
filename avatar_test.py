@@ -1,8 +1,9 @@
 # Avatar v2 in the browser. Customizer layout, first-run, Surprise me, two-client sync,
 # a held teddy, a chibi rider, and 6 kids animating under 4x CPU throttle.
-# Needs the preview on :4173 and the node hood (HOOD, default :8787).
+# Needs the preview on :4173. The page URL's ?hood= server (or HOOD, default :8787) is the street.
 # If /tmp/prod-dist exists, an old build is served so a 1f0aa5c client can see the new kids.
 import asyncio, os, subprocess, sys, tempfile, time
+from urllib.parse import parse_qs, urlparse
 from playwright.async_api import async_playwright
 from testnav import SKIP_WN, go, local_page
 
@@ -12,6 +13,13 @@ KIT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tests', 'fixture
 OLD_DIST = '/tmp/prod-dist'
 OLD_PORT = 4191
 res = {}
+
+def hood_of(page: str) -> str:
+    """Street server for this run. The old client has to call the same one the new pages used."""
+    got = parse_qs(urlparse(page).query).get('hood')
+    if got and got[0]:
+        return got[0].rstrip('/')
+    return os.environ.get('HOOD', 'http://localhost:8787').rstrip('/')
 
 def check(name, ok, extra=''):
     res[name] = bool(ok)
@@ -364,7 +372,7 @@ async def street(b):
     if os.path.isdir(OLD_DIST):
         old = serve_old()
         try:
-            hood = os.environ.get('HOOD', 'http://localhost:8787').rstrip('/')
+            hood = hood_of(URL)
             ctxo = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
             await ctxo.add_init_script("localStorage.setItem('cozy-whatsnew', '999')")
             O = await ctxo.new_page()
