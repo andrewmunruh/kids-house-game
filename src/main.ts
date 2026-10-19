@@ -14,7 +14,7 @@ import { unreadCount } from './shared/mail';
 import { parkSceneSVG, swingSVG, ballSVG, treeIcon, pawIcon, gateIcon, streetGateSVG, PARK_H, SWING_BAR } from './park';
 import { houseSVG, ICONS, toast, adultCheck } from './hood-ui';
 import { initEggs, foundSet, EGGS } from './eggs';
-import { ITEMS, ITEM_MAP, svgOf, hOf, type Category, type ItemDef } from './items';
+import { ITEMS, ITEM_MAP, svgOf, hOf, installArtFallback, type Category, type ItemDef } from './items';
 import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
 import { characterSVG, handsFor, SIZE_SCALE } from './character';
 import { lookStamp, look2FromLegacy, legacyFromLook2, randomLook2, patchFromLook2, sanitizeLook2, type Look2 } from './shared/avatar';
@@ -669,7 +669,7 @@ function renderAll() {
 
 store.subscribe((s, a) => {
   switch (a.type) {
-    case 'room/switch': if (hood && inner !== local) moveMeToRoom(a.room); renderAll(); renderDrawer(); break;
+    case 'room/switch': if (hood && inner !== local) moveMeToRoom(a.room); renderAll(); renderDrawer(); void refreshArt(a.room); break;
     case 'game/reset': renderAll(); break;
     case 'room/wallpaper': case 'room/floor': case 'room/pattern': case 'room/wallTile': case 'room/floorTile': renderRoomBg(s); break;
     case 'char/update': case 'char/move': renderChars(s); if (view === 'ranch') renderRanchAvatars(); else if (view === 'park') renderParkAvatars(); break;
@@ -2817,9 +2817,19 @@ bindGameRoom({
   soloLook: () => { const s = local.get(); return { look: cleanLook(s.characters[0] ?? {}), dog: s.dog ?? null }; },
 });
 
+// Raster files load per room, after the SVG is already on screen. A room with no
+// WebP does not paint a second time. ?art=v1 never asks for the files.
+function refreshArt(room: string): Promise<void> {
+  return import('./art/load').then(m => m.boot(location.search, room)).then(ids => {
+    for (let i = 0; i < ids.length; i++) if (ITEM_MAP[ids[i]]) { renderAll(); renderDrawer(); return; }
+  });
+}
+
 // ---------- start ----------
+installArtFallback();
 installJuice();
 renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
+void refreshArt(store.get().currentRoom);
 // ---------- hidden surprises ----------
 const renderSecrets = () => {
   const n = foundSet().size, total = EGGS.length;
