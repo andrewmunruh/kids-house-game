@@ -79,8 +79,11 @@ async def adult(pg):
     await pg.click('.adultCard [data-k="OK"]')
 
 async def open_look(pg):
+    if await pg.locator('#phoneOk').is_visible():
+        await pg.click('#phoneOk')
     await pg.click('#btnDress')
     await pg.wait_for_selector('#sheet:not(.hidden) .avLook')
+    await pg.wait_for_timeout(450)
 
 async def sheet_info(pg):
     return await pg.evaluate("""() => {

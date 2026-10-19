@@ -33,7 +33,7 @@ export function chibiRideLeg(look: Look2): string {
     out += `<path d="M88 80 L94 83" stroke="${shoe}" stroke-width="2.2" stroke-linecap="round"/>`;
   }
   if (dressed) {
-    out += `<path d="M66 52 Q80 54 86 62 Q80 68 68 66 Z" fill="${L.dressC}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`;
+    out += `<path class="dress" d="M66 52 Q80 54 86 62 Q80 68 68 66 Z" fill="${L.dressC}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`;
   }
   return `<svg class="rideleg" viewBox="0 0 160 130">${out}</svg>`;
 }
