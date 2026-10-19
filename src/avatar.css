@@ -8,8 +8,8 @@
 .avStage svg { width: 86%; height: 92%; display: block; }
 .avSizes { display: flex; gap: 6px; }
 .avSide { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.avTabs { display: flex; gap: 6px; overflow-x: auto; min-width: 0; }
-.avTab { flex: 0 0 auto; min-width: 64px; min-height: 44px; padding: 8px 12px; border-radius: 16px; background: #fff3f7; font-weight: 900; color: var(--ink); }
+.avTabs { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; min-width: 0; }
+.avTab { flex: 0 0 auto; min-width: max-content; min-height: 44px; padding: 8px 10px; border-radius: 16px; background: #fff3f7; font-weight: 900; font-size: 15px; line-height: 1.15; color: var(--ink); white-space: nowrap; }
 .avTab.on { background: #ff8fab; color: #fff; }
 .avPane { min-width: 0; }
 .avPane h3 { margin: 8px 0 6px; }
@@ -33,7 +33,7 @@
   .avStage svg { width: 100%; height: 100%; }
   .avOpt { min-height: 76px; font-size: 16px; }
   .avSw { width: 64px; height: 64px; }
-  .avTab { min-height: 52px; font-size: 18px; padding: 10px 16px; }
+  .avTab { min-height: 48px; font-size: 16px; padding: 8px 12px; }
 }
 
 @media (max-height: 820px) and (min-width: 900px) {
@@ -75,6 +75,6 @@ body.phone .avStage svg { width: auto; height: 100%; }
 body.phone .avGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 body.phone .avOpt { min-height: 44px; font-size: 13px; }
 body.phone .avSw { width: 44px; height: 44px; }
-body.phone .avTab { min-height: 44px; }
+body.phone .avTab { min-height: 44px; font-size: 14px; padding: 8px 8px; }
 body.phone .avBar { flex-wrap: wrap; }
 body.phone .avSurprise, body.phone .avDone { min-height: 44px; }

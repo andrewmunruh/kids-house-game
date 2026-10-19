@@ -1,8 +1,10 @@
 # Avatar v2 in the browser. Customizer layout, first-run, Surprise me, two-client sync,
 # a held teddy, a chibi rider, and 6 kids animating under 4x CPU throttle.
-# Needs the preview on :4173 and the node hood (HOOD, default :8787).
-# If /tmp/prod-dist exists, an old build is served so a 1f0aa5c client can see the new kids.
-import asyncio, os, subprocess, sys, tempfile, time
+# Needs the preview on :4173. The hood comes from the page URL (?hood=) or HOOD.
+# There is no silent default of :8787 for the old client, so a worker run cannot join the node hood.
+# If /tmp/prod-dist exists, an old build is served on a free port so a 1f0aa5c client can see the new kids.
+import asyncio, os, socket, subprocess, sys, tempfile, time
+from urllib.parse import parse_qs, urlparse
 from playwright.async_api import async_playwright
 from testnav import SKIP_WN, go, local_page
 
@@ -10,7 +12,21 @@ URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = os.environ.get('ARTIFACT_DIR') or tempfile.mkdtemp(prefix='avatar-artifacts-')
 KIT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tests', 'fixtures', 'chibi')
 OLD_DIST = '/tmp/prod-dist'
-OLD_PORT = 4191
+
+def hood_for(page_url: str) -> str:
+    got = (parse_qs(urlparse(page_url).query).get('hood') or [''])[0].strip()
+    if not got:
+        got = os.environ.get('HOOD', '').strip()
+    if not got:
+        raise SystemExit('avatar_test: pass ?hood= on the page URL or set HOOD')
+    return got.rstrip('/')
+
+def free_port() -> int:
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('127.0.0.1', 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
 res = {}
 
 def check(name, ok, extra=''):
@@ -24,21 +40,21 @@ def serve_old():
     if os.path.islink(link) or os.path.exists(link):
         os.remove(link) if not os.path.islink(link) else os.unlink(link)
     os.symlink(OLD_DIST, link)
+    port = free_port()
     code = ("import http.server, functools\n"
             "class H(http.server.SimpleHTTPRequestHandler):\n"
             "    def end_headers(self): self.send_header('Cache-Control', 'no-store'); super().end_headers()\n"
             "    def log_message(self, *a): pass\n"
-            f"http.server.ThreadingHTTPServer(('', {OLD_PORT}), functools.partial(H, directory='{www}')).serve_forever()")
+            f"http.server.ThreadingHTTPServer(('127.0.0.1', {port}), functools.partial(H, directory='{www}')).serve_forever()")
     pr = subprocess.Popen([sys.executable, '-c', code], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-    import socket
     end = time.time() + 10
     while time.time() < end:
         try:
-            socket.create_connection(('127.0.0.1', OLD_PORT), 0.4).close()
-            return pr
+            socket.create_connection(('127.0.0.1', port), 0.4).close()
+            return pr, port
         except OSError:
             time.sleep(0.2)
-    return pr
+    raise SystemExit('old client page did not start')
 
 LINEUP = r"""() => {
   const base = (hair, hairC, skin, top, topC, bottom, bottomC, dress, dressC, shoes, acc) => ({
@@ -107,6 +123,14 @@ async def sheet_info(pg):
         optH: opt ? opt.getBoundingClientRect().height : 0,
         swH: sw ? sw.getBoundingClientRect().height : 0,
         tabH: tab ? tab.getBoundingClientRect().height : 0,
+        tabsFit: (() => {
+          const row = document.querySelector('.avTabs');
+          const tabs = [...document.querySelectorAll('.avTab')];
+          if (!row || tabs.length < 5) return false;
+          const fontOk = tabs.every(t => parseFloat(getComputedStyle(t).fontSize) >= 13 && t.getBoundingClientRect().height >= 44);
+          return fontOk && row.scrollWidth <= row.clientWidth + 2;
+        })(),
+        tabNames: [...document.querySelectorAll('.avTab')].map(t => (t.textContent || '').trim()).join(','),
         stage: box(stage),
         closeFirst: document.querySelector('#sheet button') === document.querySelector('#sheet .close'),
       };
@@ -114,9 +138,13 @@ async def sheet_info(pg):
 
 async def customizer(b):
     pages = [
+        ('customizer-ipad-1180.png', 1180, 820, False, 'row'),
         ('customizer-ipad-1024.png', 1024, 768, False, 'row'),
         ('customizer-ipad-820.png', 820, 1180, False, 'row'),
         ('customizer-iphone-390.png', 390, 844, True, 'column'),
+        ('customizer-iphone-375.png', 375, 667, True, 'column'),
+        ('customizer-iphone-844.png', 844, 390, True, 'column'),
+        ('customizer-iphone-430.png', 430, 932, True, 'column'),
     ]
     for name, w, h, mobile, direction in pages:
         ctx = await b.new_context(viewport={'width': w, 'height': h}, device_scale_factor=1, has_touch=True, is_mobile=mobile)
@@ -132,11 +160,11 @@ async def customizer(b):
         info = await sheet_info(pg)
         await pg.screenshot(path=f'{SHOT}/{name}')
         fits = info['cardW'] <= info['cardClient'] + 2 and info['inputs'] == 0 and info['title'] == 'Make your look!'
-        targets = info['optH'] >= 44 and info['swH'] >= 44 and info['tabH'] >= 44 and info['closeFirst']
+        targets = info['optH'] >= 44 and info['swH'] >= 44 and info['tabH'] >= 44 and info['tabsFit'] and info['tabNames'] == 'Hair,Face,Clothes,Shoes,Extras' and info['closeFirst']
         tall = info['optH'] >= 70 if w == 820 else True
         phone = info['phone'] if mobile else not info['phone']
         check(f'{w}x{h} customizer layout', fits and targets and tall and phone and info['dir'] == direction and not errs,
-              f"dir {info['dir']} opt {info['optH']:.0f} sw {info['swH']:.0f} card {info['cardW']}/{info['cardClient']} phone {info['phone']} {errs[:1]}")
+              f"dir {info['dir']} opt {info['optH']:.0f} sw {info['swH']:.0f} tabs {info['tabsFit']} {info['tabNames']} card {info['cardW']}/{info['cardClient']} phone {info['phone']} {errs[:1]}")
         await ctx.close()
 
 async def lineup_and_perf(b):
@@ -362,15 +390,15 @@ async def street(b):
     drawn = await K2.evaluate("""() => { const svg = document.querySelector('.char.avatar.other svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
     check('the friend draws the new kid as a chibi', drawn == '1' and not errs, str(drawn) + ' ' + '; '.join(errs[:2]))
     if os.path.isdir(OLD_DIST):
-        old = serve_old()
+        old, old_port = serve_old()
         try:
-            hood = os.environ.get('HOOD', 'http://localhost:8787').rstrip('/')
+            hood = hood_for(URL)
             ctxo = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
             await ctxo.add_init_script("localStorage.setItem('cozy-whatsnew', '999')")
             O = await ctxo.new_page()
             oerrs = []
             O.on('pageerror', lambda e: oerrs.append(str(e)))
-            await O.goto(f'http://localhost:{OLD_PORT}/kids-house-game/?hood={hood}')
+            await O.goto(f'http://127.0.0.1:{old_port}/kids-house-game/?hood={hood}')
             await O.wait_for_timeout(500)
             await O.click('#btnHood')
             await O.click('[data-m="join"]')

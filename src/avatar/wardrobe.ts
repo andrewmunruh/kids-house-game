@@ -1,7 +1,7 @@
 // Clothes, shoes, and extras. Pants live in .leg groups so riding hides them.
 // Skirts, tutus, and dresses stay outside .leg so they sit on the saddle.
 import type { Look2 } from '../shared/avatar';
-import { S, SH, bumps, scallop, limb, type Pose, SHOULDER, HAND } from './geom';
+import { S, SH, bumps, scallop, f, limb, type Pose, SHOULDER, HAND } from './geom';
 
 type Look = Required<Look2>;
 const L = 'var(--line)';
@@ -303,6 +303,38 @@ export function shoesLayer(pose: Pose, look: Look): string {
   return `<g data-layer="shoes">${out}</g>`;
 }
 
+const COVER_HAT = new Set(['cap', 'beanie', 'sunhat']);
+const PERCH_HAT = new Set(['catears', 'earmuffs']);
+
+/** Pixels this hair rises above a short cut. Hats move up by the same amount. */
+export function hairRise(hair: string): number {
+  if (hair === 'afro') return 28;
+  if (hair === 'topbun') return 20;
+  if (hair === 'puffs' || hair === 'coily') return 16;
+  if (hair === 'buns' || hair === 'curlybob') return 12;
+  if (hair === 'long' || hair === 'wavy' || hair === 'wavybob') return 8;
+  return 0;
+}
+
+function placeHat(hair: string, id: string, svg: string): string {
+  if (!COVER_HAT.has(id) && !PERCH_HAT.has(id)) return svg;
+  const rise = hairRise(hair);
+  if (!rise) return svg;
+  return `<g data-hat="${id}" transform="translate(0 ${f(-rise)})">${svg}</g>`;
+}
+
+/** Hide the hair that would poke through a cap, beanie, or sun hat. Empty when no covering hat is on. */
+export function hatHairMask(u: string, hair: string, acc: readonly string[]): string {
+  let hat = '';
+  for (let i = 0; i < acc.length; i++) if (COVER_HAT.has(acc[i])) hat = acc[i];
+  if (!hat) return '';
+  const rise = hairRise(hair);
+  const brim = (hat === 'beanie' ? 58 : hat === 'cap' ? 64 : 62) - rise;
+  const y = Math.min(70, brim);
+  const rx = hair === 'afro' || hair === 'puffs' || hair === 'coily' ? 92 : 78;
+  return `<mask id="${u}hm" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" data-brim="${f(y)}"><rect x="-30" y="-50" width="260" height="420" fill="#fff"/><rect x="${f(100 - rx)}" y="-50" width="${f(rx * 2)}" height="${f(y + 50)}" fill="#000"/></mask>`;
+}
+
 function bow(cx: number, cy: number, s: number): string {
   return `<g transform="translate(${cx} ${cy}) scale(${s})"><path d="M0 0 C-8 -14 -30 -14 -28 0 C-30 14 -8 14 0 0 Z" fill="var(--acc)" ${S(2.6)}/><path d="M0 0 C8 -14 30 -14 28 0 C30 14 8 14 0 0 Z" fill="var(--acc)" ${S(2.6)}/><rect x="-6" y="-7" width="12" height="14" rx="4" fill="var(--acc2)" ${S(2.2)}/></g>`;
 }
@@ -316,11 +348,11 @@ export function accessoryLayer(look: Look): string {
     if (a === 'bigbow') return bow(100, 70, 1.15);
     if (a === 'headband') return `<path d="M40 96 Q42 40 100 34 Q158 40 160 96" fill="none" stroke="${L}" stroke-width="12" stroke-linecap="round"/><path d="M40 96 Q42 40 100 34 Q158 40 160 96" fill="none" stroke="var(--acc)" stroke-width="7" stroke-linecap="round"/>${bow(100, 32, 0.85)}`;
     if (a === 'flower') return `<g transform="translate(138 78)">${[0, 60, 120, 180, 240, 300].map(a => `<ellipse cx="0" cy="-8" rx="5" ry="8" fill="var(--acc)" ${S(1.6)} transform="rotate(${a})"/>`).join('')}<circle r="4.5" fill="var(--acc2)" ${S(1.6)}/></g>`;
-    if (a === 'cap') return `<path d="M54 64 Q56 20 100 16 Q144 20 146 64 Q128 54 100 56 Q72 54 54 64 Z" fill="var(--acc)" ${S(3)}/><path d="M48 56 Q100 66 152 56 L156 62 Q100 70 44 62 Z" fill="var(--acc)" ${S(3)}/><circle cx="100" cy="18" r="4.5" fill="#fff" ${S(2)}/>`;
-    if (a === 'beanie') return `<path d="M50 66 Q48 14 100 8 Q152 14 150 66 Q128 56 100 58 Q72 56 50 66 Z" fill="var(--acc)" ${S(3)}/><path d="M50 58 H150" stroke="var(--acc2)" stroke-width="7" stroke-linecap="round"/><circle cx="100" cy="8" r="7" fill="var(--acc2)" ${S(2.4)}/>`;
-    if (a === 'sunhat') return `<path d="M66 56 Q68 22 100 18 Q132 22 134 56 Q118 48 100 50 Q82 48 66 56 Z" fill="var(--acc)" ${S(3)}/><path d="M18 56 Q100 68 182 56 Q170 64 100 66 Q30 64 18 56 Z" fill="var(--acc)" ${S(3)}/><path d="M72 46 Q100 38 128 46" fill="none" stroke="var(--acc2)" stroke-width="4"/>`;
-    if (a === 'catears') return `<path d="M58 62 L70 18 L86 60 Z" fill="var(--acc)" ${S(2.6)}/><path d="M114 60 L130 18 L142 62 Z" fill="var(--acc)" ${S(2.6)}/><path d="M64 54 L72 30 L80 52 Z" fill="var(--acc2)"/><path d="M120 52 L128 30 L136 54 Z" fill="var(--acc2)"/>`;
-    if (a === 'earmuffs') return `<path d="M44 68 Q48 26 100 22 Q152 26 156 68" fill="none" stroke="var(--acc)" stroke-width="6"/><circle cx="34" cy="86" r="14" fill="var(--acc)" ${S(2.8)}/><circle cx="166" cy="86" r="14" fill="var(--acc)" ${S(2.8)}/><circle cx="34" cy="86" r="6" fill="var(--acc2)"/><circle cx="166" cy="86" r="6" fill="var(--acc2)"/>`;
+    if (a === 'cap') return placeHat(look.hair, 'cap', `<path d="M54 64 Q56 20 100 16 Q144 20 146 64 Q128 54 100 56 Q72 54 54 64 Z" fill="var(--acc)" ${S(3)}/><path d="M48 56 Q100 66 152 56 L156 62 Q100 70 44 62 Z" fill="var(--acc)" ${S(3)}/><circle cx="100" cy="18" r="4.5" fill="#fff" ${S(2)}/>`);
+    if (a === 'beanie') return placeHat(look.hair, 'beanie', `<path d="M50 66 Q48 14 100 8 Q152 14 150 66 Q128 56 100 58 Q72 56 50 66 Z" fill="var(--acc)" ${S(3)}/><path d="M50 58 H150" stroke="var(--acc2)" stroke-width="7" stroke-linecap="round"/><circle cx="100" cy="8" r="7" fill="var(--acc2)" ${S(2.4)}/>`);
+    if (a === 'sunhat') return placeHat(look.hair, 'sunhat', `<path d="M66 56 Q68 22 100 18 Q132 22 134 56 Q118 48 100 50 Q82 48 66 56 Z" fill="var(--acc)" ${S(3)}/><path d="M18 56 Q100 68 182 56 Q170 64 100 66 Q30 64 18 56 Z" fill="var(--acc)" ${S(3)}/><path d="M72 46 Q100 38 128 46" fill="none" stroke="var(--acc2)" stroke-width="4"/>`);
+    if (a === 'catears') return placeHat(look.hair, 'catears', `<path d="M58 62 L70 18 L86 60 Z" fill="var(--acc)" ${S(2.6)}/><path d="M114 60 L130 18 L142 62 Z" fill="var(--acc)" ${S(2.6)}/><path d="M64 54 L72 30 L80 52 Z" fill="var(--acc2)"/><path d="M120 52 L128 30 L136 54 Z" fill="var(--acc2)"/>`);
+    if (a === 'earmuffs') return placeHat(look.hair, 'earmuffs', `<path d="M44 68 Q48 26 100 22 Q152 26 156 68" fill="none" stroke="var(--acc)" stroke-width="6"/><circle cx="34" cy="86" r="14" fill="var(--acc)" ${S(2.8)}/><circle cx="166" cy="86" r="14" fill="var(--acc)" ${S(2.8)}/><circle cx="34" cy="86" r="6" fill="var(--acc2)"/><circle cx="166" cy="86" r="6" fill="var(--acc2)"/>`);
     return '';
   }).join('');
   return `<g data-layer="accessory">${parts}</g>`;

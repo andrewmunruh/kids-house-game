@@ -25,12 +25,12 @@ const pair = kids.map(k => {
 const hats = ACC_IDS.filter(id => accSlot(id) === 'hat');
 const cells = hats.map(hat => {
   const row = HAIR_IDS.map(hair => {
-    const svg = chibiSVG(fillLook2({ v: 1, hair, eyes: 'round', eyeC: '#5a321c', skin: '#f1c27d', acc: [hat], accC: '#ffd166' }), { rich: true, uid: hat + hair }).replace('viewBox="0 0 200 320"', 'viewBox="20 0 160 170"');
+    const svg = chibiSVG(fillLook2({ v: 1, hair, eyes: 'round', eyeC: '#5a321c', skin: '#f1c27d', acc: [hat], accC: '#ffd166' }), { rich: true, uid: hat + hair }).replace('viewBox="0 0 200 320"', 'viewBox="-8 -36 216 210"');
     return `<div class="cell">${svg}<div>${hair}</div></div>`;
   }).join('');
   return `<div class="row"><div class="hat">${hat}</div>${row}</div>`;
 }).join('');
 
-const css = 'body{margin:0;background:#fff6ea;font:14px/1.2 system-ui} .pair{display:flex;gap:18px;padding:12px 16px;background:#ffe8f0} .pair svg{width:360px;height:576px;background:#fff;border-radius:18px} .lab{font-weight:800;margin:0 0 6px} #hats{padding:12px;background:#fff} .row{display:flex;gap:6px;align-items:end;margin:0 0 10px} .hat{width:72px;font-weight:800} .cell{width:78px;text-align:center;font-size:10px} .cell svg{width:78px;height:84px;background:#fff;border-radius:10px}';
+const css = 'body{margin:0;background:#fff6ea;font:14px/1.2 system-ui} .pair{display:flex;gap:18px;padding:12px 16px;background:#ffe8f0} .pair svg{width:360px;height:576px;background:#fff;border-radius:18px} .lab{font-weight:800;margin:0 0 6px} #hats{padding:12px;background:#fff} .row{display:flex;gap:6px;align-items:end;margin:0 0 10px} .hat{width:72px;font-weight:800} .cell{width:92px;text-align:center;font-size:10px} .cell svg{width:92px;height:96px;background:#fff;border-radius:10px}';
 writeFileSync(out, `<!doctype html><meta charset="utf-8"><style>${css}</style><div id="compare">${pair}</div><div id="hats">${cells}</div>`);
 console.log('wrote ' + out);
