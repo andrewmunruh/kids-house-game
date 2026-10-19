@@ -520,26 +520,26 @@ function phoneFitSnapshot() {
   const vvKey = vv ? Math.round(vv.offsetTop) + 'x' + Math.round(vv.height) + 'x' + Math.round(vv.width) : '';
   return vvKey + ' ' + box(wrap) + ' ' + box(topBar) + ' ' + box(toolRow);
 }
-/** Phone landscape parks Play/Decorate in the top row. Everywhere else it stays in the dock, beside the scrolling chips. iPad never matches PHONE_MQ. */
+/** Phone landscape parks Play/Decorate in the top row. Phone portrait keeps them in the
+ *  dock beside the scrolling chips. iPad leads the chip row with them, the way the
+ *  room did before the Menu, so the drawer stays two rows and the stage still fills. */
 function placeModeToggle() {
   const toggle = $('modeToggle');
   const tools = document.querySelector('.tools');
   const dock = document.getElementById('modeDock');
-  if (!toggle || !tools || !dock) return false;
+  const top = document.querySelector('.drawerTop');
+  if (!toggle || !tools || !dock || !top) return false;
   const slot = document.getElementById('decorateUndoSlot');
-  const land = document.body.classList.contains('phone') && !document.body.classList.contains('phone-portrait');
-  const home = land ? tools : dock;
-  // Undo stays in the dock, beside Play/Decorate. On a sideways phone that dock is
-  // hidden and the tool row is already full, so the button moves into the Menu.
-  const parked = toggle.parentElement === home && (!slot || slot.parentElement === dock);
-  dock.hidden = land;
-  if (slot && slot.parentElement !== dock) dock.appendChild(slot);
+  const phone = document.body.classList.contains('phone');
+  const land = phone && !document.body.classList.contains('phone-portrait');
+  const home = land ? tools : phone ? dock : top;
+  const parked = toggle.parentElement === home && (!slot || slot.parentElement === home);
+  dock.hidden = !phone || land;
   if (parked) return false;
   if (land) tools.insertBefore(toggle, tools.firstChild);
-  else {
-    dock.appendChild(toggle);
-    if (slot) toggle.insertAdjacentElement('afterend', slot);
-  }
+  else if (phone) dock.appendChild(toggle);
+  else top.insertBefore(toggle, top.firstChild);
+  if (slot && !land) toggle.insertAdjacentElement('afterend', slot);
   return true;
 }
 /**
@@ -3247,7 +3247,7 @@ undoRefresh = () => undoUi.refresh();
 decorateUndo.onChange = undoRefresh;
 (window as any).__sky = skyHandle;
 (window as any).__undoDepth = () => decorateUndo.depth;
-renderAll(); renderDrawer(); fit(); placeModeToggle(); dockSkyChrome(); if (phoneMQ.matches) fitPhone(); requestAnimationFrame(fitNow);
+renderAll(); renderDrawer(); fit(); placeModeToggle(); dockSkyChrome(); if (phoneMQ.matches) fitPhone(); else fit(); requestAnimationFrame(fitNow);
 // ---------- hidden surprises ----------
 const renderSecrets = () => {
   const n = foundSet().size, total = EGGS.length;
