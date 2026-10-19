@@ -61,17 +61,23 @@ export const yardLookPatch = () => patchFromLook2(YARD_LOOK);
 
 /** Play frames 480 world units. The camera stays put so the house stays on the left. */
 export const YARD_CAM = 870;
-export const YARD_KID = { x: 1100, y: 528, flip: true as boolean };
-export const YARD_CAT = { x: 1188, y: 400 };
-export const DOOR_KID = { x: 1000, y: 540, flip: true as boolean };
-export const DOOR_CAT_X = 1140;
+/** She faces the swing. The dog stands on her left, so the Kennel chip stays off the frame. */
+export const YARD_KID = { x: 1136, y: 528, flip: false as boolean };
+export const YARD_CAT = { x: 1216, y: 378 };
+export const DOOR_KID = { x: 940, y: 540, flip: true as boolean };
+export const DOOR_CAT_X = 1160;
+
+/** Living-room door: center-bottom on the floor line (baseboard ends at y=396). */
+export const LIVE_DOOR = { x: 824, y: 398, w: 96, h: 230 };
+/** Same door from the yard, bottom flush with the house wall and the grass. */
+export const YARD_DOOR = { x: 996, y: 372, w: 82, h: 196 };
 
 /** Back-to-front. item/add stamps z from this order. */
 export const YARD_STAGE: { kind: string; x: number; y: number }[] = [
-  { kind: 'lemonade-cart', x: 980, y: 498 },
-  { kind: 'yard-swing', x: 1272, y: 552 },
-  { kind: 'sandbox', x: 948, y: 556 },
-  { kind: 'picnic-blanket', x: 1074, y: 564 },
+  { kind: 'lemonade-cart', x: 938, y: 500 },
+  { kind: 'yard-swing', x: 1279, y: 548 },
+  { kind: 'sandbox', x: 944, y: 558 },
+  { kind: 'picnic-blanket', x: 1168, y: 564 },
 ];
 
 function piece(p: { kind: string; name: string; cat: string; w: number; h: number; vb: string; wall?: boolean; holdable?: boolean; svg: string }): ItemDef {
@@ -81,40 +87,37 @@ function piece(p: { kind: string; name: string; cat: string; w: number; h: numbe
 const swing = piece({
   kind: 'yard-swing', name: 'A-Frame Swing', cat: 'furniture', w: 96, h: 148, vb: '0 0 100 154',
   svg: `${shadow(50, 36, 148)}
-    <path d="M14 146 L34 20 L48 146 Z" fill="#f3d2aa" ${ink()}/>
-    <path d="M36 36 L46 140 H34 L26 48 Z" fill="#d4a373"/>
-    <path d="M52 146 L66 20 L86 146 Z" fill="#d4a373" ${ink()}/>
-    <path d="M68 36 L84 140 H72 L58 48 Z" fill="#c99366"/>
-    ${tex('M24 72 l7 24 M26 104 l5 16')}
-    ${hi('M22 48 l6 -14')}
-    <rect x="24" y="14" width="52" height="14" rx="6" fill="#f6e0c4" ${ink()}/>
-    <rect x="54" y="17" width="18" height="8" rx="4" fill="#d4a373"/>
-    ${hi('M30 18 h22')}
-    <path d="M36 28 V92 M64 28 V92" fill="none" stroke="#f6e7c8" stroke-width="3.2" stroke-linecap="round"/>
-    <path d="M36 28 V92 M64 28 V92" fill="none" ${ink(2.2)}/>
-    <rect x="28" y="86" width="44" height="14" rx="6" fill="#ffb3c6" ${ink()}/>
-    <rect x="52" y="89" width="16" height="8" rx="3" fill="#e45d88"/>
-    ${tex('M34 92 h28 M34 96 h24')}
-    ${hi('M34 89 h16')}
-    <circle cx="36" cy="28" r="2.2" fill="${O}"/><circle cx="64" cy="28" r="2.2" fill="${O}"/>`,
+    <path d="M26 28 L40 28 L34 146 H16 Z" fill="#f3d2aa" ${ink()}/>
+    <path d="M32 40 L38 28 L34 140 H28 Z" fill="#d4a373"/>
+    <path d="M60 28 H74 L86 146 H68 Z" fill="#e7c49a" ${ink()}/>
+    <path d="M68 32 H74 L84 140 H76 Z" fill="#c99366"/>
+    ${tex('M22 80 l6 28 M72 78 l8 30')}
+    ${hi('M28 40 l4 -8')}
+    <rect x="18" y="16" width="64" height="16" rx="4" fill="#f6e0c4" ${ink()}/>
+    <rect x="62" y="19" width="16" height="10" rx="3" fill="#d4a373"/>
+    ${hi('M24 20 h28')}
+    <path d="M38 32 V98 M62 32 V98" fill="none" ${ink(2.2)}/>
+    <rect x="28" y="94" width="44" height="14" rx="5" fill="#ffb3c6" ${ink()}/>
+    <rect x="54" y="97" width="14" height="8" rx="3" fill="#e45d88"/>
+    ${tex('M34 100 h30')}
+    ${hi('M32 98 h16')}`,
 });
 
 const sandbox = piece({
   kind: 'sandbox', name: 'Sandbox', cat: 'furniture', w: 120, h: 54, vb: '0 0 160 72',
-  svg: `${shadow(80, 68, 68)}
-    <path d="M12 28 H148 L138 64 H22 Z" fill="#f3d2aa" ${ink()}/>
-    <path d="M108 32 H144 L136 60 H104 Z" fill="#d4a373"/>
-    <path d="M22 48 H138 L132 62 H28 Z" fill="#c99366"/>
-    ${hi('M22 34 h48')}
-    <path d="M24 34 H136 L130 52 H30 Z" fill="#ffe7a8" ${ink(2.2)}/>
-    <path d="M100 36 H132 L128 50 H98 Z" fill="#f0c36a"/>
-    ${tex('M40 42 q8 3 6 8 M62 40 q10 4 6 9 M86 43 q8 3 8 7')}
-    <path d="M34 22 h20 l-2 14 h-16 z" fill="#ff8fab" ${ink(2.2)}/>
-    <path d="M46 24 H52 V36 H46 Z" fill="#e45d88"/>
-    ${hi('M38 26 h8')}
-    <path d="M112 16 l20 -8 4 8 -16 10 z" fill="#a2d2ff" ${ink(2.2)}/>
-    <path d="M124 16 l8 6 -2 4 z" fill="#7eb4dc"/>
-    <path d="M116 14 l14 -6" ${ink(2.2)}/>`,
+  svg: `${shadow(80, 62, 68)}
+    <rect x="14" y="26" width="132" height="38" rx="6" fill="#f3d2aa" ${ink()}/>
+    <rect x="112" y="30" width="30" height="30" rx="4" fill="#d4a373"/>
+    <rect x="14" y="52" width="132" height="12" fill="#c99366"/>
+    ${hi('M22 32 h40')}
+    <rect x="24" y="32" width="112" height="22" rx="4" fill="#ffe7a8" ${ink(2.2)}/>
+    <rect x="108" y="34" width="24" height="16" rx="3" fill="#f0c36a"/>
+    ${tex('M40 40 q6 3 4 7 M64 38 q8 3 5 8 M88 40 q6 3 5 6')}
+    <rect x="34" y="16" width="16" height="16" rx="3" fill="#ff8fab" ${ink(2.2)}/>
+    <rect x="42" y="18" width="6" height="12" fill="#e45d88"/>
+    ${hi('M36 20 h6')}
+    <path d="M108 22 h22 l-2 8 h-16 z" fill="#a2d2ff" ${ink(2.2)}/>
+    <path d="M120 20 l10 -6" fill="none" ${ink(2.2)}/>`,
 });
 
 const slide = piece({
@@ -123,7 +126,7 @@ const slide = piece({
     <rect x="16" y="28" width="8" height="100" rx="4" fill="#f3d2aa" ${ink()}/>
     <rect x="20" y="32" width="3" height="92" rx="1.5" fill="#d4a373"/>
     <rect x="40" y="28" width="8" height="78" rx="4" fill="#d4a373" ${ink()}/>
-    <path d="M16 48 H48 M16 66 H48 M16 84 H48" ${ink(2.4)}/>
+    <path d="M16 48 H48 M16 66 H48 M16 84 H48" fill="none" ${ink(2.2)}/>
     <rect x="12" y="22" width="40" height="14" rx="5" fill="#bde0fe" ${ink()}/>
     <rect x="36" y="25" width="12" height="8" rx="3" fill="#7eb4dc"/>
     ${hi('M18 26 h18')}
@@ -146,28 +149,28 @@ const bench = piece({
     <rect x="22" y="66" width="10" height="26" rx="4" fill="#f0d2b0" ${ink()}/>
     <rect x="28" y="70" width="3" height="18" fill="#d4a373"/>
     <rect x="108" y="66" width="10" height="26" rx="4" fill="#d4a373" ${ink()}/>
-    <path d="M14 24 h12 M114 24 h12" ${ink(2.4)}/>`,
+    <path d="M14 24 h12 M114 24 h12" fill="none" ${ink(2.2)}/>`,
 });
 
 const cart = piece({
   kind: 'lemonade-cart', name: 'Lemonade Cart', cat: 'furniture', w: 108, h: 121, vb: '0 0 100 112',
-  svg: `${shadow(50, 40, 106)}
-    <path d="M16 40 H86 L80 90 H22 Z" fill="#fff6ea" ${ink()}/>
-    <path d="M62 44 H82 L78 86 H60 Z" fill="#f0d2a4"/>
-    ${tex('M28 52 v28 M42 50 v32 M56 52 v28')}
-    ${hi('M22 48 v22')}
-    <path d="M12 28 H92 L84 44 H20 Z" fill="#ffe08a" ${ink()}/>
-    <path d="M64 32 H88 L82 42 H62 Z" fill="#f0c45c"/>
-    <path d="M22 32 h14 l-1 8 h-12 z M40 31 h14 l-1 9 h-12 z M58 31 h12 l-1 9 h-10 z" fill="#fff6c8"/>
-    ${hi('M20 32 h28')}
-    <rect x="26" y="56" width="26" height="20" rx="3" fill="#f3fbff" ${ink(2.2)}/>
-    <path d="M32 56 v20 M39 56 v20 M46 56 v20" stroke="#a2d2ff" stroke-width="2"/>
-    <circle cx="70" cy="64" r="9" fill="#ffe566" ${ink(2.2)}/>
-    <path d="M74 60 h6 l-1 6 h-4 z" fill="#e0a83a"/>
-    <ellipse cx="76" cy="58" rx="4" ry="2.4" fill="#74c69d" ${ink(1.6)}/>
-    <circle cx="30" cy="96" r="9" fill="${O}" ${ink(2.2)}/><circle cx="30" cy="96" r="3.4" fill="#ffd166"/>
-    <circle cx="74" cy="96" r="9" fill="${O}" ${ink(2.2)}/><circle cx="74" cy="96" r="3.4" fill="#ffd166"/>
-    <path d="M44 18 q8 -12 16 -2" fill="none" stroke="#ff8fab" stroke-width="3" stroke-linecap="round"/>`,
+  svg: `${shadow(50, 38, 106)}
+    <rect x="18" y="46" width="64" height="44" rx="4" fill="#fff6ea" ${ink()}/>
+    <rect x="64" y="50" width="14" height="36" fill="#f0d2a4"/>
+    ${tex('M28 56 v26 M42 56 v26 M56 56 v26')}
+    ${hi('M22 54 v18')}
+    <rect x="14" y="36" width="72" height="14" rx="3" fill="#ffe08a" ${ink()}/>
+    <rect x="64" y="38" width="18" height="10" rx="2" fill="#f0c45c"/>
+    <path d="M16 36 L22 16 H78 L84 36 Z" fill="#ff8fab" ${ink()}/>
+    <path d="M58 20 H76 L82 34 H62 Z" fill="#e45d88"/>
+    ${hi('M24 22 h22')}
+    <rect x="26" y="58" width="24" height="20" rx="3" fill="#f3fbff" ${ink(2.2)}/>
+    <path d="M32 58 v20 M38 58 v20 M44 58 v20" fill="none" stroke="#a2d2ff" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="68" cy="68" r="8" fill="#ffe566" ${ink(2.2)}/>
+    <path d="M70 64 h5 l-1 5 h-3 z" fill="#e0a83a"/>
+    <rect x="22" y="86" width="56" height="4" rx="2" fill="#c99366" ${ink(2.2)}/>
+    <circle cx="32" cy="96" r="8" fill="${O}" ${ink(2.2)}/><circle cx="32" cy="96" r="3" fill="#ffd166"/>
+    <circle cx="70" cy="96" r="8" fill="${O}" ${ink(2.2)}/><circle cx="70" cy="96" r="3" fill="#ffd166"/>`,
 });
 
 const lounger = piece({
@@ -182,7 +185,8 @@ const lounger = piece({
     <rect x="118" y="20" width="28" height="16" rx="7" fill="#fff" ${ink(2.2)}/>
     <path d="M136 22 H144 V34 H136 Z" fill="#ffd0e0"/>
     <path d="M124 28 q6 3 12 0" fill="none" stroke="#ffb3c6" stroke-width="1.6" stroke-linecap="round"/>
-    <circle cx="40" cy="72" r="6" fill="${O}"/><circle cx="132" cy="72" r="6" fill="${O}"/>`,
+    <circle cx="40" cy="74" r="6" fill="${O}" ${ink(2.2)}/><circle cx="40" cy="74" r="2.2" fill="#ffd166"/>
+    <circle cx="132" cy="74" r="6" fill="${O}" ${ink(2.2)}/><circle cx="132" cy="74" r="2.2" fill="#ffd166"/>`,
 });
 
 const pool = piece({
@@ -210,20 +214,21 @@ const gate = piece({
     <rect x="46" y="34" width="10" height="78" rx="4" fill="#f7fff8" ${ink(2.2)}/>
     <rect x="62" y="34" width="10" height="78" rx="4" fill="#d9f2dc" ${ink(2.2)}/>
     ${hi('M32 42 v22')}
-    <circle cx="70" cy="70" r="3.2" fill="#ffd166" ${ink(1.8)}/>`,
+    <circle cx="70" cy="70" r="3.2" fill="#ffd166" ${ink(2.2)}/>`,
 });
 
 const blanket = piece({
   kind: 'picnic-blanket', name: 'Picnic Blanket', cat: 'decor', w: 110, h: 36, vb: '0 0 180 59',
-  svg: `${shadow(90, 74, 52)}
-    <path d="M14 16 Q90 6 166 16 L174 40 Q90 52 8 40 Z" fill="#ff8fab" ${ink()}/>
-    <path d="M90 14 Q150 10 170 22 L174 40 Q120 48 90 44 Z" fill="#e45d88"/>
-    <path d="M28 20 Q90 12 150 20 L156 36 Q90 44 24 36 Z" fill="#fff0f5" ${ink(2.2)}/>
-    <path d="M100 16 Q146 14 156 24 L158 36 Q120 42 100 38 Z" fill="#ffd0e0"/>
-    ${tex('M44 24 l4 12 M68 20 l3 14 M92 18 l2 16 M116 20 l-2 14 M138 24 l-3 10')}
-    <rect x="48" y="26" width="20" height="10" rx="3" fill="#fff3b0" ${ink(1.8)}/>
-    <circle cx="118" cy="30" r="6" fill="#ff6b6b" ${ink(1.6)}/><ellipse cx="121" cy="26" rx="3.5" ry="2" fill="#80ed99" ${ink(1.4)}/>
-    ${hi('M24 24 q16 -4 28 0')}`,
+  svg: `${shadow(90, 70, 54)}
+    <rect x="14" y="14" width="152" height="34" rx="8" fill="#ff8fab" ${ink()}/>
+    <rect x="118" y="18" width="44" height="26" rx="6" fill="#e45d88"/>
+    <rect x="26" y="20" width="100" height="22" rx="5" fill="#fff0f5" ${ink(2.2)}/>
+    <rect x="100" y="22" width="22" height="16" rx="4" fill="#ffd0e0"/>
+    ${tex('M36 26 v12 M52 24 v14 M68 24 v14 M84 24 v14')}
+    <rect x="40" y="26" width="18" height="10" rx="2" fill="#fff3b0" ${ink(2.2)}/>
+    <circle cx="78" cy="31" r="5" fill="#ff7096" ${ink(2.2)}/>
+    <path d="M80 27 h4 l-1 3 h-2 z" fill="#74c69d"/>
+    ${hi('M22 20 h24')}`,
 });
 
 const tulips = piece({
@@ -282,12 +287,12 @@ const pond = piece({
 
 const lights = piece({
   kind: 'patio-lights', name: 'Patio Lights', cat: 'decor', w: 190, h: 70, vb: '0 0 180 70', wall: true,
-  svg: `<path d="M8 16 Q50 34 90 14 Q130 32 172 16" fill="none" ${ink(3)}/>
-    <path d="M28 22 v8" ${ink(2)}/><circle cx="28" cy="40" r="10" fill="#fff6c8" ${ink()}/><path d="M32 34 h5 v10 h-4 z" fill="#f0c45c"/>${hi('M24 36 q2 -2 3 1')}
-    <path d="M64 26 v8" ${ink(2)}/><circle cx="64" cy="44" r="10" fill="#ffc2d4" ${ink()}/><path d="M68 38 h5 v10 h-4 z" fill="#e45d88"/>
-    <path d="M100 18 v8" ${ink(2)}/><circle cx="100" cy="36" r="10" fill="#fff1c2" ${ink()}/>${hi('M96 32 q2 -2 3 1')}
-    <path d="M136 26 v8" ${ink(2)}/><circle cx="136" cy="44" r="10" fill="#c9f1ff" ${ink()}/><path d="M140 38 h5 v10 h-4 z" fill="#7eb4dc"/>
-    <path d="M162 18 v6" ${ink(2)}/><circle cx="162" cy="34" r="8" fill="#ffd0e8" ${ink()}/>`,
+  svg: `<path d="M8 16 Q50 34 90 14 Q130 32 172 16" fill="none" ${ink()}/>
+    <path d="M28 22 v8" fill="none" ${ink(2.2)}/><circle cx="28" cy="40" r="10" fill="#fff6c8" ${ink()}/><path d="M32 34 h5 v10 h-4 z" fill="#f0c45c"/>${hi('M24 36 q2 -2 3 1')}
+    <path d="M64 26 v8" fill="none" ${ink(2.2)}/><circle cx="64" cy="44" r="10" fill="#ffc2d4" ${ink()}/><path d="M68 38 h5 v10 h-4 z" fill="#e45d88"/>
+    <path d="M100 18 v8" fill="none" ${ink(2.2)}/><circle cx="100" cy="36" r="10" fill="#fff1c2" ${ink()}/>${hi('M96 32 q2 -2 3 1')}
+    <path d="M136 26 v8" fill="none" ${ink(2.2)}/><circle cx="136" cy="44" r="10" fill="#c9f1ff" ${ink()}/><path d="M140 38 h5 v10 h-4 z" fill="#7eb4dc"/>
+    <path d="M162 18 v6" fill="none" ${ink(2.2)}/><circle cx="162" cy="34" r="8" fill="#ffd0e8" ${ink()}/>`,
 });
 
 const toad = piece({
@@ -300,7 +305,7 @@ const toad = piece({
     <path d="M10 56 Q40 16 70 56 Q40 68 10 56 Z" fill="#ff8fab" ${ink()}/>
     <path d="M42 28 Q62 24 68 52 Q50 60 42 56 Z" fill="#e45d88"/>
     ${hi('M22 46 q12 -8 18 -2')}
-    <circle cx="28" cy="48" r="4" fill="#fff"/><circle cx="46" cy="44" r="5" fill="#fff"/><circle cx="38" cy="56" r="3" fill="#fff"/>`,
+    <circle cx="28" cy="48" r="4" fill="#fff" ${ink(2.2)}/><circle cx="46" cy="44" r="5" fill="#fff" ${ink(2.2)}/><circle cx="38" cy="56" r="3" fill="#fff" ${ink(2.2)}/>`,
 });
 
 const stones = piece({
@@ -318,8 +323,8 @@ const stones = piece({
 const pinwheel = piece({
   kind: 'pinwheel', name: 'Pinwheel', cat: 'decor', w: 56, h: 90, vb: '0 0 70 100', holdable: true,
   svg: `${shadow(35, 14, 96)}
-    <path d="M34 96 V42" stroke="#52b788" stroke-width="4" stroke-linecap="round"/>
-    <path d="M36 46 V92" stroke="#3d9a68" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="31" y="42" width="6" height="54" rx="3" fill="#74c69d" ${ink()}/>
+    <rect x="34" y="46" width="3" height="46" fill="#3d9a68"/>
     <path d="M34 40 L34 14 L50 34 Z" fill="#ff8fab" ${ink(2.2)}/>
     <path d="M40 22 L48 32 L36 34 Z" fill="#e45d88"/>
     <path d="M34 40 L58 46 L40 54 Z" fill="#ffd166" ${ink(2.2)}/>
@@ -327,7 +332,7 @@ const pinwheel = piece({
     <path d="M34 40 L34 66 L18 46 Z" fill="#8ecae6" ${ink(2.2)}/>
     <path d="M30 52 L22 50 L32 46 Z" fill="#5aa9d6"/>
     <path d="M34 40 L12 34 L28 26 Z" fill="#c9a0dc" ${ink(2.2)}/>
-    <circle cx="34" cy="40" r="5" fill="#fff" ${ink(2)}/>
+    <circle cx="34" cy="40" r="5" fill="#fff" ${ink(2.2)}/>
     ${hi('M32 37 q2 -1 2 1')}`,
 });
 
@@ -352,7 +357,6 @@ const bush = piece({
     <ellipse cx="50" cy="56" rx="34" ry="28" fill="#74c69d" ${ink()}/>
     <ellipse cx="30" cy="64" rx="16" ry="14" fill="#95d5b2" ${ink(2.2)}/>
     <ellipse cx="70" cy="62" rx="18" ry="16" fill="#3d9a68" ${ink(2.2)}/>
-    <path d="M58 40 C70 48 74 64 64 74 C70 60 66 48 58 42 Z" fill="#2f7a52"/>
     ${hi('M28 46 q12 -6 20 2')}
     ${tex('M48 40 v24')}
     <circle cx="36" cy="50" r="4" fill="#c9a0dc" ${ink(1.6)}/><circle cx="52" cy="42" r="4.2" fill="#ff8fab" ${ink(1.6)}/><circle cx="64" cy="52" r="3.6" fill="#ffd166" ${ink(1.6)}/>
@@ -366,7 +370,7 @@ const hedge = piece({
     <path d="M100 28 Q140 18 168 40 Q176 50 174 70 H120 Q130 48 100 40 Z" fill="#3d9a68"/>
     ${tex('M36 52 q4 6 0 12 M70 44 q4 8 0 14 M150 48 q4 6 0 12')}
     ${hi('M24 48 q14 -6 24 2')}
-    <circle cx="40" cy="48" r="3.4" fill="#ff8fab"/><circle cx="88" cy="40" r="3.4" fill="#ffd166"/><circle cx="128" cy="46" r="3.2" fill="#fff"/>`,
+    <circle cx="40" cy="48" r="3.4" fill="#ff8fab" ${ink(2.2)}/><circle cx="88" cy="40" r="3.4" fill="#ffd166" ${ink(2.2)}/><circle cx="128" cy="46" r="3.2" fill="#fff" ${ink(2.2)}/>`,
 });
 
 const cup = piece({
@@ -407,26 +411,30 @@ function cloud(cx: number, cy: number, s: number): string {
 }
 
 function pickets(x0: number, x1: number, top: number, bot: number, step: number): string {
-  let s = '';
-  const h = bot - top;
-  const pw = Math.max(8, step * 0.42);
+  const pw = 12;
+  const rail = (y: number) => `<rect x="${x0 - 2}" y="${y}" width="${x1 - x0 + pw + 4}" height="8" rx="3" fill="#fff" ${ink(2.2)}/><rect x="${(x1 - 40).toFixed(1)}" y="${y + 1}" width="30" height="6" rx="2" fill="#d5ead8"/>`;
+  let s = rail(top + 26) + rail(bot - 28);
   for (let x = x0; x <= x1; x += step) {
-    s += `<rect x="${x}" y="${top}" width="${pw}" height="${h}" rx="3" fill="#f7fff8" ${ink(2.2)}/>`;
-    s += `<rect x="${(x + pw * 0.62).toFixed(1)}" y="${top + 4}" width="${(pw * 0.28).toFixed(1)}" height="${(h - 10).toFixed(1)}" fill="#d5ead8"/>`;
-    s += `<path d="M${(x + 2).toFixed(1)} ${top + 8} v${Math.round(h * 0.35)}" stroke="#fff" stroke-width="1.3" opacity=".7" fill="none" stroke-linecap="round"/>`;
+    s += `<path d="M${x} ${top + 12} L${x + pw / 2} ${top} L${x + pw} ${top + 12} V${bot} H${x} Z" fill="#f7fff8" ${ink(2.2)}/>`;
+    s += `<path d="M${(x + pw * 0.58).toFixed(1)} ${top + 10} H${x + pw - 1} V${bot - 4} H${(x + pw * 0.58).toFixed(1)} Z" fill="#d5ead8"/>`;
+    s += `<path d="M${x + 2} ${top + 18} v22" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".75" fill="none"/>`;
   }
   return s;
 }
 
 function tree(x: number, scale: number): string {
-  const y = 168;
+  const y = 150;
+  const trunkTop = y + 46 * scale;
+  const trunkH = 372 - trunkTop;
   return `<g>
-    <rect x="${x - 11 * scale}" y="${y + 36 * scale}" width="${22 * scale}" height="${150 * scale}" rx="${6 * scale}" fill="#e7b98a" ${ink()}/>
-    <rect x="${x + 2 * scale}" y="${y + 44 * scale}" width="${7 * scale}" height="${130 * scale}" fill="#c99366"/>
-    ${tex(`M${x - 4 * scale} ${y + 70 * scale} v${40 * scale}`)}
-    <ellipse cx="${x - 28 * scale}" cy="${y + 18 * scale}" rx="${40 * scale}" ry="${32 * scale}" fill="#95d5b2" ${ink(2.4)}/>
-    <ellipse cx="${x}" cy="${y}" rx="${70 * scale}" ry="${52 * scale}" fill="#74c69d" ${ink()}/>
-    <ellipse cx="${x + 36 * scale}" cy="${y + 10 * scale}" rx="${40 * scale}" ry="${34 * scale}" fill="#3d9a68" ${ink(2.4)}/>
+    <rect x="${x - 14 * scale}" y="${trunkTop}" width="${28 * scale}" height="${trunkH}" rx="${6 * scale}" fill="#e7b98a" ${ink()}/>
+    <rect x="${x + 4 * scale}" y="${trunkTop + 8 * scale}" width="${8 * scale}" height="${trunkH - 16 * scale}" fill="#c99366"/>
+    ${tex(`M${x - 4 * scale} ${trunkTop + 28 * scale} v${36 * scale}`)}
+    ${hi(`M${x - 8 * scale} ${trunkTop + 16 * scale} v${22 * scale}`)}
+    <ellipse cx="${x - 34 * scale}" cy="${y + 16 * scale}" rx="${42 * scale}" ry="${34 * scale}" fill="#95d5b2" ${ink(2.2)}/>
+    <ellipse cx="${x}" cy="${y}" rx="${68 * scale}" ry="${50 * scale}" fill="#74c69d" ${ink()}/>
+    <ellipse cx="${x + 40 * scale}" cy="${y + 8 * scale}" rx="${40 * scale}" ry="${36 * scale}" fill="#3d9a68" ${ink(2.2)}/>
+    ${hi(`M${x - 36 * scale} ${y - 18 * scale} q${16 * scale} -8 ${28 * scale} 2`)}
   </g>`;
 }
 
@@ -450,30 +458,22 @@ export function yardBackyardScenery(): string {
     <circle id="ydSun" cx="1180" cy="68" r="30" fill="#ffe566"/>
     <circle cx="1170" cy="58" r="8" fill="#fff" opacity=".8"/>
     ${cloud(980, 96, 1.05)}${cloud(1320, 78, 0.85)}${cloud(1500, 120, 0.7)}
-    ${pickets(1000, 1680, 268, 372, 28)}
+    ${pickets(1084, 1680, 268, 372, 28)}
     <rect y="360" width="2400" height="240" fill="#c6ef9a"/>
     <rect y="360" width="2400" height="28" fill="#e7f8c8"/>
     <rect y="520" width="2400" height="80" fill="#9ed67a"/>
-    <path d="M900 470 q40 -16 20 -8 M1040 500 q30 -14 16 -6 M1240 540 q28 -12 14 -4" fill="none" stroke="#3d9a68" stroke-width="1.4" stroke-linecap="round" opacity=".22"/>
-    ${tree(1140, 0.92)}
-    <path d="M790 128 H1070 L1048 156 H812 Z" fill="#ffb3c6" ${ink()}/>
-    <path d="M960 132 H1064 L1046 152 H972 Z" fill="#e45d88"/>
-    ${hi('M830 136 h80', 3)}
-    <rect x="820" y="150" width="230" height="180" rx="6" fill="#fff6ea" ${ink()}/>
-    <rect x="990" y="156" width="52" height="168" fill="#f0dcc4"/>
-    ${tex('M836 172 H1000 M836 196 H1000 M836 220 H990 M836 268 H1000 M836 292 H980')}
-    <rect x="900" y="156" width="48" height="52" rx="6" fill="#c9ecff" ${ink()}/>
-    <rect x="932" y="160" width="12" height="44" fill="#8ecae6"/>
-    <path d="M924 156 V208 M900 182 H948" ${ink(2)}/>
-    <rect x="950" y="186" width="76" height="180" rx="6" fill="#f3e4ff" ${ink()}/>
-    <rect x="1000" y="192" width="20" height="168" fill="#d4b4e6"/>
-    <rect x="962" y="200" width="52" height="36" rx="4" fill="#c9ecff" ${ink(2)}/>
-    <path d="M988 200 V236 M962 218 H1014" ${ink(2)}/>
-    <rect x="964" y="248" width="48" height="46" rx="3" fill="#f7ecff" ${ink(2)}/>
-    <rect x="996" y="252" width="12" height="38" fill="#e0c8f0"/>
-    <rect x="964" y="304" width="48" height="46" rx="3" fill="#f7ecff" ${ink(2)}/>
-    ${hi('M970 254 v24')}
-    <circle cx="1004" cy="292" r="3.4" fill="#ffd166" ${ink(1.6)}/>
+    <path d="M1040 470 q30 -12 16 -6 M1200 510 q28 -12 14 -4 M1360 548 q24 -10 12 -4" fill="none" stroke="#3d9a68" stroke-width="1.2" stroke-linecap="round" opacity=".22"/>
+    ${tree(1264, 0.8)}
+    <path d="M840 120 H1076 L1054 152 H862 Z" fill="#ffb3c6" ${ink()}/>
+    <path d="M960 126 H1064 L1046 148 H976 Z" fill="#e45d88"/>
+    ${hi('M876 132 h56')}
+    <rect x="864" y="150" width="196" height="222" rx="4" fill="#fff6ea" ${ink()}/>
+    <rect x="1044" y="156" width="12" height="210" fill="#f0dcc4"/>
+    ${tex('M880 174 H1000 M880 202 H1000 M880 230 H990 M880 294 H1000 M880 334 H980')}
+    <rect x="884" y="180" width="44" height="36" rx="4" fill="#c9ecff" ${ink(2.2)}/>
+    <rect x="912" y="184" width="12" height="28" fill="#8ecae6"/>
+    <path d="M906 180 V216 M884 198 H928" fill="none" ${ink(2.2)}/>
+    ${hi('M890 188 h12')}
   </svg>`;
 }
 
@@ -483,29 +483,33 @@ function doorBox(x: number, y: number, w: number, h: number): string {
   return `left:${left.toFixed(3)}%;top:${top.toFixed(3)}%;width:${(w / 2400 * 100).toFixed(3)}%;height:${(h / 600 * 100).toFixed(3)}%`;
 }
 
-const livingDoorArt = `<svg class="doorArt" viewBox="0 0 100 150">
-  <ellipse cx="50" cy="146" rx="34" ry="3.2" fill="${O}" opacity=".1"/>
-  <rect x="8" y="8" width="84" height="136" rx="8" fill="#fff6ea" ${ink()}/>
-  <rect x="70" y="14" width="16" height="122" rx="4" fill="#f0dcc4"/>
-  <rect x="18" y="18" width="64" height="114" rx="6" fill="#f3e4ff" ${ink()}/>
-  <rect x="62" y="24" width="14" height="102" rx="4" fill="#d4b4e6"/>
-  <rect x="26" y="28" width="46" height="32" rx="4" fill="#c9ecff" ${ink(2.2)}/>
-  <rect x="58" y="32" width="10" height="24" fill="#8ecae6"/>
-  <path d="M49 28 V60 M26 44 H72" ${ink(2)}/>
-  <rect x="26" y="68" width="46" height="26" rx="3" fill="#f7ecff" ${ink(2)}/>
-  <rect x="58" y="72" width="10" height="18" fill="#e0c8f0"/>
-  <rect x="26" y="100" width="46" height="24" rx="3" fill="#f7ecff" ${ink(2)}/>
-  ${hi('M30 74 v14')}
-  <circle cx="64" cy="92" r="3.5" fill="#ffd166" ${ink(1.6)}/>
-  <rect x="16" y="132" width="68" height="8" rx="2" fill="#e7d3b0" ${ink(2)}/>
-</svg>`;
+/** Straight-on panel door. The same drawing is the living-room door and the yard door. */
+function panelDoor(): string {
+  return `<svg class="doorArt" viewBox="0 0 100 230">
+    <rect x="4" y="2" width="92" height="226" rx="3" fill="#f3d2aa" ${ink()}/>
+    <rect x="76" y="6" width="16" height="218" fill="#d4a373"/>
+    <rect x="14" y="12" width="72" height="206" rx="2" fill="#f6e9ff" ${ink(2.2)}/>
+    <rect x="70" y="16" width="12" height="198" fill="#d4b4e6"/>
+    <rect x="24" y="22" width="52" height="42" rx="3" fill="#c9ecff" ${ink(2.2)}/>
+    <rect x="60" y="26" width="12" height="34" fill="#8ecae6"/>
+    <path d="M50 22 V64 M24 43 H76" fill="none" ${ink(2.2)}/>
+    ${hi('M28 28 h18')}
+    <rect x="24" y="76" width="52" height="56" rx="3" fill="#f7ecff" ${ink(2.2)}/>
+    <rect x="62" y="80" width="10" height="48" fill="#e0c8f0"/>
+    ${hi('M28 84 v22')}
+    <rect x="24" y="144" width="52" height="56" rx="3" fill="#f7ecff" ${ink(2.2)}/>
+    <rect x="62" y="148" width="10" height="48" fill="#e0c8f0"/>
+    <circle cx="64" cy="126" r="4.2" fill="#ffd166" ${ink(2.2)}/>
+    <rect x="10" y="214" width="80" height="10" rx="2" fill="#e7c49a" ${ink(2.2)}/>
+  </svg>`;
+}
 
-/** Living-room door is drawn on the button. The yard door is painted in the scenery; the button is the hint. */
+/** Both doors use the panel drawing. The yard copy sits in the house wall. */
 export function yardDoorMarkup(where: 'living' | 'yard'): string {
-  if (where === 'living') {
-    return `<button type="button" class="yardDoor" data-yard-go="backyard" aria-label="Backyard" style="${doorBox(820, 508, 150, 240)}">${livingDoorArt}<span class="yardHintLabel"><span>Backyard</span></span></button>`;
-  }
-  return `<button type="button" class="yardDoor" data-yard-go="living" aria-label="Back inside" style="${doorBox(988, 366, 76, 180)}"><span class="yardHintLabel"><span>Back inside</span></span></button>`;
+  const box = where === 'living' ? LIVE_DOOR : YARD_DOOR;
+  const go = where === 'living' ? 'backyard' : 'living';
+  const label = where === 'living' ? 'Backyard' : 'Back inside';
+  return `<button type="button" class="yardDoor" data-yard-go="${go}" aria-label="${label}" style="${doorBox(box.x, box.y, box.w, box.h)}">${panelDoor()}<span class="yardHintLabel"><span>${label}</span></span></button>`;
 }
 
 function sheetCard(name: string, art: string): string {
