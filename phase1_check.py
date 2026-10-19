@@ -1,3 +1,4 @@
+from testnav import tap
 import asyncio, sys
 from playwright.async_api import async_playwright
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
@@ -24,7 +25,7 @@ async def main():
         await pg.click('[data-room="salon"]'); await pg.wait_for_timeout(400)
         await pg.click('.cat[data-cat="pack:glossy"]'); await pg.wait_for_timeout(600)
         await pg.screenshot(path='screens/18-pack-tab-glossy-salon.png')
-        await pg.click('#btnPaint'); await pg.wait_for_timeout(500)
+        await tap(pg, '#btnPaint'); await pg.wait_for_timeout(500)
         walls = await pg.locator('.dot.tile[data-act="wtile"]').count()
         floors = await pg.locator('.dot.tile[data-act="ftile"]').count()
         print('wall tiles:', walls, 'floor tiles:', floors)
@@ -34,7 +35,7 @@ async def main():
         await pg.screenshot(path='screens/19-paint-panel-pack-patterns.png')
         await pg.click('.close'); await pg.wait_for_timeout(500)
         await pg.screenshot(path='screens/20-salon-glossy-wallpaper.png')
-        await pg.click('[data-room="bedroom"]'); await pg.wait_for_timeout(300); await pg.click('#btnPaint')
+        await pg.click('[data-room="bedroom"]'); await pg.wait_for_timeout(300); await tap(pg, '#btnPaint')
         await pg.click('.dot.tile[data-v="sunny-vibes/sky-clouds"]'); await pg.click('.dot.tile[data-v="sunny-vibes/butter-check-floor"]'); await pg.click('.close')
         await pg.click('.cat[data-cat="pack:sunny-vibes"]'); await pg.wait_for_timeout(300)
         # place a few sunny-vibes items and a wall item dropped low (should snap up onto the wall)

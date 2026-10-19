@@ -40,7 +40,11 @@ const cottageArt = `<svg viewBox="0 0 120 100"><ellipse cx="60" cy="72" rx="50" 
 const kennelArt = `<svg viewBox="0 0 120 100"><path d="M16 50 L60 14 L104 50" fill="#ff8fab" stroke="${O}" stroke-width="4" stroke-linejoin="round"/><rect x="26" y="48" width="68" height="40" rx="10" fill="#fff6ea" stroke="${O}" stroke-width="4"/><path d="M42 88 V60 Q60 44 78 60 V88" fill="#ffe8c7" stroke="${O}" stroke-width="3"/><circle cx="82" cy="64" r="7" fill="#bde0fe" stroke="${O}" stroke-width="3"/><circle cx="80" cy="62" r="2" fill="#fff"/></svg>`;
 const mailArt = `<svg viewBox="0 0 120 100"><rect x="28" y="38" width="64" height="42" rx="8" fill="#8ecae6" stroke="${O}" stroke-width="4"/><path d="M28 44 L60 68 L92 44" fill="none" stroke="${O}" stroke-width="4"/><path d="M76 30 V16" stroke="${O}" stroke-width="4" stroke-linecap="round"/><path d="M76 16 H96 L90 23 L96 30 H76 Z" fill="#ff6b6b" stroke="${O}" stroke-width="3"/></svg>`;
 const playArt = `<svg viewBox="0 0 120 100"><rect x="8" y="32" width="48" height="40" rx="14" fill="#fff3b0" stroke="${O}" stroke-width="4"/><rect x="64" y="32" width="48" height="40" rx="14" fill="#fff" stroke="${O}" stroke-width="4"/><path d="M26 44 L40 52 L26 60 Z" fill="${O}"/><circle cx="88" cy="52" r="6" fill="#ff8fab" stroke="${O}" stroke-width="3"/></svg>`;
+const menuArt = `<svg viewBox="0 0 120 100"><rect x="28" y="16" width="64" height="72" rx="16" fill="#fff" stroke="${O}" stroke-width="4"/><path d="M40 36 H80 M40 52 H80 M40 68 H80" fill="none" stroke="${O}" stroke-width="5" stroke-linecap="round"/><circle cx="92" cy="24" r="12" fill="#ff6b9a" stroke="${O}" stroke-width="3"/><text x="92" y="29" text-anchor="middle" font-size="14" font-weight="900" fill="#fff" font-family="Nunito, ui-rounded, system-ui, sans-serif">1</text></svg>`;
 export const CHANGELOG: ChangeEntry[] = [
+  { v: 9, title: "Everything's tidied into the Menu!", lines: [
+    { art: wrap(menuArt), text: "Everything's tidied into the <b>Menu</b>!" },
+  ] },
   { v: 8, title: 'Make your look!', lines: [
     { art: wrap(mailArt), text: 'Leave a <b>letter</b> in a friend\'s mailbox!' },
     { art: wrap(playArt), text: 'Tap <b>Play</b> or <b>Decorate</b>!' },
@@ -105,7 +109,7 @@ export function markSeen() { try { localStorage.setItem(SEEN_KEY, String(LATEST)
 export function whatsNewHTML(kind: 'welcome' | 'news', entries: ChangeEntry[]): string {
   const title = kind === 'welcome' ? WELCOME.title : entries[0].title;
   const lines = entries.flatMap(e => e.lines).slice(0, 5); // newest first, never a wall of text
-  return `<div class="wnBadge">${kind === 'welcome' ? pawIcon : entries[0].v >= 8 ? shirtArt : entries[0].v >= 7 ? cribArt : entries[0].v >= 6 ? clubIcon : entries[0].v >= 5 ? brushArt : entries[0].v >= 4 ? mapIcon : entries[0].v >= 3 ? rainbowIcon : treeIcon}</div>
+  return `<div class="wnBadge">${kind === 'welcome' ? pawIcon : entries[0].v >= 9 ? menuArt : entries[0].v >= 8 ? shirtArt : entries[0].v >= 7 ? cribArt : entries[0].v >= 6 ? clubIcon : entries[0].v >= 5 ? brushArt : entries[0].v >= 4 ? mapIcon : entries[0].v >= 3 ? rainbowIcon : treeIcon}</div>
     <h2 class="wnTitle">${title}</h2>
     <div class="wnList ${lines.length > 3 ? 'many' : ''}">${lines.map((l, i) => `<div class="wnLine" style="animation-delay:${0.15 + i * 0.18}s">${l.art}<p>${l.text}</p></div>`).join('')}</div>
     <button class="wnGo" id="wnGo">Let's play!</button>`;

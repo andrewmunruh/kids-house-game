@@ -2,7 +2,7 @@
 # and show "Tap to play here!". Tapping it takes the street back; the other screen gets the card.
 import asyncio, sys
 from playwright.async_api import async_playwright
-from testnav import SKIP_WN, local_page
+from testnav import tap, SKIP_WN, local_page
 
 URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 COUNT = """
@@ -25,7 +25,7 @@ def check(name, ok, extra=''):
     print(('PASS ' if ok else 'FAIL ') + name, extra, flush=True)
 
 async def join(pg, code):
-    await pg.click('#btnHood'); await pg.click('[data-m="join"]')
+    await tap(pg, '#btnHood'); await pg.click('[data-m="join"]')
     await pg.fill('#codeInput', code.lower()); await pg.click('#codeForm button')
     await pg.click('.nicks button:has-text("Sunny Bunny")')
     await pg.click('[data-m="fresh"]')

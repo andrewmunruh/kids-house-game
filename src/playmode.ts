@@ -45,6 +45,16 @@ export function installPlayMode(root: HTMLElement, opts: { ownHouse: () => boole
   const decoBtn = root.querySelector<HTMLButtonElement>('#modeDecorate')!;
   playBtn.querySelector('.modeIco')!.innerHTML = HAND;
   decoBtn.querySelector('.modeIco')!.innerHTML = BRUSH;
+  // cursor/daynight-undo mounts Undo in this slot, next to Play/Decorate.
+  // It stays hidden until that branch fills it, and Play mode hides it too.
+  if (!document.getElementById('decorateUndoSlot')) {
+    const slot = document.createElement('div');
+    slot.id = 'decorateUndoSlot';
+    slot.className = 'undoSlot';
+    slot.hidden = true;
+    slot.setAttribute('data-slot', 'undo');
+    root.insertAdjacentElement('afterend', slot);
+  }
   const paint = () => {
     const play = mode === 'play';
     document.body.classList.toggle('mode-play', play);

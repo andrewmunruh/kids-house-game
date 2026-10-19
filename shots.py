@@ -1,3 +1,4 @@
+from testnav import tap
 import asyncio, sys, json
 from playwright.async_api import async_playwright
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
@@ -89,7 +90,7 @@ async def main():
         print('after drag-off right hand:', c['held']['right'], 'salon has teddy:', any(i['kind']=='teddy' for i in s['rooms']['salon']['items']))
         await pg.click('[data-room="bedroom"]'); await pg.click('[data-rf="bedroom"]'); await pg.click('[data-cat="furniture"]'); await pg.wait_for_timeout(500)
         await pg.screenshot(path='screens/03-bedroom-room-filter.png')
-        await pg.click('#btnPaint'); await pg.wait_for_timeout(400); await pg.screenshot(path='screens/04-paint-panel.png'); await pg.click('.close')
+        await tap(pg, '#btnPaint'); await pg.wait_for_timeout(400); await pg.screenshot(path='screens/04-paint-panel.png'); await pg.click('.close')
         await pg.click('[data-room="kitchen"]'); await pg.click('[data-rf="kitchen"]'); await pg.wait_for_timeout(500)
         await pg.screenshot(path='screens/06-kitchen.png')
         cdp = await ctx.new_cdp_session(pg); c0 = await pg.evaluate("__cam.get()")

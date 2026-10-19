@@ -189,14 +189,14 @@ body.mode-hood.own-house:not(.view-street) .ownOnly { display: block !important;
 body.has-hood:not(.mode-hood) .soloOnly { display: block !important; }
 body.view-street .streetOnly { display: block !important; }
 body.view-street .streetTitle { display: block !important; }
-body.view-street .tabs, body.view-street .minimap, body.view-street #btnPaint, body.view-street #btnDress, body.view-street #btnSound { display: none; }
+body.view-street .tabs, body.view-street .minimap, body.view-street #btnPaint { display: none; }
 body.view-street .top { justify-content: space-between; }
 body.locked .drawer .cats, body.locked .drawer .rooms { opacity: .35; pointer-events: none; }
 body.locked #btnPaint { opacity: .4; }
 .streetTitle { font-size: 26px; font-weight: 900; letter-spacing: .5px; color: var(--ink); text-shadow: 0 3px 0 #fff; }
-.houseTag { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); z-index: 9600; background: #fff; border: 3px solid var(--ink); border-radius: 18px; padding: 4px 14px;
+.houseTag { display: none; position: absolute; left: 50%; top: 10px; transform: translateX(-50%); z-index: 9600; background: #fff; border: 3px solid var(--ink); border-radius: 18px; padding: 4px 14px;
   font-size: 15px; white-space: nowrap; box-shadow: 0 3px 0 rgba(90,61,92,.25); pointer-events: none; }
-body.mode-hood:not(.view-street) .houseTag { display: block !important; }
+.houseTag.show { display: block; }
 .houseTag.wiggle, .nope { animation: wiggle .4s ease; }
 @keyframes wiggle { 20% { transform: translateX(calc(-50% - 8px)) rotate(-3deg); } 60% { transform: translateX(calc(-50% + 8px)) rotate(3deg); } }
 .thing.nope { animation: nope .4s; } @keyframes nope { 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
@@ -465,7 +465,6 @@ body.mode-hood.view-park #btnChat { display: block !important; }
 .petBtns .go:active { transform: scale(.95); }
 .petBtns .danger, .petBtns #callCat, .petBtns #kennelDog { min-height: 48px; padding: 8px 16px; border-radius: 18px; }
 .pets .err { color: #d0425b; font-weight: 800; margin: 4px 0; }
-body.view-park #btnParent, body.view-park #btnSolo, body.view-gameroom #btnParent, body.view-gameroom #btnSolo { display: none !important; }
 body.mode-hood.view-gameroom #btnChat { display: block !important; }
 body.view-gameroom #btnHood { display: none !important; }
 /* What's new / welcome */
@@ -492,7 +491,6 @@ body.view-ranch.riding .rideOnly { display: block !important; }
 body.view-ranch #btnRanch, body.view-street:not(.mode-hood):not(.view-park) #btnRanch { display: none; }
 body.view-ranch #btnPark { display: block; }
 body.mode-hood.view-ranch #btnChat { display: block !important; }
-body.view-ranch #btnParent, body.view-ranch #btnSolo { display: none !important; }
 .ranch { background: #c7e8ff; }
 .ranchWorld .rprop, .ranchWorld .animal, .ranchWorld .horse, .ranchWorld .bucket, .ranchWorld .plot { position: absolute; background: none; border: 0; padding: 0; box-shadow: none; z-index: 4; }
 .ranchWorld .rprop svg, .ranchWorld .animal svg, .ranchWorld .horse svg, .ranchWorld .bucket svg, .ranchWorld .plot svg { width: 100%; height: 100%; display: block; overflow: visible; }
@@ -618,7 +616,7 @@ body.view-ranch #btnHood, body.view-park #btnHood { display: none !important; }
 .mapFace .bubble { bottom: 110%; }
 @keyframes facePop { from { transform: scale(0); } to { transform: scale(1); } }
 .mapBtn { background: #fff3b0 !important; }
-body.view-map .mapBtn { box-shadow: 0 0 0 4px #ff8fab !important; }
+body.view-map #btnMap { display: none !important; }
 body.view-map .top { background: linear-gradient(#fff, rgba(255,255,255,.85)); }
 body.mode-hood.view-map #btnChat { display: block !important; }
 body.has-hood:not(.mode-hood).view-map .soloOnly { display: block !important; }
@@ -659,7 +657,7 @@ body.is-preview .shelf { width: auto; margin-right: 96px; }
   /* 820×1180 with lock + chat: five full names, a usable minimap, and seven 44px tools. */
   body:not(.phone) .top { padding: 4px 4px 2px; gap: 4px; }
   body:not(.phone) .tabs { gap: 2px; flex: 0 0 auto; min-width: 0; }
-  body:not(.phone) .tab { padding: 4px 5px; font-size: 12px; min-height: 44px; }
+  body:not(.phone) .tab { padding: 4px 5px; font-size: 14px; min-height: 44px; flex: 0 0 auto; }
   body:not(.phone) .minimap { width: 112px; min-width: 100px; flex: 0 0 112px; height: 44px; }
   body:not(.phone) .tools { gap: 2px; flex: 0 0 auto; }
   body:not(.phone) .round { width: 44px; height: 44px; padding: 6px; }
@@ -1097,4 +1095,61 @@ body.view-street .stage { visibility: hidden; }
   body.phone .fourCell svg { width: 12px; height: 12px; }
   body.phone .fourBoard { width: auto; padding: 3px; gap: 2px; }
   body.phone .dropHint { height: 12px; font-size: 12px; }
+}
+
+/* ===================== Menu (declutter) ===================== */
+.round { position: relative; }
+.badge { display: none; position: absolute; top: 0; right: 0; min-width: 18px; height: 18px; padding: 0 4px;
+  border-radius: 9px; background: #ff6b9a; color: #fff; font-size: 13px; font-weight: 900; line-height: 18px; text-align: center;
+  border: 2px solid #fff; pointer-events: none; box-sizing: border-box; }
+.badge.on { display: block; }
+body:not(.show-minimap) .minimap { display: none !important; }
+body.mode-hood:not(.view-street):not(.own-house) .homeBtn { display: block !important; }
+body.view-street #secrets { display: none !important; }
+
+.menuPop { position: fixed; inset: 0; z-index: 16000; background: transparent; }
+.menuCard { position: absolute; top: calc(var(--chrome-h, 64px) + 6px); right: 12px; width: min(300px, calc(100vw - 16px));
+  background: #fff; border: 4px solid var(--ink); border-radius: 22px; padding: 8px 8px 12px;
+  box-shadow: 0 8px 0 rgba(90,61,92,.28); max-height: calc(100vh - var(--chrome-h, 64px) - 24px); overflow: auto; }
+.menuCard .close { width: 44px; height: 44px; top: 4px; right: 4px; }
+.menuGroup { margin: 8px 8px 4px; padding-right: 44px; font-size: 13px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; color: #9a7a90; }
+.menuGroup:first-of-type { margin-top: 4px; }
+.menuRow { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 4px 10px; border-radius: 14px;
+  background: #fff; font-weight: 800; font-size: 16px; text-align: left; }
+.menuRow:active, .menuRow:hover { background: #ffe4ef; }
+.menuRow .mIco { width: 32px; height: 32px; flex: 0 0 32px; }
+.menuRow .mLabel { flex: 1 1 auto; min-width: 0; }
+.menuNew { display: none; flex: 0 0 auto; background: #ff6b9a; color: #fff; font-size: 13px; font-weight: 900; border-radius: 12px; padding: 4px 8px; }
+.menuNew.on { display: inline-block; }
+#menuPop .lockRow, #menuPop .mailRow, #menuPop .grownRow, #menuPop .soloLeave, #menuPop .friendRow { display: none; }
+body.mode-hood.own-house:not(.view-street) #menuPop .lockRow { display: flex; }
+body.mode-hood #menuPop .mailRow { display: flex; }
+body.mode-hood #menuPop .grownRow { display: flex; }
+body.mode-hood #menuPop .soloLeave { display: flex; }
+body.has-hood:not(.mode-hood) #menuPop .friendRow { display: flex; }
+body.mode-play #decorateUndoSlot { display: none !important; }
+.chatMore { min-height: 44px; min-width: 64px; padding: 0 14px; border-radius: 14px; background: #fff3b0; border: 3px solid var(--ink);
+  font-weight: 900; font-size: 16px; }
+.chatExtra.hidden { display: none; }
+
+/* Phone portrait: tabs on row 1, Menu/Map (and the minimap, in Decorate) on row 2.
+   That is two rows where there used to be three, and the stage grows into the gap. */
+@media (pointer: coarse) and (max-width: 600px) {
+  body.phone.phone-portrait .top { flex-wrap: wrap; }
+  body.phone.phone-portrait .tabs { flex: 1 0 100%; order: 0; }
+  body.phone.phone-portrait .tab { font-size: 13px; padding: 0 4px; min-width: max(44px, max-content); }
+  body.phone.phone-portrait .minimap { flex: 1 1 auto; width: auto; max-width: none; order: 2; height: 44px; min-width: 64px; }
+  body.phone.phone-portrait .tools { order: 2; margin-left: auto; flex: 0 0 auto; }
+  body.phone .menuRow { min-height: 44px; font-size: 15px; }
+  body.phone .menuCard { right: 8px; left: 8px; width: auto; }
+}
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  body.phone:not(.phone-portrait).mode-play .drawer { display: none !important; }
+  body.phone .tools .modeToggle { flex: 0 0 auto; }
+  body.phone .basketChip { top: calc(var(--chrome-h, 48px) + 8px); bottom: auto; left: max(8px, env(safe-area-inset-left)); }
+}
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) and (max-width: 700px) {
+  body.phone.mode-hood .top { flex-wrap: nowrap; }
+  body.phone.mode-hood .tools { flex: 0 0 auto; justify-content: flex-end; }
+  body.phone .tab { font-size: 13px; padding: 0 2px; min-width: max(44px, max-content); }
 }
