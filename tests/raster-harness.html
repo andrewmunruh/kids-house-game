@@ -10,6 +10,6 @@ import { ITEM_MAP, svgOf, installArtFallback } from '/src/items.ts';
 installArtFallback();
 const ids = await loadArtRoom('living');
 const w = window;
-w.__art = { ART_RASTER, artRasterOn, setArtFromSearch, setArtRaster, rasterUrl, rememberRaster, svgOf, sofa: ITEM_MAP.sofa, ids };
+w.__art = { ART_RASTER, artRasterOn, setArtFromSearch, setArtRaster, rasterUrl, rememberRaster, svgOf, sofa: ITEM_MAP.sofa, ids, has: (id) => !!ITEM_MAP[id] };
 w.__artReady = true;
 </script>

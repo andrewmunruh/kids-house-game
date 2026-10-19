@@ -1,4 +1,4 @@
-# One dummy 2× WebP: it loads, ?art=v1 ignores it, and a broken URL falls back to the SVG.
+# Living-room WebPs load with the dummy probe. ?art=v1 ignores them, and a broken URL falls back to the SVG.
 import sys
 from playwright.sync_api import sync_playwright
 
@@ -8,8 +8,10 @@ JS = r'''async () => {
   const notes = [];
   const ok = (name, cond) => notes.push((cond ? 'PASS ' : 'FAIL ') + name);
   ok('switch defaults on', a.ART_RASTER === true);
-  ok('dummy is not an item id', a.ids.length === 1 && a.ids[0] === '_probe');
-  ok('sofa has no raster of its own', a.rasterUrl('sofa') == null);
+  const living = ['armchair','ball','balloon','bookshelf','chair','clock','lamp','picture','plant','rug','sofa','table','tv','window'];
+  ok('dummy is not an item id', a.ids.indexOf('_probe') >= 0 && a.has('_probe') === false);
+  ok('each living raster is a real item', living.every(k => a.ids.indexOf(k) >= 0 && a.has(k) === true));
+  ok('sofa has its own raster', typeof a.rasterUrl('sofa') === 'string' && a.rasterUrl('sofa').indexOf('sofa') >= 0);
   const probe = a.rasterUrl('_probe');
   ok('dummy url is lazy-loaded', typeof probe === 'string' && probe.indexOf('_probe') >= 0);
   const img = new Image();
