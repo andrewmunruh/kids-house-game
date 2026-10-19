@@ -57,7 +57,24 @@ export function emptyRoomStarters(makeId: (kind: string) => string): { id: strin
 
 let sig = '';
 
+/** Preview-only. Return a full scenery string to replace the indoor dressing, or null to keep it. */
+type SceneryCustom = (room: string, items: { kind: string }[]) => string | null;
+let custom: SceneryCustom | null = null;
+export function setRoomScenery(fn: SceneryCustom | null) {
+  custom = fn;
+  sig = '';
+}
+
 export function syncScenery(root: HTMLElement, room: string, items: { kind: string }[]) {
+  const extra = custom?.(room, items);
+  if (extra != null) {
+    const next = 'custom|' + room;
+    if (next === sig && root.childElementCount) return;
+    sig = next;
+    root.innerHTML = extra;
+    root.dataset.room = room;
+    return;
+  }
   const empty = items.length === 0;
   const hasWindow = items.some(i => /window|curtain/i.test(i.kind));
   const next = room + (empty ? '|e' : '') + (hasWindow ? '|w' : '');

@@ -1,18 +1,19 @@
 # Backyard: plan for Andy's approval
 
-*Drafted Mon Oct 19, 2026 against `cursor/avatar-v2` (`d672443`). Plan and mockups only. No game code, no Worker deploy.*
+*Drafted Mon Oct 19, 2026 against `cursor/avatar-v2` (`d672443`). Plan approved. Pictures below are a quality pass from the real renderer. No Worker deploy.*
 
 The nursery already shipped, and so did the empty `backyard` room key (commit `9acd1a9`, "teach the server both new room names"). This plan is the outdoor scene on top of that key: sky and a fence where the wallpaper is, grass where the floor is, a back door in the living room, and about 20 new outdoor pieces. It is still a room. It is not a 6th tab and not a new place on the street.
 
-Mockups (shot from `docs/plans/backyard-mockup.html`, not from the game):
+The shots are the real stage. `?yard=1` is a dev preview only: it registers the 20 drawings, paints the yard, and places a sample set so the pictures can be taken. A normal load does not do that, and an empty yard stays empty. At 820×1180 the Play stage measures **796×995** (Play hides the shelf, so the stage is taller) and the Decorate stage measures **796×872**. Both match the living room at that size.
 
 | | iPad 820×1180 | Phone 390×844 |
 |---|---|---|
 | Yard, Play | `docs/plans/mockups/yard-play-820x1180.png` | `docs/plans/mockups/yard-play-390x844.png` |
 | Yard, Decorate, outdoor shelf | `docs/plans/mockups/yard-decorate-820x1180.png` | `docs/plans/mockups/yard-decorate-390x844.png` |
 | Living room, back door | `docs/plans/mockups/living-door-820x1180.png` | `docs/plans/mockups/living-door-390x844.png` |
+| All 20 pieces | `docs/plans/mockups/backyard-pieces.png` | |
 
-Open the HTML with `?shot=play`, `?shot=decorate`, or `?shot=door`. Width under 500px uses the phone chrome.
+`?yard=1&shot=play`, `decorate`, `door`, or `sheet`.
 
 ## Recommendation
 

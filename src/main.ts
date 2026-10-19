@@ -26,7 +26,8 @@ import { catalogShows } from './roomfilter';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
-import { emptyRoomStarters, syncScenery } from './scenery';
+import { emptyRoomStarters, setRoomScenery, syncScenery } from './scenery';
+import { DOOR_CAT_X, DOOR_KID, YARD_CAT_X, YARD_KID, YARD_STAGE, registerYardItems, yardBackyardScenery, yardDoorMarkup, yardLookPatch, yardPreviewOn, yardSheetHTML, yardShot } from './yard';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
@@ -58,6 +59,9 @@ const ROOMS: { id: RoomId; name: string; color: string }[] = [
   { id: 'nursery', name: 'Nursery', color: '#9ad7f5' },
 ];
 const roomColor = (r: string) => ROOMS.find(x => x.id === r)?.color ?? '#ccc';
+// Dev preview only (?yard=1). Default loads never see these pieces.
+const yardOn = yardPreviewOn();
+if (yardOn) registerYardItems(ITEMS, ITEM_MAP);
 
 // ---------- drawer tabs: people, categories, then packs ----------
 type Tab = { id: string; name: string; icon: string; kind: 'people' | 'cat' | 'pack' };
@@ -543,7 +547,7 @@ function renderRoomBg(s: GameState) {
   floor.style.backgroundImage = ft ? `${cssUrl(ft.url)}, linear-gradient(rgba(0,0,0,.06), transparent 50%)` : FLOOR_BOARDS;
   floor.style.backgroundSize = ft ? '180px auto, auto' : 'auto';
   $('mmWall').style.background = room.wallpaper; $('mmFloor').style.background = room.floor;
-  syncScenery($('scenery'), s.currentRoom, room.items);
+  paintScenery(s);
 }
 function renderMinimap(s: GameState) {
   const room = s.rooms[s.currentRoom];
@@ -601,8 +605,20 @@ function renderItems(s: GameState) {
     el.classList.toggle('sel', selected === it.id);
   }
   layer.querySelectorAll<HTMLElement>('.item').forEach(el => { if (!seen.has(el.dataset.id!)) el.remove(); });
-  syncScenery($('scenery'), s.currentRoom, room.items);
+  paintScenery(s);
   renderToolbar(s); renderMinimap(s);
+}
+
+/** Indoor dressing, plus the preview yard (sky, house wall, doors) when ?yard=1. */
+function paintScenery(s: GameState) {
+  const room = s.rooms[s.currentRoom];
+  syncScenery($('scenery'), s.currentRoom, room.items);
+  const root = $('scenery');
+  root.querySelectorAll('.yardDoor').forEach(n => n.remove());
+  if (!yardOn) return;
+  const html = s.currentRoom === 'backyard' ? yardDoorMarkup('yard') : s.currentRoom === 'living' ? yardDoorMarkup('living') : '';
+  if (html) root.insertAdjacentHTML('beforeend', html);
+  stage.classList.toggle('room-yard', s.currentRoom === 'backyard');
 }
 
 const charEls = new Map<string, HTMLElement>();
@@ -2819,7 +2835,61 @@ bindGameRoom({
 
 // ---------- start ----------
 installJuice();
-renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
+renderAll(); renderDrawer(); fit();
+bootYardPreview();
+fit();
+frameYardCam();
+requestAnimationFrame(() => { fit(); frameYardCam(); });
+
+/** ?yard=1 only. Stages the approval yard in the real renderer and does not run otherwise. */
+function bootYardPreview() {
+  if (!yardOn) return;
+  setRoomScenery(room => (room === 'backyard' ? yardBackyardScenery() : null));
+  const shot = yardShot();
+  const kid = store.get().characters[0];
+  if (!kid) return;
+  const door = shot === 'door';
+  store.dispatch({ type: 'char/update', id: kid.id, patch: { ...yardLookPatch(), flip: door ? DOOR_KID.flip : YARD_KID.flip } });
+  store.dispatch({ type: 'cat/set', cat: { name: 'Clover', coat: 3, room: door ? 'living' : 'backyard', x: door ? DOOR_CAT_X : YARD_CAT_X } });
+  store.dispatch({ type: 'dog/set', dog: { name: 'Sunny', breed: 3, owner: kid.id } });
+  if (!store.get().rooms.backyard.items.some(i => i.kind === 'yard-swing')) {
+    for (const p of YARD_STAGE) {
+      store.dispatch({
+        type: 'item/add', room: 'backyard',
+        item: { id: 'yp-' + p.kind, kind: p.kind, x: p.x, y: p.y, flip: false, z: 1, scale: 1 },
+      });
+    }
+  }
+  if (shot !== 'sheet') {
+    const spot = door ? DOOR_KID : YARD_KID;
+    store.dispatch({ type: 'char/move', id: kid.id, room: door ? 'living' : 'backyard', x: spot.x, y: spot.y });
+    store.dispatch({ type: 'room/switch', room: door ? 'living' : 'backyard' });
+  }
+  (window as any).__pinCat = { x: door ? DOOR_CAT_X : YARD_CAT_X };
+  if (shot === 'play') $('modePlay').click();
+  else if (shot === 'decorate' || shot === 'door') $('modeDecorate').click();
+  if (shot === 'sheet') document.body.insertAdjacentHTML('beforeend', yardSheetHTML());
+  $('scenery').addEventListener('click', e => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-yard-go]');
+    if (!b) return;
+    const go = b.dataset.yardGo === 'backyard' ? 'backyard' : 'living';
+    const who = store.get().characters[0];
+    if (!who) return;
+    const spot = go === 'backyard' ? YARD_KID : DOOR_KID;
+    store.dispatch({ type: 'char/update', id: who.id, patch: { flip: spot.flip } });
+    store.dispatch({ type: 'char/move', id: who.id, room: go, x: spot.x, y: spot.y });
+    if (store.get().cat) store.dispatch({ type: 'cat/move', room: go, x: go === 'backyard' ? YARD_CAT_X : DOOR_CAT_X });
+    (window as any).__pinCat = { x: go === 'backyard' ? YARD_CAT_X : DOOR_CAT_X };
+    store.dispatch({ type: 'room/switch', room: go });
+    requestAnimationFrame(frameYardCam);
+  });
+  document.body.dataset.yard = 'ready';
+}
+function frameYardCam() {
+  if (!yardOn || yardShot() === 'sheet') return;
+  const kid = store.get().characters.find(c => c.room === store.get().currentRoom);
+  if (kid) setCam(kid.x - VIEW_W / 2);
+}
 // ---------- hidden surprises ----------
 const renderSecrets = () => {
   const n = foundSet().size, total = EGGS.length;

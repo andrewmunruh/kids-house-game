@@ -1098,3 +1098,22 @@ body.view-street .stage { visibility: hidden; }
   body.phone .fourBoard { width: auto; padding: 3px; gap: 2px; }
   body.phone .dropHint { height: 12px; font-size: 12px; }
 }
+
+/* Yard preview (?yard=1). Hidden unless the stage is in that room. */
+.yardDoor { position: absolute; background: none; border: 0; padding: 0; box-shadow: none; pointer-events: auto; z-index: 4; }
+.yardDoor .doorArt { position: absolute; left: 8%; width: 84%; bottom: 0; height: 74%; overflow: visible; }
+.yardDoor .yardHintLabel { position: absolute; left: 50%; top: 0; transform: translateX(-50%); background: #fff; border: 3px solid var(--ink); border-radius: 14px; padding: 2px 12px; font-weight: 900; font-size: 22px; white-space: nowrap; box-shadow: 0 3px 0 rgba(90,61,92,.25); color: var(--ink); z-index: 2; }
+.yardDoor .yardHintLabel > span { display: block; animation: hintBob 1.6s ease-in-out infinite; }
+.yardDoor.yardHint .yardHintLabel { top: 0; }
+.stage.room-yard .wall, .stage.room-yard .floor, .stage.room-yard .baseboard { visibility: hidden; }
+.stage.room-yard .yardWorld { position: absolute; inset: 0; width: 100%; height: 100%; }
+.yardSheet { position: fixed; inset: 0; z-index: 900000; overflow: auto; background: #fff6f1; color: var(--ink); padding: 28px 22px 40px; }
+.yardSheet h1 { margin: 0 0 14px; text-align: center; font-size: 34px; }
+.ysGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ysCard { margin: 0; background: #fff; border: 4px solid var(--ink); border-radius: 22px; padding: 8px 8px 10px; text-align: center; box-shadow: 0 4px 0 rgba(90,61,92,.16); }
+.ysArt { height: 128px; display: flex; align-items: flex-end; justify-content: center; }
+.ysArt svg { width: 88%; height: 88%; }
+.ysCard figcaption { font-weight: 900; font-size: 16px; line-height: 1.2; }
+@media (prefers-reduced-motion: reduce) {
+  .yardDoor .yardHintLabel > span { animation: none; }
+}
