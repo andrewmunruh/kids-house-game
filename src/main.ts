@@ -166,7 +166,11 @@ let view: 'house' | 'street' | 'park' | 'ranch' | 'gameroom' = 'house'; // 'stre
 let inBarn = false; // inside Rainbow Ranch: the yard, or the barn (petting zoo)
 let currentHouseId = '';
 let houseStores = new Map<string, ReturnType<typeof houseStore>>();
-const play = installPlayMode($('modeToggle'), { ownHouse: () => !hood || !currentHouseId || currentHouseId === hood.myHouseId() });
+let modeFit = false;
+const play = installPlayMode($('modeToggle'), {
+  ownHouse: () => !hood || !currentHouseId || currentHouseId === hood.myHouseId(),
+  onChange: () => { if (modeFit) fit(); },
+});
 const mailUI = installMail({
   send: (houseId, text, color, sticker) => hood?.sendMail(houseId, text, color, sticker),
   read: (houseId, id) => hood?.readMail(houseId, id),
@@ -184,6 +188,7 @@ const avatarEls = new Map<string, HTMLElement>();
 // ---------- camera (view-only, not part of game state) ----------
 const cams: Record<string, number> = {};
 let camX = V1_OFFSET, inertia = 0;
+modeFit = true;
 let glideTarget: number | null = null;
 const stopGlide = () => { cancelAnimationFrame(inertia); glideTarget = null; };
 const clampCam = (x: number) => Math.max(0, Math.min(maxCam(), x));
@@ -244,32 +249,48 @@ function applyPhoneViewport() {
   appEl.style.height = h + 'px';
   appEl.style.bottom = 'auto';
 }
+/** Height of the Play / Decorate lane under the room. 0 on the map, park, and ranch. */
+let modeLaneCache = 0;
+function modeLane(): number {
+  if (view !== 'house') return 0;
+  const el = $('modeToggle');
+  if (getComputedStyle(el).display !== 'none' && el.offsetHeight > 0) modeLaneCache = Math.ceil(el.offsetHeight) + 6;
+  return modeLaneCache || (document.body.classList.contains('phone') ? 64 : 84);
+}
 function fit() {
   syncPhone();
   applyPhoneViewport();
   syncChrome();
   const wrap = $('stageWrap');
   const phone = document.body.classList.contains('phone');
+  const lane = modeLane();
+  const boxW = wrap.clientWidth;
+  const fullH = wrap.clientHeight;
+  const boxH = Math.max(1, fullH - lane);
+  // Portrait uses the whole wrap (the lane is a strip under the room, not a new shape).
   // iPad keeps the original test. On a phone, a tall tool row can make the stage almost square;
   // still frame it as portrait so the room fills the screen instead of shrinking to a wide sliver.
   const portrait = phone
-    ? wrap.clientHeight > wrap.clientWidth * 0.85
-    : wrap.clientHeight > wrap.clientWidth + 40;
+    ? fullH > boxW * 0.85
+    : fullH > boxW + 40;
   if (portrait) {
     // Match the free space's shape so the room scales up and fills the height.
-    const aspect = wrap.clientWidth / Math.max(1, wrap.clientHeight);
+    const aspect = boxW / boxH;
     VIEW_W = Math.round(Math.max(480, Math.min(860, H * aspect)));
   } else if (phone) {
     // Landscape phone: the free box is short and wide. Open the window to that shape
     // (never wider than the room, never stretched) so the stage uses the width and the height.
-    const aspect = wrap.clientWidth / Math.max(1, wrap.clientHeight);
+    const aspect = boxW / boxH;
     VIEW_W = Math.round(Math.max(480, Math.min(W, H * aspect)));
   } else VIEW_W = 1000;
   stage.style.width = VIEW_W + 'px';
   stage.style.height = H + 'px';
-  const sc = Math.min(wrap.clientWidth / VIEW_W, wrap.clientHeight / H);
+  const sc = Math.min(boxW / VIEW_W, boxH / H);
+  // Centre the stage in the area above the toggle so the lane never covers a tap.
+  stage.style.top = lane > 0 ? `calc(50% - ${lane / 2}px)` : '';
   stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
   if (document.body.classList.contains('phone')) stage.style.setProperty('--fit', String(sc));
+  placePhoneNudges();
   if (camX > maxCam()) setCam(camX);
   else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
   // Phone portrait narrows the window after the camera was aimed at a wider view.
@@ -280,6 +301,19 @@ function fit() {
   clampPhoneBubbles();
   if (phone && view === 'ranch') layoutPaddock();
   placeSecretsPill();
+}
+/** Phone arrows live on the wrap in screen pixels. Centre them on the stage, above the mode lane. */
+function placePhoneNudges() {
+  const wrap = $('stageWrap');
+  const on = document.body.classList.contains('phone') && view === 'house';
+  for (const n of [$('nudgeL'), $('nudgeR')]) {
+    if (!on || n.parentElement !== wrap) { n.style.top = ''; n.style.marginTop = ''; continue; }
+    const stageBox = stage.getBoundingClientRect();
+    const wrapBox = wrap.getBoundingClientRect();
+    const mid = (stageBox.top + stageBox.bottom) / 2 - wrapBox.top;
+    n.style.top = mid + 'px';
+    n.style.marginTop = (-n.offsetHeight / 2) + 'px';
+  }
 }
 /**
  * Short phone landscape letterboxes the room. The full Surprises pill is wider than

@@ -32,7 +32,7 @@ export function playGesture(kind: string): PlayGesture {
 const HAND = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M18 22 V12 a3 3 0 0 1 6 0 V22" fill="#fff6e6" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/><path d="M24 22 V10 a3 3 0 0 1 6 0 V24" fill="#fff6e6" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/><path d="M30 24 V14 a3 3 0 0 1 6 0 V26" fill="#fff6e6" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/><path d="M14 22 V16 a3 3 0 0 0-6 0 V28 c0 8 6 14 16 14 h4 c8 0 12-5 12-12 V26" fill="#ffe0b8" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/><path d="M34 8 l1.2 3 3 .4 -2.2 2 .6 3 -2.6-1.6 -2.6 1.6 .6-3 -2.2-2 3-.4z" fill="#ffd166" stroke="#5a3d5c" stroke-width="1.4"/></svg>`;
 const BRUSH = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 34 L22 22 L30 30 L18 42 Q10 42 10 34 Z" fill="#ff8fab" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/><path d="M22 22 L32 12 L38 18 L28 28 Z" fill="#ffd166" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/><path d="M32 12 L36 6 L42 12 L38 18" fill="#c9a0dc" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/><path d="M14 36 h6" stroke="#fff" stroke-width="2" stroke-linecap="round"/><path d="M8 14 l2 1 M40 34 l2 2 M8 40 l3 -1" stroke="#5a3d5c" stroke-width="2" stroke-linecap="round"/></svg>`;
 
-export function installPlayMode(root: HTMLElement, opts: { ownHouse: () => boolean }): {
+export function installPlayMode(root: HTMLElement, opts: { ownHouse: () => boolean; onChange?: () => void }): {
   mode: () => HouseMode;
   isPlay: () => boolean;
   /** Call when she enters a house. A friend's house starts in Play. Her own house uses the last choice. */
@@ -55,6 +55,7 @@ export function installPlayMode(root: HTMLElement, opts: { ownHouse: () => boole
     mode = next;
     if (persist) saveOwnMode(next);
     paint();
+    opts.onChange?.();
   };
   root.addEventListener('pointerdown', e => e.stopPropagation());
   root.addEventListener('click', e => {

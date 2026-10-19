@@ -1,5 +1,5 @@
 # Mailboxes on the street, writing a letter, opening it. iPad 1024x768 and iPhone 390x844.
-import asyncio, os, sys
+import asyncio, os, sys, time
 from playwright.async_api import async_playwright
 from testnav import SKIP_WN, local_page
 
@@ -7,6 +7,39 @@ URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = os.environ.get('MAIL_SHOTS', '/opt/cursor/artifacts/screenshots')
 os.makedirs(SHOT, exist_ok=True)
 res = {}
+# Hold mailbox pushes for 1100ms (inside the 300-1500ms server-latency window).
+SLOW_MAIL = """
+(() => {
+  const O = WebSocket;
+  const delayMs = 1100;
+  const native = Object.getOwnPropertyDescriptor(O.prototype, 'onmessage');
+  function W(url, protocols) {
+    const ws = protocols === undefined ? new O(url) : new O(url, protocols);
+    Object.defineProperty(ws, 'onmessage', {
+      configurable: true,
+      enumerable: true,
+      get() { return native.get.call(ws); },
+      set(fn) {
+        native.set.call(ws, function (ev) {
+          let delay = 0;
+          try {
+            if (typeof ev.data === 'string' && ev.data.indexOf('"mailbox"') !== -1) {
+              const m = JSON.parse(ev.data);
+              if (m && m.t === 'mailbox') delay = delayMs;
+            }
+          } catch (e) {}
+          if (!delay) { fn.call(ws, ev); return; }
+          window.setTimeout(() => fn.call(ws, ev), delay);
+        });
+      }
+    });
+    return ws;
+  }
+  W.prototype = O.prototype;
+  W.CONNECTING = O.CONNECTING; W.OPEN = O.OPEN; W.CLOSING = O.CLOSING; W.CLOSED = O.CLOSED;
+  window.WebSocket = W;
+})();
+"""
 
 def check(name, ok, extra=''):
     res[name] = bool(ok)
@@ -34,12 +67,13 @@ async def shot(pg, name):
     print('SHOT', path, flush=True)
 
 async def flow(browser, w, h, tag):
-    async def ctx():
+    async def ctx(slow=False):
         c = await browser.new_context(viewport={'width': w, 'height': h}, device_scale_factor=1, has_touch=True, is_mobile=(w < 500))
         await c.add_init_script(SKIP_WN)
+        if slow: await c.add_init_script(SLOW_MAIL)
         return c
     P = await (await ctx()).new_page()
-    K = await (await ctx()).new_page()
+    K = await (await ctx(True)).new_page()
     await P.goto(URL)
     await K.goto(URL)
     await P.wait_for_timeout(400)
@@ -76,12 +110,33 @@ async def flow(browser, w, h, tag):
     await shot(K, f'{tag}-street-mailboxes')
     await K.click(f'.mapMail[data-mail="{k_house}"]')
     await K.wait_for_selector('[data-letter]')
+    t0 = time.monotonic()
     await K.click('[data-letter]')
     await K.wait_for_selector('.letter.open .words')
     words = await K.inner_text('.letter.open .words')
     who = await K.inner_text('.letter.open .who')
     check(f'{tag} letter opens with the sender and the words', 'Come play today!' in words and 'Reagan' in who, words + ' / ' + who)
+    left = 2000 - int((time.monotonic() - t0) * 1000)
+    if left > 0: await K.wait_for_timeout(left)
+    stayed = await K.evaluate("""() => {
+      const open = document.querySelector('.letter.open');
+      const words = open && open.querySelector('.words');
+      const id = open && open.getAttribute('data-id');
+      let read = false;
+      try {
+        const house = __hood().myHouseId();
+        const letters = (((__hood().houses.get(house) || {}).confirmed || {}).mailbox || {}).letters || [];
+        const L = letters.filter(l => l.id === id)[0];
+        read = !!(L && L.read);
+      } catch (e) {}
+      return {open: !!(open && words && (words.textContent || '').indexOf('Come play today!') >= 0), read, text: words ? words.textContent : ''};
+    }""")
+    check(f'{tag} unread letter stays open at 2s after the mailbox push', stayed['open'] and stayed['read'], str(stayed))
     await shot(K, f'{tag}-open-letter')
+    if tag == 'ipad820':
+        path = os.path.join(SHOT, 'open-letter-820x1180.png')
+        await K.screenshot(path=path)
+        print('SHOT', path, flush=True)
     if tag == 'ipad':
         await K.click('[data-m="close"]')
         await K.wait_for_timeout(200)
@@ -109,6 +164,7 @@ async def main():
         browser = await p.chromium.launch()
         await flow(browser, 1024, 768, 'ipad')
         await flow(browser, 390, 844, 'iphone')
+        await flow(browser, 820, 1180, 'ipad820')
         await browser.close()
     failed = [k for k, v in res.items() if not v]
     print('MAIL UI', 'ok' if not failed else 'FAILED ' + ', '.join(failed), flush=True)

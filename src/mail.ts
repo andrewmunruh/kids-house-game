@@ -70,6 +70,7 @@ export function installMail(opts: {
   openOwn: () => void;
 }): MailCtl {
   let openId = '';
+  let readingId = '';
   let writing = false;
   let replyTo = '';
   let color = 0;
@@ -79,7 +80,7 @@ export function installMail(opts: {
   const cue = () => document.getElementById('mailCue');
   cue()?.addEventListener('click', () => { opts.openOwn(); });
 
-  function close() { openId = ''; document.getElementById('mailSheet')?.remove(); }
+  function close() { openId = ''; readingId = ''; document.getElementById('mailSheet')?.remove(); }
   function sheet(): HTMLElement {
     let el = document.getElementById('mailSheet');
     if (!el) {
@@ -110,6 +111,11 @@ export function installMail(opts: {
     const letters = opts.lettersOf(openId);
     const name = opts.houseName(openId);
     const card = sheet().querySelector('#mailCard')!;
+    if (readingId && mine && !writing) {
+      const letter = letters.find(l => l.id === readingId);
+      if (letter && letter.text) { renderOpen(letter); return; }
+      readingId = '';
+    }
     if (writing || !mine) {
       const title = replyTo ? `Reply to ${opts.houseName(replyTo) || 'your friend'}` : (mine ? 'Leave a letter' : `Letter for ${name}`);
       card.innerHTML = `<button class="close" data-m="close">✕</button><h2>${esc(title)}</h2>
@@ -145,12 +151,12 @@ export function installMail(opts: {
     if (stickBtn) { sticker = +stickBtn.dataset.sticker!; draw(); return; }
     if (t.closest('#mailSend')) return send();
     const act = t.closest<HTMLElement>('[data-act]')?.dataset.act;
-    if (act === 'write') { writing = true; replyTo = ''; err = ''; draw(); return; }
-    if (act === 'back') { writing = false; replyTo = ''; err = ''; draw(); return; }
+    if (act === 'write') { writing = true; replyTo = ''; readingId = ''; err = ''; draw(); return; }
+    if (act === 'back') { writing = false; replyTo = ''; readingId = ''; err = ''; draw(); return; }
     if (act === 'reply') {
       const hid = opts.houseOf(t.closest<HTMLElement>('[data-from]')?.dataset.from ?? '');
       if (!hid) { opts.toast('They are not on the street anymore.'); return; }
-      replyTo = hid; writing = true; err = ''; openId = hid; draw(); return;
+      replyTo = hid; writing = true; readingId = ''; err = ''; openId = hid; draw(); return;
     }
     if (act === 'drop') {
       const id = t.closest<HTMLElement>('[data-id]')?.dataset.id ?? '';
@@ -165,17 +171,24 @@ export function installMail(opts: {
     if (!letter) return;
     if (!opts.mine(openId) || !letter.text) return;
     if (!letter.read) opts.read(openId, id);
+    readingId = id;
+    renderOpen(letter);
+  }
+
+  /** The open letter, shown as read. A later mailbox push redraws this instead of the list. */
+  function renderOpen(letter: Letter) {
     const safe = showText(letter.text);
     const card = sheet().querySelector('#mailCard')!;
     card.innerHTML = `<button class="close" data-m="close">✕</button>
-      <div class="letter open" style="background:${MAIL_COLOR[letter.color] ?? MAIL_COLOR[0]}" data-id="${esc(letter.id)}" data-from="${esc(letter.fromPid)}">
+      <div class="letter open read" style="background:${MAIL_COLOR[letter.color] ?? MAIL_COLOR[0]}" data-id="${esc(letter.id)}" data-from="${esc(letter.fromPid)}">
         <span class="sticker">${STICKER[letter.sticker] ?? STICKER[0]}</span>
         <span class="who">${esc(letter.from)}</span><span class="when">${esc(friendlyWhen(letter.at))}</span>
         <svg class="envelope" viewBox="0 0 80 36"><path d="M4 8 H76 V32 H4 Z" fill="#fff" ${st}/><path class="flap" d="M4 8 L40 24 L76 8" fill="#fff" ${st}/></svg>
         <p class="words">${esc(safe ?? '')}</p>
         <span class="mailRow"><button type="button" data-act="reply">Reply</button><button type="button" class="throw" data-act="drop">${confirmDrop === letter.id ? 'Tap again' : 'Throw away'}</button></span>
       </div>
-      <button type="button" data-act="back">All my mail</button>`;
+      <button type="button" data-act="back">All my mail</button>
+      ${err ? `<p class="mailErr">${esc(err)}</p>` : ''}`;
   }
 
   function send() {
@@ -192,7 +205,7 @@ export function installMail(opts: {
 
   return {
     open(houseId, _houseName, mine, _letters) {
-      openId = houseId; writing = !mine; replyTo = ''; err = ''; confirmDrop = ''; color = 0; sticker = 0;
+      openId = houseId; readingId = ''; writing = !mine; replyTo = ''; err = ''; confirmDrop = ''; color = 0; sticker = 0;
       draw();
     },
     fail(reason) { err = failMsg(reason); if (openId) draw(); else opts.toast(err); },
