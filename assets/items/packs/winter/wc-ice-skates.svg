@@ -1,1 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="8 22 92 72"><!-- Winter Cheer: Ice Skates. --><ellipse cx="50" cy="92" rx="34" ry="3" fill="#000" opacity=".12"/><path d="M22 40 Q18 58 30 64 H52 Q58 50 48 40 Z" fill="#fff" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M18 70 H56" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M48 36 Q44 54 56 60 H78 Q84 46 74 36 Z" fill="#d7f3ff" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M44 66 H84" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M30 40 H46 M58 36 H74" stroke="#e25d6c" stroke-width="3" stroke-linecap="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="4 8 100 88"><!-- Winter Cheer: Ice Skates. Chunky boots, laces, and blades. --><ellipse cx="52" cy="94" rx="36" ry="3" fill="#000" opacity=".12"/>
+<path d="M16 36 Q12 34 14 42 L18 70 Q20 78 32 78 H48 Q58 76 56 66 L50 40 Q46 30 34 32 Q24 33 16 36 Z" fill="#fff" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M20 40 H46" fill="none" stroke="#e25d6c" stroke-width="4" stroke-linecap="round"/>
+<path d="M24 48 H44 M26 56 H42 M28 64 H40" fill="none" stroke="#8ecae6" stroke-width="2.4" stroke-linecap="round"/>
+<path d="M22 74 H52" stroke="#d4a373" stroke-width="4" stroke-linecap="round"/>
+<path d="M18 78 H54" fill="none" stroke="#cfd8e3" stroke-width="3.5" stroke-linecap="round"/>
+<path d="M24 78 V84 H46 V78" fill="none" stroke="#9aa8b8" stroke-width="3" stroke-linejoin="round"/>
+<path d="M48 32 Q44 30 46 40 L52 66 Q54 76 66 76 H84 Q94 74 92 64 L84 36 Q80 26 68 28 Q56 29 48 32 Z" fill="#d7f3ff" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M54 38 H80" fill="none" stroke="#ff8fab" stroke-width="4" stroke-linecap="round"/>
+<path d="M58 46 H78 M60 54 H76 M62 62 H74" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+<path d="M54 72 H86" stroke="#d4a373" stroke-width="4" stroke-linecap="round"/>
+<path d="M50 76 H90" fill="none" stroke="#cfd8e3" stroke-width="3.5" stroke-linecap="round"/>
+<path d="M58 76 V84 H82 V76" fill="none" stroke="#9aa8b8" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="30" cy="36" r="3" fill="#fff6ea" stroke="#5a3d5c" stroke-width="2"/>
+<circle cx="64" cy="32" r="3" fill="#fff" stroke="#5a3d5c" stroke-width="2"/>
+</svg>

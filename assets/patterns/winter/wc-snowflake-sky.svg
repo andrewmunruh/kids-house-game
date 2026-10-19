@@ -1,1 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><!-- Winter Cheer: Snowflake Sky. --><rect width="80" height="80" fill="#e5f6ff"/><g fill="none" stroke="#8ecae6" stroke-width="2" stroke-linecap="round"><path d="M20 14 V30 M12 22 H28 M14.4 16.4 L25.6 27.6 M25.6 16.4 L14.4 27.6"/></g><circle cx="20" cy="22" r="1.6" fill="#fff" stroke="#5a3d5c" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><g fill="none" stroke="#8ecae6" stroke-width="2" stroke-linecap="round"><path d="M58 38 V58 M48 48 H68 M51 41 L65 55 M65 41 L51 55"/></g><circle cx="58" cy="48" r="1.6" fill="#fff" stroke="#5a3d5c" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><g fill="none" stroke="#8ecae6" stroke-width="2" stroke-linecap="round"><path d="M30 58 V70 M24 64 H36 M25.8 59.8 L34.2 68.2 M34.2 59.8 L25.8 68.2"/></g><circle cx="30" cy="64" r="1.6" fill="#fff" stroke="#5a3d5c" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><!-- Winter Cheer: Snowflake Sky. Small soft flakes, about a third of the old motif. --><rect width="80" height="80" fill="#e7f6ff"/>
+<g fill="none" stroke="#c5e4f4" stroke-width="1.05" stroke-linecap="round">
+<path d="M14 12 V18 M11 15 H17 M12 13 L16 17 M16 13 L12 17"/>
+<path d="M36 8 V13 M33.2 10.5 H38.8 M34 8.8 L38 12.2 M38 8.8 L34 12.2"/>
+<path d="M58 16 V21 M55.4 18.5 H60.6 M56.2 16.8 L59.8 20.2 M59.8 16.8 L56.2 20.2"/>
+<path d="M74 8 V12.5 M71.8 10.2 H76.2"/>
+<path d="M22 30 V35.5 M19.2 32.7 H24.8 M20.2 30.8 L23.8 34.6 M23.8 30.8 L20.2 34.6"/>
+<path d="M46 28 V34 M43 31 H49 M43.8 28.8 L48.2 33.2 M48.2 28.8 L43.8 33.2"/>
+<path d="M66 34 V39 M63.4 36.5 H68.6"/>
+<path d="M10 48 V53 M7.4 50.5 H12.6 M8.2 48.6 L11.8 52.2 M11.8 48.6 L8.2 52.2"/>
+<path d="M30 52 V58 M26.8 55 H33.2 M28 52.8 L32 56.8 M32 52.8 L28 56.8"/>
+<path d="M52 46 V51.5 M49.2 48.7 H54.8"/>
+<path d="M70 54 V59.5 M67.2 56.7 H72.8 M68 54.8 L72 58.6 M72 54.8 L68 58.6"/>
+<path d="M18 68 V73 M15.4 70.5 H20.6"/>
+<path d="M40 66 V72 M36.8 69 H43.2 M37.8 66.8 L42.2 71.2 M42.2 66.8 L37.8 71.2"/>
+<path d="M60 70 V75 M57.4 72.5 H62.6"/>
+</g>
+<g fill="#f7fcff" stroke="#d3ebf7" stroke-width="0.6">
+<circle cx="14" cy="15" r="0.7"/><circle cx="36" cy="10.5" r="0.6"/><circle cx="58" cy="18.5" r="0.65"/>
+<circle cx="22" cy="32.7" r="0.6"/><circle cx="46" cy="31" r="0.7"/><circle cx="10" cy="50.5" r="0.6"/>
+<circle cx="30" cy="55" r="0.7"/><circle cx="70" cy="56.7" r="0.65"/><circle cx="40" cy="69" r="0.7"/>
+</g>
+</svg>

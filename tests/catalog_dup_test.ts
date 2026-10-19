@@ -48,6 +48,6 @@ const winterInList = WINTER_CATALOG_NAMES.every(n => CATALOG_NAMES.includes(n));
 check('Winter Cheer names are on the mail allow-list', winterInList && CATALOG_NAMES.includes(WINTER_PACK_LABEL) && WINTER_CATALOG_NAMES.length >= 58);
 
 const holiday = new Set(WINTER_NURSERY_SKIP);
-check('holiday pieces are listed for the nursery skip', holiday.size === 11 && holiday.has('pack:wc-holiday-tree') && holiday.has('pack:wc-gingerbread') && holiday.has('pack:wc-sleigh-planter'));
+check('holiday pieces are listed for the nursery skip', holiday.size === 12 && holiday.has('pack:wc-holiday-tree') && holiday.has('pack:wc-gingerbread') && holiday.has('pack:wc-gingerbread-village') && holiday.has('pack:wc-sleigh-planter'));
 
 console.log(`${pass} passed`);

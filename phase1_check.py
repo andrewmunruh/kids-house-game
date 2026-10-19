@@ -9,8 +9,8 @@ async def main():
         pg.on('response', lambda r: r.status >= 400 and bad.append((r.status, r.url)))
         await pg.goto(URL); await pg.evaluate("localStorage.clear()"); await pg.reload(); await pg.wait_for_timeout(800)
         n = await pg.evaluate("Object.keys(__items).length"); print('image items loaded:', n)
-        # 254 image items, plus 58 in the Winter Cheer pack.
-        if n != 312: raise SystemExit(f'expected 312 pack items, got {n}')
+        # 254 image items, plus 59 in the Winter Cheer pack.
+        if n != 313: raise SystemExit(f'expected 313 pack items, got {n}')
         print('tabs:', await pg.locator('.cat').evaluate_all("e=>e.map(x=>x.dataset.cat)"))
         # walk every tab under "All" and check every drawer image decodes
         broken = []; total = 0

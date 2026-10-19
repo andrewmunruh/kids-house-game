@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="2 6 116 90"><!-- Winter Cheer: Gingerbread Village. Three little iced houses. --><ellipse cx="60" cy="94" rx="48" ry="4" fill="#000" opacity=".12"/>
+<ellipse cx="60" cy="86" rx="52" ry="10" fill="#fff" stroke="#5a3d5c" stroke-width="3.5"/>
+<path d="M46 86 Q60 78 74 86" fill="none" stroke="#f3d7c4" stroke-width="4" stroke-linecap="round"/>
+<rect x="8" y="48" width="28" height="28" rx="3" fill="#c48a5a" stroke="#5a3d5c" stroke-width="3.5"/>
+<path d="M6 50 L22 32 L38 50 Z" fill="#fff6ea" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round"/>
+<circle cx="16" cy="40" r="2" fill="#e25d6c"/><circle cx="28" cy="40" r="2" fill="#8ecae6"/>
+<rect x="18" y="60" width="8" height="16" rx="2" fill="#6b3e2a" stroke="#5a3d5c" stroke-width="2.4"/>
+<rect x="12" y="54" width="7" height="7" rx="1.5" fill="#d7f3ff" stroke="#5a3d5c" stroke-width="2"/>
+<rect x="44" y="40" width="34" height="38" rx="3" fill="#d49a6a" stroke="#5a3d5c" stroke-width="3.5"/>
+<path d="M40 42 L61 18 L82 42 Z" fill="#fff" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M48 28 H74" stroke="#e25d6c" stroke-width="3" stroke-linecap="round"/>
+<rect x="56" y="58" width="10" height="20" rx="2" fill="#6b3e2a" stroke="#5a3d5c" stroke-width="2.4"/>
+<circle cx="63" cy="66" r="1.4" fill="#ffd166"/>
+<path d="M50 50 H58 V58 H50 Z" fill="#ffd0dc" stroke="#5a3d5c" stroke-width="2"/>
+<path d="M68 50 H76 V58 H68 Z" fill="#d7f3ff" stroke="#5a3d5c" stroke-width="2"/>
+<rect x="86" y="52" width="26" height="26" rx="3" fill="#c48a5a" stroke="#5a3d5c" stroke-width="3.5"/>
+<path d="M84 54 L99 38 L114 54 Z" fill="#ffd0dc" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round"/>
+<circle cx="93" cy="46" r="2.2" fill="#ffd166"/><circle cx="105" cy="46" r="2.2" fill="#8ecae6"/>
+<rect x="94" y="64" width="8" height="14" rx="2" fill="#fff6ea" stroke="#5a3d5c" stroke-width="2.2"/>
+<circle cx="104" cy="62" r="5" fill="#3e9a6d" stroke="#5a3d5c" stroke-width="2.2"/>
+<circle cx="104" cy="56" r="3.5" fill="#2d6b4c" stroke="#5a3d5c" stroke-width="2"/>
+<circle cx="102" cy="58" r="1.6" fill="#e25d6c"/><circle cx="107" cy="62" r="1.6" fill="#ffd166"/>
+</svg>

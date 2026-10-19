@@ -5894,7 +5894,7 @@
     "svg": "packs/winter/wc-plaid-sofa.svg",
     "widthUnits": 116,
     "heightUnits": 74,
-    "gameW": 268,
+    "gameW": 235,
     "viewBox": [
       2,
       22,
@@ -5915,7 +5915,7 @@
     "svg": "packs/winter/wc-stone-hearth.svg",
     "widthUnits": 112,
     "heightUnits": 90,
-    "gameW": 230,
+    "gameW": 204,
     "viewBox": [
       4,
       8,
@@ -5999,7 +5999,7 @@
     "svg": "packs/winter/wc-window-seat.svg",
     "widthUnits": 112,
     "heightUnits": 94,
-    "gameW": 240,
+    "gameW": 214,
     "viewBox": [
       4,
       4,
@@ -6503,7 +6503,7 @@
     "svg": "packs/winter/wc-snowman.svg",
     "widthUnits": 68,
     "heightUnits": 90,
-    "gameW": 120,
+    "gameW": 100,
     "viewBox": [
       16,
       8,
@@ -6564,14 +6564,14 @@
     "pack": "winter",
     "shelf": "Trim",
     "svg": "packs/winter/wc-mitten-line.svg",
-    "widthUnits": 112,
-    "heightUnits": 70,
-    "gameW": 180,
+    "widthUnits": 116,
+    "heightUnits": 78,
+    "gameW": 170,
     "viewBox": [
-      4,
-      10,
-      112,
-      70
+      2,
+      6,
+      116,
+      78
     ],
     "room": "any",
     "wall": true,
@@ -6587,14 +6587,14 @@
     "pack": "winter",
     "shelf": "Cozy",
     "svg": "packs/winter/wc-ice-skates.svg",
-    "widthUnits": 92,
-    "heightUnits": 72,
-    "gameW": 120,
+    "widthUnits": 100,
+    "heightUnits": 88,
+    "gameW": 100,
     "viewBox": [
+      4,
       8,
-      22,
-      92,
-      72
+      100,
+      88
     ],
     "room": "any"
   },
@@ -6608,14 +6608,14 @@
     "pack": "winter",
     "shelf": "Cozy",
     "svg": "packs/winter/wc-snowshoes.svg",
-    "widthUnits": 80,
-    "heightUnits": 90,
-    "gameW": 130,
+    "widthUnits": 88,
+    "heightUnits": 96,
+    "gameW": 110,
     "viewBox": [
-      10,
-      8,
-      80,
-      90
+      6,
+      4,
+      88,
+      96
     ],
     "room": "any"
   },
@@ -6629,14 +6629,14 @@
     "pack": "winter",
     "shelf": "Trim",
     "svg": "packs/winter/wc-pinecone-garland.svg",
-    "widthUnits": 116,
-    "heightUnits": 56,
-    "gameW": 220,
+    "widthUnits": 120,
+    "heightUnits": 64,
+    "gameW": 180,
     "viewBox": [
-      2,
-      16,
-      116,
-      56
+      0,
+      8,
+      120,
+      64
     ],
     "room": "any",
     "wall": true,
@@ -6652,14 +6652,14 @@
     "pack": "winter",
     "shelf": "Trim",
     "svg": "packs/winter/wc-berry-wreath.svg",
-    "widthUnits": 84,
-    "heightUnits": 84,
-    "gameW": 130,
+    "widthUnits": 92,
+    "heightUnits": 92,
+    "gameW": 96,
     "viewBox": [
-      8,
-      8,
-      84,
-      84
+      4,
+      4,
+      92,
+      92
     ],
     "room": "any",
     "wall": true
@@ -6675,13 +6675,13 @@
     "shelf": "Trim",
     "svg": "packs/winter/wc-twinkle-string.svg",
     "widthUnits": 120,
-    "heightUnits": 50,
-    "gameW": 230,
+    "heightUnits": 56,
+    "gameW": 180,
     "viewBox": [
-      2,
-      14,
+      0,
+      10,
       120,
-      50
+      56
     ],
     "room": "any",
     "wall": true,
@@ -6718,14 +6718,14 @@
     "pack": "winter",
     "shelf": "Cozy",
     "svg": "packs/winter/wc-candle-trio.svg",
-    "widthUnits": 92,
-    "heightUnits": 80,
-    "gameW": 120,
+    "widthUnits": 96,
+    "heightUnits": 86,
+    "gameW": 100,
     "viewBox": [
-      8,
-      16,
-      92,
-      80
+      6,
+      10,
+      96,
+      86
     ],
     "room": "any"
   },
@@ -6739,14 +6739,14 @@
     "pack": "winter",
     "shelf": "Trim",
     "svg": "packs/winter/wc-snow-mobile.svg",
-    "widthUnits": 100,
-    "heightUnits": 80,
-    "gameW": 150,
+    "widthUnits": 104,
+    "heightUnits": 90,
+    "gameW": 120,
     "viewBox": [
-      6,
       4,
-      100,
-      80
+      2,
+      104,
+      90
     ],
     "room": "any",
     "wall": true
@@ -6763,7 +6763,7 @@
     "svg": "packs/winter/wc-polar-plush.svg",
     "widthUnits": 80,
     "heightUnits": 82,
-    "gameW": 120,
+    "gameW": 96,
     "viewBox": [
       10,
       16,
@@ -6784,7 +6784,7 @@
     "svg": "packs/winter/wc-penguin-plush.svg",
     "widthUnits": 64,
     "heightUnits": 86,
-    "gameW": 96,
+    "gameW": 90,
     "viewBox": [
       18,
       12,
@@ -6849,7 +6849,7 @@
     "svg": "packs/winter/wc-cabin-picture.svg",
     "widthUnits": 84,
     "heightUnits": 74,
-    "gameW": 140,
+    "gameW": 110,
     "viewBox": [
       8,
       10,
@@ -6871,7 +6871,7 @@
     "svg": "packs/winter/wc-snow-window.svg",
     "widthUnits": 80,
     "heightUnits": 84,
-    "gameW": 150,
+    "gameW": 140,
     "viewBox": [
       10,
       8,
@@ -6893,7 +6893,7 @@
     "svg": "packs/winter/wc-present-stack.svg",
     "widthUnits": 80,
     "heightUnits": 74,
-    "gameW": 130,
+    "gameW": 110,
     "viewBox": [
       10,
       24,
@@ -6914,7 +6914,7 @@
     "svg": "packs/winter/wc-bauble-garland.svg",
     "widthUnits": 120,
     "heightUnits": 52,
-    "gameW": 230,
+    "gameW": 180,
     "viewBox": [
       2,
       12,
@@ -6937,7 +6937,7 @@
     "svg": "packs/winter/wc-stocking-row.svg",
     "widthUnits": 116,
     "heightUnits": 78,
-    "gameW": 200,
+    "gameW": 170,
     "viewBox": [
       4,
       8,
@@ -6958,14 +6958,14 @@
     "pack": "winter",
     "shelf": "Holiday",
     "svg": "packs/winter/wc-cane-lamp.svg",
-    "widthUnits": 56,
-    "heightUnits": 94,
+    "widthUnits": 84,
+    "heightUnits": 98,
     "gameW": 90,
     "viewBox": [
-      22,
-      4,
-      56,
-      94
+      8,
+      2,
+      84,
+      98
     ],
     "room": "any"
   },
@@ -7066,7 +7066,7 @@
     "svg": "packs/winter/wc-reindeer.svg",
     "widthUnits": 84,
     "heightUnits": 90,
-    "gameW": 120,
+    "gameW": 96,
     "viewBox": [
       8,
       8,
@@ -7095,5 +7095,27 @@
       76
     ],
     "room": "any"
+  },
+  {
+    "type": "item",
+    "slug": "wc-gingerbread-village",
+    "name": "Gingerbread Village",
+    "category": "furniture",
+    "tag": "furniture",
+    "size": "medium",
+    "pack": "winter",
+    "shelf": "Holiday",
+    "svg": "packs/winter/wc-gingerbread-village.svg",
+    "widthUnits": 116,
+    "heightUnits": 90,
+    "gameW": 156,
+    "viewBox": [
+      2,
+      6,
+      116,
+      90
+    ],
+    "room": "living",
+    "holdable": false
   }
 ]

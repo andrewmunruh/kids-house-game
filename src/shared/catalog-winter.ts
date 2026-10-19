@@ -9,6 +9,7 @@ export const WINTER_PACK_NAMES: Record<string, string> = { [WINTER_PACK_ID]: WIN
 export const WINTER_NURSERY_SKIP: readonly string[] = [
   'pack:wc-holiday-tree',
   'pack:wc-gingerbread',
+  'pack:wc-gingerbread-village',
   'pack:wc-bauble-garland',
   'pack:wc-stocking-row',
   'pack:wc-cane-lamp',
@@ -41,6 +42,7 @@ export const WINTER_CATALOG_NAMES: readonly string[] = [
   'Frosty Dots',
   'Fur-Trim Bench',
   'Gingerbread Cottage',
+  'Gingerbread Village',
   'Holly Sprig',
   'Ice Skates',
   'Ice-Blue Wardrobe',

@@ -69,7 +69,7 @@ check('ring light stays on its pack tab outside the nursery', !!ring && !!ring.p
 const winter = catalog.filter(it => it.pack === 'winter');
 const shelfCount = new Map<string, number>();
 for (const it of winter) shelfCount.set(it.shelf || '', (shelfCount.get(it.shelf || '') || 0) + 1);
-const shelfOk = winter.length === 58 && [...shelfCount.values()].every(n => n >= 8 && n <= 13) && shelfCount.get('Holiday') === 11;
+const shelfOk = winter.length === 59 && [...shelfCount.values()].every(n => n >= 8 && n <= 13) && shelfCount.get('Holiday') === 12;
 check('winter shelves stay near ten items', shelfOk, [...shelfCount.entries()].map(([k, n]) => k + ':' + n).join(' '));
 check('a hearth stays off the nursery shelf', !itemMatchesRoom({ name: 'Stone Hearth Fireplace', kind: 'pack:wc-stone-hearth', rooms: ['living'], cat: 'furniture' }, 'nursery'));
 check('holiday lamps stay off the nursery shelf', !itemMatchesRoom({ name: 'Candy Cane Lamp', kind: 'pack:wc-cane-lamp', rooms: ['any'], cat: 'decor' }, 'nursery') && !catalogShows({ name: 'Sleigh Planter', kind: 'pack:wc-sleigh-planter', rooms: ['any'], cat: 'decor', pack: 'winter' }, 'pack:winter', 'nursery', true));
