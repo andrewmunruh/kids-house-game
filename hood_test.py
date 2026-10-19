@@ -118,6 +118,7 @@ async def run(P, K2, K3, mk, errs, check):
         await check('P sees K2 avatar inside', await P.locator('.char.avatar.other').count() == 1)
         # ---- K2 decorates P's house live ----
         before = await items(P)
+        await K2.click('#modeDecorate'); await K2.wait_for_timeout(200)
         await K2.click('.cat[data-cat="pets"]'); th = K2.locator('.shelf .thing').first
         await drag(K2, await center(th), (560, 560)); await P.wait_for_timeout(700)
         after = await items(P); await check('K2 adds item -> P sees it live', len(after) == len(before) + 1, f'{len(before)}->{len(after)}')

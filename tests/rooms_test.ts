@@ -178,6 +178,14 @@ async function main() {
   const diskK = kennelMem.get('house:' + khid).state;
   check('an old client edit keeps the kennel on the server', diskK.dogKennel?.item === 'keep-kennel' && diskK.rooms.living.wallpaper === '#112233' && diskK.rooms.living.items.some((i: { id: string }) => i.id === 'keep-kennel') && diskK.dog == null);
 
+  const stamped = { ...initialState(), mailbox: { letters: [{ id: 'mkeepmail1', from: 'Quinn', fromPid: 'pabc', text: 'Come play', color: 1, sticker: 2, at: Date.now() }] } };
+  const mailRound = oldClientMigrate(JSON.parse(JSON.stringify(stamped)));
+  check('an old client keeps mailbox state it does not understand', mailRound.mailbox?.letters?.[0]?.text === 'Come play' && mailRound.mailbox.letters[0].from === 'Quinn');
+  const painted = reduce(stamped, { type: 'room/wallpaper', room: 'living', color: '#abcdef' });
+  check('a wallpaper edit keeps the mailbox', painted.rooms.living.wallpaper === '#abcdef' && painted.mailbox?.letters[0].text === 'Come play');
+  check('cleanHouseState keeps a real mailbox and drops a bad one', cleanHouseState(stamped).mailbox?.letters[0].text === 'Come play' && cleanHouseState({ ...stamped, mailbox: { letters: [{ id: 'nope', text: 'x' }] } }).mailbox == null);
+  check('an empty house has no mailbox key', !('mailbox' in initialState()));
+
   const futureKid = { ...initialState().characters[0], room: 'attic' as GameState['currentRoom'] };
   const future = migrate({ ...initialState(), currentRoom: 'attic', characters: [futureKid] });
   check('an unknown room opens the living room with the kid', future.currentRoom === 'living' && future.characters[0].room === 'living' && future.version === 3);
