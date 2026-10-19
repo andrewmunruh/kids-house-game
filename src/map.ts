@@ -11,7 +11,7 @@ export const PARK = { x: 115, y: 170 }, RANCH = { x: 880, y: 120 }, SQUARE = { x
 export const CLUB = { x: 400, y: 260 };
 export const BARN_PIN = { x: 905, y: 92 };
 
-const tree = (x: number, y: number, s = 1, c = '#5cc985') => `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cx="0" cy="22" rx="20" ry="6" fill="#000" opacity=".1"/><rect x="-5" y="2" width="10" height="20" rx="4" fill="#c99366" ${st(3)}/><circle cx="0" cy="-10" r="20" fill="${c}" ${st(3)}/><circle cx="-12" cy="-2" r="12" fill="${c}" ${st(3)}/><circle cx="12" cy="-3" r="13" fill="${c}" ${st(3)}/><circle cx="-5" cy="-16" r="5" fill="#fff" opacity=".35"/></g>`;
+const tree = (x: number, y: number, s = 1, c = '#5cc985') => `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cx="0" cy="22" rx="16" ry="4" fill="#5a3d5c" opacity=".08"/><rect x="-5" y="2" width="10" height="20" rx="4" fill="#e0b080" ${st(3)}/><rect x="0" y="4" width="5" height="16" rx="2" fill="#c4844c"/><circle cx="0" cy="-10" r="20" fill="${c}" ${st(3)}/><circle cx="-12" cy="-2" r="12" fill="${c}" ${st(3)}/><circle cx="12" cy="-3" r="13" fill="#3d9a68" ${st(3)}/><circle cx="-8" cy="-16" r="4" fill="#fff" opacity=".55"/></g>`;
 const flower = (x: number, y: number, c: string) => `<g transform="translate(${x} ${y})">${[0, 72, 144, 216, 288].map(a => `<circle cx="${Math.cos(a * Math.PI / 180) * 4}" cy="${Math.sin(a * Math.PI / 180) * 4}" r="3.6" fill="${c}"/>`).join('')}<circle r="2.6" fill="#ffd43b"/></g>`;
 
 /** The ground: grass, meadows, a pond, the road, the town square with its fountain. */
