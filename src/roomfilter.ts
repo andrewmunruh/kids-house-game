@@ -2,6 +2,8 @@
 // "any" is a fallback for All rooms, except generic decor (rugs, lamps, plants, clocks, windows).
 // Pets, plants, and food tagged "any" still show in the room you're standing in.
 
+import { WINTER_NURSERY_SKIP } from './shared/catalog-winter';
+
 export type ShelfItem = { rooms?: string[]; cat: string; name: string; kind?: string; pack?: string; secret?: string };
 
 const GENERIC = /rug|lamp|light|plant|curtain|clock|window|lantern/;
@@ -12,7 +14,7 @@ export function isGenericDecor(item: ShelfItem): boolean {
   return GENERIC.test(blob);
 }
 
-const NURSERY_SKIP = new Set(['pack:ring-light', 'pack:desk-lamp']);
+const NURSERY_SKIP = new Set<string>(['pack:ring-light', 'pack:desk-lamp', ...WINTER_NURSERY_SKIP]);
 
 export function itemMatchesRoom(item: ShelfItem, room: string): boolean {
   if (room === 'nursery' && item.kind && NURSERY_SKIP.has(item.kind)) return false;

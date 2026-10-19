@@ -6,12 +6,14 @@
 //     pattern:  { type: 'wallpaper'|'floor', slug, name, pack }                      -> assets/patterns/<pack>/<slug>.png|svg|webp
 //   assets/patterns/manifest.json   (optional) same format, pattern entries only.
 import type { ItemDef } from './items';
+import { WINTER_PACK_NAMES } from './shared/catalog-winter';
 
 const SIZE_W: Record<string, number> = { small: 80, medium: 150, large: 260 };
-export const PACK_NAMES: Record<string, string> = { 'welcome-home': 'Welcome Home', 'sunny-vibes': 'Sunny Vibes', glossy: 'Glossy', cottage: 'Cozy Cottage' };
+// Extra packs append their own object. Winter Cheer lives in catalog-winter.ts.
+export const PACK_NAMES: Record<string, string> = { 'welcome-home': 'Welcome Home', 'sunny-vibes': 'Sunny Vibes', glossy: 'Glossy', cottage: 'Cozy Cottage', ...WINTER_PACK_NAMES };
 export const packLabel = (p: string) => PACK_NAMES[p] ?? p.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
-export interface PackEntry { slug: string; name?: string; room?: string; category?: string; size?: string; pack?: string; type?: string; holdable?: boolean;
+export interface PackEntry { slug: string; name?: string; room?: string; category?: string; size?: string; pack?: string; type?: string; holdable?: boolean; shelf?: string;
   // optional extras some deliveries include:
   gameCategory?: string; tag?: string; gameW?: number; widthUnits?: number; heightUnits?: number; png?: string; svg?: string; wall?: boolean; designW?: number }
 export interface PatternDef { id: string; name: string; pack: string; kind: 'wallpaper' | 'floor'; url: string }
@@ -64,7 +66,8 @@ export const PACK_ITEMS: ItemDef[] = entries.filter(e => !isPattern(e)).flatMap(
   const h = Math.round(w * Math.min(4, Math.max(0.2, ratio)));
   // optional manifest `holdable`; default: small/medium non-furniture items can be held
   const holdable = typeof e.holdable === 'boolean' ? e.holdable : size !== 'large' && cat !== 'furniture';
-  return [{ kind: `pack:${slug}`, name: e.name || slug, cat, rooms: [room], w, h, wall: e.wall === true || undefined, svg: '', img, pack: pack || undefined, holdable } satisfies ItemDef];
+  const shelf = typeof e.shelf === 'string' && e.shelf.trim() ? e.shelf.trim() : undefined;
+  return [{ kind: `pack:${slug}`, name: e.name || slug, cat, rooms: [room], w, h, wall: e.wall === true || undefined, svg: '', img, pack: pack || undefined, holdable, shelf } satisfies ItemDef];
 });
 
 export const PATTERNS_FROM_PACKS: PatternDef[] = entries.filter(isPattern).flatMap(e => {

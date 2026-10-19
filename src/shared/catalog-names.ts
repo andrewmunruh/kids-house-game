@@ -1,5 +1,8 @@
 // Display names of catalog items and pack items. Letters may name the furniture.
-export const CATALOG_NAMES: readonly string[] = [
+// Pack branches append their own file. Do not fold those names into the list below.
+import { WINTER_CATALOG_NAMES } from './catalog-winter';
+
+const CORE_CATALOG_NAMES: readonly string[] = [
   "Acorn Friend",
   "Alarm Clock",
   "Apple",
@@ -327,3 +330,5 @@ export const CATALOG_NAMES: readonly string[] = [
   "Wooden Bed",
   "Yard Sign"
 ];
+
+export const CATALOG_NAMES: readonly string[] = [...CORE_CATALOG_NAMES, ...WINTER_CATALOG_NAMES];
