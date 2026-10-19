@@ -3,9 +3,11 @@ import { LIVING } from './living';
 import { BEDROOM } from './bedroom';
 import { KITCHEN } from './kitchen';
 import { SALON } from './salon';
+import { NURSERY } from './nursery';
 export const GENERATED: Record<string, V2Mark> = {
   ...LIVING,
   ...BEDROOM,
   ...KITCHEN,
   ...SALON,
+  ...NURSERY,
 };
