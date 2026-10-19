@@ -10,7 +10,7 @@ This is the canonical drawing guide for the catalog. Bathroom, backyard, and any
 
 Each piece must use the real object's silhouette and proportions, the way a kid would draw it from life. The style (plum outlines, cel shading, soft colors) goes on top of that shape. It never replaces the real shape.
 
-If a kid saw the drawing alone, they should name it in one second. A hair dryer is a barrel, a round vent, a nozzle, and a handle. A rug is a flat rectangle or oval on the floor. A perfume is a bottle. Cute marks, dots, and stars do not stand in for the object.
+If a kid saw the drawing alone, they should name it in one second. A hair dryer is a barrel, a round vent, a nozzle, and a handle. A rug is a flat rug on the floor. A perfume is a bottle. Cute marks, dots, and stars do not stand in for the object.
 
 ## What changed in the sample
 
@@ -59,7 +59,7 @@ Use a gradient only for a sky, a glass pane, or a lamp glow. The glow is a radia
 
 ## Contact shadow
 
-Floor pieces only. Rugs and wall pieces (the window) do not get one. Two ellipses, plum, no stroke, no filter:
+Floor pieces only, including rugs. Wall pieces (the window) do not get one. Two ellipses, plum, no stroke, no filter:
 
 ```svg
 <ellipse cx="50" cy="96.4" rx="36" ry="3.4" fill="#5a3d5c" opacity=".08"/>
@@ -85,7 +85,7 @@ Draw the thing the kid would name. A gloss line on the old shape is not a refres
 - Sofa: two seat cushions, piping, tuft buttons, curled arms, a patterned throw pillow.
 - Bed: the original side view (headboard on the left, footboard on the right, pillow, duvet), plus a heart cutout, quilt diamonds, and a folded sheet edge.
 - Fridge: a closed freezer over a closed door, both solid pastel blue, with a highlight, handles, and a few magnets. Not glass shelves.
-- Rug: a flat rectangle or oval lying on the floor in perspective, with a border band and a simple pattern (stripes, diamonds, or one medallion). Optional fringe only on the short ends: 5 to 7 tabs, about 5 long and 3 wide, a slightly darker shade of the border, tucked against the edge, with a thin plum outline. No confetti dots, stars, or blobby outlines. A round rug is a braided or round woven rug. A cloud rug is still a rug: a flat oval, not a cloud silhouette.
+- Rug: lying flat on the floor in perspective. Shaped kids' rugs keep their silhouette (heart, cloud, daisy, rainbow half-round, blob), squashed to about 0.35–0.45 of their width, with a stitched or bound border band, a few pile strokes, a cel side-edge for thickness, and a contact shadow. A heart rug is a flat heart. A cloud rug is a flat cloud. A rainbow rug is a flat half-round with bands, lying down. Only the plain rugs (Rug, Tassel, Runner, Checker, Round Woven) are rectangles or ovals, and those are area rugs at full size. Fringe, when a plain rug has it, is only on the short ends: 5 to 7 tabs, about 5 long and 3 wide, a slightly darker shade of the border, tucked against the edge, with a thin plum outline.
 - Table: a top with thickness, grain, and turned legs.
 - Shelf: books of different heights, a small plant or trophy, grain, a darker side board.
 - Lamp: a pleated shade and a warm pool of light at the opening.

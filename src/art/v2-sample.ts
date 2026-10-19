@@ -137,22 +137,24 @@ const MARKS: Record<string, V2Mark> = {
   `) },
 
   rug: { vb: VB, body: pack(`
-    <rect x="6.4" y="73.6" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
-    <rect x="7.6" y="77" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
-    <rect x="8.4" y="80.4" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
-    <rect x="7.6" y="83.8" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
-    <rect x="6.4" y="87.2" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
-    <rect x="89.2" y="73.6" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
-    <rect x="88" y="77" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
-    <rect x="87.2" y="80.4" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
-    <rect x="88" y="83.8" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
-    <rect x="89.2" y="87.2" width="4.4" height="2.6" rx="0.6" fill="#e07098" ${ink(1.1)}/>
-    <ellipse cx="50" cy="80" rx="40" ry="12" fill="#ffc8dd" ${ink()}/>
-    <path d="M24 84 Q50 96 80 84 Q50 90 24 84 Z" fill="#e888a8"/>
-    <ellipse cx="50" cy="79" rx="32" ry="8" fill="#fff6fa" ${ink(2)}/>
-    <path d="M50 73 L57 79 L50 85 L43 79 Z" fill="#ff8fab" ${ink(1.6)}/>
-    <path d="M32 79 l2.4 2.4 -2.4 2.4 -2.4 -2.4 z" fill="#bde0fe"/>
-    <path d="M68 79 l2.4 2.4 -2.4 2.4 -2.4 -2.4 z" fill="#ffd166"/>
+    ${shadow(50, 44)}
+    <rect x="10.2" y="69.6" width="5.2" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="4.4" y="73.4" width="5.2" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="1.2" y="77.2" width="5" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="1.2" y="81" width="5" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="4.4" y="84.8" width="5.2" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="10.2" y="88.6" width="5.2" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="84.6" y="69.6" width="5.2" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="90.4" y="73.4" width="5.2" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="93.8" y="77.2" width="5" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="93.8" y="81" width="5" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="90.4" y="84.8" width="5.2" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <rect x="84.6" y="88.6" width="5.2" height="2.8" rx="0.6" fill="#e07098" ${ink(1.1)}/>
+    <ellipse cx="50" cy="83.2" rx="47" ry="14" fill="#e888a8"/>
+    <ellipse cx="50" cy="80" rx="47" ry="14" fill="#ffc8dd" ${ink()}/>
+    <ellipse cx="50" cy="80" rx="34" ry="9" fill="#bde0fe" ${ink(2.2)}/>
+    <ellipse cx="50" cy="80" rx="18" ry="4.5" fill="#fff" ${ink(2)}/>
+    <path d="M20 76 q8 2 14 0 M62 86 q8 -2 14 0 M34 86 q6 1 10 0" fill="none" stroke="${O}" stroke-width="1.1" stroke-linecap="round" opacity=".22"/>
   `) },
 
   plant: { vb: VB, body: pack(`

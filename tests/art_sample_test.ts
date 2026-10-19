@@ -55,7 +55,7 @@ const ward = v2Mark('pack:wardrobe');
 check('wardrobe keeps the pack viewBox', ward?.vb === '7 -1 86 102');
 check('wardrobe file is untouched', wardrobe.includes('viewBox="7 -1 86 102"') && wardrobe.includes('fill="#c9a0dc"'));
 check('wardrobe manifest footprint stays', /"slug": "wardrobe"[\s\S]{0,420}"gameW": 150\.5/.test(manifest));
-check('rug and window skip the floor shadow', !v2Mark('rug')!.body.includes('cy="96.4"') && !v2Mark('window')!.body.includes('cy="96.4"'));
-check('floor pieces keep a contact shadow', v2Mark('sofa')!.body.includes('cy="96.4"') && v2Mark('crib')!.body.includes('cy="96.4"'));
+check('window skips the floor shadow', !v2Mark('window')!.body.includes('cy="96.4"'));
+check('floor pieces keep a contact shadow', v2Mark('sofa')!.body.includes('cy="96.4"') && v2Mark('crib')!.body.includes('cy="96.4"') && v2Mark('rug')!.body.includes('cy="96.4"'));
 
 console.log(pass + ' passed');
