@@ -30,6 +30,9 @@ export const BLOCK_LINES: string[] = [
   'bastard', 'whore', 'slut', 'a-hole', 'ahole', 'a hole', 'twat', 'prick', 'wanker',
   'kike', 'chink', 'spic', 'coon', 'wetback', 'wet back', 'tranny', 'dyke', 'dykes',
   'beaner', 'gook', 'raghead', 'rag head', 'towelhead', 'towel head', 'heil hitler', 'heilhitler',
+  'dickheads', 'you dickheads', 'dickheaddd', '\u043aike', 'coons',
+  'you a hole', "you're an a hole", 'ur a hole', 'what an a hole', 'such an a hole', "you're a hole",
+  'slutty', 'the slut walk', 'twatt',
 ];
 
 /** Everyday kid lines, on top of the named allow list. School, pets, sports, shopping, and games. */
@@ -120,6 +123,10 @@ export const ALLOW_LINES: string[] = [
   'Moby Dick', 'cockatoo', 'peacock', 'hancock', 'raccoon', 'cocoon', 'spice', 'spicy', 'spices',
   'grape', 'shell', 'prickly pear', 'pussycat', 'a hole in the wall', 'dig a hole', "there's a hole in my sock",
   'kiss my ass', 'crap', 'goddamn', 'piss off', 'nazi',
+  'I found a hole', 'there is a hole', 'I see a hole', 'my sock has a hole', 'we made a hole', 'Look, a hole!',
+  'dug a hole in the yard', 'Maine Coon', 'my cat is a Maine Coon', 'the coon cat is fluffy',
+  'Dick and Jane', 'Dick and Jane read books', 'Dick Grayson', 'Philip K. Dick',
+  'cocky', 'chinking glasses', 'Spicer', 'gooky slime',
   ...KID_EVERYDAY,
 ];
 

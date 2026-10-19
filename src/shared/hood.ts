@@ -116,8 +116,8 @@ function swearShapeMore(s: string): boolean {
     || /^t+o+w+e+l+h+e+a+d+$/.test(s)
     || /^h+e+i+l+h+i+t+l+e+r+$/.test(s);
 }
-// "spicy" would lose its y and become the slur. The full word stays.
-const FALSE_FRIEND = new Set(['spicy', 'spices', 'spicing', 'spicey', 'spicier', 'spiciest']);
+// Full words that would lose a suffix and become a slur: spicy, cocky, chinking, Spicer, gooky.
+const FALSE_FRIEND = new Set(['spicy', 'spices', 'spicing', 'spicey', 'spicier', 'spiciest', 'cocky', 'chinking', 'spicer', 'gooky']);
 function swearToken(s: string, extra: boolean): boolean {
   if (!/^[a-z]+$/.test(s)) return false;
   if (extra && FALSE_FRIEND.has(s)) return false;
@@ -161,20 +161,33 @@ function blockedWord(s: string, extra: boolean): boolean {
     if (t.startsWith(p) && t.length > p.length + 2 && blockedWord(t.slice(p.length), extra)) return true;
   }
   for (let i = 0; i < COMPOUND_SUFFIX.length; i++) {
-    const suf = COMPOUND_SUFFIX[i];
-    if (t.endsWith(suf) && t.length > suf.length + 2 && blockedWord(t.slice(0, -suf.length), extra)) return true;
+    const head = compoundHead(t, COMPOUND_SUFFIX[i]);
+    if (head && blockedWord(head, extra)) return true;
   }
+  // dickheads: the plural s sits outside head. A doubled s (class, jackass) is left alone.
+  if (t.length > 4 && t.endsWith('s') && !t.endsWith('ss') && blockedWord(t.slice(0, -1), extra)) return true;
   return false;
+}
+/** head / face / you, with repeated letters, peeled off the end. The stem must be longer than two letters. */
+function compoundHead(t: string, tail: string): string | null {
+  let i = t.length;
+  for (let p = tail.length - 1; p >= 0; p--) {
+    const ch = tail[p];
+    if (i === 0 || t[i - 1] !== ch) return null;
+    while (i > 0 && t[i - 1] === ch) i--;
+  }
+  if (i <= 2) return null;
+  return t.slice(0, i);
 }
 function mapAll(token: string): string {
   let out = '';
   for (let i = 0; i < token.length; i++) out += SEND_LEET[token[i]] ?? token[i];
   return out;
 }
-/** Cyrillic letters that look like Latin. у maps to y, matching the shape. */
+/** Cyrillic letters that look like Latin. у maps to y, к maps to k. */
 const CYRILLIC_LOOK: Record<string, string> = {
   '\u0455': 's', '\u04bb': 'h', '\u0441': 'c', '\u0430': 'a', '\u0435': 'e', '\u043e': 'o',
-  '\u0440': 'p', '\u0456': 'i', '\u0445': 'x', '\u0443': 'y',
+  '\u0440': 'p', '\u0456': 'i', '\u0445': 'x', '\u0443': 'y', '\u043a': 'k',
 };
 function foldSend(raw: string): string {
   // Invisible marks come off first, so a soft hyphen or zero-width letter cannot split a word.
@@ -285,25 +298,41 @@ function killPhrase(tokens: string[]): boolean {
   }
   return false;
 }
-/** "Moby Dick" is the book. A leet disguise after Moby is still the slur. */
-function mobyDick(pieces: { text: string }[], plain: string[], i: number): boolean {
-  if (i < 1 || plain[i - 1] !== 'moby') return false;
-  return coreToken(pieces[i].text) === 'dick';
+/** Dick the name, and only the exact letters. d1ck stays the slur. */
+function dickName(pieces: { text: string }[], plain: string[], i: number): boolean {
+  if (coreToken(pieces[i].text) !== 'dick') return false;
+  const prev = i > 0 ? plain[i - 1] : '';
+  const prev2 = i > 1 ? plain[i - 2] : '';
+  const next = plain[i + 1] || '';
+  const next2 = plain[i + 2] || '';
+  if (prev === 'moby') return true;
+  if (prev === 'k' && prev2 === 'philip') return true;
+  if (next === 'grayson') return true;
+  if (next === 'and' && next2 === 'jane') return true;
+  return false;
 }
-/** Spaced "a hole" is the slur, except "a hole in ..." and "dig a hole". Hyphen "a-hole" is always the slur. */
+/** Maine Coon, and "coon cat". Bare coon and coons stay blocked. */
+function coonBreed(pieces: { text: string }[], plain: string[], i: number): boolean {
+  if (coreToken(pieces[i].text) !== 'coon') return false;
+  const prev = i > 0 ? plain[i - 1] : '';
+  const next = plain[i + 1] || '';
+  return prev === 'maine' || next === 'cat';
+}
+/** Spaced "a hole" is not glued into ahole. Hyphen "a-hole" is still the slur. */
 function spacedAhole(pieces: { text: string; gap: 'start' | 'space' | 'hyphen' | 'punct' }[], i: number, j: number): boolean {
   return j === i + 1 && pieces[j].gap === 'space'
     && /^a+$/.test(piecePlain(pieces[i].text))
     && /^h+o+l+e+$/.test(piecePlain(pieces[j].text));
 }
+/** Spaced "a hole" only in insult phrasing, or as the whole message. */
 function aHoleInsult(plain: string[]): boolean {
   for (let i = 0; i < plain.length - 1; i++) {
     if (!/^a+$/.test(plain[i]) || !/^h+o+l+e+$/.test(plain[i + 1])) continue;
+    if (plain.length === 2) return true;
     const prev = i > 0 ? plain[i - 1] : '';
-    const next = i + 2 < plain.length ? plain[i + 2] : '';
-    if (/^d+i+g/.test(prev) || /^d+u+g+$/.test(prev)) continue;
-    if (/^i+n/.test(next)) continue;
-    return true;
+    const prev2 = i > 1 ? plain[i - 2] : '';
+    if (/^y+o+u+$/.test(prev) || /^u+r+$/.test(prev) || /^a+n+$/.test(prev) || /^y+o+u+r+e+$/.test(prev)) return true;
+    if (/^r+e+$/.test(prev) && /^y+o+u+$/.test(prev2)) return true;
   }
   return false;
 }
@@ -323,7 +352,7 @@ function sendSwear(raw: string, extra = true): boolean {
   if (killPhrase(plain)) return true;
   if (extra && heilHitler(plain)) return true;
   for (let i = 0; i < reads.length; i++) {
-    if (extra && mobyDick(pieces, plain, i)) continue;
+    if (extra && (dickName(pieces, plain, i) || coonBreed(pieces, plain, i))) continue;
     for (let r = 0; r < reads[i].length; r++) {
       const forms = starForms(reads[i][r]);
       for (let j = 0; j < forms.length; j++) if (blockedWord(forms[j].replace(/\*/g, ''), extra)) return true;
