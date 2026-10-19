@@ -947,12 +947,11 @@ function renderDrawer() {
     return;
   }
   let list = tabItems(currentTab);
-  // Shelf groups belong to a pack tab. Category tabs still list every piece for the room,
-  // including ones that have no group, so a grouped pack cannot hide the older furniture.
+  // A pack tab shows one group at a time. A category tab keeps every ungrouped piece
+  // and adds only the selected group, so a big pack cannot dump onto the nursery shelf.
   const groups: string[] = [];
-  if (currentTab.startsWith('pack:')) {
-    for (const d of list) if (d.group && !groups.includes(d.group)) groups.push(d.group);
-  }
+  for (const d of list) if (d.group && !groups.includes(d.group)) groups.push(d.group);
+  const packTab = currentTab.startsWith('pack:');
   if (groups.length > 1) {
     if (!groups.includes(packGroup)) packGroup = groups[0];
     for (const name of groups) {
@@ -965,7 +964,7 @@ function renderDrawer() {
       b.textContent = name;
       shelf.appendChild(b);
     }
-    list = list.filter(d => d.group === packGroup);
+    list = list.filter(d => packTab ? d.group === packGroup : !d.group || d.group === packGroup);
   }
   if (!list.length && !groups.length) shelf.innerHTML = `<div class="empty">Nothing here yet!</div>`;
   else if (!list.length) {
