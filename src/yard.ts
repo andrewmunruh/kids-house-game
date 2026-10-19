@@ -86,306 +86,388 @@ function piece(p: { kind: string; name: string; cat: string; w: number; h: numbe
 
 const swing = piece({
   kind: 'yard-swing', name: 'A-Frame Swing', cat: 'furniture', w: 96, h: 148, vb: '0 0 100 154',
-  svg: `${shadow(50, 36, 148)}
-    <path d="M26 28 L40 28 L34 146 H16 Z" fill="#f3d2aa" ${ink()}/>
-    <path d="M32 40 L38 28 L34 140 H28 Z" fill="#d4a373"/>
-    <path d="M60 28 H74 L86 146 H68 Z" fill="#e7c49a" ${ink()}/>
-    <path d="M68 32 H74 L84 140 H76 Z" fill="#c99366"/>
-    ${tex('M22 80 l6 28 M72 78 l8 30')}
-    ${hi('M28 40 l4 -8')}
-    <rect x="18" y="16" width="64" height="16" rx="4" fill="#f6e0c4" ${ink()}/>
-    <rect x="62" y="19" width="16" height="10" rx="3" fill="#d4a373"/>
-    ${hi('M24 20 h28')}
-    <path d="M38 32 V98 M62 32 V98" fill="none" ${ink(2.2)}/>
-    <rect x="28" y="94" width="44" height="14" rx="5" fill="#ffb3c6" ${ink()}/>
-    <rect x="54" y="97" width="14" height="8" rx="3" fill="#e45d88"/>
-    ${tex('M34 100 h30')}
-    ${hi('M32 98 h16')}`,
+  svg: `${shadow(50, 40, 150)}
+    <path d="M10 18 L20 18 L14 146 H4 Z" fill="#f3d2aa" ${ink()}/>
+    <path d="M20 18 L32 18 L40 146 H28 Z" fill="#f0d2b0" ${ink()}/>
+    <path d="M34 22 L40 18 L38 48 H34 Z" fill="#d4a373"/>
+    <path d="M68 18 L80 18 L72 146 H60 Z" fill="#f3d2aa" ${ink()}/>
+    <path d="M80 18 L92 18 L98 146 H86 Z" fill="#e7c49a" ${ink()}/>
+    <path d="M90 22 L92 18 L98 146 H94 Z" fill="#c99366"/>
+    ${tex('M10 70 l4 36 M30 78 l6 32 M66 76 l4 34 M90 72 l5 36')}
+    <rect x="6" y="6" width="88" height="14" rx="2" fill="#f6e0c4" ${ink()}/>
+    <rect x="70" y="9" width="20" height="8" rx="1" fill="#d4a373"/>
+    <rect x="10" y="16" width="74" height="4" fill="#e7c49a"/>
+    ${hi('M12 10 h32')}
+    <rect x="41" y="98" width="18" height="6" rx="1" fill="#f3d2aa" ${ink(2.2)}/>
+    <rect x="53" y="99" width="5" height="4" fill="#d4a373"/>
+    <path d="M45 20 V102 M57 20 V102" fill="none" ${ink(2.2)}/>
+    ${hi('M43 100 h8')}`,
 });
 
 const sandbox = piece({
   kind: 'sandbox', name: 'Sandbox', cat: 'furniture', w: 120, h: 54, vb: '0 0 160 72',
-  svg: `${shadow(80, 62, 68)}
-    <rect x="14" y="26" width="132" height="38" rx="6" fill="#f3d2aa" ${ink()}/>
-    <rect x="112" y="30" width="30" height="30" rx="4" fill="#d4a373"/>
-    <rect x="14" y="52" width="132" height="12" fill="#c99366"/>
-    ${hi('M22 32 h40')}
-    <rect x="24" y="32" width="112" height="22" rx="4" fill="#ffe7a8" ${ink(2.2)}/>
-    <rect x="108" y="34" width="24" height="16" rx="3" fill="#f0c36a"/>
-    ${tex('M40 40 q6 3 4 7 M64 38 q8 3 5 8 M88 40 q6 3 5 6')}
-    <rect x="34" y="16" width="16" height="16" rx="3" fill="#ff8fab" ${ink(2.2)}/>
-    <rect x="42" y="18" width="6" height="12" fill="#e45d88"/>
-    ${hi('M36 20 h6')}
-    <path d="M108 22 h22 l-2 8 h-16 z" fill="#a2d2ff" ${ink(2.2)}/>
-    <path d="M120 20 l10 -6" fill="none" ${ink(2.2)}/>`,
+  svg: `${shadow(80, 64, 68)}
+    <path d="M108 38 L146 26 L146 52 L108 64 Z" fill="#e7c49a" ${ink()}/>
+    <path d="M126 36 L142 28 L142 48 L126 56 Z" fill="#c99366"/>
+    <path d="M12 40 H108 V64 H12 Z" fill="#f3d2aa" ${ink()}/>
+    <path d="M12 40 L36 18 L146 18 L108 40 Z" fill="#f6e0c4" ${ink()}/>
+    <path d="M112 20 L142 20 L108 38 L90 38 Z" fill="#d4a373"/>
+    <path d="M34 36 L52 24 L122 24 L100 36 Z" fill="#ffe08a" ${ink(2.2)}/>
+    <path d="M98 26 L118 26 L100 34 L86 34 Z" fill="#f0c36a"/>
+    ${tex('M48 30 q8 2 6 5 M68 28 q10 2 8 6 M58 34 h16')}
+    <path d="M76 30 L100 36 L94 48 L70 42 Z" fill="#d7e6f2" ${ink(2.2)}/>
+    <path d="M88 34 L98 38 L94 44 L84 40 Z" fill="#b7c9d6"/>
+    <path d="M52 8 L64 4 L90 34 L78 38 Z" fill="#f0d2b0" ${ink()}/>
+    <path d="M64 8 L72 6 L90 32 L82 34 Z" fill="#d4a373"/>
+    <path d="M46 2 H66 V9 H46 Z" fill="#c99366" ${ink(2)}/>
+    ${hi('M18 44 h26')}
+    ${hi('M44 22 h22')}`,
 });
 
 const slide = piece({
   kind: 'little-slide', name: 'Little Slide', cat: 'furniture', w: 150, h: 188, vb: '0 0 110 140',
-  svg: `${shadow(58, 44, 134)}
-    <rect x="16" y="28" width="8" height="100" rx="4" fill="#f3d2aa" ${ink()}/>
-    <rect x="20" y="32" width="3" height="92" rx="1.5" fill="#d4a373"/>
-    <rect x="40" y="28" width="8" height="78" rx="4" fill="#d4a373" ${ink()}/>
-    <path d="M16 48 H48 M16 66 H48 M16 84 H48" fill="none" ${ink(2.2)}/>
-    <rect x="12" y="22" width="40" height="14" rx="5" fill="#bde0fe" ${ink()}/>
-    <rect x="36" y="25" width="12" height="8" rx="3" fill="#7eb4dc"/>
-    ${hi('M18 26 h18')}
-    <path d="M48 30 H78 C96 30 102 48 100 70 L92 118 H68 L74 72 C76 50 70 42 52 42 Z" fill="#ffb3c6" ${ink()}/>
-    <path d="M78 36 C92 40 98 56 96 74 L90 112 H80 L84 74 C86 56 82 46 74 44 Z" fill="#e45d88"/>
-    ${hi('M60 40 q14 4 18 22')}
-    ${tex('M82 58 q6 14 4 30')}`,
+  svg: `${shadow(56, 44, 134)}
+    <path d="M50 34 H72 C94 36 102 56 98 82 L92 122 H70 L76 84 C78 60 72 46 52 44 Z" fill="#ffb3c6" ${ink()}/>
+    <path d="M72 38 C94 42 104 62 100 86 L94 122 H86 L92 86 C94 64 86 48 72 46 Z" fill="#e45d88"/>
+    <rect x="14" y="34" width="8" height="96" rx="2" fill="#f3d2aa" ${ink()}/>
+    <rect x="36" y="34" width="8" height="96" rx="2" fill="#e7c49a" ${ink()}/>
+    <rect x="40" y="40" width="3" height="84" fill="#c99366"/>
+    <rect x="14" y="52" width="30" height="5" rx="1" fill="#f6e0c4" ${ink(2.2)}/>
+    <rect x="14" y="70" width="30" height="5" rx="1" fill="#f6e0c4" ${ink(2.2)}/>
+    <rect x="14" y="88" width="30" height="5" rx="1" fill="#f6e0c4" ${ink(2.2)}/>
+    <rect x="14" y="106" width="30" height="5" rx="1" fill="#f6e0c4" ${ink(2.2)}/>
+    <rect x="6" y="18" width="56" height="22" rx="3" fill="#f3d2aa" ${ink()}/>
+    <rect x="6" y="34" width="56" height="6" fill="#d4a373"/>
+    <path d="M48 20 H62 V40 H48 Z" fill="#c99366"/>
+    ${hi('M12 24 h22')}
+    <rect x="12" y="6" width="5" height="16" rx="1" fill="#f0d2b0" ${ink(2.2)}/>
+    <rect x="40" y="6" width="5" height="16" rx="1" fill="#e7c49a" ${ink(2.2)}/>
+    <path d="M14 8 H43" fill="none" ${ink(2.2)}/>
+    <rect x="80" y="116" width="7" height="16" rx="1" fill="#f3d2aa" ${ink(2)}/>
+    ${hi('M58 42 C74 48 86 66 86 88')}
+    ${tex('M80 64 q4 16 2 28')}`,
 });
 
 const bench = piece({
   kind: 'yard-bench', name: 'Garden Bench', cat: 'furniture', w: 140, h: 100, vb: '0 0 140 100',
-  svg: `${shadow(70, 56, 96)}
-    <path d="M18 28 H122 L116 56 H24 Z" fill="#f6e0c4" ${ink()}/>
-    <path d="M86 32 H118 L114 52 H84 Z" fill="#d4a373"/>
-    ${tex('M32 36 v14 M50 34 v16 M68 36 v14 M104 36 v12')}
-    ${hi('M28 32 h36')}
-    <rect x="16" y="52" width="108" height="16" rx="6" fill="#f3d2aa" ${ink()}/>
-    <rect x="78" y="55" width="42" height="10" rx="4" fill="#d4a373"/>
-    ${hi('M24 56 h32')}
-    <rect x="22" y="66" width="10" height="26" rx="4" fill="#f0d2b0" ${ink()}/>
-    <rect x="28" y="70" width="3" height="18" fill="#d4a373"/>
-    <rect x="108" y="66" width="10" height="26" rx="4" fill="#d4a373" ${ink()}/>
-    <path d="M14 24 h12 M114 24 h12" fill="none" ${ink(2.2)}/>`,
+  svg: `${shadow(70, 58, 96)}
+    <rect x="10" y="8" width="12" height="86" rx="2" fill="#f3d2aa" ${ink()}/>
+    <rect x="118" y="8" width="12" height="86" rx="2" fill="#e7c49a" ${ink()}/>
+    <rect x="124" y="12" width="5" height="76" fill="#c99366"/>
+    <rect x="28" y="52" width="10" height="42" rx="2" fill="#f0d2b0" ${ink()}/>
+    <rect x="102" y="52" width="10" height="42" rx="2" fill="#d4a373" ${ink()}/>
+    <rect x="108" y="56" width="3" height="32" fill="#c99366"/>
+    <rect x="18" y="10" width="104" height="8" rx="1" fill="#f6e0c4" ${ink(2.2)}/>
+    <rect x="18" y="20" width="104" height="8" rx="1" fill="#f3d2aa" ${ink(2.2)}/>
+    <rect x="18" y="30" width="104" height="8" rx="1" fill="#f3d2aa" ${ink(2.2)}/>
+    <rect x="18" y="40" width="104" height="8" rx="1" fill="#e7c49a" ${ink(2.2)}/>
+    <rect x="18" y="48" width="104" height="7" rx="1" fill="#f6e0c4" ${ink(2.2)}/>
+    <rect x="18" y="57" width="104" height="7" rx="1" fill="#f3d2aa" ${ink(2.2)}/>
+    <rect x="18" y="66" width="104" height="7" rx="1" fill="#e7c49a" ${ink(2.2)}/>
+    <rect x="108" y="12" width="10" height="5" fill="#d4a373"/>
+    <rect x="108" y="22" width="10" height="5" fill="#c99366"/>
+    <rect x="108" y="50" width="10" height="4" fill="#d4a373"/>
+    <rect x="108" y="68" width="10" height="4" fill="#c99366"/>
+    <path d="M10 46 H40 V56 H10 Z" fill="#f6e0c4" ${ink()}/>
+    <path d="M100 46 H130 V56 H100 Z" fill="#e7c49a" ${ink()}/>
+    <path d="M116 48 H128 V54 H116 Z" fill="#c99366"/>
+    ${hi('M22 13 h28')}
+    ${hi('M14 48 h16')}
+    ${tex('M36 24 h48 M36 34 h44 M34 52 h52 M34 62 h46')}`,
 });
 
 const cart = piece({
   kind: 'lemonade-cart', name: 'Lemonade Cart', cat: 'furniture', w: 108, h: 121, vb: '0 0 100 112',
-  svg: `${shadow(50, 38, 106)}
-    <rect x="18" y="46" width="64" height="44" rx="4" fill="#fff6ea" ${ink()}/>
-    <rect x="64" y="50" width="14" height="36" fill="#f0d2a4"/>
-    ${tex('M28 56 v26 M42 56 v26 M56 56 v26')}
-    ${hi('M22 54 v18')}
-    <rect x="14" y="36" width="72" height="14" rx="3" fill="#ffe08a" ${ink()}/>
-    <rect x="64" y="38" width="18" height="10" rx="2" fill="#f0c45c"/>
-    <path d="M16 36 L22 16 H78 L84 36 Z" fill="#ff8fab" ${ink()}/>
-    <path d="M58 20 H76 L82 34 H62 Z" fill="#e45d88"/>
-    ${hi('M24 22 h22')}
-    <rect x="26" y="58" width="24" height="20" rx="3" fill="#f3fbff" ${ink(2.2)}/>
-    <path d="M32 58 v20 M38 58 v20 M44 58 v20" fill="none" stroke="#a2d2ff" stroke-width="2.2" stroke-linecap="round"/>
-    <circle cx="68" cy="68" r="8" fill="#ffe566" ${ink(2.2)}/>
-    <path d="M70 64 h5 l-1 5 h-3 z" fill="#e0a83a"/>
-    <rect x="22" y="86" width="56" height="4" rx="2" fill="#c99366" ${ink(2.2)}/>
-    <circle cx="32" cy="96" r="8" fill="${O}" ${ink(2.2)}/><circle cx="32" cy="96" r="3" fill="#ffd166"/>
-    <circle cx="70" cy="96" r="8" fill="${O}" ${ink(2.2)}/><circle cx="70" cy="96" r="3" fill="#ffd166"/>`,
+  svg: `${shadow(50, 40, 106)}
+    <circle cx="30" cy="96" r="11" fill="${O}" ${ink(2.2)}/><circle cx="30" cy="96" r="4.5" fill="#ffd166"/>
+    <circle cx="72" cy="96" r="11" fill="${O}" ${ink(2.2)}/><circle cx="72" cy="96" r="4.5" fill="#ffd166"/>
+    <rect x="18" y="92" width="66" height="5" rx="2" fill="#c99366" ${ink(2)}/>
+    <rect x="16" y="46" width="68" height="46" rx="3" fill="#fff6ea" ${ink()}/>
+    <rect x="66" y="50" width="14" height="38" fill="#f0d2a4"/>
+    ${tex('M28 56 v28 M42 56 v28 M56 56 v28')}
+    ${hi('M20 52 v16')}
+    <rect x="12" y="38" width="76" height="12" rx="2" fill="#ffe08a" ${ink()}/>
+    <rect x="66" y="40" width="18" height="8" fill="#f0c45c"/>
+    <path d="M14 40 L22 14 H80 L88 40 Z" fill="#ff8fab" ${ink()}/>
+    <path d="M34 16 L38 40 H50 L46 15 Z" fill="#fff4f7"/>
+    <path d="M58 15 L62 40 H74 L70 15 Z" fill="#fff4f7"/>
+    <path d="M72 16 H80 L88 40 H76 Z" fill="#e45d88"/>
+    ${hi('M26 20 h18')}
+    <path d="M28 52 H44 L42 72 H30 Z" fill="#fff" ${ink(2)}/>
+    <path d="M30 58 H42 L41 72 H31 Z" fill="#ffe566"/>
+    <path d="M28 54 L22 58 L28 62 Z" fill="#fff" ${ink(2)}/>
+    <path d="M44 56 Q52 60 44 70" fill="none" ${ink(2)}/>
+    <path d="M56 60 H68 L66 72 H58 Z" fill="#fff" ${ink(2)}/>
+    <path d="M58 64 H66 L65 72 H59 Z" fill="#ffe566"/>
+    <circle cx="78" cy="64" r="7" fill="#ffe566" ${ink(2)}/>
+    <path d="M78 58 v12 M72 64 h12" fill="none" stroke="#e0a83a" stroke-width="1.3"/>`,
 });
 
 const lounger = piece({
   kind: 'sun-lounger', name: 'Sun Lounger', cat: 'furniture', w: 168, h: 86, vb: '0 0 170 90',
-  svg: `${shadow(85, 70, 84)}
-    <path d="M18 56 H156 L148 76 H28 Z" fill="#f3d2aa" ${ink()}/>
-    <path d="M110 58 H152 L146 74 H108 Z" fill="#d4a373"/>
-    <path d="M24 28 H132 L148 60 H36 Z" fill="#ffd4e2" ${ink()}/>
-    <path d="M100 32 H146 L150 58 H108 Z" fill="#e888a8"/>
-    ${tex('M40 38 l8 16 M58 34 l10 18 M78 34 l10 16')}
-    ${hi('M34 34 h36')}
-    <rect x="118" y="20" width="28" height="16" rx="7" fill="#fff" ${ink(2.2)}/>
-    <path d="M136 22 H144 V34 H136 Z" fill="#ffd0e0"/>
-    <path d="M124 28 q6 3 12 0" fill="none" stroke="#ffb3c6" stroke-width="1.6" stroke-linecap="round"/>
-    <circle cx="40" cy="74" r="6" fill="${O}" ${ink(2.2)}/><circle cx="40" cy="74" r="2.2" fill="#ffd166"/>
-    <circle cx="132" cy="74" r="6" fill="${O}" ${ink(2.2)}/><circle cx="132" cy="74" r="2.2" fill="#ffd166"/>`,
+  svg: `${shadow(86, 68, 84)}
+    <path d="M16 66 H28 L32 82 H12 Z" fill="#f3d2aa" ${ink()}/>
+    <path d="M126 64 H140 L146 82 H120 Z" fill="#d4a373" ${ink()}/>
+    <path d="M136 68 H142 L146 80 H138 Z" fill="#c99366"/>
+    <path d="M12 52 H156 V64 H12 Z" fill="#f3d2aa" ${ink()}/>
+    <path d="M122 54 H154 V62 H122 Z" fill="#d4a373"/>
+    <path d="M28 34 H36 L42 52 H32 Z" fill="#e7c49a" ${ink()}/>
+    <path d="M50 44 H150 L154 58 H54 Z" fill="#ffd4e2" ${ink()}/>
+    <path d="M128 48 H150 L154 58 H132 Z" fill="#e888a8"/>
+    <path d="M18 6 L60 48 L48 58 L8 16 Z" fill="#ffb3c6" ${ink()}/>
+    <path d="M38 34 L54 48 L48 56 L30 42 Z" fill="#e45d88"/>
+    <ellipse cx="22" cy="14" rx="11" ry="7" fill="#fff" ${ink(2.2)}/>
+    <path d="M22 8 H30 A7 7 0 0 1 30 20 H22 Z" fill="#ffd0e0"/>
+    ${hi('M22 12 L50 40')}
+    ${tex('M26 22 L52 46')}`,
 });
 
 const pool = piece({
   kind: 'splash-pool', name: 'Splash Pool', cat: 'furniture', w: 176, h: 96, vb: '0 0 170 96',
   svg: `<defs>${glass('ydpoolW', '#f3fbff', '#7ec8e3')}</defs>
-    ${shadow(85, 70, 90)}
-    <ellipse cx="85" cy="58" rx="74" ry="28" fill="#d7f4ff" ${ink()}/>
-    <path d="M85 32 C130 32 156 48 156 58 C156 74 124 86 85 86 C110 86 140 74 140 58 C140 46 116 36 85 36 Z" fill="#7eb4dc"/>
-    <ellipse cx="85" cy="54" rx="58" ry="20" fill="url(#ydpoolW)" ${ink(2.2)}/>
-    ${hi('M48 48 q22 -8 40 0')}
-    <circle cx="64" cy="54" r="3" fill="#fff" opacity=".8"/><circle cx="108" cy="58" r="2.2" fill="#fff" opacity=".7"/>
-    <path d="M40 40 q6 -10 4 -16 M128 38 q-4 -12 2 -18" fill="none" stroke="#7ec8e0" stroke-width="2.4" stroke-linecap="round"/>`,
+    ${shadow(85, 72, 90)}
+    <ellipse cx="85" cy="58" rx="74" ry="28" fill="#8ecae6" ${ink()}/>
+    <path d="M22 52 Q40 34 78 40" fill="none" stroke="#ff8fab" stroke-width="16" stroke-linecap="round"/>
+    <path d="M100 36 Q138 38 152 58" fill="none" stroke="#ffd166" stroke-width="14" stroke-linecap="round"/>
+    <path d="M18 66 C22 82 50 90 85 90 C120 90 152 82 154 66 C148 78 120 84 85 84 C50 84 24 78 18 66 Z" fill="#5aa9c6"/>
+    <ellipse cx="85" cy="54" rx="48" ry="16" fill="url(#ydpoolW)" ${ink(2.2)}/>
+    ${hi('M36 50 q20 -10 36 0')}
+    <circle cx="128" cy="48" r="4" fill="#fff" ${ink(1.6)}/>
+    <circle cx="128" cy="48" r="1.6" fill="#8ecae6"/>
+    <path d="M70 46 q3 -8 1 0 M96 42 q4 -9 1 1" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>`,
 });
 
 const gate = piece({
   kind: 'picket-gate', name: 'Picket Gate', cat: 'furniture', w: 110, h: 150, vb: '0 0 100 136',
   svg: `${shadow(50, 38, 130)}
-    <rect x="14" y="28" width="10" height="96" rx="4" fill="#f7fff8" ${ink()}/>
-    <rect x="20" y="34" width="3" height="84" fill="#d5ead8"/>
-    <rect x="76" y="28" width="10" height="96" rx="4" fill="#d9f2dc" ${ink()}/>
-    <rect x="22" y="40" width="56" height="8" rx="3" fill="#fff" ${ink(2.2)}/>
-    <rect x="22" y="78" width="56" height="8" rx="3" fill="#fff" ${ink(2.2)}/>
-    <rect x="30" y="34" width="10" height="78" rx="4" fill="#fff" ${ink(2.2)}/>
-    <rect x="36" y="40" width="3" height="66" fill="#e7f6ea"/>
-    <rect x="46" y="34" width="10" height="78" rx="4" fill="#f7fff8" ${ink(2.2)}/>
-    <rect x="62" y="34" width="10" height="78" rx="4" fill="#d9f2dc" ${ink(2.2)}/>
-    ${hi('M32 42 v22')}
-    <circle cx="70" cy="70" r="3.2" fill="#ffd166" ${ink(2.2)}/>`,
+    <rect x="6" y="16" width="12" height="110" rx="2" fill="#f7fff8" ${ink()}/>
+    <rect x="82" y="16" width="12" height="110" rx="2" fill="#e7f6ea" ${ink()}/>
+    <rect x="88" y="20" width="5" height="100" fill="#c5e0c8"/>
+    <rect x="4" y="40" width="16" height="6" rx="1" fill="#c99366" ${ink(2)}/>
+    <rect x="4" y="96" width="16" height="6" rx="1" fill="#c99366" ${ink(2)}/>
+    <rect x="16" y="38" width="68" height="8" rx="2" fill="#fff" ${ink(2.2)}/>
+    <rect x="16" y="86" width="68" height="8" rx="2" fill="#fff" ${ink(2.2)}/>
+    <path d="M20 90 L28 98 L80 46 L72 38 Z" fill="#f7fff8" ${ink(2.2)}/>
+    <path d="M26 30 L32 14 L38 30 V112 H26 Z" fill="#fff" ${ink(2.2)}/>
+    <path d="M44 30 L50 14 L56 30 V112 H44 Z" fill="#f7fff8" ${ink(2.2)}/>
+    <path d="M62 30 L68 14 L74 30 V112 H62 Z" fill="#e7f6ea" ${ink(2.2)}/>
+    <path d="M68 22 L74 16 L74 108 H68 Z" fill="#c5e0c8"/>
+    ${hi('M28 36 v20')}
+    <rect x="74" y="60" width="16" height="5" rx="1" fill="#c99366" ${ink(2)}/>
+    <circle cx="86" cy="62" r="2.6" fill="#ffd166" ${ink(1.8)}/>`,
 });
+
+function gingham(): string {
+  let s = '';
+  for (let row = 0; row < 6; row++) {
+    for (let col = 0; col < 13; col++) {
+      if ((row + col) % 2 === 0) s += `<rect x="${col * 15 - 6}" y="${row * 10}" width="15" height="10" fill="#ff8fab"/>`;
+    }
+  }
+  return s;
+}
 
 const blanket = piece({
   kind: 'picnic-blanket', name: 'Picnic Blanket', cat: 'decor', w: 110, h: 36, vb: '0 0 180 59',
-  svg: `${shadow(90, 70, 54)}
-    <rect x="14" y="14" width="152" height="34" rx="8" fill="#ff8fab" ${ink()}/>
-    <rect x="118" y="18" width="44" height="26" rx="6" fill="#e45d88"/>
-    <rect x="26" y="20" width="100" height="22" rx="5" fill="#fff0f5" ${ink(2.2)}/>
-    <rect x="100" y="22" width="22" height="16" rx="4" fill="#ffd0e0"/>
-    ${tex('M36 26 v12 M52 24 v14 M68 24 v14 M84 24 v14')}
-    <rect x="40" y="26" width="18" height="10" rx="2" fill="#fff3b0" ${ink(2.2)}/>
-    <circle cx="78" cy="31" r="5" fill="#ff7096" ${ink(2.2)}/>
-    <path d="M80 27 h4 l-1 3 h-2 z" fill="#74c69d"/>
-    ${hi('M22 20 h24')}`,
+  svg: `<defs><clipPath id="ydging"><path d="M22 20 L156 12 L174 44 L36 52 Z"/></clipPath></defs>
+    ${shadow(96, 74, 54)}
+    <path d="M22 20 L156 12 L174 44 L36 52 Z" fill="#fff0f5" ${ink()}/>
+    <g clip-path="url(#ydging)">${gingham()}</g>
+    <path d="M148 14 L170 42 L160 46 L138 18 Z" fill="#e45d88"/>
+    <path d="M96 30 L128 26 L134 42 L100 46 Z" fill="#f3d2aa" ${ink(2)}/>
+    <path d="M120 28 L128 26 L134 42 L126 43 Z" fill="#c99366"/>
+    <path d="M104 30 Q114 14 126 28" fill="none" ${ink(2.2)}/>
+    ${tex('M104 34 h22 M104 38 h24', 1)}
+    ${hi('M34 26 l28 -3')}`,
 });
+
+function tulip(x: number, top: number, color: string, side: string): string {
+  return `<path d="M${x - 1.5} ${top + 16} H${x + 1.5} V${top + 40} H${x - 1.5} Z" fill="#3d9a68"/>
+    <path d="M${x} ${top + 24} C${x - 16} ${top + 18} ${x - 14} ${top + 36} ${x - 1} ${top + 34}" fill="#74c69d" ${ink(1.6)}/>
+    <path d="M${x} ${top + 22} C${x + 16} ${top + 16} ${x + 12} ${top + 36} ${x + 1} ${top + 32}" fill="#52b788"/>
+    <path d="M${x} ${top + 18} C${x - 10} ${top + 8} ${x - 8} ${top} ${x} ${top + 6} C${x + 8} ${top} ${x + 10} ${top + 8} ${x} ${top + 18} Z" fill="${color}" ${ink(1.8)}/>
+    <path d="M${x + 1} ${top + 6} C${x + 7} ${top + 4} ${x + 8} ${top + 13} ${x + 1} ${top + 15} Z" fill="${side}"/>`;
+}
 
 const tulips = piece({
   kind: 'tulip-bed', name: 'Tulip Bed', cat: 'decor', w: 140, h: 90, vb: '0 0 140 90',
   svg: `${shadow(70, 56, 86)}
-    <path d="M10 58 H130 L120 82 H20 Z" fill="#f0d2b0" ${ink()}/>
-    <path d="M90 60 H126 L118 78 H86 Z" fill="#d4a373"/>
-    <path d="M14 52 H126 Q120 38 70 38 Q20 38 14 52 Z" fill="#74c69d" ${ink()}/>
-    <path d="M78 42 H122 Q116 40 100 44 Q88 52 78 50 Z" fill="#3d9a68"/>
-    ${hi('M28 48 q18 -4 30 2')}
-    ${tex('M36 50 q3 5 0 8 M58 46 q3 6 0 10 M96 48 q3 5 0 8')}
-    <path d="M32 56 V32" stroke="#52b788" stroke-width="2.4" fill="none"/>
-    <path d="M32 34 q-8 2 -6 12 q8 -2 6 -12" fill="#ff8fab" ${ink(2)}/>
-    <path d="M34 36 q4 2 2 8" fill="#e45d88"/>
-    <path d="M54 58 V26" stroke="#52b788" stroke-width="2.4" fill="none"/>
-    <path d="M54 28 q-8 2 -6 12 q8 -2 6 -12" fill="#ffd166" ${ink(2)}/>
-    <path d="M74 56 V24" stroke="#52b788" stroke-width="2.4" fill="none"/>
-    <path d="M74 26 q-9 2 -7 14 q9 -2 7 -14" fill="#ff7096" ${ink(2)}/>
-    <path d="M76 28 q5 2 2 8" fill="#e04578"/>
-    <path d="M94 58 V30" stroke="#52b788" stroke-width="2.4" fill="none"/>
-    <path d="M94 32 q-8 2 -6 12 q8 -2 6 -12" fill="#fff" ${ink(2)}/>
-    <path d="M112 56 V34" stroke="#52b788" stroke-width="2.4" fill="none"/>
-    <path d="M112 36 q-7 2 -5 11 q7 -2 5 -11" fill="#c9a0dc" ${ink(2)}/>`,
+    <path d="M10 56 H130 L120 82 H20 Z" fill="#f0d2b0" ${ink()}/>
+    <path d="M96 58 H126 L118 78 H92 Z" fill="#d4a373"/>
+    <path d="M16 56 Q70 42 124 56 Q70 64 16 56 Z" fill="#c4a484" ${ink(2.2)}/>
+    ${hi('M22 60 h24')}
+    ${tulip(32, 16, '#ff8fab', '#e45d88')}
+    ${tulip(54, 8, '#ffd166', '#e0a83a')}
+    ${tulip(76, 4, '#ff7096', '#e04578')}
+    ${tulip(98, 12, '#fff', '#ffd0e0')}
+    ${tulip(118, 18, '#c9a0dc', '#b388d6')}`,
 });
 
 const bath = piece({
   kind: 'birdbath', name: 'Birdbath', cat: 'decor', w: 84, h: 126, vb: '0 0 80 120',
   svg: `<defs>${glass('ydbathW', '#f3fbff', '#8ecae6')}</defs>
-    ${shadow(40, 26, 114)}
-    <rect x="34" y="48" width="12" height="58" rx="5" fill="#f4f7f8" ${ink()}/>
-    <rect x="41" y="52" width="4" height="50" rx="2" fill="#c5d0d6"/>
-    ${hi('M37 58 v24')}
-    <ellipse cx="40" cy="104" rx="18" ry="6" fill="#e7eef2" ${ink()}/>
-    <ellipse cx="40" cy="36" rx="30" ry="12" fill="#f7fafb" ${ink()}/>
-    <path d="M40 24 C62 24 70 34 70 36 C70 46 56 48 40 48 C58 48 66 42 66 36 C66 30 56 26 40 28 Z" fill="#d5dee4"/>
-    <ellipse cx="40" cy="34" rx="22" ry="7" fill="url(#ydbathW)" ${ink(2.2)}/>
-    ${hi('M26 32 q8 -4 16 0')}
-    <path d="M58 18 q8 -8 6 2 q6 2 2 8 q-8 0 -8 -10" fill="#ffd166" ${ink(1.8)}/>`,
+    ${shadow(40, 28, 114)}
+    <ellipse cx="40" cy="106" rx="20" ry="7" fill="#e7eef2" ${ink()}/>
+    <path d="M30 46 H50 C56 70 58 86 52 104 H28 C22 86 24 70 30 46 Z" fill="#f4f7f8" ${ink()}/>
+    <path d="M42 52 H50 C54 72 54 88 50 100 H44 Z" fill="#c5d0d6"/>
+    ${hi('M33 62 v22')}
+    <ellipse cx="40" cy="40" rx="32" ry="13" fill="#f7fafb" ${ink()}/>
+    <path d="M40 28 C66 28 72 38 72 42 C72 52 58 54 40 54 C60 54 68 48 68 42 C68 36 58 32 40 34 Z" fill="#d5dee4"/>
+    <ellipse cx="40" cy="38" rx="22" ry="7" fill="url(#ydbathW)" ${ink(2.2)}/>
+    ${hi('M22 36 q10 -4 18 0')}
+    <path d="M48 30 L40 24 L42 34 Z" fill="#f0c45c" ${ink(1.6)}/>
+    <ellipse cx="56" cy="28" rx="11" ry="6" fill="#ffd166" ${ink(1.8)}/>
+    <circle cx="66" cy="24" r="4.5" fill="#ffe08a" ${ink(1.6)}/>
+    <path d="M70 24 L77 26 L70 28 Z" fill="#e07a3f"/>
+    <circle cx="67" cy="23" r="1" fill="${O}"/>
+    <path d="M54 32 V40 M60 32 V40" fill="none" stroke="#c99366" stroke-width="1.4" stroke-linecap="round"/>`,
 });
 
 const pond = piece({
   kind: 'lily-pond', name: 'Lily Pond', cat: 'decor', w: 170, h: 90, vb: '0 0 170 90',
   svg: `<defs>${glass('ydpondW', '#eaf6ff', '#5aa9e6')}</defs>
     ${shadow(85, 70, 84)}
-    <ellipse cx="85" cy="52" rx="74" ry="28" fill="#c4a484" ${ink()}/>
-    <path d="M85 26 C140 28 158 46 158 54 C158 70 124 80 85 80 C120 78 148 66 148 54 C148 42 124 32 85 32 Z" fill="#a88462"/>
-    <ellipse cx="85" cy="50" rx="64" ry="20" fill="url(#ydpondW)" ${ink(2.2)}/>
-    ${hi('M42 44 q22 -6 40 2')}
-    <ellipse cx="58" cy="52" rx="16" ry="7" fill="#95d5b2" ${ink(2)}/>
-    <ellipse cx="66" cy="52" rx="6" ry="4" fill="#3d9a68"/>
-    <ellipse cx="108" cy="48" rx="18" ry="8" fill="#74c69d" ${ink(2)}/>
-    <ellipse cx="116" cy="48" rx="7" ry="5" fill="#3d9a68"/>
-    <circle cx="108" cy="46" r="4" fill="#ff8fab" ${ink(1.6)}/>
-    ${tex('M58 52 h12 M108 48 h14', 1)}`,
+    <ellipse cx="85" cy="54" rx="74" ry="28" fill="#c4a484" ${ink()}/>
+    <path d="M85 30 C142 32 158 48 158 56 C158 72 126 82 85 82 C124 80 150 68 150 56 C150 44 126 36 85 36 Z" fill="#a88462"/>
+    <ellipse cx="85" cy="52" rx="62" ry="20" fill="url(#ydpondW)" ${ink(2.2)}/>
+    ${hi('M40 46 q24 -8 42 2')}
+    <path fill="#95d5b2" ${ink(2)} fill-rule="evenodd" d="M58 54 m-16 0 a16 7 0 1 0 32 0 a16 7 0 1 0 -32 0 M58 50 L72 54 L58 58 Z"/>
+    <path d="M66 50 L74 54 L66 56 Z" fill="#3d9a68"/>
+    <path fill="#74c69d" ${ink(2)} fill-rule="evenodd" d="M112 48 m-18 0 a18 8 0 1 0 36 0 a18 8 0 1 0 -36 0 M112 42 L128 48 L112 54 Z"/>
+    <path d="M40 58 q-4 -16 2 -22 q6 8 2 16" fill="#52b788" ${ink(1.6)}/>
+    <path d="M108 40 l2 -8 l4 6 l4 -7 l2 8 l-4 3 z" fill="#ff8fab" ${ink(1.6)}/>
+    <path d="M112 36 l3 -6 l2 5 l3 -5 l1 6 z" fill="#fff" ${ink(1.4)}/>
+    <circle cx="112" cy="40" r="2.4" fill="#ffd166"/>`,
 });
+
+function bulb(x: number, y: number, color: string, side: string, r = 10): string {
+  return `<path d="M${x} ${y - r - 8} V${y - r}" fill="none" ${ink(2.2)}/>
+    <rect x="${x - 4}" y="${y - r - 2}" width="8" height="5" rx="1" fill="#c99366" ${ink(1.8)}/>
+    <circle cx="${x}" cy="${y}" r="${r}" fill="${color}" ${ink()}/>
+    <path d="M${x + 1} ${y - r + 3} H${x + r - 1} V${y + r - 3} H${x + 2} Z" fill="${side}"/>
+    ${hi(`M${x - r + 3} ${y - 2} q2 -3 4 0`)}`;
+}
 
 const lights = piece({
   kind: 'patio-lights', name: 'Patio Lights', cat: 'decor', w: 190, h: 70, vb: '0 0 180 70', wall: true,
-  svg: `<path d="M8 16 Q50 34 90 14 Q130 32 172 16" fill="none" ${ink()}/>
-    <path d="M28 22 v8" fill="none" ${ink(2.2)}/><circle cx="28" cy="40" r="10" fill="#fff6c8" ${ink()}/><path d="M32 34 h5 v10 h-4 z" fill="#f0c45c"/>${hi('M24 36 q2 -2 3 1')}
-    <path d="M64 26 v8" fill="none" ${ink(2.2)}/><circle cx="64" cy="44" r="10" fill="#ffc2d4" ${ink()}/><path d="M68 38 h5 v10 h-4 z" fill="#e45d88"/>
-    <path d="M100 18 v8" fill="none" ${ink(2.2)}/><circle cx="100" cy="36" r="10" fill="#fff1c2" ${ink()}/>${hi('M96 32 q2 -2 3 1')}
-    <path d="M136 26 v8" fill="none" ${ink(2.2)}/><circle cx="136" cy="44" r="10" fill="#c9f1ff" ${ink()}/><path d="M140 38 h5 v10 h-4 z" fill="#7eb4dc"/>
-    <path d="M162 18 v6" fill="none" ${ink(2.2)}/><circle cx="162" cy="34" r="8" fill="#ffd0e8" ${ink()}/>`,
+  svg: `<path d="M8 12 Q50 32 90 12 Q130 32 172 14" fill="none" ${ink()}/>
+    ${bulb(28, 40, '#fff6c8', '#f0c45c')}
+    ${bulb(64, 46, '#ffc2d4', '#e45d88')}
+    ${bulb(100, 36, '#fff1c2', '#f0c45c')}
+    ${bulb(136, 46, '#c9f1ff', '#7eb4dc')}
+    ${bulb(164, 34, '#ffd0e8', '#e888a8', 8)}`,
 });
 
 const toad = piece({
   kind: 'toadstool-light', name: 'Toadstool Light', cat: 'decor', w: 70, h: 84, vb: '0 0 80 96',
-  svg: `<defs>${rad('ydtoadG', '#ffe7a0', '.85')}</defs>
-    ${shadow(40, 24, 90)}
-    <ellipse cx="40" cy="78" rx="16" ry="6" fill="url(#ydtoadG)"/>
-    <path d="M34 68 H46 L44 84 H36 Z" fill="#fff7f8" ${ink()}/>
-    <path d="M41 70 H45 L44 82 H41 Z" fill="#f0d8cc"/>
-    <path d="M10 56 Q40 16 70 56 Q40 68 10 56 Z" fill="#ff8fab" ${ink()}/>
-    <path d="M42 28 Q62 24 68 52 Q50 60 42 56 Z" fill="#e45d88"/>
-    ${hi('M22 46 q12 -8 18 -2')}
-    <circle cx="28" cy="48" r="4" fill="#fff" ${ink(2.2)}/><circle cx="46" cy="44" r="5" fill="#fff" ${ink(2.2)}/><circle cx="38" cy="56" r="3" fill="#fff" ${ink(2.2)}/>`,
+  svg: `<defs>${rad('ydtoadG', '#ffe7a0', '.9')}</defs>
+    ${shadow(40, 26, 90)}
+    <ellipse cx="40" cy="70" rx="18" ry="8" fill="url(#ydtoadG)"/>
+    <path d="M32 58 H48 L52 84 H28 Z" fill="#fff7f8" ${ink()}/>
+    <path d="M42 60 H48 L50 82 H43 Z" fill="#f0d8cc"/>
+    <path d="M6 58 Q40 8 74 58 Q40 74 6 58 Z" fill="#ff8fab" ${ink()}/>
+    <path d="M44 22 Q66 16 72 54 Q52 66 44 52 Z" fill="#e45d88"/>
+    ${hi('M18 48 q16 -12 26 -2')}
+    <circle cx="26" cy="48" r="5" fill="#fff" ${ink(2)}/>
+    <circle cx="44" cy="40" r="6" fill="#fff" ${ink(2)}/>
+    <circle cx="36" cy="56" r="3.5" fill="#fff" ${ink(2)}/>
+    <path d="M22 52 h6 M40 46 h8" fill="none" stroke="#ffd0e0" stroke-width="1.2" stroke-linecap="round"/>`,
 });
 
 const stones = piece({
   kind: 'stepping-stones', name: 'Stepping Stones', cat: 'decor', w: 160, h: 64, vb: '0 0 160 70',
-  svg: `${shadow(80, 64, 64)}
-    <ellipse cx="28" cy="40" rx="22" ry="12" fill="#f7f4ef" ${ink()}/>
-    <ellipse cx="36" cy="42" rx="10" ry="7" fill="#d9d3cc"/>
-    <ellipse cx="78" cy="46" rx="24" ry="12" fill="#f4f1ec" ${ink()}/>
-    <ellipse cx="88" cy="48" rx="10" ry="7" fill="#d4cdc4"/>
-    <ellipse cx="126" cy="38" rx="22" ry="12" fill="#e7e2dc" ${ink()}/>
-    ${hi('M16 36 q8 -3 12 1')}
-    ${tex('M22 42 h8 M74 48 h10 M118 40 h8')}`,
+  svg: `${shadow(80, 66, 64)}
+    <path d="M8 40 L24 28 L50 32 L54 50 L30 58 L10 52 Z" fill="#f7f4ef" ${ink()}/>
+    <path d="M34 36 L50 32 L54 50 L36 54 Z" fill="#d9d3cc"/>
+    <path d="M56 44 L78 32 L108 36 L112 56 L80 64 L58 58 Z" fill="#f4f1ec" ${ink()}/>
+    <path d="M86 40 L108 36 L112 56 L90 58 Z" fill="#d4cdc4"/>
+    <path d="M110 30 L128 20 L154 28 L150 48 L124 52 L108 42 Z" fill="#e7e2dc" ${ink()}/>
+    <path d="M132 26 L152 28 L148 46 L130 44 Z" fill="#d0c9c2"/>
+    ${hi('M16 38 q8 -4 14 0')}
+    ${tex('M22 44 h12 M72 48 h16 M124 36 h12')}`,
 });
 
 const pinwheel = piece({
   kind: 'pinwheel', name: 'Pinwheel', cat: 'decor', w: 56, h: 90, vb: '0 0 70 100', holdable: true,
-  svg: `${shadow(35, 14, 96)}
-    <rect x="31" y="42" width="6" height="54" rx="3" fill="#74c69d" ${ink()}/>
-    <rect x="34" y="46" width="3" height="46" fill="#3d9a68"/>
-    <path d="M34 40 L34 14 L50 34 Z" fill="#ff8fab" ${ink(2.2)}/>
-    <path d="M40 22 L48 32 L36 34 Z" fill="#e45d88"/>
-    <path d="M34 40 L58 46 L40 54 Z" fill="#ffd166" ${ink(2.2)}/>
-    <path d="M48 44 L56 48 L42 50 Z" fill="#e0a83a"/>
-    <path d="M34 40 L34 66 L18 46 Z" fill="#8ecae6" ${ink(2.2)}/>
-    <path d="M30 52 L22 50 L32 46 Z" fill="#5aa9d6"/>
-    <path d="M34 40 L12 34 L28 26 Z" fill="#c9a0dc" ${ink(2.2)}/>
+  svg: `${shadow(35, 16, 96)}
+    <rect x="31" y="44" width="6" height="50" rx="2" fill="#c99366" ${ink()}/>
+    <rect x="34" y="48" width="3" height="42" fill="#c99366"/>
+    <path d="M34 40 L34 8 Q54 16 48 36 Z" fill="#ff8fab" ${ink(2.2)}/>
+    <path d="M42 18 Q50 28 36 34 Z" fill="#e45d88"/>
+    <path d="M34 40 L62 32 Q58 54 40 50 Z" fill="#ffd166" ${ink(2.2)}/>
+    <path d="M54 38 Q58 48 42 46 Z" fill="#e0a83a"/>
+    <path d="M34 40 L34 72 Q14 64 20 44 Z" fill="#8ecae6" ${ink(2.2)}/>
+    <path d="M26 58 Q16 50 32 46 Z" fill="#5aa9d6"/>
+    <path d="M34 40 L6 48 Q12 26 28 30 Z" fill="#c9a0dc" ${ink(2.2)}/>
+    <path d="M16 36 Q14 28 28 34 Z" fill="#b388d6"/>
     <circle cx="34" cy="40" r="5" fill="#fff" ${ink(2.2)}/>
-    ${hi('M32 37 q2 -1 2 1')}`,
+    <circle cx="34" cy="40" r="1.8" fill="${O}"/>`,
 });
 
 const barrel = piece({
   kind: 'rain-barrel', name: 'Rain Barrel', cat: 'decor', w: 86, h: 108, vb: '0 0 80 110',
-  svg: `${shadow(40, 28, 104)}
-    <path d="M16 28 H64 L70 96 H10 Z" fill="#8ecae6" ${ink()}/>
-    <path d="M48 32 H66 L70 92 H52 Z" fill="#3d7ea8"/>
-    ${tex('M26 40 v40 M36 36 v48 M46 38 v44')}
-    ${hi('M22 40 v26')}
-    <rect x="12" y="22" width="56" height="12" rx="5" fill="#bde0fe" ${ink()}/>
-    <rect x="46" y="24" width="18" height="8" rx="3" fill="#7eb4dc"/>
-    <rect x="14" y="70" width="52" height="8" rx="3" fill="#2f6f9a" opacity=".28"/>
-    <rect x="58" y="48" width="12" height="8" rx="3" fill="#d7ecff" ${ink(2)}/>
-    <path d="M70 52 h6" ${ink(2)}/>`,
+  svg: `${shadow(40, 30, 104)}
+    <path d="M22 30 C12 48 12 78 22 98 H58 C68 78 68 48 58 30 Z" fill="#8ecae6" ${ink()}/>
+    <path d="M46 34 C58 48 60 76 54 96 H58 C66 76 66 50 56 32 Z" fill="#5aa9c6"/>
+    ${tex('M28 40 v48 M36 36 v54 M44 38 v50')}
+    ${hi('M24 42 v24')}
+    <ellipse cx="40" cy="30" rx="20" ry="8" fill="#bde0fe" ${ink()}/>
+    <ellipse cx="46" cy="30" rx="10" ry="5" fill="#7eb4dc"/>
+    <path d="M16 48 H64" fill="none" stroke="#c99366" stroke-width="4" stroke-linecap="round"/>
+    <path d="M14 74 H66" fill="none" stroke="#c99366" stroke-width="4" stroke-linecap="round"/>
+    <rect x="56" y="78" width="14" height="7" rx="2" fill="#d7ecff" ${ink(2)}/>
+    <path d="M70 81 h6" fill="none" ${ink(2)}/>
+    <path d="M34 18 q6 -8 12 0" fill="none" stroke="#7eb4dc" stroke-width="2.2" stroke-linecap="round"/>`,
 });
 
 const bush = piece({
   kind: 'butterfly-bush', name: 'Butterfly Bush', cat: 'plants', w: 120, h: 130, vb: '0 0 100 120',
-  svg: `${shadow(50, 34, 114)}
-    <path d="M46 108 V68" stroke="#3d9a68" stroke-width="4" stroke-linecap="round"/>
-    <ellipse cx="50" cy="56" rx="34" ry="28" fill="#74c69d" ${ink()}/>
-    <ellipse cx="30" cy="64" rx="16" ry="14" fill="#95d5b2" ${ink(2.2)}/>
-    <ellipse cx="70" cy="62" rx="18" ry="16" fill="#3d9a68" ${ink(2.2)}/>
-    ${hi('M28 46 q12 -6 20 2')}
-    ${tex('M48 40 v24')}
-    <circle cx="36" cy="50" r="4" fill="#c9a0dc" ${ink(1.6)}/><circle cx="52" cy="42" r="4.2" fill="#ff8fab" ${ink(1.6)}/><circle cx="64" cy="52" r="3.6" fill="#ffd166" ${ink(1.6)}/>
-    <path d="M78 34 q10 -8 8 2 q8 2 0 8 q-8 -2 -8 -10" fill="#ff8fab" ${ink(1.6)}/>`,
+  svg: `${shadow(50, 36, 114)}
+    <path d="M48 108 C46 88 40 78 34 70" fill="none" stroke="#3d9a68" stroke-width="4" stroke-linecap="round"/>
+    <path d="M50 108 C52 86 62 76 70 66" fill="none" stroke="#3d9a68" stroke-width="4" stroke-linecap="round"/>
+    <ellipse cx="34" cy="68" rx="18" ry="16" fill="#95d5b2" ${ink(2.2)}/>
+    <ellipse cx="68" cy="66" rx="20" ry="18" fill="#3d9a68" ${ink(2.2)}/>
+    <ellipse cx="50" cy="58" rx="26" ry="22" fill="#74c69d" ${ink()}/>
+    ${hi('M30 50 q12 -6 18 2')}
+    <path d="M30 62 C28 40 34 28 36 48 C38 30 46 32 42 58 Z" fill="#c9a0dc" ${ink(1.8)}/>
+    <path d="M48 56 C46 32 54 18 56 40 C60 22 68 28 62 54 Z" fill="#b388d6" ${ink(1.8)}/>
+    <path d="M66 60 C66 40 74 30 74 48 C78 34 84 40 78 60 Z" fill="#a78bfa" ${ink(1.8)}/>
+    <path d="M22 36 C8 22 6 34 16 40 C6 42 10 54 22 46 C20 54 32 52 28 42 C34 36 30 28 22 36 Z" fill="#ff8fab" ${ink(1.8)}/>
+    <path d="M22 36 C10 28 14 40 20 40 Z" fill="#e45d88"/>
+    <path d="M24 40 C12 46 16 54 24 48 Z" fill="#ffd166" ${ink(1.6)}/>
+    <ellipse cx="24" cy="40" rx="2.2" ry="6" fill="${O}"/>
+    <path d="M22 34 Q16 26 14 22 M26 34 Q30 26 34 22" fill="none" stroke="${O}" stroke-width="1.3" stroke-linecap="round"/>
+    <circle cx="13" cy="21" r="1.2" fill="${O}"/><circle cx="35" cy="21" r="1.2" fill="${O}"/>`,
 });
 
 const hedge = piece({
   kind: 'hedge-row', name: 'Hedge Row', cat: 'plants', w: 190, h: 96, vb: '0 0 180 96',
-  svg: `${shadow(90, 76, 90)}
-    <path d="M8 70 Q20 28 50 40 Q70 18 100 36 Q130 16 160 38 Q176 28 176 70 Z" fill="#74c69d" ${ink()}/>
-    <path d="M100 28 Q140 18 168 40 Q176 50 174 70 H120 Q130 48 100 40 Z" fill="#3d9a68"/>
-    ${tex('M36 52 q4 6 0 12 M70 44 q4 8 0 14 M150 48 q4 6 0 12')}
-    ${hi('M24 48 q14 -6 24 2')}
-    <circle cx="40" cy="48" r="3.4" fill="#ff8fab" ${ink(2.2)}/><circle cx="88" cy="40" r="3.4" fill="#ffd166" ${ink(2.2)}/><circle cx="128" cy="46" r="3.2" fill="#fff" ${ink(2.2)}/>`,
+  svg: `${shadow(90, 78, 90)}
+    <rect x="6" y="36" width="52" height="46" rx="14" fill="#74c69d" ${ink()}/>
+    <rect x="40" y="42" width="14" height="34" rx="6" fill="#3d9a68"/>
+    <rect x="62" y="26" width="56" height="56" rx="16" fill="#95d5b2" ${ink()}/>
+    <rect x="98" y="32" width="16" height="44" rx="6" fill="#52b788"/>
+    <rect x="122" y="34" width="52" height="48" rx="14" fill="#74c69d" ${ink()}/>
+    <rect x="156" y="40" width="14" height="36" rx="6" fill="#3d9a68"/>
+    ${tex('M18 52 q4 6 0 12 M78 44 q4 8 0 14 M140 50 q4 6 0 12')}
+    ${hi('M14 46 q12 -6 20 2')}
+    ${hi('M70 36 q14 -6 22 2')}`,
 });
 
 const cup = piece({
   kind: 'lemonade-cup', name: 'Lemonade Cup', cat: 'food', w: 52, h: 70, vb: '0 0 70 90', holdable: true,
-  svg: `${shadow(35, 20, 84)}
-    <path d="M18 28 H52 L48 76 H22 Z" fill="#fff" ${ink()}/>
-    <path d="M40 30 H50 L47 74 H40 Z" fill="#f0e6d8"/>
-    <path d="M20 40 H50 L47 76 H23 Z" fill="#ffe566" ${ink(2.2)}/>
-    <path d="M40 42 H48 L46 74 H40 Z" fill="#f0c45c"/>
-    ${hi('M24 36 v16')}
-    <path d="M30 16 q5 8 0 14 q-6 -4 0 -14" fill="#ff8fab" ${ink(1.8)}/>
-    <circle cx="42" cy="20" r="6" fill="#ffe566" ${ink(1.6)}/>
-    <path d="M44 16 h4 l-1 5 h-3 z" fill="#e0a83a"/>
-    <ellipse cx="46" cy="16" rx="3.4" ry="2" fill="#74c69d" ${ink(1.4)}/>
-    <rect x="24" y="22" width="22" height="6" rx="2" fill="#fff" ${ink(1.6)}/>`,
+  svg: `${shadow(35, 22, 84)}
+    <path d="M18 32 H52 L46 76 H24 Z" fill="#fff" ${ink()}/>
+    <path d="M40 34 H50 L46 74 H40 Z" fill="#f0e6d8"/>
+    <path d="M20 44 H50 L46 76 H24 Z" fill="#ffe566"/>
+    <path d="M40 46 H48 L46 74 H40 Z" fill="#f0c45c"/>
+    <ellipse cx="35" cy="44" rx="15" ry="6" fill="#fff3a0" ${ink(2)}/>
+    <ellipse cx="35" cy="32" rx="17" ry="7" fill="#fff" ${ink()}/>
+    <path d="M40 42 L48 16 H58" fill="none" stroke="#ff8fab" stroke-width="3.2" stroke-linecap="round"/>
+    <circle cx="20" cy="30" r="8" fill="#ffe566" ${ink(1.8)}/>
+    <path d="M20 23 v14 M14 30 h12" fill="none" stroke="#fff" stroke-width="1.4"/>
+    <path d="M16 26 q4 4 8 0 M16 34 q4 -4 8 0" fill="none" stroke="#e0a83a" stroke-width="1.2"/>
+    ${hi('M24 38 v14')}`,
 });
 
 export const YARD_ITEMS: ItemDef[] = [
@@ -458,11 +540,11 @@ export function yardBackyardScenery(): string {
     <circle id="ydSun" cx="1180" cy="68" r="30" fill="#ffe566"/>
     <circle cx="1170" cy="58" r="8" fill="#fff" opacity=".8"/>
     ${cloud(980, 96, 1.05)}${cloud(1320, 78, 0.85)}${cloud(1500, 120, 0.7)}
-    ${pickets(1084, 1680, 268, 372, 28)}
     <rect y="360" width="2400" height="240" fill="#c6ef9a"/>
     <rect y="360" width="2400" height="28" fill="#e7f8c8"/>
     <rect y="520" width="2400" height="80" fill="#9ed67a"/>
     <path d="M1040 470 q30 -12 16 -6 M1200 510 q28 -12 14 -4 M1360 548 q24 -10 12 -4" fill="none" stroke="#3d9a68" stroke-width="1.2" stroke-linecap="round" opacity=".22"/>
+    ${pickets(846, 2118, 258, 372, 24)}
     ${tree(1264, 0.8)}
     <path d="M840 120 H1076 L1054 152 H862 Z" fill="#ffb3c6" ${ink()}/>
     <path d="M960 126 H1064 L1046 148 H976 Z" fill="#e45d88"/>
