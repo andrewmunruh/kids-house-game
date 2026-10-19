@@ -79,7 +79,7 @@ html, body { background: var(--sky-body); }
     radial-gradient(circle at 12% 68%, var(--sky-glow-soft), transparent 16%),
     radial-gradient(circle at 40% 38%, var(--sky-glow-map), transparent 12%),
     linear-gradient(112deg, transparent 50%, var(--sky-shadow) 100%),
-    radial-gradient(ellipse at 50% 46%, transparent 55%, rgba(8, 12, 32, 0.55) 100%);
+    radial-gradient(ellipse at 50% 46%, transparent 62%, rgba(8, 12, 32, 0.28) 100%);
 }
 
 html.sky-live .world::after,
@@ -101,11 +101,12 @@ html.sky-live .grWorld::before {
 }
 .item.is-light::before {
   left: 50%;
-  top: 28%;
-  width: 280%;
-  height: 220%;
-  transform: translate(-50%, -30%);
+  top: 34%;
+  width: 150%;
+  height: 130%;
+  transform: translate(-50%, -36%);
   z-index: 0;
+  background: radial-gradient(circle, var(--sky-glow-hot) 0%, var(--sky-glow-soft) 26%, transparent 58%);
 }
 .item.is-light > .inner { position: relative; z-index: 1; }
 .item.is-light[data-kind="window"]::before,
@@ -318,8 +319,8 @@ body.phone .undoBtn { width: auto; padding: 0 10px; font-size: 14px; }
 body.phone.view-street #skyMount {
   position: fixed;
   z-index: 9600;
-  top: 2px;
-  left: 168px;
+  top: 4px;
+  left: 88px;
   height: 44px;
   pointer-events: none;
 }

@@ -59,21 +59,21 @@ const NIGHT_T: Tone = {
 
 // Minutes from midnight. Neighbours blend so dawn and dusk ease in instead of popping.
 const STOPS: Stop[] = [
-  { m: 0, opacity: 0.50, map: 0.62, glow: 1, stars: 1, glass: 1, phase: 'night', ...NIGHT_T },
-  { m: 5 * 60, opacity: 0.50, map: 0.62, glow: 0.95, stars: 0.95, glass: 1, phase: 'night', ...NIGHT_T },
-  { m: 5 * 60 + 35, opacity: 0.26, map: 0.34, glow: 0.55, stars: 0.42, glass: 0.8, phase: 'dawn', ...DAWN_T },
-  { m: 6 * 60 + 25, opacity: 0.14, map: 0.16, glow: 0.28, stars: 0.08, glass: 0.9, phase: 'dawn', ...DAWN_T },
+  { m: 0, opacity: 0.50, map: 0.46, glow: 1, stars: 1, glass: 1, phase: 'night', ...NIGHT_T },
+  { m: 5 * 60, opacity: 0.50, map: 0.46, glow: 0.95, stars: 0.95, glass: 1, phase: 'night', ...NIGHT_T },
+  { m: 5 * 60 + 35, opacity: 0.26, map: 0.26, glow: 0.55, stars: 0.42, glass: 0.8, phase: 'dawn', ...DAWN_T },
+  { m: 6 * 60 + 25, opacity: 0.14, map: 0.12, glow: 0.28, stars: 0.08, glass: 0.9, phase: 'dawn', ...DAWN_T },
   { m: 7 * 60 + 15, opacity: 0, map: 0, glow: 0, stars: 0, glass: 0, phase: 'day', ...DAY_T },
   { m: 16 * 60 + 15, opacity: 0, map: 0, glow: 0, stars: 0, glass: 0, phase: 'day', ...DAY_T },
-  { m: 17 * 60 + 5, opacity: 0.12, map: 0.16, glow: 0.42, stars: 0.02, glass: 0.7, phase: 'golden', ...GOLD_T },
-  { m: 18 * 60 + 10, opacity: 0.20, map: 0.28, glow: 0.72, stars: 0.14, glass: 0.95, phase: 'golden', ...GOLD_T },
-  { m: 19 * 60 + 5, opacity: 0.34, map: 0.46, glow: 0.9, stars: 0.55, glass: 1, phase: 'night', ...NIGHT_T },
-  { m: 20 * 60 + 10, opacity: 0.50, map: 0.62, glow: 1, stars: 1, glass: 1, phase: 'night', ...NIGHT_T },
-  { m: 24 * 60, opacity: 0.50, map: 0.62, glow: 1, stars: 1, glass: 1, phase: 'night', ...NIGHT_T },
+  { m: 17 * 60 + 5, opacity: 0.12, map: 0.12, glow: 0.42, stars: 0.02, glass: 0.7, phase: 'golden', ...GOLD_T },
+  { m: 18 * 60 + 10, opacity: 0.20, map: 0.20, glow: 0.72, stars: 0.14, glass: 0.95, phase: 'golden', ...GOLD_T },
+  { m: 19 * 60 + 5, opacity: 0.34, map: 0.32, glow: 0.9, stars: 0.55, glass: 1, phase: 'night', ...NIGHT_T },
+  { m: 20 * 60 + 10, opacity: 0.50, map: 0.46, glow: 1, stars: 1, glass: 1, phase: 'night', ...NIGHT_T },
+  { m: 24 * 60, opacity: 0.50, map: 0.46, glow: 1, stars: 1, glass: 1, phase: 'night', ...NIGHT_T },
 ];
 
 const DAY: SkyLook = { phase: 'day', opacity: 0, map: 0, glow: 0, stars: 0, glass: 0, ...DAY_T };
-const NIGHT: SkyLook = { phase: 'night', opacity: 0.50, map: 0.62, glow: 1, stars: 1, glass: 1, ...NIGHT_T };
+const NIGHT: SkyLook = { phase: 'night', opacity: 0.50, map: 0.46, glow: 1, stars: 1, glass: 1, ...NIGHT_T };
 
 function hex(c: string): [number, number, number] {
   const h = c.replace('#', '');
