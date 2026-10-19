@@ -1,6 +1,6 @@
 // Mailbox: filter, cap, expiry, rate limit, author stamp, owner-only reading, old clients.
 import { Neighborhood, type KV, type Conn } from '../server/core';
-import { FILTER_MSG, NICKNAMES, PROTOCOL, cleanMailText } from '../src/shared/hood';
+import { FILTER_MSG, MAIL_FREE_DEFAULT, NICKNAMES, PROTOCOL, cleanMailText, filterChat, mailIsFree } from '../src/shared/hood';
 import { initialState, type Cat } from '../src/shared/state';
 import { keepMailbox, stripUrls, MAIL_CAP, MAIL_MAX, MAIL_TTL_MS, type Letter } from '../src/shared/mail';
 import { catAt } from '../src/pets';
@@ -36,17 +36,51 @@ async function main() {
   const alsoBlocked = [
     'minecraft please', 'snap me', 'insta friend', 'youtube channel', 'username coolkid',
     'Lincoln School', 'Lincoln Academy', 'Lincoln Middle', 'Lincoln High',
-    'come to my house', 'at the park', 'see you at 3', 'come at 3pm', 'hate you', 'shut up', 'dumb', 'loser', 'kill',
+    'at the park', 'see you at 3', 'come at 3pm', 'hate you', 'shut up', 'dumb', 'loser', 'kill',
     'five five five one one', 'my tiktok', 'discord user',
+    'add me on fortnite SparkleQueen', 'my house is on Maple street', 'kys', 'im 8 and live on Oak ave',
+    'call me', 'text me', "my mom's phone is nine one two", 'f\u{1F338}i\u{1F338}v\u{1F338}e five five',
+    '\uFF46\uFF49\uFF56\uFF45', '\u0456d\u0456ot', 'dummmmy', 'I play for the Tigers soccer team',
+    "what's your address", 'whats ur last name',
   ];
-  const allowed = ['Why is your cat in my bed?', 'Your house is so cute!', 'Want to play Slay?', 'Hi Chloe!', 'father', 'skill', 'someone', 'snapshot of the cat', 'so high'];
+  const allowed = [
+    'Why is your cat in my bed?', 'Your house is so cute!', 'Want to play Slay?', 'Hi Chloe!', 'father', 'skill', 'someone', 'snapshot of the cat', 'so high',
+    'see you at school', 'Come to my garden', 'come to my house', 'meet me at the treehouse', 'want to play at the ranch?',
+    'I love your bedroom', 'my cat is so cute', 'Hi Reagan!',
+  ];
+  const rows: { text: string; want: string }[] = [
+    ...blocked.map(text => ({ text, want: 'mail' })),
+    ...alsoBlocked.map(text => ({ text, want: 'block' })),
+    ...allowed.map(text => ({ text, want: 'ok' })),
+  ];
+  console.log('MAIL TABLE');
+  console.log('result\texpect\treason\ttext');
+  const tableBad: string[] = [];
+  for (const row of rows) {
+    const f = cleanMailText(row.text, roster);
+    const reason = f.ok ? 'ok' : (f as { reason?: string }).reason ?? '';
+    const chat = filterChat(row.text, 80);
+    let got = reason;
+    if (row.want === 'mail') got = reason === 'mail' ? 'mail' : (f.ok ? 'ok' : 'not-mail:' + reason);
+    else if (row.want === 'block') got = f.ok ? 'ok' : 'block';
+    else got = f.ok ? 'ok' : reason;
+    const passRow = got === row.want || (row.want === 'block' && !f.ok && !chat.ok);
+    if (row.want === 'block' && !f.ok) got = 'block';
+    if (!passRow) tableBad.push(row.text + ' -> ' + reason);
+    console.log((passRow ? 'PASS' : 'FAIL') + '\t' + row.want + '\t' + reason + '\t' + row.text);
+  }
   const blockedBad = blocked.filter(t => {
     const f = cleanMailText(t, roster);
     return f.ok || (f as { reason?: string }).reason !== 'mail';
   });
-  const alsoBad = alsoBlocked.filter(t => cleanMailText(t, roster).ok);
+  const alsoBad = alsoBlocked.filter(t => {
+    const f = cleanMailText(t, roster);
+    if (f.ok) return true;
+    const chat = filterChat(t, 80);
+    return chat.ok && (f as { reason?: string }).reason !== 'mail';
+  });
   const allowedBad = allowed.filter(t => !cleanMailText(t, roster).ok);
-  check('trickier letters are blocked without naming the rule', blockedBad.length === 0 && alsoBad.length === 0 && FILTER_MSG.mail === 'Oops, try different words!' && !/roblox|school|stupid|fat/i.test(FILTER_MSG.mail), blockedBad.concat(alsoBad).join(' | '));
+  check('trickier letters are blocked without naming the rule', blockedBad.length === 0 && alsoBad.length === 0 && tableBad.length === 0 && FILTER_MSG.mail === 'Oops, try different words!' && !/roblox|school|stupid|fat/i.test(FILTER_MSG.mail), blockedBad.concat(alsoBad, tableBad).join(' | '));
   check('ordinary letters still go through', allowedBad.length === 0, allowedBad.join(' | '));
   check('Ava Smith is blocked even when Ava is on the roster', cleanMailText('Ava Smith', ['Ava']).ok === false);
   check('five digits are still refused', cleanMailText('call 12345').ok === false);
@@ -172,6 +206,7 @@ async function main() {
   check('a wrong grown-up key does not change the street', grown.last('error')?.code === 'badkey' && hood.meta!.settings.freeChat === true);
   await send(grown, { t: 'parent', key: parentKey, op: 'freeChat', on: false });
   check('the grown-up turns free typing off', grown.last('parentInfo')?.settings.freeChat === false && hood.meta!.settings.freeChat === false);
+  check('an unset freeMail is left out and letters follow the chat switch', !('freeMail' in hood.meta!.settings) && !JSON.stringify(hood.meta!.settings).includes('freeMail') && mailIsFree(hood.meta!.settings) === false && MAIL_FREE_DEFAULT === 'follow freeChat' && mailIsFree({ freeChat: true }) === true);
   const before = live().mailbox?.letters.length ?? 0;
   await send(locked.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'Come play today!', color: 1, sticker: 2 });
   await send(locked.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'Hi! Bye!', color: 0, sticker: 0 });
@@ -247,6 +282,24 @@ async function main() {
   const stillFull = hood4.houses.get(fullKid.hid)!.state.mailbox?.letters ?? [];
   const stillSpeedy = hood4.houses.get(speedy.hid)!.state.mailbox?.letters ?? [];
   check('removing a kid deletes her letters from every mailbox', !hood4.houses.has(writer.hid) && !stillFull.some(l => l.fromPid === writer.pid) && !stillSpeedy.some(l => l.fromPid === writer.pid) && stillFull.some(l => l.text === 'Hi Chloe!') && stillSpeedy.some(l => l.text === 'So cute!'));
+
+  await send(grown, { t: 'parent', key: parentKey, op: 'freeChat', on: false });
+  check('letters still follow freeChat while freeMail is absent', hood.meta!.settings.freeChat === false && !('freeMail' in hood.meta!.settings) && mailIsFree(hood.meta!.settings) === false);
+  await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'Come play today!', color: 0, sticker: 0 });
+  await send(fullKid.c, { t: 'say', b: { kind: 'text', v: 'Hello there' } });
+  check('preset letters and preset chat while the switch is absent', fullKid.c.last('mailFail')?.reason === 'presetsOnly' && fullKid.c.last('sayFail')?.reason === 'presetsOnly');
+  await send(grown, { t: 'parent', key: 'nope', op: 'freeMail', on: true });
+  await send(grown, { t: 'parent', key: parentKey, op: 'freeMail', on: true });
+  check('freeMail can allow typed letters while chat stays on presets', grown.last('error')?.code === 'badkey' && hood.meta!.settings.freeMail === true && hood.meta!.settings.freeChat === false && mailIsFree(hood.meta!.settings) === true && fullKid.c.last('settings')?.settings?.freeMail === true);
+  await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'Your house is so cute!', color: 0, sticker: 0 });
+  await send(fullKid.c, { t: 'say', b: { kind: 'text', v: 'Hello there' } });
+  check('a typed letter arrives and chat does not', !!live().mailbox?.letters.some(l => l.text === 'Your house is so cute!') && fullKid.c.last('sayFail')?.reason === 'presetsOnly');
+  await send(grown, { t: 'parent', key: parentKey, op: 'freeChat', on: true });
+  await send(grown, { t: 'parent', key: parentKey, op: 'freeMail', on: false });
+  check('freeMail can force preset letters while chat stays free', hood.meta!.settings.freeChat === true && hood.meta!.settings.freeMail === false && mailIsFree(hood.meta!.settings) === false && JSON.parse(JSON.stringify(hood.meta!.settings)).freeMail === false);
+  await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'A typed note', color: 0, sticker: 0 });
+  await send(fullKid.c, { t: 'say', b: { kind: 'text', v: 'Hello there' } });
+  check('typed letters wait and chat still goes out', fullKid.c.last('mailFail')?.reason === 'presetsOnly' && !live().mailbox?.letters.some(l => l.text === 'A typed note') && fullKid.c.last('sayFail')?.reason === 'nowhere');
 
   console.log(`${pass} passed`);
 }

@@ -3,7 +3,7 @@ import { storeKey } from './shared/storekey';
 // not-yet-confirmed actions sit in `pending` and are re-applied on top (optimistic UI that never diverges).
 import type { Plot, RanchOp } from './shared/ranch';
 import { reduce, migrate, type Action, type GameState, type RoomId } from './shared/state';
-import { PROTOCOL, type ClientMsg, type ServerMsg, type PlayerPub, type HouseMeta, type Presence, type Bubble, type Look, type RosterEntry, type Fx } from './shared/hood';
+import { PROTOCOL, type ClientMsg, type ServerMsg, type PlayerPub, type HouseMeta, type Presence, type Bubble, type Look, type RosterEntry, type Fx, type StreetSettings } from './shared/hood';
 import type { Dog } from './shared/state';
 import type { TableOp, TablePub } from './shared/games/index';
 
@@ -46,7 +46,7 @@ const coalesceKey = (a: Action) => a.type === 'item/move' ? 'im:' + a.id : a.typ
 
 export class HoodClient {
   ws: WebSocket | null = null;
-  pid = ''; settings = { freeChat: true };
+  pid = ''; settings: StreetSettings = { freeChat: true };
   players = new Map<string, PlayerPub>();
   houses = new Map<string, HouseRec>();
   presence = new Map<string, Presence>();

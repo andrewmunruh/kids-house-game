@@ -60,8 +60,12 @@ body.mode-play .toolbar, body.mode-play .bin { display: none !important; }
 .statusChip { display: inline-block; background: #e7f5ff; border: 3px solid var(--ink); border-radius: 14px; padding: 4px 10px; font-weight: 900; margin-top: 6px; }
 .statusChip.read { background: #d3f9d8; }
 
-body.phone .modeToggle { height: 44px; padding: 2px; gap: 2px; }
-body.phone .modeToggle button { height: 36px; min-height: 0; padding: 0 6px; font-size: 14px; gap: 3px; }
+/* The chip row is already 44px. Padding and the ink border used to shrink the
+   buttons to 36px. The border is drawn with an inset shadow so the buttons
+   themselves are a 44px tap and the row (and the room) stay the same height. */
+body.phone .modeToggle { height: 44px; min-height: 44px; max-height: 44px; padding: 0; border-width: 0; gap: 2px;
+  box-shadow: inset 0 0 0 3px var(--ink), 0 3px 0 #e6c9d8; }
+body.phone .modeToggle button { height: 44px; min-height: 44px; max-height: 44px; padding: 0 6px; font-size: 14px; gap: 3px; }
 body.phone .modeToggle .modeIco { width: 22px; height: 22px; flex-basis: 22px; }
 body.phone .mailCue { font-size: 16px; padding: 8px 12px; top: 8px; max-width: calc(100% - 16px); }
 body.phone .mailSheet .card { width: 100% !important; }

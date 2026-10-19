@@ -93,5 +93,10 @@ check('reduced motion is honoured in CSS', /prefers-reduced-motion:\s*reduce/.te
 check('vite builds for safari 16', /target:\s*'safari16'/.test(vite) && /cssTarget:\s*'safari16'/.test(vite));
 check('new css avoids nesting, color-mix, view transitions, and :has()', !/color-mix\(|view-transition|:has\(/.test(juice + sceneryCss) && !/(^|[^\w-])&(?=[\s.:#[,{])/.test(juice + sceneryCss));
 check('new js avoids findLast and toSorted', !/\.(findLast|toSorted|toReversed|toSpliced)\b/.test(jsFresh));
+const phoneToggle = mailCss.slice(mailCss.indexOf('body.phone .modeToggle'));
+check('phone play and decorate buttons are a 44px tap inside a 44px row',
+  /body\.phone \.modeToggle \{[^}]*height:\s*44px[^}]*max-height:\s*44px/.test(phoneToggle) &&
+  /body\.phone \.modeToggle button \{[^}]*height:\s*44px[^}]*min-height:\s*44px/.test(phoneToggle) &&
+  !/height:\s*36px/.test(phoneToggle));
 
 console.log(`${pass} passed`);

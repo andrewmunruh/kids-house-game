@@ -74,6 +74,12 @@ async def presets_and_parent(P, k_house, suffix):
     if await P.get_attribute('#pFree', 'data-on') == '1':
         await P.click('#pFree')
         await P.wait_for_function("() => { const b = document.querySelector('#pFree'); return b && b.getAttribute('data-on') === '0'; }")
+    letters = await P.get_attribute('#pFreeMail', 'data-on')
+    label = await P.inner_text('#parentBody')
+    check('letters toggle follows free typing until it is set', letters == '0' and 'Let kids type their own letters' in label, label[:240])
+    if suffix == '390x844':
+        await P.evaluate("() => { const c = document.querySelector('.parent .card'); if (c) c.scrollTop = 0; }")
+        await shot(P, 'grownup-settings-390x844')
     await P.click('.hoodSheet [data-m="close"]')
     await P.wait_for_function("() => !document.querySelector('.sheet:not(.hidden)')")
     await P.click(f'.mapMail[data-mail="{k_house}"]')
@@ -278,6 +284,9 @@ async def shots_house(P, suffix):
       return { y: Math.round(b.y), row: Math.round(row.y), h: Math.round(b.height), same: Math.abs(b.y - row.y) < 8 };
     }""")
     check(f'{suffix} Play and Decorate sit in the catalog row', ' '.join(words) == 'Play Decorate' and box['same'] and box['h'] <= 56, str(words) + ' ' + str(box))
+    if suffix == '390x844':
+        taps = await P.evaluate("""() => [...document.querySelectorAll('#modeToggle button')].map(b => Math.round(b.getBoundingClientRect().height))""")
+        check('phone play and decorate taps are at least 44px', len(taps) == 2 and all(h >= 44 for h in taps) and box['h'] <= 44, str(taps) + ' ' + str(box))
     path = os.path.join(SHOT, 'play-decorate-' + suffix + '.png')
     await P.screenshot(path=path)
     print('SHOT', path, flush=True)

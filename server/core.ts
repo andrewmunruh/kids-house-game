@@ -6,7 +6,7 @@
 import { reduce, initialState, ensureRooms, type GameState, type Dog } from '../src/shared/state';
 import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, cleanPresence, cleanHouseName,
-  filterChat, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, fxAllowedAt, PROTOCOL, PROTO_PETS, PROTO_RANCH, PROTO_GAMES, RANCH_FX, normCode, validInvite, MAX_ROSTER, cleanMailText, filterMailbox, mailColor, mailSticker, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble,
+  filterChat, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, fxAllowedAt, PROTOCOL, PROTO_PETS, PROTO_RANCH, PROTO_GAMES, RANCH_FX, normCode, validInvite, MAX_ROSTER, cleanMailText, filterMailbox, mailColor, mailSticker, mailIsFree, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble, type StreetSettings,
 } from '../src/shared/hood';
 import { MAIL_CAP, MAIL_RATE_MAX, MAIL_RATE_WINDOW_MS, keepMailbox, projectMailbox, type Letter, type Mailbox } from '../src/shared/mail';
 import { GAMES, TABLES, NUDGE_MS, cleanTableOp, type TablePub, type TablePhase } from '../src/shared/games/index';
@@ -21,7 +21,7 @@ interface Player { pid: string; nickname: string; houseId: string; tokenHash: st
 /** One table in the Game Room. Seats are kept by player id, so a kid who reconnects is still sitting there with her cards. */
 interface TableRec { seats: (string | null)[]; host: string | null; phase: TablePhase; players: string[]; state: any; seq: number; winPid?: string | null }
 const freshTable = (i: number): TableRec => ({ seats: Array(TABLES[i].seats).fill(null), host: null, phase: 'lobby', players: [], state: null, seq: 0 });
-interface Meta { id?: string; code: string; roster?: string[]; createdAt: number; parentKeyHash: string; settings: { freeChat: boolean }; players: Record<string, Player>; houseOrder: string[]; nextStyle: number; ranch?: { plots: (Plot | null)[] } }
+interface Meta { id?: string; code: string; roster?: string[]; createdAt: number; parentKeyHash: string; settings: StreetSettings; players: Record<string, Player>; houseOrder: string[]; nextStyle: number; ranch?: { plots: (Plot | null)[] } }
 
 const enc = new TextEncoder();
 export async function sha256(s: string) { const d = await crypto.subtle.digest('SHA-256', enc.encode(s)); return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join(''); }
@@ -522,7 +522,7 @@ export class Neighborhood {
     if (m.op === 'send') {
       const raw = (m as { text?: unknown }).text;
       let text = '';
-      if (!this.meta!.settings.freeChat) {
+      if (!mailIsFree(this.meta!.settings)) {
         // The same phrase list as chat bubbles. Exact text only: a crafted message cannot sneak a sentence in.
         if (typeof raw !== 'string' || PHRASES.indexOf(raw) < 0) return fail('presetsOnly');
         text = raw;
@@ -606,6 +606,7 @@ export class Neighborhood {
       }
       case 'rename': { const h = this.houses.get(m.houseId), name = cleanHouseName(m.name); if (!h || !name) break; h.name = name; this.save(h.id); this.broadcast({ t: 'houseMeta', meta: this.metaOf(h) }); break; }
       case 'freeChat': { if (typeof m.on !== 'boolean') break; meta.settings.freeChat = m.on; this.save('meta'); this.broadcast({ t: 'settings', settings: meta.settings }); break; }
+      case 'freeMail': { if (typeof m.on !== 'boolean') break; meta.settings.freeMail = m.on; this.save('meta'); this.broadcast({ t: 'settings', settings: meta.settings }); break; }
       case 'mailClear': {
         const houseId = typeof m.houseId === 'string' ? m.houseId : '';
         const h = this.houses.get(houseId); if (!h) break;

@@ -5,7 +5,7 @@ import './mail.css';
 import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapTreesSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
 import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
-import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, cleanPetName, CAT_NAMES, DOG_NAMES, PARK_W, PARK_SPOTS, SLIDE, DOG_AREA, type Presence, type Bubble, type Look, type Fx } from './shared/hood';
+import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, cleanPetName, CAT_NAMES, DOG_NAMES, PARK_W, PARK_SPOTS, SLIDE, DOG_AREA, mailIsFree, type Presence, type Bubble, type Look, type Fx } from './shared/hood';
 import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } from './pets';
 import { mailboxArt, installMail } from './mail';
 import { installPlayMode, playGesture } from './playmode';
@@ -180,7 +180,7 @@ const mailUI = installMail({
   mine: houseId => !!hood && hood.houses.get(houseId)?.meta.ownerId === hood.pid,
   toast,
   openOwn: () => { const id = hood?.myHouseId(); if (id) openMailbox(id); },
-  freeType: () => !hood || hood.settings.freeChat,
+  freeType: () => !hood || mailIsFree(hood.settings),
 });
 play.sync(true);
 const avatarEls = new Map<string, HTMLElement>();
@@ -1660,6 +1660,7 @@ async function parentScreen() {
     const a = t.closest<HTMLElement>('[data-p]'); if (!a) return;
     const op = a.dataset.p;
     if (op === 'free') c.parent({ op: 'freeChat', on: a.dataset.on !== '1' });
+    if (op === 'freeMail') c.parent({ op: 'freeMail', on: a.dataset.on !== '1' });
     if (op === 'rename') c.parent({ op: 'rename', houseId: a.dataset.hid, name: val(`input[data-hid="${a.dataset.hid}"]`) });
     if (op === 'add') c.parent({ op: 'rosterAdd', name: a.dataset.name ?? val('#rosterInput') });
     if (op === 'unname') c.parent({ op: 'rosterRemove', name: a.dataset.name });
@@ -1690,13 +1691,15 @@ async function parentScreen() {
     const firstName = roster[0]?.name ?? 'Reagan';
     const boxes: { houseId: string; name: string; letters: { id: string; from: string; text: string; at: number }[] }[] = Array.isArray(info.mail) ? info.mail : [];
     const anyLetters = boxes.some(b => b.letters && b.letters.length);
+    const mailOn = mailIsFree(info.settings);
     const mailHtml = boxes.map(b => `<div class="pMailHouse"><div class="pMailName">${esc(b.name || 'House')}</div>${
       (b.letters || []).slice().reverse().map(l => `<div class="pLetter"><b>${esc(l.from)}</b><span class="pWhen">${esc(letterDate(l.at))}</span><p>${esc(l.text)}</p><button type="button" class="danger" data-p="mailClear" data-hid="${esc(b.houseId)}" data-id="${esc(l.id)}">Clear</button></div>`).join('')
       || '<p class="hint">No letters.</p>'
     }${(b.letters || []).length ? `<button type="button" class="danger" data-p="mailClear" data-hid="${esc(b.houseId)}">Clear this mailbox</button>` : ''}</div>`).join('');
     body.innerHTML = `${info.note ? `<p class="err" id="pNote">${esc(PARENT_NOTES[info.note] ?? info.note)}</p>` : ''}
       <div class="pRow"><div><div class="label">Invite code</div><div class="code small" id="pCode">${esc(info.code)}</div></div>
-        <div><div class="label">Free typing</div><button class="toggle ${info.settings.freeChat ? 'on' : ''}" data-p="free" data-on="${info.settings.freeChat ? 1 : 0}" id="pFree">${info.settings.freeChat ? 'On' : 'Off (presets only)'}</button><p class="hint small">Chat and letters. Off means preset phrases only.</p></div></div>
+        <div><div class="label">Free typing</div><button class="toggle ${info.settings.freeChat ? 'on' : ''}" data-p="free" data-on="${info.settings.freeChat ? 1 : 0}" id="pFree">${info.settings.freeChat ? 'On' : 'Off (presets only)'}</button><p class="hint small">Chat bubbles. Off means preset phrases only.</p></div>
+        <div><div class="label">Let kids type their own letters</div><button class="toggle ${mailOn ? 'on' : ''}" data-p="freeMail" data-on="${mailOn ? 1 : 0}" id="pFreeMail">${mailOn ? 'On' : 'Off (presets only)'}</button><p class="hint small">Letters only. Off means preset phrases only.</p></div></div>
       <div class="label">Letters</div><div id="parentMail">${mailHtml || '<p class="hint">No letters right now.</p>'}${anyLetters ? '<button type="button" class="danger" data-p="mailClearAll" id="mailClearAll">Clear every mailbox</button>' : ''}</div>
       <form class="pAdd" id="codeForm2"><input id="codeEdit" maxlength="${CODE_MAX}" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="e.g. ${esc(normCode(firstName))}${7}"/><button data-p="setcode" type="button">Use this code</button></form>
       <p class="hint small">Tip: a word plus a number (like ${esc(normCode(firstName))}7) is easy to remember and harder to guess. Not case-sensitive.</p>
@@ -1708,7 +1711,7 @@ async function parentScreen() {
       ${sugg.length ? `<div class="sugg">${sugg.map(n => `<button data-p="add" data-name="${n}">+ ${n}</button>`).join('')}</div>` : ''}
       <div class="label">Houses</div>${info.houses.map((h: any) => `<div class="pHouse"><input data-hid="${h.id}" value="${esc(h.name)}" maxlength="24"/><button data-p="rename" data-hid="${h.id}">Rename</button></div>`).join('') || '<p class="hint">No houses yet.</p>'}
       <div class="label">Players</div>${info.players.map((p: any) => `<div class="pPlayer"><span class="dot ${p.online ? 'on' : ''}"></span>${esc(p.nickname)}<button class="danger" data-p="remove" data-pid="${p.pid}">Remove</button></div>`).join('') || '<p class="hint">Nobody has joined yet.</p>'}
-      <p class="hint small">Letters stay on the server for up to 30 days. They are filtered, and only a first name is stored. You can clear them here, or turn free typing off so new letters use preset phrases. Chat bubbles are only relayed to kids standing nearby and are not saved. No emails or last names. "Reset" signs a name out of its iPad so it can sign in again on another one (her house stays).</p>
+      <p class="hint small">Letters stay on the server for up to 30 days. They are filtered, and only a first name is stored. You can clear them here, or turn off “Let kids type their own letters” so new letters use preset phrases. Chat bubbles are only relayed to kids standing nearby and are not saved. No emails or last names. "Reset" signs a name out of its iPad so it can sign in again on another one (her house stays).</p>
       <button class="danger wideBtn" data-p="leave">Forget this street on this device</button>`;
   });
   c.on('error', (code: string) => { if (code === 'badkey') { toast("That grown-up key didn't work"); cfg.parentKey = undefined; saveHoodConfig(cfg); m.close(); } });
