@@ -140,11 +140,13 @@ app.innerHTML = `
 </div>
 <div class="drawer">
   <div class="drawerBar" id="drawerBar">
-    <div class="drawerTop">
+    <div class="modeDock" id="modeDock">
       <div class="modeToggle" id="modeToggle">
         <button type="button" id="modePlay" data-mode="play" aria-label="Play" aria-pressed="false"><span class="modeIco"></span><span class="modeWord">Play</span></button>
         <button type="button" id="modeDecorate" data-mode="decorate" aria-label="Decorate" aria-pressed="true"><span class="modeIco"></span><span class="modeWord">Decorate</span></button>
       </div>
+    </div>
+    <div class="drawerTop">
       <div class="rooms" id="roomFilter"></div>
       <div class="cats" id="cats"></div>
     </div>
@@ -186,7 +188,7 @@ let houseStores = new Map<string, ReturnType<typeof houseStore>>();
 let modeFit = false;
 const play = installPlayMode($('modeToggle'), {
   ownHouse: () => !hood || !currentHouseId || currentHouseId === hood.myHouseId(),
-  onChange: () => { if (modeFit) fit(); },
+  onChange: () => { if (modeFit) { if (phoneMQ.matches) fitPhone(); else fit(); } },
 });
 const mailUI = installMail({
   send: (houseId, text, color, sticker) => hood?.sendMail(houseId, text, color, sticker),
@@ -299,6 +301,7 @@ function fit() {
   if (!phone && view === 'house') frameHouseKid(false);
   syncTabMode();
   if (view === 'ranch') requestAnimationFrame(frameRanchSign);
+  if (view === 'gameroom') requestAnimationFrame(frameClubSign);
   clampPhoneBubbles();
   if (phone && view === 'ranch') layoutPaddock();
   placeSecretsPill();
@@ -354,7 +357,14 @@ function phoneShowKids(tries = 0) {
   }
   const moved = nudgeScroll(scroll, [kid, ...kid.querySelectorAll<HTMLElement>('.nametag')]);
   if (moved && tries < 8) requestAnimationFrame(() => phoneShowKids(tries + 1));
-  else if (view === 'ranch' && !inBarn) keepDoorHintOnScreen();
+  else finishPortraitFrame();
+}
+/** After the kid is on screen, pull portrait signs into that same view. */
+function finishPortraitFrame() {
+  if (!portraitPlace()) return;
+  if (view === 'ranch' && !inBarn) framePlaceArts([...document.querySelectorAll<HTMLElement>('.ranchSignArt')], $('ranchScroll'));
+  else if (view === 'gameroom') framePlaceArts([...document.querySelectorAll<HTMLElement>('.neonSignArt')], document.getElementById('grScroll'));
+  if (view === 'ranch' && !inBarn) keepDoorHintOnScreen();
 }
 function nudgeScroll(scroll: HTMLElement, nodes: HTMLElement[]) {
   const pad = 8;
@@ -458,8 +468,9 @@ function syncTabMode() {
   tabMode = next;
   renderTabs(store.get());
 }
-window.addEventListener('resize', fit);
-phoneMQ.addEventListener('change', fit);
+function fitNow() { if (phoneMQ.matches) fitPhone(); else fit(); }
+window.addEventListener('resize', fitNow);
+phoneMQ.addEventListener('change', fitNow);
 // Phone only. Coming home brings the room tabs back, and the own-house buttons can
 // wrap the tool row, both without a window resize — the room then keeps the old scale
 // and covers Map. iPad sizes never match PHONE_MQ, so this never calls fit() there.
@@ -474,26 +485,52 @@ function phoneFitSnapshot() {
   const vvKey = vv ? Math.round(vv.offsetTop) + 'x' + Math.round(vv.height) + 'x' + Math.round(vv.width) : '';
   return vvKey + ' ' + box(wrap) + ' ' + box(topBar) + ' ' + box(toolRow);
 }
-/** Phone landscape parks Play/Decorate in the top row. Portrait puts it back on the drawer. iPad never matches PHONE_MQ. */
+/** Phone landscape parks Play/Decorate in the top row. Everywhere else it stays in the dock, beside the scrolling chips. iPad never matches PHONE_MQ. */
 function placeModeToggle() {
   const toggle = $('modeToggle');
   const tools = document.querySelector('.tools');
-  const bar = document.querySelector('.drawerTop');
-  if (!toggle || !tools || !bar) return false;
+  const dock = document.getElementById('modeDock');
+  if (!toggle || !tools || !dock) return false;
+  const slot = document.getElementById('decorateUndoSlot');
   const land = document.body.classList.contains('phone') && !document.body.classList.contains('phone-portrait');
-  const home = land ? tools : bar;
-  if (toggle.parentElement === home) return false;
+  const home = land ? tools : dock;
+  const parked = toggle.parentElement === home && (!slot || slot.parentElement === home);
+  dock.hidden = land;
+  if (parked) return false;
   if (land) tools.insertBefore(toggle, tools.firstChild);
-  else bar.insertBefore(toggle, bar.firstChild);
+  else dock.appendChild(toggle);
+  if (slot) toggle.insertAdjacentElement('afterend', slot);
   return true;
+}
+/**
+ * Phone Play portrait only. fit() will not zoom past a 480-wide view, which letterboxes a tall phone.
+ * Narrow the view here so the room fills the free box. iPad never reaches this function.
+ */
+function growPhonePlayStage() {
+  if (!document.body.classList.contains('phone-portrait') || !document.body.classList.contains('mode-play') || view !== 'house') return;
+  const wrap = $('stageWrap');
+  const boxW = wrap.clientWidth, boxH = wrap.clientHeight;
+  if (boxW < 20 || boxH < 20 || !(boxH > boxW * 0.85)) return;
+  const next = Math.max(280, Math.min(860, Math.round(H * boxW / boxH)));
+  if (Math.abs(next - VIEW_W) < 2) return;
+  VIEW_W = next;
+  stage.style.width = VIEW_W + 'px';
+  stage.style.height = H + 'px';
+  const sc = Math.min(boxW / VIEW_W, boxH / H);
+  stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
+  stage.style.setProperty('--fit', String(stageScale()));
+  if (camX > maxCam()) setCam(camX);
+  else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
+  placePhoneNudges();
+  syncMinimap();
 }
 function fitPhone() {
   if (phoneFitting || !phoneMQ.matches) return;
   const moved = placeModeToggle();
-  const key = phoneFitSnapshot();
+  const key = phoneFitSnapshot() + (document.body.classList.contains('mode-play') ? 'p' : 'd');
   if (!moved && key === phoneFitKey) return;
   phoneFitting = true;
-  try { fit(); phoneFitKey = phoneFitSnapshot(); }
+  try { fit(); growPhonePlayStage(); phoneShowKids(); phoneFitKey = phoneFitSnapshot() + (document.body.classList.contains('mode-play') ? 'p' : 'd'); }
   finally { phoneFitting = false; }
 }
 if (typeof ResizeObserver !== 'undefined') {
@@ -1377,7 +1414,34 @@ type Place = { kind: 'house'; houseId: string; room?: RoomId } | { kind: 'home' 
 const mapAnchors = new Map<string, { x: number; y: number }>(); // where face markers stand for each place (map units)
 let mapKey = '';
 let fakeHouses = 0; // test hook only: draw a pretend street with this many houses
-function mapScale() { const r = $('street'); return Math.min(r.clientWidth / MAP_W, r.clientHeight / MAP_H); }
+/**
+ * Fill the street without stretching. A real empty band (portrait, or a wide phone)
+ * uses the larger scale so one axis fills and the other pans. A landscape iPad that
+ * already nearly fills stays fully on screen.
+ */
+function mapScale() {
+  const r = $('street');
+  const w = Math.max(1, r.clientWidth), h = Math.max(1, r.clientHeight);
+  const contain = Math.min(w / MAP_W, h / MAP_H);
+  const cover = Math.max(w / MAP_W, h / MAP_H);
+  const gapX = w - MAP_W * contain, gapY = h - MAP_H * contain;
+  return gapX > 48 || gapY > 48 ? cover : contain;
+}
+let mapPlaced = '';
+function placeMap(sc: number) {
+  const r = $('street'), w = $('mapWorld');
+  const mw = MAP_W * sc, mh = MAP_H * sc;
+  w.style.marginLeft = mw + 1 < r.clientWidth ? Math.round((r.clientWidth - mw) / 2) + 'px' : '0px';
+  w.style.marginTop = mh + 1 < r.clientHeight ? Math.round((r.clientHeight - mh) / 2) + 'px' : '0px';
+  const key = Math.round(mw) + 'x' + Math.round(mh) + '@' + r.clientWidth + 'x' + r.clientHeight;
+  if (key === mapPlaced) return;
+  mapPlaced = key;
+  const mine = w.querySelector<HTMLElement>('.mapHouse.mine') ?? w.querySelector<HTMLElement>('.mapHouse');
+  if (!mine) { r.scrollLeft = Math.max(0, (mw - r.clientWidth) / 2); r.scrollTop = Math.max(0, (mh - r.clientHeight) / 2); return; }
+  const mr = mine.getBoundingClientRect(), rr = r.getBoundingClientRect();
+  r.scrollLeft += (mr.left + mr.width / 2) - (rr.left + rr.width / 2);
+  r.scrollTop += (mr.top + mr.height / 2) - (rr.top + rr.height / 2);
+}
 function mapHouses() { return hood ? [...hood.houses.values()].map(h => h.meta).sort((a, b) => a.slot - b.slot) : []; }
 function renderMap(force = false) {
   if (view !== 'street') return;
@@ -1421,6 +1485,8 @@ function renderMap(force = false) {
   mapAnchors.set('gameroom', { x: CLUB.x, y: CLUB.y - 52 });
   w.insertAdjacentHTML('beforeend', mapTreesSVG(taken, onRoad) + html + '<div class="mapFaces" id="mapFaces"></div>');
   renderMapFaces();
+  mapPlaced = '';
+  placeMap(sc);
 }
 const baseTaken = () => [{ x: PARK.x, y: PARK.y, r: 115 }, { x: RANCH.x, y: RANCH.y, r: 125 }, { x: SQUARE.x, y: SQUARE.y, r: 100 }, { x: CLUB.x, y: CLUB.y, r: 90 }];
 /** Where n houses go: evenly along the road, on whichever side has more room (never on the park, ranch or square). */
@@ -1577,6 +1643,23 @@ function paintBadges() {
 function setMenuOpen(open: boolean) {
   $('menuPop').classList.toggle('hidden', !open);
   $('btnMenu').setAttribute('aria-expanded', open ? 'true' : 'false');
+  placeHouseTag();
+}
+/** The menu card sits over the top of the stage. Slide the house name clear of it. */
+function placeHouseTag() {
+  const tag = $('houseTag');
+  tag.style.top = '';
+  if (!tag.classList.contains('show') || $('menuPop').classList.contains('hidden')) return;
+  const card = document.querySelector('.menuCard');
+  if (!card) return;
+  const wrap = $('stageWrap').getBoundingClientRect();
+  const menu = card.getBoundingClientRect();
+  const box = tag.getBoundingClientRect();
+  const overlaps = box.top < menu.bottom - 2 && box.bottom > menu.top + 2 && box.left < menu.right - 2 && box.right > menu.left + 2;
+  if (!overlaps) return;
+  const below = menu.bottom - wrap.top + 8;
+  if (below + box.height < wrap.height - 8) tag.style.top = below + 'px';
+  else tag.style.top = Math.max(8, wrap.height - box.height - 10) + 'px';
 }
 $('btnMenu').addEventListener('click', () => { setMenuOpen($('menuPop').classList.contains('hidden')); sfx.click(); });
 $('menuPop').addEventListener('click', e => {
@@ -2006,13 +2089,15 @@ function goGameRoom() {
   const seat = mySeat();
   const p: Presence = seat
     ? { where: 'gameroom', x: seat.x, y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, seat.y)), flip: false }
-    : { where: 'gameroom', x: 280, y: 560, flip: false };
+    : { where: 'gameroom', x: portraitPlace() ? 520 : 280, y: 560, flip: false };
   if (hood) setMyPres(p); else soloPark = p;
   $('streetTitle').textContent = 'The Clubhouse'; renderHoodChrome(); renderGameRoom();
   requestAnimationFrame(() => {
     const sc = grScale(), scroll = $('grScroll');
-    scroll.scrollLeft = Math.max(0, ((seat?.x ?? 520) * sc) - scroll.clientWidth / 2);
+    const focus = seat?.x ?? (portraitPlace() ? 520 : 280);
+    scroll.scrollLeft = Math.max(0, focus * sc - scroll.clientWidth / 2);
     phoneShowKids();
+    frameClubSign();
   });
   sceneIn($('gameroom')); sfx.sparkle();
 }
@@ -2944,7 +3029,7 @@ bindGameRoom({
 
 // ---------- start ----------
 installJuice();
-renderAll(); renderDrawer(); fit(); placeModeToggle(); if (phoneMQ.matches) fitPhone(); requestAnimationFrame(fit);
+renderAll(); renderDrawer(); fit(); placeModeToggle(); if (phoneMQ.matches) fitPhone(); requestAnimationFrame(fitNow);
 // ---------- hidden surprises ----------
 const renderSecrets = () => {
   const n = foundSet().size, total = EGGS.length;
@@ -2955,6 +3040,57 @@ const renderSecrets = () => {
   placeSecretsPill();
 };
 
+/** Portrait iPad and phone: the scene is taller than it is wide, so a wide sign gets cropped. */
+function portraitPlace() { return window.innerHeight > window.innerWidth + 40; }
+/**
+ * Scale sign art so the group fits the viewport, then scroll just enough to keep it on screen.
+ * Landscape clears the tweak and leaves the camera alone.
+ */
+function framePlaceArts(arts: HTMLElement[], scroll: HTMLElement | null) {
+  for (const a of arts) a.style.transform = '';
+  if (!portraitPlace() || !arts.length) return;
+  const port = scroll && scroll.clientWidth > 20 ? scroll.getBoundingClientRect()
+    : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight, width: window.innerWidth, height: window.innerHeight };
+  if (port.width < 20) return;
+  const pad = 8;
+  const availL = Math.max(port.left, 0) + pad;
+  const availR = Math.min(port.right, window.innerWidth) - pad;
+  const availT = Math.max(port.top, 0) + pad;
+  const availB = Math.min(port.bottom, window.innerHeight) - pad;
+  const availW = Math.max(40, availR - availL);
+  const availH = Math.max(40, availB - availT);
+  const boxes = () => arts.map(a => a.getBoundingClientRect()).filter(b => b.width > 2 && b.height > 2);
+  const list = boxes();
+  if (!list.length) return;
+  const l = Math.min(...list.map(b => b.left)), r = Math.max(...list.map(b => b.right));
+  const t = Math.min(...list.map(b => b.top)), btm = Math.max(...list.map(b => b.bottom));
+  const uw = Math.max(1, r - l), uh = Math.max(1, btm - t);
+  const s = Math.min(1, availW / uw, availH / uh);
+  const fits = s > 0.995 && l >= availL - 1 && r <= availR + 1 && t >= availT - 1 && btm <= availB + 1;
+  if (fits) return;
+  // CSS translate on an SVG group is in user units, then the scene scale turns it into
+  // screen pixels. Divide by that scale or the sign jumps about twice as far as asked.
+  const ctm = (arts[0] as unknown as SVGGraphicsElement).getScreenCTM();
+  const px = ctm ? Math.hypot(ctm.a, ctm.b) || 1 : 1;
+  const cx = (l + r) / 2, cy = (t + btm) / 2;
+  const tw = uw * s, th = uh * s;
+  const destCx = (availL + availR) / 2;
+  const destCy = t >= availT && btm <= availB ? cy : Math.min(Math.max(cy, availT + th / 2), availB - th / 2);
+  for (const a of arts) {
+    const box = a.getBoundingClientRect();
+    const ex = (box.left + box.right) / 2, ey = (box.top + box.bottom) / 2;
+    const nx = destCx + (ex - cx) * s;
+    const ny = destCy + (ey - cy) * s;
+    a.style.transformBox = 'fill-box';
+    a.style.transformOrigin = 'center';
+    a.style.transform = `translate(${((nx - ex) / px).toFixed(2)}px, ${((ny - ey) / px).toFixed(2)}px) scale(${s.toFixed(3)})`;
+  }
+}
+function frameClubSign() {
+  if (view !== 'gameroom') return;
+  const scroll = document.getElementById('grScroll');
+  framePlaceArts([...document.querySelectorAll<HTMLElement>('.neonSignArt')], scroll);
+}
 /** Keep the petting-zoo label on screen. Scroll a little if the girl still fits, then slide the label. */
 function frameRanchSign() {
   if (view !== 'ranch' || inBarn) return;
@@ -2970,6 +3106,7 @@ function frameRanchSign() {
   }
   phoneShowKids();
   keepDoorHintOnScreen();
+  framePlaceArts([...document.querySelectorAll<HTMLElement>('.ranchSignArt')], scroll);
 }
 function keepDoorHintOnScreen() {
   const hint = document.querySelector<HTMLElement>('.doorHint');
