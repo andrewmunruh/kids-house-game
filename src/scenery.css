@@ -1,0 +1,7 @@
+/* Painted dressing behind the furniture. Pointers pass through to the room. */
+.scenery { position: absolute; inset: 0; pointer-events: none; }
+.scenery .sceneWin { position: absolute; left: 36%; top: 6%; width: 13%; height: 46%; }
+.scenery .sceneRug { position: absolute; left: 34%; top: 76%; width: 28%; height: 18%; }
+.scenery .sceneLamp { position: absolute; left: 30%; top: 40%; width: 7%; height: 42%; }
+.scenery .scenePlant { position: absolute; left: 62%; top: 46%; width: 8%; height: 36%; }
+.scenery svg { width: 100%; height: 100%; overflow: visible; }

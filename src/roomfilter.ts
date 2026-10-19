@@ -1,0 +1,23 @@
+// Which drawer items belong on a room's shelf.
+// "any" is a fallback for All rooms, except generic decor (rugs, lamps, plants, clocks, windows).
+// Pets, plants, and food tagged "any" still show in the room you're standing in.
+
+export type ShelfItem = { rooms?: string[]; cat: string; name: string; kind?: string };
+
+const GENERIC = /rug|lamp|light|plant|curtain|clock|window|lantern/;
+
+export function isGenericDecor(item: ShelfItem): boolean {
+  if (item.cat === 'plants') return true;
+  const blob = `${item.name} ${item.kind ?? ''}`.toLowerCase();
+  return GENERIC.test(blob);
+}
+
+export function itemMatchesRoom(item: ShelfItem, room: string): boolean {
+  if (room === 'all' || !room) return true;
+  const rooms = item.rooms;
+  if (!rooms || rooms.length === 0) return true;
+  if (rooms.includes(room)) return true;
+  if (!rooms.includes('any')) return false;
+  if (item.cat === 'decor' || item.cat === 'furniture') return isGenericDecor(item);
+  return true;
+}

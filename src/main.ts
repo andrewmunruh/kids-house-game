@@ -1,4 +1,6 @@
 import './style.css';
+import './juice.css';
+import './scenery.css';
 import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapTreesSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
 import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
@@ -11,6 +13,11 @@ import { ITEMS, ITEM_MAP, svgOf, hOf, type Category, type ItemDef } from './item
 import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
 import { characterSVG, SKINS, HAIRS, CLOTHES, HAIR_STYLES, ACCESSORIES, SIZES, SIZE_SCALE, HANDS } from './character';
 import { sfx, setSound } from './sound';
+import { itemMatchesRoom } from './roomfilter';
+import { resolveFrame } from './framekid';
+import { layoutNameTags } from './nametags';
+import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
+import { syncScenery } from './scenery';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
@@ -52,8 +59,8 @@ const TABS: Tab[] = [
 TABS.push({ id: 'secrets', name: 'Secrets', icon: 'egg:chloe-starlamp', kind: 'cat' });
 for (const it of ITEMS) if (!TABS.some(t => t.kind === 'cat' && t.id === it.cat)) TABS.push({ id: it.cat, name: it.cat, icon: it.kind, kind: 'cat' });
 for (const it of ITEMS) if (it.pack && !TABS.some(t => t.id === 'pack:' + it.pack)) TABS.push({ id: 'pack:' + it.pack, name: packLabel(it.pack), icon: it.kind, kind: 'pack' });
-const matchesRoom = (rooms: string[] | undefined, f: string) => f === 'all' || !rooms || rooms.includes('any') || rooms.includes(f);
-const tabItems = (tab: string, rf: string) => ITEMS.filter(i => (!i.secret || foundSet().has(i.secret)) && (tab.startsWith('pack:') ? i.pack === tab.slice(5) : i.cat === tab) && matchesRoom(i.rooms, rf));
+const matchesRoom = (item: ItemDef, f: string) => itemMatchesRoom(item, f);
+const tabItems = (tab: string, rf: string) => ITEMS.filter(i => (!i.secret || foundSet().has(i.secret)) && (tab.startsWith('pack:') ? i.pack === tab.slice(5) : i.cat === tab) && matchesRoom(i, rf));
 
 const WALLS = ['#ffd6e0', '#d9ccff', '#cdf3dc', '#cfe8ff', '#fff1b8', '#ffe0c7', '#ffffff', '#f6c1ff'];
 const FLOORS = ['#e8b98a', '#f2d0a4', '#c99366', '#ffe7a8', '#bfe3d0', '#d6d6f5', '#ffc8dd', '#9fb4c7'];
@@ -97,6 +104,7 @@ app.innerHTML = `
   <div class="stage" id="stage">
     <div class="world" id="world">
       <div class="wall" id="wall"></div><div class="floor" id="floor"></div><div class="baseboard"></div>
+      <div class="scenery" id="scenery"></div>
       <div class="layer" id="layer"></div>
       <div class="toolbar hidden" id="toolbar">
         <button data-a="flip">${ICON.flip}</button><button data-a="front">${ICON.front}</button><button data-a="back">${ICON.back}</button><button data-a="delete" class="danger">${ICON.trash}</button>
@@ -128,6 +136,7 @@ app.innerHTML = `
 <div class="chatTray hidden" id="chatTray"></div>
 <div class="sheet hidden" id="sheet"><div class="card" id="card"></div></div>
 <div class="fx" id="fx"></div>
+<div id="toastLane"></div>
 <div class="phoneNote" id="phoneNote"><div class="card"><h2>Turn sideways</h2><p>Turn your phone sideways for more room to play!</p><button class="phoneOk" id="phoneOk" type="button">OK!</button></div></div>
 <div class="elsewhere hidden" id="elsewhere"><div class="card"><h2>You're playing on another screen</h2><p>This screen can rest. Your house is safe.</p><button class="playHere" id="elsewhereGo" type="button">Tap to play here!</button></div></div>`;
 
@@ -139,6 +148,7 @@ let selected: string | null = null;          // selected room item (UI only)
 let activeChar: string | null = store.get().characters[0]?.id ?? null; // character being edited (UI only)
 let currentTab = 'furniture';
 let roomFilter = ''; // '' follows the room you're in; 'all' shows every room's things
+let tabMode = '';
 let uid = Date.now() % 100000;
 const newId = (p: string) => `${p}-${Date.now().toString(36)}${(++uid).toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 const ME = '__me';
@@ -243,6 +253,8 @@ function fit() {
   else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
   // Phone portrait narrows the window after the camera was aimed at a wider view.
   phoneShowKids();
+  if (!document.body.classList.contains('phone') && view === 'house') frameHouseKid(false);
+  syncTabMode();
   if (view === 'ranch') requestAnimationFrame(frameRanchSign);
   clampPhoneBubbles();
   if (phone && view === 'ranch') layoutPaddock();
@@ -320,7 +332,10 @@ function nudgeScroll(scroll: HTMLElement, nodes: HTMLElement[]) {
   else scroll.scrollLeft -= overflowL;
   return Math.abs(scroll.scrollLeft - before) > 0.5;
 }
-function phoneShowHouseKid() {
+function phoneShowHouseKid() { frameHouseKid(false); }
+/** Pan so the kid and her name tag sit inside the stage. On a drop, step her inward if the camera is already at the end of the room. */
+function frameHouseKid(nudgeX: boolean) {
+  if (view !== 'house') return;
   const kid = document.querySelector<HTMLElement>('#layer .char.avatar.mine') ?? document.querySelector<HTMLElement>('#layer .char');
   if (!kid) return;
   const sc = stageScale() || 1;
@@ -355,10 +370,37 @@ function phoneShowHouseKid() {
     const delta = (minL + maxR) / 2 - (leftLimit + rightLimit) / 2;
     if (Math.abs(delta) > 3) { setCam(camX + delta / sc); return; }
   }
-  if (overflowR <= 1 && overflowL <= 1) return;
-  if (overflowR > 1 && overflowL > 1) setCam(camX - overflowL / sc);
-  else if (overflowR > 1) setCam(camX + overflowR / sc);
-  else setCam(camX - overflowL / sc);
+  const curX = kidWorldX(kid);
+  const res = resolveFrame({ cam: camX, maxCam: maxCam(), kidX: curX, overflowL, overflowR, scale: sc, nudgeX });
+  if (Math.abs(res.cam - camX) > 0.5) setCam(res.cam);
+  if (nudgeX && Math.abs(res.kidX - curX) > 0.5) moveKidX(kid, res.kidX);
+}
+function kidWorldX(kid: HTMLElement): number {
+  if (kid.dataset.pid && hood) {
+    const p = kid.dataset.pid === hood.pid ? myPres() : hood.presence.get(kid.dataset.pid);
+    if (p && p.where === 'house') return p.x;
+  }
+  return store.get().characters.find(ch => ch.id === kid.dataset.cid)?.x ?? 0;
+}
+function moveKidX(kid: HTMLElement, x: number) {
+  if (kid.dataset.pid && hood && kid.classList.contains('mine')) {
+    const cur = myPres(); if (!cur || cur.where !== 'house') return;
+    setMyPres({ ...cur, x }); renderAvatars(); return;
+  }
+  const id = kid.dataset.cid; if (!id) return;
+  const c = store.get().characters.find(ch => ch.id === id); if (!c) return;
+  store.dispatch({ type: 'char/move', id, room: store.get().currentRoom, x, y: c.y });
+}
+const TAB_SHORT: Record<string, string> = { living: 'Living', bedroom: 'Bed', kitchen: 'Kitchen', salon: 'Salon', nursery: 'Nursery' };
+const TAB_ICO = `<svg class="tabIco" viewBox="0 0 16 12" aria-hidden="true"><path d="M1 6 L8 1 L15 6 V11 H1 Z" fill="currentColor"/></svg>`;
+function tabsCompact() {
+  return window.matchMedia('(max-width: 900px) and (min-height: 700px)').matches && !document.body.classList.contains('phone');
+}
+function syncTabMode() {
+  const next = tabsCompact() ? 'c' : 'f';
+  if (next === tabMode) return;
+  tabMode = next;
+  renderTabs(store.get());
 }
 window.addEventListener('resize', fit);
 phoneMQ.addEventListener('change', fit);
@@ -453,6 +495,7 @@ function renderRoomBg(s: GameState) {
   floor.style.backgroundImage = ft ? `${cssUrl(ft.url)}, linear-gradient(rgba(0,0,0,.06), transparent 50%)` : FLOOR_BOARDS;
   floor.style.backgroundSize = ft ? '180px auto, auto' : 'auto';
   $('mmWall').style.background = room.wallpaper; $('mmFloor').style.background = room.floor;
+  syncScenery($('scenery'), s.currentRoom, room.items);
 }
 function renderMinimap(s: GameState) {
   const room = s.rooms[s.currentRoom];
@@ -461,7 +504,13 @@ function renderMinimap(s: GameState) {
   $('mmDots').innerHTML = dots + me;
 }
 function renderTabs(s: GameState) {
-  $('tabs').innerHTML = ROOMS.map(r => `<button class="tab ${s.currentRoom === r.id ? 'on' : ''}" data-room="${r.id}" style="--c:${r.color}">${r.name}</button>`).join('');
+  const compact = tabsCompact();
+  tabMode = compact ? 'c' : 'f';
+  document.body.classList.toggle('tabs-compact', compact);
+  $('tabs').innerHTML = ROOMS.map(r => {
+    const label = compact ? (TAB_SHORT[r.id] ?? r.name) : r.name;
+    return `<button class="tab ${s.currentRoom === r.id ? 'on' : ''}" data-room="${r.id}" style="--c:${r.color}" aria-label="${r.name}">${compact ? TAB_ICO : ''}${label}</button>`;
+  }).join('');
 }
 function placeEl(el: HTMLElement, x: number, y: number, w: number, h: number) {
   el.style.left = (x - w / 2) / W * 100 + '%';
@@ -504,6 +553,7 @@ function renderItems(s: GameState) {
     el.classList.toggle('sel', selected === it.id);
   }
   layer.querySelectorAll<HTMLElement>('.item').forEach(el => { if (!seen.has(el.dataset.id!)) el.remove(); });
+  syncScenery($('scenery'), s.currentRoom, room.items);
   renderToolbar(s); renderMinimap(s);
 }
 
@@ -667,8 +717,8 @@ function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
       el.classList.remove('lifted'); bin.classList.remove('show', 'hot'); showHoldTarget(null);
       if (moved && overBin(ev.clientX, ev.clientY)) { selected = null; store.dispatch({ type: 'item/delete', room, id }); poof(ev.clientX, ev.clientY); return; }
       if (moved && target) { holdInto(target, id); return; }
-      if (moved) sfx.drop(); else { sfx.click(); onPlaceTap(id); }
-      bounce(el); renderItems(store.get());
+      if (moved) { sfx.drop(); bounce(el); } else { sfx.click(); onPlaceTap(id); wiggleItem(el); }
+      renderItems(store.get());
     },
   });
 }
@@ -719,6 +769,7 @@ function attachCharDrag(el: HTMLElement) {
           return;
         }
         sfx.drop(); bounce(el);
+        if (moved) requestAnimationFrame(() => frameHouseKid(true));
       },
     });
   });
@@ -992,6 +1043,8 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorke
 (window as any).__items = Object.fromEntries(ITEMS.filter(i => i.img).map(i => [i.kind, { w: i.w, h: hOf(i), cat: i.cat, holdable: i.holdable, svg: i.img!.includes('.svg') }]));
 (window as any).__cam = { get: () => camX, set: setCam };
 (window as any).__phoneShowKids = () => phoneShowKids();
+(window as any).__frameHouseKid = () => frameHouseKid(true);
+(window as any).__layoutNameTags = () => layoutNameTags();
 
 
 // =====================================================================================
@@ -1064,7 +1117,7 @@ function attachMyAvatarDrag(el: HTMLElement) {
         const flip = Math.abs(x - lastX) > 3 ? x < lastX : cur.flip; if (Math.abs(x - lastX) > 3) lastX = x;
         setMyPres({ ...cur, x, y, flip }); renderAvatars(); renderMinimap(store.get());
       },
-      onUp() { el.classList.remove('lifted'); sfx.drop(); bounce(el); },
+      onUp() { el.classList.remove('lifted'); sfx.drop(); bounce(el); requestAnimationFrame(() => frameHouseKid(true)); },
     });
   });
 }
@@ -1787,7 +1840,7 @@ function tickDogs(now: number, dt: number) {
     }
     const tricking = now < r.trickUntil;
     const dx = tx - r.x, dy = ty - r.y, d = Math.hypot(dx, dy); let moving = false;
-    if (d > (fetchSt ? 4 : 10) && !tricking) { const step = Math.min(d, speed * dt); r.x += dx / d * step; r.y += dy / d * step; moving = true; if (Math.abs(dx) > 1.5) r.flip = dx < 0; r.idle = 0; }
+    if (d > (fetchSt ? 4 : 10) && !tricking) { const step = prefersReducedMotion() ? d : Math.min(d, speed * dt); r.x += dx / d * step; r.y += dy / d * step; moving = true; if (Math.abs(dx) > 1.5) r.flip = dx < 0; r.idle = 0; }
     else { r.idle += dt; if (!tricking && r.idle > 0.3 && Math.abs(o.x - r.x) > 4) r.flip = o.x < r.x; }
     const pose = tricking && r.sitTrick ? 'sit' : moving ? 'stand' : r.idle > 0.9 ? 'sit' : 'stand';
     const look = pose + o.dog.breed;
@@ -1931,11 +1984,12 @@ function tickKennels() {
       el.addEventListener('click', ev => { if ((ev.target as HTMLElement).closest('.kennelBtn')) return; ev.stopPropagation(); petBubble(el, `${el.dataset.name ?? 'Puppy'} is resting`); });
       r = { el, pose: '', look: '', x: spot.item.x, y }; kennelRuns.set(spot.key, r);
     }
-    if (r.pose !== 'sit' || r.look !== look + spot.dog.breed) {
+    const pose = look === 'rest' ? 'sleep' : 'sit';
+    if (r.pose !== pose || r.look !== look + spot.dog.breed) {
       const keep = [...r.el.querySelectorAll('.bubble, .kennelBtn')];
-      r.el.innerHTML = `<div class="inner">${dogSVG(spot.dog.breed, 'sit')}</div>${look === 'rest' ? '<div class="zzz"><i>z</i><i>z</i><i>z</i></div>' : ''}`;
+      r.el.innerHTML = `<div class="inner">${dogSVG(spot.dog.breed, pose)}</div>${look === 'rest' ? '<div class="zzz"><b>Zzz</b><i>z</i><i>z</i><i>z</i></div>' : ''}`;
       for (const node of keep) r.el.appendChild(node);
-      r.pose = 'sit'; r.look = look + spot.dog.breed;
+      r.pose = pose; r.look = look + spot.dog.breed;
     }
     r.el.dataset.name = spot.dog.name;
     r.el.classList.toggle('rest', look === 'rest'); r.el.classList.toggle('peek', look === 'peek');
@@ -1970,7 +2024,7 @@ function tickCat() {
   const tower = roomTower(s);
   const def = tower ? ITEM_MAP[tower.kind] : undefined;
   const th = tower && def ? hOf(def) * tower.scale : 0;
-  const b = catAt(cat, Date.now(), tower ? { x: tower.x } : null);
+  const b = catAt(cat, Date.now(), tower ? { x: tower.x } : null, prefersReducedMotion());
   const leaping = !!tower && performance.now() < leapUntil;
   const perch = leaping ? 2 : b.perch;
   const x = leaping && tower ? tower.x : b.x;
@@ -1989,6 +2043,8 @@ function tickCat() {
   catPerch = perch;
   catEl.dataset.name = cat.name; catEl.dataset.mood = mood; catEl.dataset.perch = String(perch); catEl.dataset.leap = leaping ? '1' : '0';
   catEl.classList.toggle('walking', mood === 'walk'); catEl.classList.toggle('groom', mood === 'groom'); catEl.classList.toggle('play', mood === 'play' && !leaping); catEl.classList.toggle('leap', leaping); catEl.classList.toggle('flipped', b.flip);
+  layer.querySelectorAll<HTMLElement>('.item.toy-live').forEach(el => el.classList.remove('toy-live'));
+  if (tower && mood === 'play' && perch && !leaping) layer.querySelector<HTMLElement>(`.item[data-id="${tower.id}"]`)?.classList.add('toy-live');
   // __pinCat holds her on a character's feet for tests. She stays under characters (5000 + y).
   const pin = (window as any).__pinCat as { x: number } | null;
   const pinned = !!(pin && Number.isFinite(pin.x));
@@ -2014,7 +2070,7 @@ function onFx(pid: string, fx: Fx) {
 }
 function petTick(now: number) {
   const dt = Math.min(0.05, Math.max(0, (now - lastTick) / 1000)); lastTick = now;
-  try { tickDogs(now, dt); tickKennels(); tickCat(); tickRanch(now, dt); tickGameRoom(dt); } catch { /* never let an animation frame break the game */ }
+  try { tickDogs(now, dt); tickKennels(); tickCat(); tickRanch(now, dt); tickGameRoom(dt); layoutNameTags(); } catch { /* never let an animation frame break the game */ }
   requestAnimationFrame(petTick);
 }
 
@@ -2585,6 +2641,7 @@ bindGameRoom({
 });
 
 // ---------- start ----------
+installJuice();
 renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
 // ---------- hidden surprises ----------
 const renderSecrets = () => {

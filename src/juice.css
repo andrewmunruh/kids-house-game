@@ -1,0 +1,75 @@
+/* Tap juice, name-tag lanes, toasts, phone chat, pet life, and reduced motion.
+   Loaded after style.css so these small overrides win. */
+
+button.spring { animation: pressSpring .42s cubic-bezier(.34, 1.56, .5, 1); }
+@keyframes pressSpring {
+  0% { transform: scale(.94); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+.item.wiggle > .inner { animation: itemWiggle .42s ease; }
+@keyframes itemWiggle {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(-7deg); }
+  68% { transform: rotate(6deg); }
+}
+
+/* Name tags step upward when two kids share the same spot. */
+.char .nametag, .savatar .nametag {
+  transform: translate(-50%, calc(-100% - var(--tag-lane, 0) * 1.35em));
+}
+.nametag.is-initials { border-radius: 999px; padding: 1px 7px; min-width: 1.6em; text-align: center; }
+
+/* Toasts sit in a top-centre stack, clear of the drawer. */
+#toastLane {
+  position: fixed; left: 50%; top: calc(var(--chrome-h, 64px) + 10px); transform: translateX(-50%);
+  z-index: 50000; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  width: max-content; max-width: min(80vw, 420px); pointer-events: none;
+}
+#toastLane .toast {
+  position: relative; left: auto; right: auto; top: auto; bottom: auto; transform: none;
+  max-width: 100%;
+}
+
+/* Room tabs on a narrow tall iPad: 14px, icon over a short word, still one row. */
+@media (max-width: 900px) and (min-height: 700px) {
+  body.tabs-compact:not(.phone) .tabs { flex: 1 1 auto; min-width: 0; }
+  body.tabs-compact:not(.phone) .tab {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+    padding: 2px 5px; font-size: 14px; line-height: 1.05; letter-spacing: -0.02em;
+    min-height: 44px; white-space: nowrap;
+  }
+  body.tabs-compact:not(.phone) .tab .tabIco { width: 16px; height: 10px; flex: none; }
+}
+
+/* Phone chat is a half-height sheet, with emoji big enough to tap happily. */
+@media (pointer: coarse) and (max-width: 600px),
+       (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  body.phone .chatTray { max-height: 50dvh; }
+  body.phone .emotes button { font-size: 42px; width: 58px; height: 54px; }
+}
+
+/* The cat swats the toy; the kennel nap shows a Zzz that stays put. */
+@keyframes catSwat {
+  0%, 100% { transform: rotate(0deg); }
+  40% { transform: rotate(-14deg) translate(-6%, 2%); }
+}
+.item .dangle { transform-box: fill-box; transform-origin: 50% 0%; }
+.item.toy-live .dangle { animation: toySwat .45s ease-in-out infinite; }
+@keyframes toySwat {
+  0%, 100% { transform: rotate(12deg); }
+  50% { transform: rotate(-34deg); }
+}
+.pet.kenneled .zzz b {
+  position: relative; z-index: 1; font-size: 22px; font-weight: 900; letter-spacing: .5px;
+  color: #7c6b9a; -webkit-text-stroke: 1px #5a3d5c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

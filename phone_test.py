@@ -67,8 +67,8 @@ async def tabs_fit(pg, tag):
       const mb = vis(mini) ? mini.getBoundingClientRect() : null;
       const boxes = tabs.map(el => {
         const b = el.getBoundingClientRect();
-        return {name: (el.textContent || '').trim(), x: b.x, y: b.y, r: b.right, b: b.bottom, w: b.width, h: b.height,
-          clipped: el.scrollWidth > el.clientWidth + 1};
+        return {name: (el.getAttribute('aria-label') || el.textContent || '').trim(), x: b.x, y: b.y, r: b.right, b: b.bottom, w: b.width, h: b.height,
+          font: parseFloat(getComputedStyle(el).fontSize), clipped: el.scrollWidth > el.clientWidth + 1};
       });
       const tools = [...document.querySelectorAll('.tools .round')].filter(vis).map(el => {
         const b = el.getBoundingClientRect();
@@ -820,6 +820,13 @@ async def ipad_pass(b, w, h):
         }""")
         check('ipad 820x1180 minimap is at least 100px wide', mini['w'] >= 100 and mini['h'] >= 44, str(mini))
         check('ipad 820x1180 street shows seven tools and Map', len(mini['tools']) == 7 and 'btnMap' in mini['tools'], str(mini['tools']))
+        tabs = await pg.evaluate("""() => [...document.querySelectorAll('.tab')].map(el => ({
+          label: el.getAttribute('aria-label'), shown: (el.textContent || '').replace(/\\s+/g, ' ').trim(),
+          font: parseFloat(getComputedStyle(el).fontSize), clipped: el.scrollWidth > el.clientWidth + 1
+        }))""")
+        check('ipad 820x1180 room tabs are at least 14px',
+              tabs and all(t['font'] >= 14 and not t['clipped'] for t in tabs) and any(t['label'] == 'Living Room' and 'Living' in t['shown'] for t in tabs),
+              str(tabs))
     if (w, h) == (1024, 768):
         chips = await pg.evaluate("""async () => {
           const row = document.querySelector('.drawerTop');
