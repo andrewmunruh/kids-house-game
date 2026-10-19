@@ -3,7 +3,10 @@
 import { readFileSync } from 'node:fs';
 import { Neighborhood, type KV, type Conn } from '../server/core';
 import { NICKNAMES, PROTOCOL, cleanAction, cleanFx, cleanHouseState, cleanLook, cleanLookPatch, cleanPresence } from '../src/shared/hood';
-import { ensureRooms, initialState, migrate, reduce, type GameState } from '../src/shared/state';
+import { ensureRooms, initialState, migrate, reduce, ROOM_IDS, type GameState } from '../src/shared/state';
+import { BATHROOM_ITEMS } from '../src/bathroom';
+import { playGesture } from '../src/playmode';
+import { catalogShows } from '../src/roomfilter';
 import { patchFromLook2, sanitizeLook2 } from '../src/shared/avatar';
 
 const store = new Map<string, any>();
@@ -19,9 +22,10 @@ type C = Conn & { inbox: any[]; last(t: string): any };
 const mk = (): C => { const inbox: any[] = []; return { inbox, send(s: string) { inbox.push(JSON.parse(s)); }, close() {}, last(t: string) { return [...inbox].reverse().find(m => m.t === t); } } as any; };
 const look = { skin: '#f1c27d', hair: '#3b2219', hairStyle: 0, shirt: '#ff7aa8', pants: '#5b8def', size: 'kid', acc: 0 };
 const starterKinds = () => initialState().rooms.nursery.items.map(i => i.kind);
+const bathKinds = () => initialState().rooms.bathroom.items.map(i => i.kind);
 const strip = (s: GameState): GameState => {
   const rooms = { ...s.rooms } as GameState['rooms'];
-  delete (rooms as any).nursery; delete (rooms as any).backyard;
+  delete (rooms as any).nursery; delete (rooms as any).backyard; delete (rooms as any).bathroom;
   return { ...s, rooms };
 };
 
@@ -29,6 +33,20 @@ const strip = (s: GameState): GameState => {
 function oldClientMigrate(saved: any) {
   const baseRooms = { living: { items: [] }, bedroom: { items: [] }, kitchen: { items: [] }, salon: { items: [] } };
   return { ...saved, rooms: { ...baseRooms, ...saved.rooms } };
+}
+
+/** What fbd04db and avatar-v2 do: keep an unknown room object, and walk a kid out of a room that has no tab. */
+function fbd04dbLoad(saved: any) {
+  const tab = ['living', 'bedroom', 'kitchen', 'salon', 'nursery'];
+  const known = [...tab, 'backyard'];
+  const current = saved.currentRoom as string;
+  const onTab = tab.includes(current);
+  const characters = (saved.characters ?? []).map((c: any) => {
+    const room = c.room as string;
+    if (!known.includes(room) || (!onTab && room === current)) return { ...c, room: 'living' };
+    return c;
+  });
+  return { ...saved, rooms: { ...saved.rooms }, currentRoom: onTab ? current : 'living', characters };
 }
 
 async function main() {
@@ -92,8 +110,8 @@ async function main() {
   await hood2.load();
   const mem = hood2.houses.get(hid)!.state;
   const diskRooms = Object.keys(store.get('house:' + hid).state.rooms);
-  check('loading an old stored house fills the nursery in memory', mem.rooms.nursery.items.map(i => i.kind).join(',') === starterKinds().join(',') && mem.rooms.backyard.items.length === 0 && mem.rooms.living.items.some(i => i.id === 'from-disk'));
-  check('that fill-in does not write the house back yet', !diskRooms.includes('nursery') && !diskRooms.includes('backyard') && puts.slice(putsBefore).every(k => k !== hid && k !== 'house:' + hid));
+  check('loading an old stored house fills the nursery in memory', mem.rooms.nursery.items.map(i => i.kind).join(',') === starterKinds().join(',') && mem.rooms.backyard.items.length === 0 && mem.rooms.bathroom.items.map(i => i.kind).join(',') === bathKinds().join(',') && mem.rooms.living.items.some(i => i.id === 'from-disk'));
+  check('that fill-in does not write the house back yet', !diskRooms.includes('nursery') && !diskRooms.includes('backyard') && !diskRooms.includes('bathroom') && puts.slice(putsBefore).every(k => k !== hid && k !== 'house:' + hid));
 
   const c2 = mk();
   await hood2.onConnect(c2);
@@ -102,7 +120,7 @@ async function main() {
   await msg({ t: 'act', houseId: hid, cid: 1, action: { type: 'room/wallpaper', room: 'living', color: '#aabbcc' } });
   await hood2.flush();
   const after = store.get('house:' + hid).state;
-  check('a living-room edit persists the filled nursery and the original items', after.rooms.living.wallpaper === '#aabbcc' && after.rooms.living.items.some((i: { id: string }) => i.id === 'from-disk') && after.rooms.nursery.items.map((i: { kind: string }) => i.kind).join(',') === starterKinds().join(','));
+  check('a living-room edit persists the filled nursery and the original items', after.rooms.living.wallpaper === '#aabbcc' && after.rooms.living.items.some((i: { id: string }) => i.id === 'from-disk') && after.rooms.nursery.items.map((i: { kind: string }) => i.kind).join(',') === starterKinds().join(',') && after.rooms.bathroom.items.map((i: { kind: string }) => i.kind).join(',') === bathKinds().join(','));
 
   await msg({ t: 'act', houseId: hid, cid: 2, action: { type: 'item/add', room: 'nursery', item: { id: 'nur-edit', kind: 'bunny-plush', x: 300, y: 500, flip: false, z: 1, scale: 1 } } });
   await msg({ t: 'act', houseId: hid, cid: 3, action: { type: 'room/wallTile', room: 'backyard', tile: 'nursery/cloud-sky' } });
@@ -221,7 +239,7 @@ async function main() {
     && packItems.find(e => e.name === 'Gaming Chair')?.room === 'bedroom'
     && packItems.find(e => e.slug === 'comfy-armchair')?.room === 'living'
     && packItems.find(e => e.slug === 'cc-light-vanity')?.room === 'salon');
-  const codeNames = [...(readFileSync(new URL('../src/items.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/nursery.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/eggs.ts', import.meta.url), 'utf8')).matchAll(/name:\s*'([^']+)'/g)].map(m => m[1]);
+  const codeNames = [...(readFileSync(new URL('../src/items.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/nursery.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/bathroom.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/eggs.ts', import.meta.url), 'utf8')).matchAll(/name:\s*'([^']+)'/g)].map(m => m[1]);
   const display = [...packItems.map(e => e.name), ...patterns.map(e => e.name), ...codeNames];
   const seen = new Map<string, number>();
   for (const n of display) seen.set(n, (seen.get(n) ?? 0) + 1);
@@ -251,6 +269,116 @@ async function main() {
   check('local and server loads match for look2', JSON.stringify(migrate(saved).characters[0].look2) === JSON.stringify(cleanHouseState(saved).characters[0].look2));
   const bare = initialState();
   check('a character without look2 is not rewritten', migrate(bare).characters[0].look2 === undefined && cleanHouseState(bare).characters[0].look2 === undefined);
+
+  check('protocol stays 4 and a fresh house is still version 3', PROTOCOL === 4 && fresh.version === 3 && bathKinds().join(',') === 'puddle-mat,rain-shower,clawfoot-tub,mirror-vanity,little-toilet,bath-cubby,towel-ladder,mist-fern,fern-stand');
+  const noBath = initialState();
+  const livingBefore = JSON.stringify(noBath.rooms.living);
+  delete (noBath.rooms as any).bathroom;
+  const filled = ensureRooms(noBath);
+  const filled2 = ensureRooms(JSON.parse(JSON.stringify(noBath)));
+  check('a house with the bathroom key deleted gains the starter kinds', filled.rooms.bathroom.items.map(i => i.kind).join(',') === bathKinds().join(',') && JSON.stringify(filled.rooms.living) === livingBefore);
+  filled.rooms.bathroom.items.push({ id: 'extra-bath', kind: 'sunny-ducky', x: 1, y: 1, flip: false, z: 9, scale: 1 });
+  check('two bathroom fill-ins do not share objects', filled2.rooms.bathroom.items.length === 9 && !filled2.rooms.bathroom.items.some(i => i.id === 'extra-bath'));
+  const customBath = initialState();
+  customBath.rooms.bathroom = { ...customBath.rooms.bathroom, items: [{ id: 'my-duck', kind: 'sunny-ducky', x: 40, y: 500, flip: false, z: 1, scale: 1 }] };
+  delete (customBath.rooms as any).backyard;
+  const keptBath = ensureRooms(customBath);
+  check('a custom bathroom is not replaced and a missing backyard is still filled', keptBath.rooms.bathroom.items.length === 1 && keptBath.rooms.bathroom.items[0].id === 'my-duck' && keptBath.rooms.backyard.items.length === 0);
+  const emptyBath = initialState();
+  emptyBath.rooms.bathroom.items = [];
+  check('an emptied bathroom stays empty', ensureRooms(emptyBath) === emptyBath && emptyBath.rooms.bathroom.items.length === 0);
+  const fromV3 = initialState();
+  delete (fromV3.rooms as any).bathroom;
+  const migratedBath = migrate(fromV3);
+  check('migrate of a version-3 save with no bathroom leaves version at 3', migratedBath.version === 3 && migratedBath.rooms.bathroom.items.map(i => i.kind).join(',') === bathKinds().join(',') && migratedBath.rooms.living.items.length === initialState().rooms.living.items.length);
+  const cleanedBath = cleanHouseState(fromV3);
+  check('cleanHouseState adds the starter bathroom', cleanedBath.rooms.bathroom.items.map(i => i.kind).join(',') === bathKinds().join(',') && cleanedBath.rooms.nursery.items.length === 4);
+  const cleanedCustomBath = cleanHouseState(customBath);
+  check('cleanHouseState keeps a custom bathroom', cleanedCustomBath.rooms.bathroom.items.length === 1 && cleanedCustomBath.rooms.bathroom.items[0].id === 'my-duck');
+  const bathItem = { id: 'b1', kind: 'clawfoot-tub', x: 200, y: 480, flip: false, z: 1, scale: 1 };
+  check('cleanAction and cleanPresence accept bathroom and still reject attic', !!cleanAction({ type: 'item/add', room: 'bathroom', item: bathItem }) && !!cleanPresence({ where: 'house', houseId: 'h1', room: 'bathroom', x: 10, y: 20, flip: false }, () => true) && cleanAction({ type: 'item/add', room: 'attic', item: bathItem }) === null && !cleanPresence({ where: 'house', houseId: 'h1', room: 'attic', x: 10, y: 20, flip: false }, () => true));
+
+  const carried = ensureRooms(JSON.parse(JSON.stringify(fromV3)));
+  const oldRound = oldClientMigrate(JSON.parse(JSON.stringify(carried)));
+  const oldBack = cleanHouseState(oldRound);
+  check('a 27cfcac load keeps the bathroom and bringing it back does too', oldRound.rooms.bathroom.items.map((i: { kind: string }) => i.kind).join(',') === bathKinds().join(',') && oldBack.rooms.bathroom.items.map((i: { kind: string }) => i.kind).join(',') === bathKinds().join(','));
+  const standing = { ...initialState(), currentRoom: 'bathroom' as const, characters: [{ ...initialState().characters[0], room: 'bathroom' as const }] };
+  const fbd = fbd04dbLoad(JSON.parse(JSON.stringify(standing)));
+  const fbdEdit = { ...fbd, rooms: { ...fbd.rooms, living: { ...fbd.rooms.living, wallpaper: '#112233' } } };
+  check('an fbd04db load keeps the bathroom items and opens the living room', fbd.currentRoom === 'living' && fbd.characters[0].room === 'living' && fbd.rooms.bathroom.items.map((i: { kind: string }) => i.kind).join(',') === bathKinds().join(',') && fbdEdit.rooms.bathroom.items.length === 9 && fbdEdit.rooms.living.wallpaper === '#112233');
+  const stayedBath = migrate({ ...initialState(), currentRoom: 'bathroom' });
+  check('a new client standing in the bathroom is not moved', stayedBath.currentRoom === 'bathroom');
+
+  const bathMem = new Map<string, any>();
+  const bathPuts: string[] = [];
+  const kvB: KV = {
+    get: async k => bathMem.has(k) ? JSON.parse(JSON.stringify(bathMem.get(k))) : undefined,
+    put: async (k, v) => { bathPuts.push(k); bathMem.set(k, JSON.parse(JSON.stringify(v))); },
+    delete: async k => { bathMem.delete(k); },
+  };
+  const hoodB = new Neighborhood(kvB, { flushMs: 5 });
+  await hoodB.init('BATHROOM');
+  const ownerB = mk();
+  await hoodB.onConnect(ownerB);
+  await hoodB.onMessage(ownerB, JSON.stringify({ t: 'join', nickname: NICKNAMES[2], look, v: 4 }));
+  const bhid = [...hoodB.houses.keys()][0];
+  const btoken = ownerB.last('joined').token;
+  await hoodB.flush();
+  const diskB = bathMem.get('house:' + bhid);
+  delete diskB.state.rooms.bathroom;
+  bathMem.set('house:' + bhid, JSON.parse(JSON.stringify(diskB)));
+  const putsB = bathPuts.length;
+  const hoodB2 = new Neighborhood(kvB, { flushMs: 5 });
+  await hoodB2.load();
+  const memB = hoodB2.houses.get(bhid)!.state;
+  const diskKeys = Object.keys(bathMem.get('house:' + bhid).state.rooms);
+  check('loading an old stored house fills the bathroom in memory only', memB.rooms.bathroom.items.map(i => i.kind).join(',') === bathKinds().join(',') && !diskKeys.includes('bathroom') && bathPuts.slice(putsB).every(k => k !== 'house:' + bhid));
+  const newClient = mk(), oldClient = mk();
+  await hoodB2.onConnect(newClient);
+  await hoodB2.onMessage(newClient, JSON.stringify({ t: 'hello', token: btoken, v: 4 }));
+  await hoodB2.onConnect(oldClient);
+  await hoodB2.onMessage(oldClient, JSON.stringify({ t: 'join', nickname: NICKNAMES[3], look, v: 4 }));
+  const actB = (c: C, o: any) => { (c as any).budget = undefined; return hoodB2.onMessage(c, JSON.stringify(o)); };
+  await actB(oldClient, { t: 'act', houseId: bhid, cid: 1, action: { type: 'room/wallpaper', room: 'living', color: '#445566' } });
+  await hoodB2.flush();
+  const afterOld = bathMem.get('house:' + bhid).state;
+  check('an old client living-room edit does not drop the bathroom', afterOld.rooms.living.wallpaper === '#445566' && afterOld.rooms.bathroom.items.map((i: { kind: string }) => i.kind).join(',') === bathKinds().join(','));
+  await actB(newClient, { t: 'act', houseId: bhid, cid: 2, action: { type: 'item/add', room: 'bathroom', item: { id: 'bath-edit', kind: 'sunny-ducky', x: 300, y: 500, flip: false, z: 1, scale: 1 } } });
+  await actB(newClient, { t: 'act', houseId: bhid, cid: 3, action: { type: 'item/add', room: 'attic', item: { id: 'nope', kind: 'crib', x: 1, y: 1, flip: false, z: 1, scale: 1 } } });
+  await hoodB2.flush();
+  const refusedB = bathMem.get('house:' + bhid).state;
+  check('a bathroom edit sticks and an attic edit is nacked', refusedB.rooms.bathroom.items.some((i: { id: string }) => i.id === 'bath-edit') && !refusedB.rooms.bathroom.items.some((i: { id: string }) => i.id === 'nope') && newClient.last('nack')?.reason === 'invalid');
+  const oldView = fbd04dbLoad(JSON.parse(JSON.stringify({ ...refusedB, currentRoom: 'bathroom', characters: [{ ...refusedB.characters[0], room: 'bathroom' }] })));
+  const newView = reduce(refusedB, { type: 'room/wallpaper', room: 'bathroom', color: '#d7f6f8' });
+  check('old and new clients share the street without dropping the bathroom', oldView.currentRoom === 'living' && oldView.rooms.bathroom.items.some((i: { id: string }) => i.id === 'bath-edit') && newView.rooms.bathroom.wallpaper === '#d7f6f8' && newView.rooms.living.wallpaper === '#445566');
+
+  const names = BATHROOM_ITEMS.map(i => i.name);
+  const kinds = BATHROOM_ITEMS.map(i => i.kind);
+  check('the bathroom shelf has 32 unique original names', names.length === 32 && new Set(names).size === 32 && new Set(kinds).size === 32);
+  const wall = new Set(['wall-towel-bar', 'porthole-mirror', 'robe-hooks', 'hanging-eucalyptus', 'bath-cubby']);
+  const artBad = BATHROOM_ITEMS.filter(i => {
+    const svg = i.svg;
+    if (/feGaussianBlur|feDropShadow|filter=|color-mix|backdrop-filter/.test(svg)) return true;
+    if (svg.length > 3200) return true;
+    if (!svg.includes('#5a3d5c')) return true;
+    const rugOrWall = i.kind === 'puddle-mat' || i.kind === 'bath-rug' || wall.has(i.kind);
+    const shadows = (svg.match(/<ellipse[^>]*opacity="\.08"/g) ?? []).length;
+    if (rugOrWall && shadows !== 0) return true;
+    if (!rugOrWall && shadows < 1) return true;
+    return false;
+  });
+  check('bathroom art uses the v2 shadow and no blur', artBad.length === 0, artBad.map(i => i.kind).join(','));
+  check('bathroom gestures open the mirrors and wiggle the tub', playGesture('mirror-vanity') === 'open' && playGesture('porthole-mirror') === 'open' && playGesture('clawfoot-tub') === 'wiggle' && playGesture('rain-shower') === 'wiggle' && playGesture('little-toilet') === 'wiggle' && playGesture('sink-step') === 'wiggle' && playGesture('tub') === 'wiggle');
+  check('the sunny ducky is holdable', BATHROOM_ITEMS.find(i => i.kind === 'sunny-ducky')?.holdable === true);
+  const bathShelf = BATHROOM_ITEMS.map(i => ({ ...i, rooms: ['bathroom'] })).filter(i => catalogShows(i, i.cat, 'bathroom', false)).map(i => i.name);
+  const bannedShelf = [
+    { name: 'Bathtub', kind: 'tub', rooms: ['bedroom'], cat: 'furniture' },
+    { name: 'Sink', kind: 'pack:kitchen-sink', rooms: ['kitchen'], cat: 'furniture' },
+    { name: 'Towel Stack', kind: 'pack:towel-stack', rooms: ['salon'], cat: 'decor' },
+    { name: 'Bubble Bath', kind: 'pack:bubble-bath', rooms: ['bedroom'], cat: 'furniture' },
+  ];
+  check('the bathroom shelf keeps the bedroom tub, sink, towel stack, and bubble bath off it', bannedShelf.every(i => !catalogShows(i, i.cat, 'bathroom', false)) && bathShelf.includes('Clawfoot Soaker') && !bathShelf.includes('Bathtub'));
+  check('bathroom is a known room and backyard stays tab-less', ROOM_IDS.includes('bathroom') && ROOM_IDS.includes('backyard'));
 
   console.log(`${pass} passed`);
 }

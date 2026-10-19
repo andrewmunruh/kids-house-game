@@ -147,7 +147,7 @@ export class HoodClient {
         { const old = this.houses; this.houses = new Map();
           for (const h of m.houses) { const { state, ...meta } = h; const prev = old.get(h.id);
             // keep this kid's unsent edits across a reconnect; anything already sent was lost with the socket
-            // migrate fills nursery/backyard when an older Worker stored a 4-room house
+            // migrate fills nursery/bathroom/backyard when an older Worker stored a house without them
             this.houses.set(h.id, { meta, confirmed: adoptHouse(state), pending: prev ? prev.pending.filter(p => !p.sent) : [], view: null }); } }
         this.presence = new Map(Object.entries(m.presence)); this.presence.delete(this.pid);
         if (m.ranch) this.ranch = { plots: m.ranch.plots, skew: m.ranch.now - Date.now() };

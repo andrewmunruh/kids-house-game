@@ -14,6 +14,25 @@ button.spring { animation: pressSpring .42s cubic-bezier(.34, 1.56, .5, 1); }
   68% { transform: rotate(6deg); }
 }
 
+/* Bubbles spawn in the water at her sides and on the back rim, then rise
+   and drift outward. One straight translate, so a bubble that starts clear
+   of her head stays clear. They sit just in front of the tub. */
+.suds { position: absolute; pointer-events: none; overflow: visible; }
+.suds i {
+  position: absolute; display: block; border-radius: 50%; box-sizing: border-box;
+  border: 2.5px solid #5a3d5c; aspect-ratio: 1; height: auto;
+  animation: sudsRise 1.55s ease-out both;
+}
+.suds i::after {
+  content: ''; position: absolute; left: 18%; top: 14%; width: 30%; height: 30%;
+  border-radius: 50%; background: #fff; opacity: .9;
+}
+@keyframes sudsRise {
+  0% { transform: translate(0px, 0px); opacity: 1; }
+  68% { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)); opacity: 0; }
+}
+
 /* Name tags step upward when two kids share the same spot. */
 .char .nametag, .savatar .nametag {
   transform: translate(-50%, calc(-100% - var(--tag-lane, 0) * 1.35em));
@@ -36,7 +55,7 @@ button.spring { animation: pressSpring .42s cubic-bezier(.34, 1.56, .5, 1); }
   body.tabs-compact:not(.phone) .tabs { flex: 1 1 auto; min-width: 0; }
   body.tabs-compact:not(.phone) .tab {
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
-    padding: 2px 5px; font-size: 14px; line-height: 1.05; letter-spacing: -0.02em;
+    padding: 2px 3px; font-size: 14px; line-height: 1.05; letter-spacing: -0.03em;
     min-width: 44px; min-height: 44px; white-space: nowrap;
   }
   body.tabs-compact:not(.phone) .tab .tabIco { width: 16px; height: 10px; flex: none; }
@@ -72,4 +91,5 @@ button.spring { animation: pressSpring .42s cubic-bezier(.34, 1.56, .5, 1); }
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  .suds i { animation: none !important; opacity: 1 !important; transform: none !important; }
 }

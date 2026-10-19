@@ -4,11 +4,11 @@ import { sanitizeLook2, withRandomStarter, type Look2 } from './avatar';
 // so a future multiplayer server can validate/relay the same actions.
 import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plot, type RanchOp } from './ranch';
 import { keepMailbox, type Mailbox } from './mail';
-export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon' | 'nursery' | 'backyard';
+export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon' | 'nursery' | 'bathroom' | 'backyard';
 /** Display order is the client's tab list. Backyard is a room id only until its scene ships. */
-export const ROOM_IDS: RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard'];
+export const ROOM_IDS: RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'bathroom', 'backyard'];
 /** Rooms with a tab. A save pointing at anything else opens the living room. */
-export const TAB_ROOMS: readonly RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery'];
+export const TAB_ROOMS: readonly RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'bathroom'];
 /** Room size in world units. v1 rooms were 1000 wide; v2 rooms are 2.4x wider. */
 export const ROOM_W = 2400, ROOM_H = 600, V1_ROOM_W = 1000;
 /** v1 layouts are re-centred in the wider room so nothing a child built moves relative to anything else. */
@@ -130,6 +130,13 @@ export function initialState(): GameState {
       // Same shape as the Salon: old saves gain these pieces, version stays 3.
       nursery: { wallpaper: '#d6f3ff', floor: '#f3ddc4', pattern: 1, items: [
         it('cloud-rug', 480, 545, 0), it('crib', 470, 480, 1), it('crib-mobile', 470, 155, 2), it('rocker', 780, 490, 3)] },
+      // Toilet and soaker fill the opening view, with room for her between them.
+      // A fern stand sits in the open middle. The scalloped mat is the floor piece; the round bath rug stays on the shelf.
+      bathroom: { wallpaper: '#d7f6f8', floor: '#f3e0c8', pattern: 1, items: [
+        it('puddle-mat', 260, 566, 0), it('rain-shower', 758, 460, 1), it('clawfoot-tub', 260, 530, 3),
+        it('mirror-vanity', 909, 528, 2), it('little-toilet', 56, 552, 4), it('bath-cubby', 410, 230, 5),
+        it('towel-ladder', 606, 468, 6), it('mist-fern', 1240, 490, 7),
+        it('fern-stand', 430, 498, 8)] },
       // Empty on purpose. The backyard scene ships later; the room key has to exist so edits are not dropped.
       backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [] },
     },

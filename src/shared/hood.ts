@@ -420,7 +420,7 @@ const COMMON_WORD = new Set([
 ]);
 const STREET_SKIP = new Set(['the', 'my', 'on', 'at', 'to', 'a', 'an', 'our', 'your', 'in', 'of', 'and', 'is', 'it', 'me', 'we', 'go', 'up', 'so', 'no', 'ok', 'be', 'do', 'or']);
 const STREET_SUFFIX = 'street|st|ave|avenue|road|rd|lane|ln|drive|dr|court|ct|way|blvd';
-const IN_GAME_PLACE = /\b(?:house|garden|backyard|ranch|treehouse|game\s*room|clubhouse|bedroom|kitchen|nursery|salon|park)\b/i;
+const IN_GAME_PLACE = /\b(?:house|garden|backyard|ranch|treehouse|game\s*room|clubhouse|bedroom|kitchen|nursery|bathroom|salon|park)\b/i;
 const HOMO: Record<string, string> = {};
 for (const pair of ['АA', 'аa', 'ВB', 'вb', 'ЕE', 'еe', 'КK', 'кk', 'МM', 'мm', 'НH', 'нh', 'ОO', 'оo', 'РP', 'рp', 'СC', 'сc', 'ТT', 'тt', 'УY', 'уy', 'ХX', 'хx', 'ІI', 'іi', 'ЈJ', 'јj', 'ЅS', 'ѕs', 'ЁE', 'ёe', 'ЇI', 'їi', 'ΑA', 'ΕE', 'ΖZ', 'ΗH', 'ΙI', 'ΚK', 'ΜM', 'ΝN', 'ΟO', 'ΡP', 'ΤT', 'ΥY', 'ΧX', 'αa', 'εe', 'ζz', 'ιi', 'κk', 'νv', 'οo', 'ρp', 'τt', 'υu', 'χx']) HOMO[pair[0]] = pair[1];
 
@@ -686,7 +686,7 @@ function cleanCharacter(c: any): Character | null {
 }
 
 // ---------- pets ----------
-export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1. A grown-up mailbox listing is an optional field on parentInfo; old clients ignore it. settings.freeMail is optional too: missing means letters follow freeChat.
+export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, bathroom, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1. A grown-up mailbox listing is an optional field on parentInfo; old clients ignore it. settings.freeMail is optional too: missing means letters follow freeChat.
 export const PROTO_PETS = 2, PROTO_RANCH = 3, PROTO_GAMES = 4;
 export const CAT_NAMES = ['Mittens', 'Luna', 'Biscuit', 'Pumpkin', 'Whiskers', 'Mochi', 'Pepper', 'Noodle', 'Ginger', 'Socks'];
 export const DOG_NAMES = ['Buddy', 'Coco', 'Max', 'Daisy', 'Peanut', 'Rocket', 'Bella', 'Waffles', 'Scout', 'Honey'];

@@ -15,7 +15,7 @@ export function isGenericDecor(item: ShelfItem): boolean {
 const NURSERY_SKIP = new Set(['pack:ring-light', 'pack:desk-lamp']);
 
 export function itemMatchesRoom(item: ShelfItem, room: string): boolean {
-  if (room === 'nursery' && item.kind && NURSERY_SKIP.has(item.kind)) return false;
+  if ((room === 'nursery' || room === 'bathroom') && item.kind && NURSERY_SKIP.has(item.kind)) return false;
   if (room === 'all' || !room) return true;
   const rooms = item.rooms;
   if (!rooms || rooms.length === 0) return true;
@@ -28,7 +28,7 @@ export function itemMatchesRoom(item: ShelfItem, room: string): boolean {
 /** What one catalog tab lists. Pack tabs keep the whole pack in every room, then drop nursery exclusions. */
 export function catalogShows(item: ShelfItem, tab: string, room: string, showAllRooms: boolean, found?: ReadonlySet<string>): boolean {
   if (item.secret && !(found && found.has(item.secret))) return false;
-  if (room === 'nursery' && item.kind && NURSERY_SKIP.has(item.kind)) return false;
+  if ((room === 'nursery' || room === 'bathroom') && item.kind && NURSERY_SKIP.has(item.kind)) return false;
   if (tab.startsWith('pack:')) return item.pack === tab.slice(5);
   if (item.cat !== tab) return false;
   return itemMatchesRoom(item, showAllRooms ? 'all' : room);

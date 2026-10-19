@@ -646,21 +646,30 @@ body.is-preview .shelf { width: auto; margin-right: 96px; }
 
 /* ---------- polish: portrait, tap targets, home, phone note ---------- */
 .minimap { flex: 0 0 auto; min-width: 128px; width: 180px; height: 48px; }
-/* Five room tabs. 1180 stays roomy (the spare gap absorbs Nursery).
-   1024 would push Map off; 820 would lay Nursery over the minimap. */
+/* Six room tabs. 1180 keeps the full word Bathroom.
+   The top padding stays 10px, the same as the five-tab bar, so the stage
+   does not grow. Only the horizontal gaps shrink to fit Bath on that row.
+   1024 tightens the same row so Map stays on screen.
+   820 uses the short word Bath (see tabsCompact) so seven tools still fit. */
+@media (min-width: 1101px) {
+  body:not(.phone) .top { padding: 10px 12px 4px; gap: 8px; }
+  body:not(.phone) .tabs { gap: 6px; flex: 0 1 auto; min-width: 0; }
+  body:not(.phone) .tab { padding: 8px 10px; font-size: 16px; }
+  body:not(.phone) .minimap { width: 140px; min-width: 112px; }
+}
 @media (max-width: 1100px) and (min-width: 901px) {
-  body:not(.phone) .top { padding: 8px 10px 4px; gap: 8px; }
+  body:not(.phone) .top { padding: 8px 8px 4px; gap: 6px; }
   body:not(.phone) .tabs { gap: 4px; flex: 0 1 auto; min-width: 0; }
-  body:not(.phone) .tab { padding: 8px 9px; font-size: 15px; }
-  body:not(.phone) .minimap { width: 120px; min-width: 100px; flex: 0 1 120px; }
-  body:not(.phone) .tools { gap: 5px; flex: 0 0 auto; }
+  body:not(.phone) .tab { padding: 8px 6px; font-size: 14px; }
+  body:not(.phone) .minimap { width: 104px; min-width: 100px; flex: 0 1 104px; }
+  body:not(.phone) .tools { gap: 4px; flex: 0 0 auto; }
 }
 @media (max-width: 900px) and (min-height: 700px) {
   /* 820×1180 with lock + chat: five full names, a usable minimap, and seven 44px tools. */
   body:not(.phone) .top { padding: 4px 4px 2px; gap: 4px; }
   body:not(.phone) .tabs { gap: 2px; flex: 0 0 auto; min-width: 0; }
   body:not(.phone) .tab { padding: 4px 5px; font-size: 12px; min-height: 44px; }
-  body:not(.phone) .minimap { width: 112px; min-width: 100px; flex: 0 0 112px; height: 44px; }
+  body:not(.phone) .minimap { width: 100px; min-width: 100px; flex: 0 0 100px; height: 44px; }
   body:not(.phone) .tools { gap: 2px; flex: 0 0 auto; }
   body:not(.phone) .round { width: 44px; height: 44px; padding: 6px; }
 }
@@ -707,7 +716,7 @@ body.view-street .stage { visibility: hidden; }
   body.phone #app { overflow: hidden; max-width: 100%; }
   body.phone .top { flex: 0 0 auto; max-width: 100%; min-width: 0; align-items: center; padding: 4px 6px; gap: 4px; }
   body.phone .tabs { min-width: 0; gap: 4px; }
-  body.phone .tab { flex: 1 1 auto; min-width: max-content; min-height: 44px; padding: 0 2px; font-size: 14px; line-height: 1; white-space: nowrap; text-align: center; }
+  body.phone .tab { flex: 1 1 auto; min-width: 44px; min-height: 44px; padding: 0 2px; font-size: 14px; line-height: 1; white-space: nowrap; text-align: center; }
   body.phone .tools { flex: 0 0 auto; gap: 4px; min-width: 0; }
   body.phone .round { width: 44px; height: 44px; flex: 0 0 44px; padding: 6px; }
   body.phone .minimap { height: 44px; min-width: 64px; }

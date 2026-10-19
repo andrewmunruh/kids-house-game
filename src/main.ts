@@ -26,6 +26,7 @@ import { catalogShows } from './roomfilter';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
+import { showerSuds, sudsZ, tubSuds, type Box } from './suds';
 import { emptyRoomStarters, syncScenery } from './scenery';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
@@ -56,6 +57,7 @@ const ROOMS: { id: RoomId; name: string; color: string }[] = [
   { id: 'kitchen', name: 'Kitchen', color: '#5cc985' },
   { id: 'salon', name: 'Salon', color: '#f0a0d8' },
   { id: 'nursery', name: 'Nursery', color: '#9ad7f5' },
+  { id: 'bathroom', name: 'Bathroom', color: '#5ec4c0' },
 ];
 const roomColor = (r: string) => ROOMS.find(x => x.id === r)?.color ?? '#ccc';
 
@@ -439,13 +441,17 @@ function moveKidX(kid: HTMLElement, x: number) {
   const c = store.get().characters.find(ch => ch.id === id); if (!c) return;
   store.dispatch({ type: 'char/move', id, room: store.get().currentRoom, x, y: c.y });
 }
-const TAB_SHORT: Record<string, string> = { living: 'Living', bedroom: 'Bed', kitchen: 'Kitchen', salon: 'Salon', nursery: 'Nursery' };
+const TAB_SHORT: Record<string, string> = { living: 'Living', bedroom: 'Bed', kitchen: 'Kitchen', salon: 'Salon', nursery: 'Nursery', bathroom: 'Bath' };
 const TAB_ICO = `<svg class="tabIco" viewBox="0 0 16 12" aria-hidden="true"><path d="M1 6 L8 1 L15 6 V11 H1 Z" fill="currentColor"/></svg>`;
 function tabsCompact() {
   return window.matchMedia('(max-width: 900px) and (min-height: 700px)').matches && !document.body.classList.contains('phone');
 }
+/** Phones and the tight portrait iPad row use the short word. iPad landscape keeps Bathroom. */
+function tabsShort() {
+  return tabsCompact() || document.body.classList.contains('phone');
+}
 function syncTabMode() {
-  const next = tabsCompact() ? 'c' : 'f';
+  const next = tabsCompact() ? 'c' : document.body.classList.contains('phone') ? 's' : 'f';
   if (next === tabMode) return;
   tabMode = next;
   renderTabs(store.get());
@@ -553,10 +559,11 @@ function renderMinimap(s: GameState) {
 }
 function renderTabs(s: GameState) {
   const compact = tabsCompact();
-  tabMode = compact ? 'c' : 'f';
+  const short = tabsShort();
+  tabMode = compact ? 'c' : short ? 's' : 'f';
   document.body.classList.toggle('tabs-compact', compact);
   $('tabs').innerHTML = ROOMS.map(r => {
-    const label = compact ? (TAB_SHORT[r.id] ?? r.name) : r.name;
+    const label = short ? (TAB_SHORT[r.id] ?? r.name) : r.name;
     return `<button class="tab ${s.currentRoom === r.id ? 'on' : ''}" data-room="${r.id}" style="--c:${r.color}" aria-label="${r.name}">${compact ? TAB_ICO : ''}${label}</button>`;
   }).join('');
 }
@@ -594,6 +601,7 @@ function renderItems(s: GameState) {
       el.addEventListener('pointerdown', e => beginItemDrag(el!, e));
     }
     el.dataset.kind = it.kind;
+    if (def.wall) el.dataset.wall = '1'; else delete el.dataset.wall;
     const box = placedBox(def, it.scale);
     placeEl(el, it.x, it.y, box.w, box.h);
     el.style.zIndex = String(1000 + it.z);
@@ -823,6 +831,7 @@ function attachCharDrag(el: HTMLElement) {
           return;
         }
         sfx.drop(); bounce(el);
+        if (!moved && play.isPlay() && cur) splashTubInFront(cur.x, cur.y);
         if (moved) requestAnimationFrame(() => frameHouseKid(true));
       },
     });
@@ -1196,15 +1205,20 @@ function attachMyAvatarDrag(el: HTMLElement) {
     e.preventDefault(); e.stopPropagation(); if (twoFinger || !hood) return;
     const p0 = myPres(); if (!p0 || p0.where !== 'house') return;
     const q0 = toRoom(e.clientX, e.clientY), off = { x: p0.x - q0.x, y: p0.y - q0.y };
-    let lastX = p0.x; el.classList.add('lifted'); sfx.pick();
+    let lastX = p0.x, moved = false; el.classList.add('lifted'); sfx.pick();
     startDrag(e, {
       onMove(ev) {
         const q = toRoom(ev.clientX, ev.clientY), cur = myPres(); if (!cur || cur.where !== 'house') return;
+        if (Math.hypot(q.x - q0.x, q.y - q0.y) > 6) moved = true;
         const x = Math.max(40, Math.min(W - 40, q.x + off.x)), y = Math.max(FLOOR_Y + 40, Math.min(H, q.y + off.y));
         const flip = Math.abs(x - lastX) > 3 ? x < lastX : cur.flip; if (Math.abs(x - lastX) > 3) lastX = x;
         setMyPres({ ...cur, x, y, flip }); renderAvatars(); renderMinimap(store.get());
       },
-      onUp() { el.classList.remove('lifted'); sfx.drop(); bounce(el); requestAnimationFrame(() => frameHouseKid(true)); },
+      onUp() {
+        el.classList.remove('lifted'); sfx.drop(); bounce(el);
+        if (!moved && play.isPlay()) { const cur = myPres(); if (cur && cur.where === 'house') splashTubInFront(cur.x, cur.y); }
+        requestAnimationFrame(() => frameHouseKid(true));
+      },
     });
   });
 }
@@ -2093,10 +2107,56 @@ function onPlayTap(el: HTMLElement, id: string) {
   const g = playGesture(it.kind);
   el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle');
   sfx.click();
+  if (it.kind === 'clawfoot-tub' || it.kind === 'rain-shower') splashItem(el);
+  if (it.kind === 'sunny-ducky') {
+    const kid = s.characters.find(ch => ch.room === s.currentRoom && !ch.held.right) ?? s.characters.find(ch => ch.room === s.currentRoom && !ch.held.left);
+    if (kid) holdInto({ c: kid, hand: kid.held.right ? 'left' : 'right' }, it.id);
+    return;
+  }
   if (g === 'kennel' || g === 'tower') { onPlaceTap(id); return; }
   if (g === 'lamp') { el.classList.toggle('lamp-on'); return; }
   if (g === 'open') { el.classList.toggle('opened'); return; }
   if (g === 'sit') sitAt(it);
+}
+function splashItem(el: HTMLElement) {
+  el.classList.remove('splashing'); void el.offsetWidth; el.classList.add('splashing');
+  blowSuds(el);
+  window.setTimeout(() => el.classList.remove('splashing'), 1800);
+}
+function roomBox(el: HTMLElement): Box {
+  return { l: el.offsetLeft, t: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight };
+}
+/** In front of the tub, spawned beside her head so the flight never crosses her face. */
+function blowSuds(el: HTMLElement) {
+  const id = el.dataset.id ?? '';
+  layer.querySelectorAll<HTMLElement>('.suds').forEach(n => { if (n.dataset.for === id) n.remove(); });
+  const fixture = roomBox(el);
+  const kids: Box[] = [];
+  layer.querySelectorAll<HTMLElement>('.char').forEach(ch => kids.push(roomBox(ch)));
+  const spots = el.dataset.kind === 'rain-shower' ? showerSuds(fixture, kids) : tubSuds(fixture, kids);
+  const box = document.createElement('div');
+  box.className = 'suds';
+  box.dataset.for = id;
+  box.style.zIndex = String(sudsZ(Number(el.style.zIndex) || 1000));
+  box.innerHTML = spots.map(s => {
+    const dx = s.x1 - s.x0, dy = s.y1 - s.y0;
+    return `<i style="left:${s.x0 - s.s / 2}px;top:${s.y0 - s.s / 2}px;width:${s.s}px;height:${s.s}px;background:${s.color};--dx:${dx}px;--dy:${dy}px;animation-delay:${s.delay}s"></i>`;
+  }).join('');
+  layer.appendChild(box);
+  window.setTimeout(() => box.remove(), 1800);
+}
+/** A tap on the kid standing in front of the soaker blows the same bubbles as tapping the tub. */
+function splashTubInFront(x: number, y: number) {
+  const room = store.get().rooms[store.get().currentRoom];
+  if (!room) return;
+  for (const it of room.items) {
+    if (it.kind !== 'clawfoot-tub') continue;
+    const half = (ITEM_MAP[it.kind]?.w ?? 220) * it.scale / 2;
+    if (x < it.x - half - 36 || x > it.x + half + 36) continue;
+    if (y < it.y - 40 || y > it.y + 90) continue;
+    const el = layer.querySelector<HTMLElement>(`.item[data-id="${it.id}"]`);
+    if (el) splashItem(el);
+  }
 }
 function sitAt(it: PlacedItem) {
   const y = Math.max(FLOOR_Y + 40, it.y - 8);

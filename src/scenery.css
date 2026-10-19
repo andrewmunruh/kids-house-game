@@ -1,6 +1,14 @@
 /* Painted dressing behind the furniture. Pointers pass through to the room. */
 .scenery { position: absolute; inset: 0; pointer-events: none; }
 .scenery .sceneWin { position: absolute; left: 36%; top: 6%; width: 13%; height: 46%; }
+/* Bathroom window sits left of center so the portrait view and the phone Surprises pill both clear it. */
+.scenery[data-room="bathroom"] .sceneWin { left: 30%; }
+.scenery .tileBand { position: absolute; left: 0; right: 0; top: 54%; height: 9%;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 40px, rgba(90,61,92,.28) 40px 43px),
+    repeating-linear-gradient(transparent 0 18px, rgba(90,61,92,.2) 18px 21px),
+    linear-gradient(#e7f7fb, #c5e6f2);
+  border-top: 4px solid #5a3d5c; }
 .scenery .sceneRug { position: absolute; left: 34%; top: 76%; width: 28%; height: 18%; }
 .scenery .sceneLamp { position: absolute; left: 30%; top: 40%; width: 7%; height: 42%; }
 .scenery .scenePlant { position: absolute; left: 62%; top: 46%; width: 8%; height: 36%; }
