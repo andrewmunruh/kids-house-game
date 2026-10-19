@@ -43,9 +43,9 @@ const playArt = `<svg viewBox="0 0 120 100"><rect x="8" y="32" width="48" height
 const skyArt = `<svg viewBox="0 0 120 100"><rect x="6" y="10" width="108" height="80" rx="18" fill="#2a2158" stroke="${O}" stroke-width="4"/><circle cx="34" cy="42" r="14" fill="#ffd166" stroke="${O}" stroke-width="3"/><path d="M78 28 a16 16 0 1 0 0 32 a12 12 0 1 1 0 -32z" fill="#fff6e4" stroke="${O}" stroke-width="3"/><circle cx="92" cy="30" r="2" fill="#fff"/><circle cx="70" cy="24" r="1.6" fill="#fff"/><circle cx="100" cy="48" r="1.6" fill="#fff"/></svg>`;
 const clockArt = `<svg viewBox="0 0 120 100"><circle cx="60" cy="52" r="34" fill="#fff6e4" stroke="${O}" stroke-width="4"/><path d="M60 52 V32 M60 52 L76 60" stroke="${O}" stroke-width="4" stroke-linecap="round"/><circle cx="60" cy="52" r="3" fill="${O}"/><path d="M28 22 l4 6 M92 22 l-4 6" stroke="#ffb15c" stroke-width="4" stroke-linecap="round"/></svg>`;
 const undoArt = `<svg viewBox="0 0 120 100"><rect x="16" y="28" width="88" height="48" rx="16" fill="#fff3b0" stroke="${O}" stroke-width="4"/><path d="M48 42 H78 M48 52 L36 42 L48 32" fill="none" stroke="${O}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><text x="70" y="58" text-anchor="middle" font-size="16" font-weight="900" fill="${O}" font-family="Nunito, ui-rounded, system-ui, sans-serif">Undo</text></svg>`;
+// B2 shares v9 with the menu declutter. These lines stay on v9 so the popup
+// can join them with that entry. Winter Cheer is v10. Critter Corner is v11.
 export const CHANGELOG: ChangeEntry[] = [
-  // B2 shares v9 with the menu declutter. These lines stay on v9 so the popup
-  // can join them with that entry. Winter Cheer is v10. Critter Corner is v11.
   { v: 9, title: 'Day and night!', lines: [
     { art: wrap(skyArt), text: 'The world follows the <b>clock</b>: morning, day, golden evening, and night.' },
     { art: wrap(clockArt), text: 'Tap the <b>sun</b> and the <b>moon</b>. <b>Auto</b> follows the clock.' },
