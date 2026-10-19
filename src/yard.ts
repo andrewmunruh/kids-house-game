@@ -85,23 +85,21 @@ function piece(p: { kind: string; name: string; cat: string; w: number; h: numbe
 }
 
 const swing = piece({
-  kind: 'yard-swing', name: 'A-Frame Swing', cat: 'furniture', w: 96, h: 148, vb: '0 0 100 154',
-  svg: `${shadow(50, 40, 150)}
-    <path d="M10 18 L20 18 L14 146 H4 Z" fill="#f3d2aa" ${ink()}/>
-    <path d="M20 18 L32 18 L40 146 H28 Z" fill="#f0d2b0" ${ink()}/>
-    <path d="M34 22 L40 18 L38 48 H34 Z" fill="#d4a373"/>
-    <path d="M68 18 L80 18 L72 146 H60 Z" fill="#f3d2aa" ${ink()}/>
-    <path d="M80 18 L92 18 L98 146 H86 Z" fill="#e7c49a" ${ink()}/>
-    <path d="M90 22 L92 18 L98 146 H94 Z" fill="#c99366"/>
-    ${tex('M10 70 l4 36 M30 78 l6 32 M66 76 l4 34 M90 72 l5 36')}
-    <rect x="6" y="6" width="88" height="14" rx="2" fill="#f6e0c4" ${ink()}/>
-    <rect x="70" y="9" width="20" height="8" rx="1" fill="#d4a373"/>
-    <rect x="10" y="16" width="74" height="4" fill="#e7c49a"/>
-    ${hi('M12 10 h32')}
-    <rect x="41" y="98" width="18" height="6" rx="1" fill="#f3d2aa" ${ink(2.2)}/>
-    <rect x="53" y="99" width="5" height="4" fill="#d4a373"/>
-    <path d="M45 20 V102 M57 20 V102" fill="none" ${ink(2.2)}/>
-    ${hi('M43 100 h8')}`,
+  kind: 'yard-swing', name: 'A-Frame Swing', cat: 'furniture', w: 96, h: 74, vb: '0 0 130 100',
+  svg: `${shadow(65, 54, 96)}
+    <path d="M34 18 L50 18 L20 94 H4 Z" fill="#f3d2aa" ${ink()}/>
+    <path d="M42 24 L50 18 L18 70 H28 Z" fill="#d4a373"/>
+    <path d="M80 18 L96 18 L126 94 H110 Z" fill="#e7c49a" ${ink()}/>
+    <path d="M108 22 L96 18 L126 94 H118 Z" fill="#c99366"/>
+    ${tex('M16 50 l8 28 M112 48 l8 30')}
+    <rect x="22" y="6" width="86" height="14" rx="2" fill="#f6e0c4" ${ink()}/>
+    <rect x="86" y="9" width="18" height="8" rx="1" fill="#d4a373"/>
+    <rect x="28" y="16" width="74" height="4" fill="#e7c49a"/>
+    ${hi('M28 10 h30')}
+    <rect x="48" y="74" width="34" height="7" rx="1" fill="#f3d2aa" ${ink(2.2)}/>
+    <rect x="72" y="76" width="8" height="4" fill="#d4a373"/>
+    <path d="M54 20 V78 M76 20 V78" fill="none" ${ink(2.2)}/>
+    ${hi('M52 76 h14')}`,
 });
 
 const sandbox = piece({
@@ -422,36 +420,36 @@ const barrel = piece({
 
 const bush = piece({
   kind: 'butterfly-bush', name: 'Butterfly Bush', cat: 'plants', w: 120, h: 130, vb: '0 0 100 120',
-  svg: `${shadow(50, 36, 114)}
-    <path d="M48 108 C46 88 40 78 34 70" fill="none" stroke="#3d9a68" stroke-width="4" stroke-linecap="round"/>
-    <path d="M50 108 C52 86 62 76 70 66" fill="none" stroke="#3d9a68" stroke-width="4" stroke-linecap="round"/>
-    <ellipse cx="34" cy="68" rx="18" ry="16" fill="#95d5b2" ${ink(2.2)}/>
-    <ellipse cx="68" cy="66" rx="20" ry="18" fill="#3d9a68" ${ink(2.2)}/>
-    <ellipse cx="50" cy="58" rx="26" ry="22" fill="#74c69d" ${ink()}/>
-    ${hi('M30 50 q12 -6 18 2')}
-    <path d="M30 62 C28 40 34 28 36 48 C38 30 46 32 42 58 Z" fill="#c9a0dc" ${ink(1.8)}/>
-    <path d="M48 56 C46 32 54 18 56 40 C60 22 68 28 62 54 Z" fill="#b388d6" ${ink(1.8)}/>
-    <path d="M66 60 C66 40 74 30 74 48 C78 34 84 40 78 60 Z" fill="#a78bfa" ${ink(1.8)}/>
-    <path d="M22 36 C8 22 6 34 16 40 C6 42 10 54 22 46 C20 54 32 52 28 42 C34 36 30 28 22 36 Z" fill="#ff8fab" ${ink(1.8)}/>
-    <path d="M22 36 C10 28 14 40 20 40 Z" fill="#e45d88"/>
-    <path d="M24 40 C12 46 16 54 24 48 Z" fill="#ffd166" ${ink(1.6)}/>
-    <ellipse cx="24" cy="40" rx="2.2" ry="6" fill="${O}"/>
-    <path d="M22 34 Q16 26 14 22 M26 34 Q30 26 34 22" fill="none" stroke="${O}" stroke-width="1.3" stroke-linecap="round"/>
-    <circle cx="13" cy="21" r="1.2" fill="${O}"/><circle cx="35" cy="21" r="1.2" fill="${O}"/>`,
+  svg: `${shadow(50, 40, 114)}
+    <ellipse cx="32" cy="86" rx="22" ry="18" fill="#95d5b2" ${ink(2.2)}/>
+    <ellipse cx="70" cy="84" rx="24" ry="20" fill="#3d9a68" ${ink(2.2)}/>
+    <ellipse cx="50" cy="78" rx="36" ry="28" fill="#74c69d" ${ink()}/>
+    <path d="M18 90 Q50 108 84 88 Q68 100 50 102 Q30 100 18 90 Z" fill="#3d9a68"/>
+    ${hi('M24 68 q14 -8 26 2')}
+    ${tex('M28 80 q4 6 0 10 M46 72 q5 8 0 12 M66 78 q4 6 0 10')}
+    <path d="M30 62 C28 44 32 26 35 24 C39 28 40 46 38 62 Z" fill="#c9a0dc" ${ink(1.8)}/>
+    <circle cx="33" cy="36" r="2.2" fill="#f7ecff"/><circle cx="36" cy="46" r="2.2" fill="#b388d6"/><circle cx="33" cy="54" r="2" fill="#f7ecff"/>
+    <path d="M46 58 C44 36 50 14 53 12 C57 16 58 40 54 58 Z" fill="#b388d6" ${ink(1.8)}/>
+    <circle cx="50" cy="28" r="2.4" fill="#f7ecff"/><circle cx="53" cy="40" r="2.4" fill="#c9a0dc"/><circle cx="50" cy="50" r="2.2" fill="#f7ecff"/>
+    <path d="M62 60 C62 42 68 28 71 26 C75 30 76 46 72 60 Z" fill="#a78bfa" ${ink(1.8)}/>
+    <circle cx="67" cy="38" r="2.2" fill="#f7ecff"/><circle cx="70" cy="48" r="2" fill="#c9a0dc"/>
+    <path d="M14 26 C4 14 2 24 10 32 C14 36 18 32 18 28 Z" fill="#ff8fab" ${ink(1.6)}/>
+    <path d="M20 24 C30 12 34 24 26 34 C22 38 20 30 20 26 Z" fill="#c9a0dc" ${ink(1.6)}/>
+    <path d="M12 30 C6 36 6 46 14 46 C18 44 20 36 18 30 Z" fill="#ffd166" ${ink(1.6)}/>
+    <path d="M22 30 C30 36 32 46 24 48 C20 44 18 36 20 30 Z" fill="#8ecae6" ${ink(1.6)}/>
+    <ellipse cx="18" cy="32" rx="2" ry="7" fill="${O}"/>
+    <path d="M16 26 Q12 18 10 14 M20 26 Q24 18 28 14" fill="none" stroke="${O}" stroke-width="1.3" stroke-linecap="round"/>`,
 });
 
 const hedge = piece({
   kind: 'hedge-row', name: 'Hedge Row', cat: 'plants', w: 190, h: 96, vb: '0 0 180 96',
   svg: `${shadow(90, 78, 90)}
-    <rect x="6" y="36" width="52" height="46" rx="14" fill="#74c69d" ${ink()}/>
-    <rect x="40" y="42" width="14" height="34" rx="6" fill="#3d9a68"/>
-    <rect x="62" y="26" width="56" height="56" rx="16" fill="#95d5b2" ${ink()}/>
-    <rect x="98" y="32" width="16" height="44" rx="6" fill="#52b788"/>
-    <rect x="122" y="34" width="52" height="48" rx="14" fill="#74c69d" ${ink()}/>
-    <rect x="156" y="40" width="14" height="36" rx="6" fill="#3d9a68"/>
-    ${tex('M18 52 q4 6 0 12 M78 44 q4 8 0 14 M140 50 q4 6 0 12')}
-    ${hi('M14 46 q12 -6 20 2')}
-    ${hi('M70 36 q14 -6 22 2')}`,
+    <path d="M10 82 L10 60 C10 50 18 46 26 50 C32 34 46 32 54 48 C60 30 76 28 84 46 C92 28 108 28 116 46 C124 30 140 32 148 48 C156 36 166 42 170 54 L170 82 Z" fill="#74c69d" ${ink()}/>
+    <path d="M148 46 C160 38 170 50 170 70 L170 82 L140 82 L146 58 Z" fill="#52b788"/>
+    <path d="M14 68 C48 78 132 76 166 66 L168 82 L12 82 Z" fill="#3d9a68"/>
+    ${tex('M28 58 q3 5 0 8 M48 54 q3 6 0 9 M70 52 q3 6 1 9 M94 52 q3 6 0 10 M118 54 q3 6 0 9 M142 56 q3 5 0 8')}
+    ${hi('M18 58 q10 -4 16 1')}
+    ${hi('M58 42 q12 -4 16 2')}`,
 });
 
 const cup = piece({
