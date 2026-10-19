@@ -39,16 +39,35 @@ export function mapBgSVG() {
 }
 
 /** Trees, drawn on top of the ground but under houses (positions picked to avoid the road and the spots). */
-export function mapTreesSVG(spots: { x: number; y: number; r: number }[], onRoad: (x: number, y: number) => boolean) {
+export function mapTreesSVG(spots: { x: number; y: number; r: number }[], onRoad: (x: number, y: number) => boolean, w = MAP_W, h = MAP_H) {
   const out: string[] = []; let seed = 7;
   const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
   for (let i = 0; i < 260 && out.length < 34; i++) {
-    const x = 30 + rnd() * (MAP_W - 60), y = 40 + rnd() * (MAP_H - 70);
+    const x = 30 + rnd() * (w - 60), y = 40 + rnd() * (h - 70);
     if (onRoad(x, y) || spots.some(s => Math.hypot(s.x - x, s.y - y) < s.r)) continue;
     spots.push({ x, y, r: 46 });
     out.push(tree(x, y, 0.75 + rnd() * 0.45, ['#5cc985', '#4fbf7a', '#78d39a'][i % 3]));
   }
-  return `<svg class="mapTrees" viewBox="0 0 ${MAP_W} ${MAP_H}" xmlns="http://www.w3.org/2000/svg">${out.join('')}</svg>`;
+  return `<svg class="mapTrees" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${out.join('')}</svg>`;
+}
+
+/**
+ * Phone portrait only. A tall street: landmarks across the top, houses in two
+ * columns, friends gathered lower down. The iPad keeps mapBgSVG (1000×700).
+ * This drawing has no #mapRoad, so the landscape house-gap check stays on the wide street.
+ */
+export function mapPortraitBgSVG(w: number, h: number) {
+  const mid = w / 2;
+  const road = `M ${mid} 36 C ${mid - 36} ${h * 0.28}, ${mid + 28} ${h * 0.48}, ${mid - 8} ${h * 0.68} S ${mid + 18} ${h * 0.86}, ${mid} ${h - 28}`;
+  return `<svg class="mapBg" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+  <rect width="${w}" height="${h}" rx="28" fill="#a6e3a0"/>
+  <g fill="#b6f0c8"><ellipse cx="${w * 0.22}" cy="${h * 0.22}" rx="90" ry="48"/><ellipse cx="${w * 0.78}" cy="${h * 0.42}" rx="80" ry="40"/><ellipse cx="${w * 0.3}" cy="${h * 0.72}" rx="100" ry="46"/></g>
+  <ellipse cx="78" cy="${h * 0.58}" rx="46" ry="28" fill="#8ecae6" ${st()}/><ellipse cx="70" cy="${h * 0.56}" rx="24" ry="10" fill="#bde6f7"/>
+  <path d="${road}" fill="none" stroke="${O}" stroke-width="44" stroke-linecap="round"/>
+  <path d="${road}" fill="none" stroke="#f2dcb8" stroke-width="34" stroke-linecap="round"/>
+  <path d="${road}" fill="none" stroke="#fff" stroke-width="4" stroke-dasharray="14 12" stroke-linecap="round" opacity=".9"/>
+  ${[[40, 250, '#ff8fab'], [500, 280, '#b197fc'], [70, 520, '#ffd43b'], [490, 640, '#ff8fab'], [50, 860, '#74c0fc'], [500, 980, '#ffd43b']].map(([x, y, c]) => flower(+x, +y, String(c)) + flower(+x + 16, +y + 10, String(c))).join('')}
+  </svg>`;
 }
 
 /** Sky behind a portrait letterbox. Clouds sit in the band above the map card. */

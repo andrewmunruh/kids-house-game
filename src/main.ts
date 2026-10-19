@@ -3,7 +3,7 @@ import './juice.css';
 import './scenery.css';
 import './mail.css';
 import './avatar.css';
-import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapTreesSVG, mapSkySVG, mapMeadowSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
+import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapPortraitBgSVG, mapTreesSVG, mapSkySVG, mapMeadowSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
 import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
 import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, cleanPetName, CAT_NAMES, DOG_NAMES, PARK_W, PARK_SPOTS, SLIDE, DOG_AREA, mailIsFree, type Presence, type Bubble, type Look, type Fx } from './shared/hood';
@@ -84,7 +84,7 @@ const ICON = {
 };
 const PEOPLE_ICON = `<svg viewBox="0 0 48 48"><circle cx="17" cy="18" r="8" fill="#ffd166" stroke="#5a3d5c" stroke-width="3"/><circle cx="32" cy="20" r="7" fill="#ff8fab" stroke="#5a3d5c" stroke-width="3"/><path d="M5 42 Q6 28 17 28 Q28 28 29 42 Z" fill="#8ecae6" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/><path d="M24 42 Q25 30 32 30 Q42 30 43 42 Z" fill="#c9a0dc" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/></svg>`;
 const MENU_ICON = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 15 H37 M11 24 H37 M11 33 H37" fill="none" stroke="#5a3d5c" stroke-width="4" stroke-linecap="round"/></svg>`;
-const MAIL_ICON = `<svg class="mailGlyph" viewBox="0 0 48 48" aria-hidden="true"><g transform="translate(0 -3)"><rect x="6" y="14" width="36" height="24" rx="4" fill="#8ecae6" stroke="#5a3d5c" stroke-width="3"/><path d="M6 16 L24 30 L42 16" fill="none" stroke="#5a3d5c" stroke-width="3"/><path d="M34 12 V6" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/><path d="M34 6 H44 L40 10 L44 14 H34 Z" fill="#ff6b6b" stroke="#5a3d5c" stroke-width="2"/></g></svg>`;
+const MAIL_ICON = `<svg class="mailGlyph" viewBox="0 0 48 48" aria-hidden="true"><g transform="translate(0 2)"><rect x="6" y="14" width="36" height="24" rx="4" fill="#8ecae6" stroke="#5a3d5c" stroke-width="3"/><path d="M6 16 L24 30 L42 16" fill="none" stroke="#5a3d5c" stroke-width="3"/><path d="M34 12 V6" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/><path d="M34 6 H44 L40 10 L44 14 H34 Z" fill="#ff6b6b" stroke="#5a3d5c" stroke-width="2"/></g></svg>`;
 const PLUS = `<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="#fff3b0" stroke="#5a3d5c" stroke-width="3"/><path d="M24 15 V33 M15 24 H33" stroke="#5a3d5c" stroke-width="4" stroke-linecap="round"/></svg>`;
 
 // ---------- DOM skeleton ----------
@@ -251,6 +251,17 @@ function syncChrome() {
   // iPad: height only, same as before. Phone: the bar's bottom, so fixed scenes start below the notch padding.
   const px = document.body.classList.contains('phone') ? box.bottom : box.height;
   document.documentElement.style.setProperty('--chrome-h', Math.ceil(px) + 'px');
+  placePopups();
+}
+/** Pop-ups sit under the real header, on the phone and the iPad. A fixed 8px top covers the title and Chat. */
+function placePopups() {
+  const top = document.querySelector('.top');
+  if (!top) return;
+  const y = Math.ceil(top.getBoundingClientRect().bottom + 16) + 'px';
+  const cue = document.getElementById('mailCue');
+  if (cue) cue.style.top = y;
+  const lane = document.getElementById('toastLane');
+  if (lane) lane.style.top = y;
 }
 /** Phone landscape only. Size #app from the visual viewport (Safari chrome), not 100vh. */
 function applyPhoneViewport() {
@@ -1418,16 +1429,19 @@ type Place = { kind: 'house'; houseId: string; room?: RoomId } | { kind: 'home' 
 const mapAnchors = new Map<string, { x: number; y: number }>(); // where face markers stand for each place (map units)
 let mapKey = '';
 let fakeHouses = 0; // test hook only: draw a pretend street with this many houses
+/** iPad and phone landscape keep the 1000×700 street. Phone portrait uses a tall board. */
+let activeMap = { w: MAP_W, h: MAP_H, portrait: false };
+function phonePortraitMap() { return document.body.classList.contains('phone-portrait'); }
 /** Fit the whole street in the window. Sky and grass around the card are scenery, never a crop. */
 function mapScale() {
   const r = $('street');
   const w = Math.max(1, r.clientWidth), h = Math.max(1, r.clientHeight);
-  return Math.min(w / MAP_W, h / MAP_H);
+  return Math.min(w / activeMap.w, h / activeMap.h);
 }
 /** Center the fitted map. No panning: every house, the Ranch and the Clubhouse stay in view. */
 function placeMap(sc: number) {
   const r = $('street'), w = $('mapWorld');
-  const mw = MAP_W * sc, mh = MAP_H * sc;
+  const mw = activeMap.w * sc, mh = activeMap.h * sc;
   w.style.marginLeft = Math.max(0, Math.floor((r.clientWidth - mw) / 2)) + 'px';
   w.style.marginTop = Math.max(0, Math.floor((r.clientHeight - mh) / 2)) + 'px';
   r.scrollLeft = 0;
@@ -1490,55 +1504,118 @@ function separateSignFromMail(sign: HTMLElement, dx: number, dy: number, baseL: 
 }
 document.fonts?.ready.then(() => { if (view === 'street') fitMapLabels(); });
 function mapHouses() { return hood ? [...hood.houses.values()].map(h => h.meta).sort((a, b) => a.slot - b.slot) : []; }
+type MapHouse = { id: string; name: string; style: number; locked: boolean; mine: boolean; lit: boolean } | null;
+/**
+ * Phone portrait board. Two columns of houses under a landmark row, tall enough
+ * that a 390-wide phone draws each house at least 60px. iPad never calls this.
+ */
+function portraitPlan(n: number) {
+  const w = 560, hw = 104, hh = Math.round(hw * 300 / 320);
+  const rows = Math.max(1, Math.ceil(n / (n === 1 ? 1 : 2)));
+  const pitch = 158;
+  const top = 318;
+  const lastY = top + (rows - 1) * pitch;
+  const contentSquare = lastY + hh / 2 + 108;
+  const h = Math.max(1020, contentSquare + 78);
+  const squareY = Math.max(contentSquare, Math.min(h - 88, Math.round(h * 0.74)));
+  const cols = n === 1 ? [280] : [150, 410];
+  const per = n === 1 ? 1 : 2;
+  const houses = Array.from({ length: n }, (_, i) => ({ x: cols[i % per], y: top + Math.floor(i / per) * pitch }));
+  return {
+    w, h, hw, hh, houses, square: { x: 280, y: squareY },
+    park: { x: 96, y: 122 }, club: { x: 280, y: 116 }, ranch: { x: 458, y: 120 },
+  };
+}
 function renderMap(force = false) {
   if (view !== 'street') return;
-  const sc = mapScale(), w = $('mapWorld');
+  const w = $('mapWorld');
   const houses = mapHouses();
-  const key = sc.toFixed(3) + JSON.stringify(houses) + (hood ? houses.map(h => (hood!.players.get(h.ownerId)?.online ? 1 : 0) + (houseUnread(h.id) ? 'u' : '')).join('') + hood.pid : 'solo');
-  if (!force && key === mapKey && w.querySelector('#mapFaces')) { renderMapFaces(); return; }
-  mapKey = key;
-  w.style.width = MAP_W * sc + 'px'; w.style.height = MAP_H * sc + 'px'; w.style.setProperty('--sc', String(sc));
-  // Spots and their hit pads live in a clip so a 48px pad cannot widen the street.
-  // Name plates stay outside it, in the sky and grass letterbox.
-  w.innerHTML = `<div class="mapClip">${mapBgSVG()}</div>`;
-  const clip = w.querySelector('.mapClip')!;
-  const road = w.querySelector<SVGPathElement>('#mapRoad')!, L = road.getTotalLength();
-  const samples = Array.from({ length: 160 }, (_, i) => road.getPointAtLength(L * i / 159));
-  const onRoad = (x: number, y: number) => samples.some(p => Math.hypot(p.x - x, p.y - y) < 50);
-  const px = (v: number) => v * sc + 'px';
-  const taken = baseTaken();
-  mapAnchors.clear();
-  // houses along the road, alternating sides (whichever side has more room)
-  const list: ({ id: string; name: string; style: number; locked: boolean; mine: boolean; lit: boolean } | null)[] = hood
+  const list: MapHouse[] = hood
     ? houses.map(h => ({ id: h.id, name: h.name, style: h.style, locked: h.locked, mine: h.ownerId === hood!.pid, lit: !!hood!.players.get(h.ownerId)?.online }))
     : fakeHouses ? Array.from({ length: fakeHouses }, (_, i) => ({ id: 'fake' + i, name: ['Reagan', 'Quinn', 'Chloe', 'Sloane', 'Cada', 'Emma', 'Olivia', 'Charlotte', 'Amelia', 'Sophia', 'Isabella', 'Mia'][i % 12] + "'s House", style: i, locked: i === 3, mine: i === 0, lit: i % 3 !== 1 })) : [null];
-  const n = list.length, hw = n > 8 ? 80 : 94, hh = hw * 300 / 320;
+  const plan = phonePortraitMap() ? portraitPlan(Math.max(1, list.length)) : null;
+  activeMap = plan ? { w: plan.w, h: plan.h, portrait: true } : { w: MAP_W, h: MAP_H, portrait: false };
+  const sc = mapScale();
+  const key = (activeMap.portrait ? 'P' : 'L') + activeMap.w + 'x' + activeMap.h + ':' + sc.toFixed(3) + JSON.stringify(houses) + (hood ? houses.map(h => (hood!.players.get(h.ownerId)?.online ? 1 : 0) + (houseUnread(h.id) ? 'u' : '')).join('') + hood.pid : 'solo');
+  if (!force && key === mapKey && w.querySelector('#mapFaces')) { renderMapFaces(); return; }
+  mapKey = key;
+  w.style.width = activeMap.w * sc + 'px'; w.style.height = activeMap.h * sc + 'px'; w.style.setProperty('--sc', String(sc));
+  // Spots and their hit pads live in a clip so a 48px pad cannot widen the street.
+  // Name plates stay outside it, in the sky and grass letterbox.
+  w.innerHTML = `<div class="mapClip">${plan ? mapPortraitBgSVG(plan.w, plan.h) : mapBgSVG()}</div>`;
+  const clip = w.querySelector('.mapClip')!;
+  const px = (v: number) => v * sc + 'px';
+  mapAnchors.clear();
+  const n = list.length;
   let spots = '', signs = '';
-  const spotsXY = houseSpots(road, n, taken);
-  list.forEach((h, i) => {
-    const c = spotsXY[i];
-    const go = h ? `house:${h.id}` : 'home', name = h ? h.name : 'My House';
-    mapAnchors.set(h ? 'house:' + h.id : 'home', { x: c.x, y: c.y - hh / 2 - 4 });
-    const flag = !!(h && houseUnread(h.id));
-    // Just right of the house, above the name plate, so the picture does not cover
-    // the label and a tap on the door still opens the house.
+  if (plan) {
+    const { hw, hh } = plan;
     const mw = 34, mh = 40;
-    const slop = 14 / sc;
-    const mx = Math.max(4, Math.min(MAP_W - mw - 4, c.x + hw / 2 + slop));
-    const my = Math.max(4, Math.min(MAP_H - mh - 4, c.y - hh * 0.22));
-    spots += `<button class="mapSpot mapHouse ${h?.mine || !h ? 'mine' : ''}" data-go="${go}" aria-label="${esc(name)}" style="left:${px(c.x - hw / 2)};top:${px(c.y - hh / 2)};width:${px(hw)};height:${px(hh)}">${houseSVG(h ? h.style : 0, { lit: h ? h.lit : true })}${h?.locked ? '<span class="lockBadge">🔒</span>' : ''}${h?.mine || !h ? '<span class="homeBadge">★</span>' : ''}</button>
-      <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>`;
-    signs += `<div class="mapSign ${h?.mine || !h ? 'mine' : ''}" style="left:${px(c.x)};top:${px(c.y + hh / 2 - 2)}">${esc(name)}</div>`;
-  });
-  spots += `<button class="mapSpot mapPark" data-go="park" aria-label="The park" style="left:${px(PARK.x - 100)};top:${px(PARK.y - 85)};width:${px(200)};height:${px(170)}">${parkMiniSVG}</button>`;
-  signs += `<div class="mapSign place" style="left:${px(PARK.x)};top:${px(PARK.y + 70)}">Park</div>`;
-  spots += `<button class="mapSpot mapRanch" data-go="ranch" aria-label="Rainbow Ranch" style="left:${px(RANCH.x - 110)};top:${px(RANCH.y - 90)};width:${px(220)};height:${px(180)}">${ranchMiniSVG}</button>`;
-  signs += `<div class="mapSign place" style="left:${px(RANCH.x)};top:${px(RANCH.y + 78)}">Rainbow Ranch</div>`;
-  spots += `<button class="mapSpot mapClub" data-go="gameroom" aria-label="The clubhouse" style="left:${px(CLUB.x - 95)};top:${px(CLUB.y - 78)};width:${px(190)};height:${px(156)}">${clubhouseMiniSVG}</button>`;
-  signs += `<div class="mapSign place" style="left:${px(CLUB.x)};top:${px(CLUB.y + 82)}">Clubhouse</div>`;
-  mapAnchors.set('park', { x: PARK.x, y: PARK.y - 60 }); mapAnchors.set('ranch', { x: RANCH.x - 30, y: RANCH.y - 60 }); mapAnchors.set('barn', { x: RANCH.x + 10, y: RANCH.y + 10 });
-  mapAnchors.set('gameroom', { x: CLUB.x, y: CLUB.y - 52 });
-  clip.insertAdjacentHTML('beforeend', mapTreesSVG(taken, onRoad) + spots + '<div class="mapFaces" id="mapFaces"></div>');
+    list.forEach((h, i) => {
+      const c = plan.houses[i] ?? plan.houses[0];
+      const go = h ? `house:${h.id}` : 'home', name = h ? h.name : 'My House';
+      mapAnchors.set(h ? 'house:' + h.id : 'home', { x: c.x, y: c.y - hh / 2 - 8 });
+      const flag = !!(h && houseUnread(h.id));
+      const leftCol = c.x < plan.w / 2;
+      const mx = leftCol
+        ? Math.max(4, c.x - hw / 2 - mw - 8)
+        : Math.min(plan.w - mw - 4, c.x + hw / 2 + 8);
+      const my = Math.max(4, Math.min(plan.h - mh - 4, c.y - hh * 0.42));
+      spots += `<button class="mapSpot mapHouse ${h?.mine || !h ? 'mine' : ''}" data-go="${go}" aria-label="${esc(name)}" style="left:${px(c.x - hw / 2)};top:${px(c.y - hh / 2)};width:${px(hw)};height:${px(hh)}">${houseSVG(h ? h.style : 0, { lit: h ? h.lit : true })}${h?.locked ? '<span class="lockBadge">🔒</span>' : ''}${h?.mine || !h ? '<span class="homeBadge">★</span>' : ''}</button>
+        <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>`;
+      signs += `<div class="mapSign ${h?.mine || !h ? 'mine' : ''}" style="left:${px(c.x)};top:${px(c.y + hh / 2 + 2)}">${esc(name)}</div>`;
+    });
+    const place = (cls: string, go: string, label: string, art: string, x: number, y: number, wd: number, ht: number, signDy: number) => {
+      spots += `<button class="mapSpot ${cls}" data-go="${go}" aria-label="${label}" style="left:${px(x - wd / 2)};top:${px(y - ht / 2)};width:${px(wd)};height:${px(ht)}">${art}</button>`;
+      signs += `<div class="mapSign place" style="left:${px(x)};top:${px(y + signDy)}">${label === 'The park' ? 'Park' : label === 'Rainbow Ranch' ? 'Rainbow Ranch' : 'Clubhouse'}</div>`;
+    };
+    place('mapPark', 'park', 'The park', parkMiniSVG, plan.park.x, plan.park.y, 148, 126, 68);
+    place('mapRanch', 'ranch', 'Rainbow Ranch', ranchMiniSVG, plan.ranch.x, plan.ranch.y, 156, 128, 72);
+    place('mapClub', 'gameroom', 'The clubhouse', clubhouseMiniSVG, plan.club.x, plan.club.y, 146, 120, 68);
+    mapAnchors.set('park', { x: plan.park.x, y: plan.park.y - 78 });
+    mapAnchors.set('ranch', { x: plan.ranch.x, y: plan.ranch.y - 80 });
+    mapAnchors.set('barn', { x: plan.ranch.x, y: plan.ranch.y + 8 });
+    mapAnchors.set('gameroom', { x: plan.club.x, y: plan.club.y - 74 });
+    mapAnchors.set('square', plan.square);
+    const taken = [
+      { x: plan.park.x, y: plan.park.y, r: 90 }, { x: plan.ranch.x, y: plan.ranch.y, r: 96 },
+      { x: plan.club.x, y: plan.club.y, r: 88 }, { x: plan.square.x, y: plan.square.y, r: 70 },
+      ...plan.houses.map(c => ({ x: c.x, y: c.y, r: 78 })),
+    ];
+    const mid = plan.w / 2;
+    clip.insertAdjacentHTML('beforeend', mapTreesSVG(taken, (x, y) => Math.abs(x - mid) < 34, plan.w, plan.h) + spots + '<div class="mapFaces" id="mapFaces"></div>');
+  } else {
+    const road = w.querySelector<SVGPathElement>('#mapRoad')!, L = road.getTotalLength();
+    const samples = Array.from({ length: 160 }, (_, i) => road.getPointAtLength(L * i / 159));
+    const onRoad = (x: number, y: number) => samples.some(p => Math.hypot(p.x - x, p.y - y) < 50);
+    const taken = baseTaken();
+    const hw = n > 8 ? 80 : 94, hh = hw * 300 / 320;
+    const spotsXY = houseSpots(road, n, taken);
+    list.forEach((h, i) => {
+      const c = spotsXY[i];
+      const go = h ? `house:${h.id}` : 'home', name = h ? h.name : 'My House';
+      mapAnchors.set(h ? 'house:' + h.id : 'home', { x: c.x, y: c.y - hh / 2 - 4 });
+      const flag = !!(h && houseUnread(h.id));
+      // Just right of the house, above the name plate, so the picture does not cover
+      // the label and a tap on the door still opens the house.
+      const mw = 34, mh = 40;
+      const slop = 14 / sc;
+      const mx = Math.max(4, Math.min(MAP_W - mw - 4, c.x + hw / 2 + slop));
+      const my = Math.max(4, Math.min(MAP_H - mh - 4, c.y - hh * 0.22));
+      spots += `<button class="mapSpot mapHouse ${h?.mine || !h ? 'mine' : ''}" data-go="${go}" aria-label="${esc(name)}" style="left:${px(c.x - hw / 2)};top:${px(c.y - hh / 2)};width:${px(hw)};height:${px(hh)}">${houseSVG(h ? h.style : 0, { lit: h ? h.lit : true })}${h?.locked ? '<span class="lockBadge">🔒</span>' : ''}${h?.mine || !h ? '<span class="homeBadge">★</span>' : ''}</button>
+        <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>`;
+      signs += `<div class="mapSign ${h?.mine || !h ? 'mine' : ''}" style="left:${px(c.x)};top:${px(c.y + hh / 2 - 2)}">${esc(name)}</div>`;
+    });
+    spots += `<button class="mapSpot mapPark" data-go="park" aria-label="The park" style="left:${px(PARK.x - 100)};top:${px(PARK.y - 85)};width:${px(200)};height:${px(170)}">${parkMiniSVG}</button>`;
+    signs += `<div class="mapSign place" style="left:${px(PARK.x)};top:${px(PARK.y + 70)}">Park</div>`;
+    spots += `<button class="mapSpot mapRanch" data-go="ranch" aria-label="Rainbow Ranch" style="left:${px(RANCH.x - 110)};top:${px(RANCH.y - 90)};width:${px(220)};height:${px(180)}">${ranchMiniSVG}</button>`;
+    signs += `<div class="mapSign place" style="left:${px(RANCH.x)};top:${px(RANCH.y + 78)}">Rainbow Ranch</div>`;
+    spots += `<button class="mapSpot mapClub" data-go="gameroom" aria-label="The clubhouse" style="left:${px(CLUB.x - 95)};top:${px(CLUB.y - 78)};width:${px(190)};height:${px(156)}">${clubhouseMiniSVG}</button>`;
+    signs += `<div class="mapSign place" style="left:${px(CLUB.x)};top:${px(CLUB.y + 82)}">Clubhouse</div>`;
+    mapAnchors.set('park', { x: PARK.x, y: PARK.y - 60 }); mapAnchors.set('ranch', { x: RANCH.x - 30, y: RANCH.y - 60 }); mapAnchors.set('barn', { x: RANCH.x + 10, y: RANCH.y + 10 });
+    mapAnchors.set('gameroom', { x: CLUB.x, y: CLUB.y - 52 });
+    clip.insertAdjacentHTML('beforeend', mapTreesSVG(taken, onRoad) + spots + '<div class="mapFaces" id="mapFaces"></div>');
+  }
   w.insertAdjacentHTML('beforeend', signs);
   renderMapFaces();
   placeMap(sc);
@@ -1590,14 +1667,26 @@ function renderMapFaces() {
     g.sort((a, b) => (a.mine ? -1 : b.mine ? 1 : a.name.localeCompare(b.name)));
     g.forEach((x, j) => {
       let fx: number, fy: number;
-      if (k === 'square') { const a = -Math.PI / 2 + j * (Math.PI * 2 / Math.max(5, g.length)); fx = SQUARE.x + Math.cos(a) * 50; fy = SQUARE.y + Math.sin(a) * 50; }
-      else { const an = mapAnchors.get(k) ?? { x: SQUARE.x, y: SQUARE.y }; const per = 4, row = Math.floor(j / per), col = j % per, m = Math.min(per, g.length - row * per); fx = an.x + (col - (m - 1) / 2) * 40; fy = an.y - row * 40; }
+      const home = mapAnchors.get('square') ?? { x: SQUARE.x, y: SQUARE.y };
+      if (k === 'square') {
+        if (activeMap.portrait) {
+          const per = 3, gap = 176, row = Math.floor(j / per), col = j % per, m = Math.min(per, g.length - row * per);
+          fx = home.x + (col - (m - 1) / 2) * gap; fy = home.y + row * 112;
+        } else if (g.length === 1) { fx = SQUARE.x; fy = SQUARE.y; }
+        else { const a = -Math.PI / 2 + j * (Math.PI * 2 / g.length); fx = SQUARE.x + Math.cos(a) * 78; fy = SQUARE.y + Math.sin(a) * 78; }
+      } else {
+        const an = mapAnchors.get(k) ?? home;
+        const per = activeMap.portrait ? 2 : 3, step = activeMap.portrait ? 150 : 64;
+        const row = Math.floor(j / per), col = j % per, m = Math.min(per, g.length - row * per);
+        fx = an.x + (col - (m - 1) / 2) * step; fy = an.y - row * (activeMap.portrait ? 108 : 64);
+      }
+      if (activeMap.portrait) { fx = Math.max(100, Math.min(activeMap.w - 100, fx)); fy = Math.max(48, Math.min(activeMap.h - 84, fy)); }
       keep.add(x.key);
       let el = box.querySelector<HTMLElement>(`.mapFace[data-pid="${x.key}"]`);
       if (!el) { el = document.createElement('button'); el.className = 'mapFace ' + (x.mine ? 'mine' : 'other'); el.dataset.pid = x.key; el.setAttribute('aria-label', x.mine ? 'You' : x.name); box.appendChild(el); }
       const lk = JSON.stringify(x.look) + x.name;
       if (el.dataset.look !== lk) { const b = el.querySelector('.bubble'); el.innerHTML = `<span class="face">${faceSVG(characterSVG(x.look))}</span><span class="fname">${esc(x.mine ? 'You' : x.name)}</span>`; if (b) el.appendChild(b); el.dataset.look = lk; }
-      el.dataset.place = k; const s = 46;
+      el.dataset.place = k; const s = activeMap.portrait ? 62 : 46;
       el.style.left = (fx - s / 2) * sc + 'px'; el.style.top = (fy - s / 2) * sc + 'px'; el.style.width = el.style.height = s * sc + 'px';
     });
   }
@@ -1655,6 +1744,7 @@ function houseUnread(id: string) {
 let mailPopFor = 0;
 /** One pop-up when new mail arrives. It does not stay on the map. */
 function syncMailCue() {
+  placePopups();
   const cue = document.getElementById('mailCue');
   const id = hood?.myHouseId() ?? '';
   const n = hood && id ? unreadCount(hood.houses.get(id)?.confirmed.mailbox) : 0;
@@ -1669,17 +1759,15 @@ function syncMailCue() {
   window.setTimeout(() => { if (mailPopFor === n) cue?.classList.remove('show'); }, 8000);
 }
 /**
- * Menu dot = unread letters. Invites are not in the welcome/players/presence payload,
- * so they are not counted (protocol stays 4). Map dot = other kids in presence.
+ * Menu dot = unread letters only. Invites are not in the welcome/players/presence
+ * payload, so there is no invite badge (it would always say 0). Map dot = kids in presence.
  */
 function paintBadges() {
   const id = hood?.myHouseId() ?? '';
   const mail = hood && id ? unreadCount(hood.houses.get(id)?.confirmed.mailbox) : 0;
-  const invites = 0;
-  const n = mail + invites;
   const menu = $('menuBadge');
-  menu.textContent = n > 9 ? '9+' : String(n);
-  menu.classList.toggle('on', n > 0);
+  menu.textContent = mail > 9 ? '9+' : String(mail);
+  menu.classList.toggle('on', mail > 0);
   const neu = document.getElementById('mailNew');
   if (neu) {
     neu.textContent = mail > 0 ? (mail === 1 ? '1 new' : mail + ' new') : '';
@@ -3190,9 +3278,15 @@ function keepDoorHintOnScreen() {
   const kid = scroll.querySelector<HTMLElement>('.savatar');
   if (kid) {
     const kb = kid.getBoundingClientRect();
+    const tag = kid.querySelector<HTMLElement>('.nametag');
+    const tb = tag?.getBoundingClientRect();
+    const hasTag = !!(tb && tb.width > 4 && tb.height > 4);
+    const blockTop = hasTag ? Math.min(kb.top, tb!.top) : kb.top;
+    const blockL = hasTag ? Math.min(kb.left, tb!.left) : kb.left;
+    const blockR = hasTag ? Math.max(kb.right, tb!.right) : kb.right;
     const left = b.left + dx, right = b.right + dx;
-    const beside = right > kb.left + 4 && left < kb.right - 4 && b.top < kb.top + kb.height * 0.55;
-    if (beside && b.bottom + dy > kb.top - 28) dy += (kb.top - 28) - (b.bottom + dy);
+    const overlaps = right > blockL - 6 && left < blockR + 6 && b.bottom + dy > blockTop - 6 && b.top < kb.top + kb.height * 0.72;
+    if (overlaps) dy += (blockTop - 48) - (b.bottom + dy);
   }
   if (b.top + dy < availT) dy += availT - (b.top + dy);
   if (dx || dy) hint.style.transform = `translate(calc(-50% + ${dx.toFixed(1)}px), ${dy.toFixed(1)}px)`;
