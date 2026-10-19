@@ -9,8 +9,8 @@ async def main():
         pg.on('response', lambda r: r.status >= 400 and bad.append((r.status, r.url)))
         await pg.goto(URL); await pg.evaluate("localStorage.clear()"); await pg.reload(); await pg.wait_for_timeout(800)
         n = await pg.evaluate("Object.keys(__items).length"); print('image items loaded:', n)
-        # 218 image items, plus 36 in the Cozy Cottage pack.
-        if n != 254: raise SystemExit(f'expected 254 pack items, got {n}')
+        # 254 image items, plus 58 in the Winter Cheer pack.
+        if n != 312: raise SystemExit(f'expected 312 pack items, got {n}')
         print('tabs:', await pg.locator('.cat').evaluate_all("e=>e.map(x=>x.dataset.cat)"))
         # walk every tab under "All" and check every drawer image decodes
         broken = []; total = 0
@@ -28,8 +28,8 @@ async def main():
         walls = await pg.locator('.dot.tile[data-act="wtile"]').count()
         floors = await pg.locator('.dot.tile[data-act="ftile"]').count()
         print('wall tiles:', walls, 'floor tiles:', floors)
-        # 9 wallpapers + 6 floors, plus Cozy Cottage's 6 wallpapers and 4 floors.
-        if walls != 15 or floors != 10: raise SystemExit(f'expected 15 wall / 10 floor tiles, got {walls} / {floors}')
+        # Previous packs (18 wallpapers, 12 floors) plus Winter Cheer's 5 wallpapers and 3 floors.
+        if walls != 23 or floors != 15: raise SystemExit(f'expected 23 wall / 15 floor tiles, got {walls} / {floors}')
         await pg.click('.dot.tile[data-v="glossy/pink-hearts"]'); await pg.click('.dot.tile[data-v="glossy/pink-check-floor"]'); await pg.wait_for_timeout(500)
         await pg.screenshot(path='screens/19-paint-panel-pack-patterns.png')
         await pg.click('.close'); await pg.wait_for_timeout(500)

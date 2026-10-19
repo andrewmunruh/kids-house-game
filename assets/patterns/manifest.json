@@ -233,5 +233,61 @@
     "pack": "cottage",
     "svg": "cottage/cc-mint-checks.svg",
     "png": "cottage/cc-mint-checks.png"
+  },
+  {
+    "slug": "wc-snowflake-sky",
+    "name": "Snowflake Sky",
+    "type": "wallpaper",
+    "pack": "winter",
+    "svg": "winter/wc-snowflake-sky.svg"
+  },
+  {
+    "slug": "wc-mint-pine",
+    "name": "Mint Pine Sprigs",
+    "type": "wallpaper",
+    "pack": "winter",
+    "svg": "winter/wc-mint-pine.svg"
+  },
+  {
+    "slug": "wc-candy-stripe",
+    "name": "Candy Stripe",
+    "type": "wallpaper",
+    "pack": "winter",
+    "svg": "winter/wc-candy-stripe.svg"
+  },
+  {
+    "slug": "wc-red-plaid",
+    "name": "Cozy Red Plaid",
+    "type": "wallpaper",
+    "pack": "winter",
+    "svg": "winter/wc-red-plaid.svg"
+  },
+  {
+    "slug": "wc-frosty-dots",
+    "name": "Frosty Dots",
+    "type": "wallpaper",
+    "pack": "winter",
+    "svg": "winter/wc-frosty-dots.svg"
+  },
+  {
+    "slug": "wc-cabin-planks",
+    "name": "Cabin Planks",
+    "type": "floor",
+    "pack": "winter",
+    "svg": "winter/wc-cabin-planks.svg"
+  },
+  {
+    "slug": "wc-snow-knit",
+    "name": "Snow Knit Carpet",
+    "type": "floor",
+    "pack": "winter",
+    "svg": "winter/wc-snow-knit.svg"
+  },
+  {
+    "slug": "wc-peppermint-tiles",
+    "name": "Peppermint Tiles",
+    "type": "floor",
+    "pack": "winter",
+    "svg": "winter/wc-peppermint-tiles.svg"
   }
 ]

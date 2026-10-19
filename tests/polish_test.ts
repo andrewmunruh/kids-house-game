@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolveFrame } from '../src/framekid';
 import { assignLanes, initials } from '../src/nametags';
 import { catalogShows, itemMatchesRoom } from '../src/roomfilter';
+import { WINTER_NURSERY_SKIP } from '../src/shared/catalog-winter';
 import { emptyRoomStarters } from '../src/scenery';
 import { initialState, migrate, reduce, type GameState } from '../src/shared/state';
 import { cleanAction } from '../src/shared/hood';
@@ -39,15 +40,16 @@ check('ring light and desk lamp stay off the nursery shelf',
   && !itemMatchesRoom({ name: 'Desk Lamp', kind: 'pack:desk-lamp', rooms: ['any'], cat: 'decor' }, 'nursery'));
 check('ring light still shows in the living room', itemMatchesRoom({ name: 'Ring Light', kind: 'pack:ring-light', rooms: ['any'], cat: 'decor' }, 'living'));
 
-const manifest = JSON.parse(readFileSync(new URL('../assets/items/manifest.json', import.meta.url), 'utf8')) as { slug?: string; name?: string; room?: string; category?: string; pack?: string; type?: string }[];
+const manifest = JSON.parse(readFileSync(new URL('../assets/items/manifest.json', import.meta.url), 'utf8')) as { slug?: string; name?: string; room?: string; category?: string; pack?: string; type?: string; shelf?: string }[];
 const catalog = (Array.isArray(manifest) ? manifest : []).filter(e => e && e.slug && e.type !== 'wallpaper' && e.type !== 'floor').map(e => ({
   kind: 'pack:' + e.slug!.trim(),
   name: e.name || e.slug!,
   cat: (e.category || 'decor').trim().toLowerCase(),
   pack: (e.pack || '').trim().toLowerCase() || undefined,
   rooms: [(e.room || 'any').trim().toLowerCase()],
+  shelf: e.shelf,
 }));
-const excluded = new Set(['pack:ring-light', 'pack:desk-lamp']);
+const excluded = new Set(['pack:ring-light', 'pack:desk-lamp', ...WINTER_NURSERY_SKIP]);
 const tabs = new Set<string>(['decor']);
 for (const it of catalog) {
   tabs.add(it.cat);
@@ -64,6 +66,15 @@ for (const showAll of [false, true]) {
 check('nursery catalog tabs leave out ring light and desk lamp', leaked.length === 0 && [...tabs].some(t => t.startsWith('pack:')), leaked.join(', '));
 const ring = catalog.find(it => it.kind === 'pack:ring-light');
 check('ring light stays on its pack tab outside the nursery', !!ring && !!ring.pack && catalogShows(ring, 'pack:' + ring.pack, 'living', false));
+const winter = catalog.filter(it => it.pack === 'winter');
+const shelfCount = new Map<string, number>();
+for (const it of winter) shelfCount.set(it.shelf || '', (shelfCount.get(it.shelf || '') || 0) + 1);
+const shelfOk = winter.length === 58 && [...shelfCount.values()].every(n => n >= 8 && n <= 13) && shelfCount.get('Holiday') === 11;
+check('winter shelves stay near ten items', shelfOk, [...shelfCount.entries()].map(([k, n]) => k + ':' + n).join(' '));
+check('a hearth stays off the nursery shelf', !itemMatchesRoom({ name: 'Stone Hearth Fireplace', kind: 'pack:wc-stone-hearth', rooms: ['living'], cat: 'furniture' }, 'nursery'));
+check('holiday lamps stay off the nursery shelf', !itemMatchesRoom({ name: 'Candy Cane Lamp', kind: 'pack:wc-cane-lamp', rooms: ['any'], cat: 'decor' }, 'nursery') && !catalogShows({ name: 'Sleigh Planter', kind: 'pack:wc-sleigh-planter', rooms: ['any'], cat: 'decor', pack: 'winter' }, 'pack:winter', 'nursery', true));
+check('a snowman waits for All rooms', !itemMatchesRoom({ name: 'Snowman Buddy', kind: 'pack:wc-snowman', rooms: ['any'], cat: 'decor' }, 'kitchen') && itemMatchesRoom({ name: 'Snowman Buddy', kind: 'pack:wc-snowman', rooms: ['any'], cat: 'decor' }, 'all'));
+check('a knit rug still shows in the bedroom', itemMatchesRoom({ name: 'Knit Pom Rug', kind: 'pack:wc-pom-rug', rooms: ['any'], cat: 'decor' }, 'bedroom'));
 
 const fresh = initialState();
 const starters = emptyRoomStarters(k => 's-' + k);
