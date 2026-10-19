@@ -1119,7 +1119,8 @@ body:not(.show-minimap) .minimap { display: none !important; }
 body.mode-hood:not(.view-street):not(.own-house) .homeBtn { display: block !important; }
 body.view-street #secrets { display: none !important; }
 
-.menuPop { position: fixed; inset: 0; z-index: 16000; background: transparent; }
+/* Above the toast lane (50000) so a message can never cover the open menu. */
+.menuPop { position: fixed; inset: 0; z-index: 56000; background: transparent; }
 .menuCard { position: absolute; top: calc(var(--chrome-h, 64px) + 6px); right: 12px; width: min(300px, calc(100vw - 16px));
   background: #fff; border: 4px solid var(--ink); border-radius: 22px; padding: 8px 8px 12px;
   box-shadow: 0 8px 0 rgba(90,61,92,.28); max-height: calc(100vh - var(--chrome-h, 64px) - 24px); overflow: auto; }

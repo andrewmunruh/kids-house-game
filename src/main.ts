@@ -1696,6 +1696,7 @@ function paintBadges() {
   chat.classList.toggle('on', near > 0);
 }
 function setMenuOpen(open: boolean) {
+  if (open) document.querySelectorAll('.toast').forEach(el => el.remove());
   $('menuPop').classList.toggle('hidden', !open);
   $('btnMenu').setAttribute('aria-expanded', open ? 'true' : 'false');
   if (open) paintBadges();
