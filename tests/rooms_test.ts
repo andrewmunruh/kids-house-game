@@ -270,7 +270,7 @@ async function main() {
   const bare = initialState();
   check('a character without look2 is not rewritten', migrate(bare).characters[0].look2 === undefined && cleanHouseState(bare).characters[0].look2 === undefined);
 
-  check('protocol stays 4 and a fresh house is still version 3', PROTOCOL === 4 && fresh.version === 3 && bathKinds().join(',') === 'puddle-mat,rain-shower,clawfoot-tub,mirror-vanity,little-toilet,bath-cubby,towel-ladder,mist-fern');
+  check('protocol stays 4 and a fresh house is still version 3', PROTOCOL === 4 && fresh.version === 3 && bathKinds().join(',') === 'puddle-mat,rain-shower,clawfoot-tub,mirror-vanity,little-toilet,bath-cubby,towel-ladder,mist-fern,fern-stand,bath-rug');
   const noBath = initialState();
   const livingBefore = JSON.stringify(noBath.rooms.living);
   delete (noBath.rooms as any).bathroom;
@@ -278,7 +278,7 @@ async function main() {
   const filled2 = ensureRooms(JSON.parse(JSON.stringify(noBath)));
   check('a house with the bathroom key deleted gains the starter kinds', filled.rooms.bathroom.items.map(i => i.kind).join(',') === bathKinds().join(',') && JSON.stringify(filled.rooms.living) === livingBefore);
   filled.rooms.bathroom.items.push({ id: 'extra-bath', kind: 'sunny-ducky', x: 1, y: 1, flip: false, z: 9, scale: 1 });
-  check('two bathroom fill-ins do not share objects', filled2.rooms.bathroom.items.length === 8 && !filled2.rooms.bathroom.items.some(i => i.id === 'extra-bath'));
+  check('two bathroom fill-ins do not share objects', filled2.rooms.bathroom.items.length === 10 && !filled2.rooms.bathroom.items.some(i => i.id === 'extra-bath'));
   const customBath = initialState();
   customBath.rooms.bathroom = { ...customBath.rooms.bathroom, items: [{ id: 'my-duck', kind: 'sunny-ducky', x: 40, y: 500, flip: false, z: 1, scale: 1 }] };
   delete (customBath.rooms as any).backyard;
@@ -305,7 +305,7 @@ async function main() {
   const standing = { ...initialState(), currentRoom: 'bathroom' as const, characters: [{ ...initialState().characters[0], room: 'bathroom' as const }] };
   const fbd = fbd04dbLoad(JSON.parse(JSON.stringify(standing)));
   const fbdEdit = { ...fbd, rooms: { ...fbd.rooms, living: { ...fbd.rooms.living, wallpaper: '#112233' } } };
-  check('an fbd04db load keeps the bathroom items and opens the living room', fbd.currentRoom === 'living' && fbd.characters[0].room === 'living' && fbd.rooms.bathroom.items.map((i: { kind: string }) => i.kind).join(',') === bathKinds().join(',') && fbdEdit.rooms.bathroom.items.length === 8 && fbdEdit.rooms.living.wallpaper === '#112233');
+  check('an fbd04db load keeps the bathroom items and opens the living room', fbd.currentRoom === 'living' && fbd.characters[0].room === 'living' && fbd.rooms.bathroom.items.map((i: { kind: string }) => i.kind).join(',') === bathKinds().join(',') && fbdEdit.rooms.bathroom.items.length === 10 && fbdEdit.rooms.living.wallpaper === '#112233');
   const stayedBath = migrate({ ...initialState(), currentRoom: 'bathroom' });
   check('a new client standing in the bathroom is not moved', stayedBath.currentRoom === 'bathroom');
 
@@ -354,14 +354,14 @@ async function main() {
 
   const names = BATHROOM_ITEMS.map(i => i.name);
   const kinds = BATHROOM_ITEMS.map(i => i.kind);
-  check('the bathroom shelf has 30 unique original names', names.length === 30 && new Set(names).size === 30 && new Set(kinds).size === 30);
+  check('the bathroom shelf has 32 unique original names', names.length === 32 && new Set(names).size === 32 && new Set(kinds).size === 32);
   const wall = new Set(['wall-towel-bar', 'porthole-mirror', 'robe-hooks', 'hanging-eucalyptus', 'bath-cubby']);
   const artBad = BATHROOM_ITEMS.filter(i => {
     const svg = i.svg;
     if (/feGaussianBlur|feDropShadow|filter=|color-mix|backdrop-filter/.test(svg)) return true;
     if (svg.length > 3200) return true;
     if (!svg.includes('#5a3d5c')) return true;
-    const rugOrWall = i.kind === 'puddle-mat' || wall.has(i.kind);
+    const rugOrWall = i.kind === 'puddle-mat' || i.kind === 'bath-rug' || wall.has(i.kind);
     const shadows = (svg.match(/<ellipse[^>]*opacity="\.08"/g) ?? []).length;
     if (rugOrWall && shadows !== 0) return true;
     if (!rugOrWall && shadows < 1) return true;

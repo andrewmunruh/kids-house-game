@@ -2117,9 +2117,49 @@ function onPlayTap(el: HTMLElement, id: string) {
   if (g === 'open') { el.classList.toggle('opened'); return; }
   if (g === 'sit') sitAt(it);
 }
+/** Eight bubbles, all on screen at once. Percentages are of the item box. */
+const TUB_SUDS: ReadonlyArray<readonly [number, number, number, string, number]> = [
+  [8, 16, 18, '#ffb7d5', 0],
+  [26, 4, 20, '#9fd4ee', 0.04],
+  [46, 14, 19, '#b7ebc8', 0.08],
+  [64, 2, 18, '#ffe08a', 0.02],
+  [78, 18, 16, '#c9b6f2', 0.1],
+  [18, 32, 15, '#ffd6e4', 0.06],
+  [40, 28, 17, '#ffffff', 0.12],
+  [58, 26, 16, '#d7f3ff', 0.05],
+];
+const SHOWER_SUDS: ReadonlyArray<readonly [number, number, number, string, number]> = [
+  [6, 22, 32, '#ffb7d5', 0],
+  [38, 14, 30, '#9fd4ee', 0.04],
+  [14, 36, 28, '#b7ebc8', 0.08],
+  [46, 30, 26, '#ffe08a', 0.02],
+  [8, 48, 30, '#c9b6f2', 0.1],
+  [40, 46, 28, '#ffd6e4', 0.06],
+  [22, 18, 24, '#ffffff', 0.12],
+  [34, 58, 26, '#d7f3ff', 0.05],
+];
 function splashItem(el: HTMLElement) {
   el.classList.remove('splashing'); void el.offsetWidth; el.classList.add('splashing');
-  window.setTimeout(() => el.classList.remove('splashing'), 1400);
+  blowSuds(el);
+  window.setTimeout(() => el.classList.remove('splashing'), 1650);
+}
+/** Drawn on the room layer, above the kid, so a tap on her still shows the bubbles. */
+function blowSuds(el: HTMLElement) {
+  const id = el.dataset.id ?? '';
+  layer.querySelectorAll<HTMLElement>('.suds').forEach(n => { if (n.dataset.for === id) n.remove(); });
+  const spots = el.dataset.kind === 'rain-shower' ? SHOWER_SUDS : TUB_SUDS;
+  const box = document.createElement('div');
+  box.className = 'suds';
+  box.dataset.for = id;
+  box.style.left = el.style.left;
+  box.style.top = el.style.top;
+  box.style.width = el.style.width;
+  box.style.height = el.style.height;
+  box.style.zIndex = '7200';
+  box.innerHTML = spots.map(([x, y, s, c, d]) =>
+    `<i style="left:${x}%;top:${y}%;width:${s}%;background:${c};animation-delay:${d}s"></i>`).join('');
+  layer.appendChild(box);
+  window.setTimeout(() => box.remove(), 1650);
 }
 /** A tap on the kid standing in front of the soaker blows the same bubbles as tapping the tub. */
 function splashTubInFront(x: number, y: number) {

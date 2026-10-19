@@ -28,12 +28,10 @@ const tub = `${shadow(110, 78, 134)}
 <path d="M20 122 h16 l2 10 h-18 z M54 122 h16 l2 10 h-18 z M140 122 h16 l2 10 h-18 z M178 122 h16 l2 10 h-18 z" fill="#e7b56e" ${S}/>
 <path d="M24 126 h8 M58 126 h8 M144 126 h8 M182 126 h8" ${S}/>
 <path d="M18 62 Q12 108 44 118 H176 Q210 108 204 62 V52 H18 Z" fill="#f7fbff" ${I}/>
-<path d="M124 56 H202 V68 Q196 106 176 116 H124 Z" fill="#c5d4e2"/>
 <ellipse cx="108" cy="80" rx="72" ry="16" fill="#7ec8e3"/>
 <ellipse cx="102" cy="76" rx="52" ry="9" fill="#b7e4f6"/>
 <ellipse cx="92" cy="78" rx="22" ry="4" fill="#e7f6ff"/>
 <path d="M6 52 Q110 28 214 52 Q110 72 6 52 Z" fill="#fff" ${I}/>
-<path d="M124 40 H210 V52 Q168 66 124 52 Z" fill="#e4eef4"/>
 <circle cx="128" cy="78" r="3.4" fill="#fff" opacity=".92"/><circle cx="136" cy="82" r="2.6" fill="#f4fbff"/><circle cx="120" cy="83" r="2.2" fill="#fff"/>
 <ellipse cx="58" cy="82" rx="11" ry="6" fill="#ffe08a" ${S}/>
 <circle cx="68" cy="78" r="6" fill="#ffe08a" ${S}/>
@@ -41,10 +39,8 @@ const tub = `${shadow(110, 78, 134)}
 <circle cx="66" cy="76" r="1.3" fill="${O}"/>
 ${hi('M28 52 Q70 38 100 46')}
 <path d="M176 18 H196 V48 H184 Q184 32 176 28 Z" fill="#f4f7f8" ${S}/>
-<path d="M182 20 H196 V46 H182 Z" fill="#c5d0d8"/>
 <path d="M178 18 Q166 6 156 18" fill="none" ${S}/>
 <circle cx="156" cy="16" r="4.2" fill="#f0c36a" ${S}/><circle cx="190" cy="10" r="4.2" fill="#f0c36a" ${S}/>
-<g class="splash"><circle cx="62" cy="50" r="13" fill="#ffb7d5" stroke="${O}" stroke-width="1.6"/><circle cx="108" cy="40" r="15" fill="#9fd4ee" stroke="${O}" stroke-width="1.6"/><circle cx="150" cy="52" r="12" fill="#b7ebc8" stroke="${O}" stroke-width="1.6"/><circle cx="184" cy="36" r="14" fill="#ffe08a" stroke="${O}" stroke-width="1.6"/><circle cx="56" cy="46" r="4" fill="#fff"/><circle cx="102" cy="34" r="4.5" fill="#fff"/></g>
 ${hi('M184 26 V40')}`;
 
 // Walk-in stall in three-quarter view: tiled back wall, right side wall, glass door, rain head, tray.
@@ -72,17 +68,16 @@ ${hi('M16 60 V138')}
 <ellipse cx="26" cy="56" rx="10" ry="4.5" fill="#f4f7f8" ${S}/>
 <path d="M30 54 H36 V58 H30 Z" fill="#d5e0e8"/>
 <circle cx="20" cy="55" r="1.2" fill="#7ec8e3"/><circle cx="25" cy="54.5" r="1.2" fill="#7ec8e3"/><circle cx="30" cy="55" r="1.2" fill="#7ec8e3"/>
-<path d="M18 60 V84 M24 60 V96 M30 60 V80" stroke="#7ec8e3" stroke-width="2.2" stroke-linecap="round"/>
-<g class="splash"><circle cx="22" cy="70" r="7" fill="#ffb7d5" stroke="${O}" stroke-width="1.4"/><circle cx="34" cy="58" r="6" fill="#9fd4ee" stroke="${O}" stroke-width="1.4"/><circle cx="18" cy="96" r="5.5" fill="#ffe08a" stroke="${O}" stroke-width="1.4"/><circle cx="30" cy="112" r="6.5" fill="#b7ebc8" stroke="${O}" stroke-width="1.4"/></g>`;
+<path d="M18 60 V84 M24 60 V96 M30 60 V80" stroke="#7ec8e3" stroke-width="2.2" stroke-linecap="round"/>`;
 
 // Floor cabinet and a wide wall mirror hung on the wall above the counter.
 const vanity = `${shadow(50, 36, 172)}
-<path d="M26 0 H34 L32 10 H28 Z" fill="#d5dde4" ${S}/>
-<path d="M66 0 H74 L72 10 H68 Z" fill="#b7c4d0" ${S}/>
-<rect x="12" y="8" width="76" height="46" rx="6" fill="#f0c36a" ${I}/>
-<rect x="18" y="14" width="64" height="34" rx="3" fill="#eaf6ff" ${S}/>
-<path d="M52 16 H80 V46 H52 Z" fill="#c5dff5"/>
-${hi('M22 22 Q32 16 46 20')}
+<path d="M26 -12 H34 L32 -2 H28 Z" fill="#d5dde4" ${S}/>
+<path d="M66 -12 H74 L72 -2 H68 Z" fill="#b7c4d0" ${S}/>
+<rect x="12" y="-4" width="76" height="46" rx="6" fill="#f0c36a" ${I}/>
+<rect x="18" y="2" width="64" height="34" rx="3" fill="#eaf6ff" ${S}/>
+<path d="M52 4 H80 V34 H52 Z" fill="#c5dff5"/>
+${hi('M22 10 Q32 4 46 8')}
 <rect x="4" y="98" width="92" height="14" rx="3" fill="#f7fbff" ${I}/>
 <path d="M58 100 H94 V110 H58 Z" fill="#b7c9d8"/>
 <ellipse cx="48" cy="104" rx="22" ry="6" fill="#d7eef8" ${S}/>
@@ -428,10 +423,37 @@ const herb = `${shadow(50, 16)}
 <ellipse cx="58" cy="46" rx="8" ry="4.5" fill="#2f7a52" ${I}/><ellipse cx="70" cy="44" rx="7" ry="4" fill="#74c69d" ${S}/>
 ${hi('M38 74 H50')}`;
 
+// Tripod stand, round top, terracotta pot, and a small fern. Floor piece for the open middle.
+const stand = `${shadow(50, 26, 156)}
+<path d="M16 152 L38 102 H48 L30 152 Z" fill="#f3d2aa" ${I}/>
+<path d="M84 152 L62 102 H52 L70 152 Z" fill="#e7b56e" ${I}/>
+<path d="M58 104 L78 148 H70 L54 108 Z" fill="#c9924a"/>
+<path d="M30 128 H70" stroke="#e7c49a" stroke-width="5" stroke-linecap="round"/>
+<ellipse cx="50" cy="102" rx="32" ry="8" fill="#f0d2b0" ${I}/>
+<path d="M50 94 Q80 94 82 102 Q80 110 50 110 Z" fill="#e7b56e"/>
+${hi('M24 100 Q36 96 46 98')}
+<path d="M34 88 H66 L60 102 H40 Z" fill="#e8845a" ${I}/>
+<path d="M52 90 H66 L60 100 H52 Z" fill="#c45c38"/>
+<ellipse cx="50" cy="88" rx="20" ry="6" fill="#f0a078" ${I}/>
+<path d="M50 82 Q68 82 70 88 Q68 94 50 94 Z" fill="#d47848"/>
+<ellipse cx="34" cy="64" rx="11" ry="20" fill="#95d5b2" ${I} transform="rotate(-32 34 64)"/>
+<ellipse cx="46" cy="52" rx="10" ry="24" fill="#d8f6e4" ${I} transform="rotate(-8 46 52)"/>
+<ellipse cx="58" cy="56" rx="10" ry="22" fill="#52b788" ${I} transform="rotate(14 58 56)"/>
+<ellipse cx="70" cy="68" rx="8" ry="16" fill="#2f7a52" ${I} transform="rotate(34 70 68)"/>
+<path d="M46 42 V76" ${vein}/>
+${hi('M32 58 Q44 40 54 48')}`;
+
+// Flat oval bath rug. No floor shadow: it is the thing on the floor.
+const bathRug = `<ellipse cx="85" cy="22" rx="78" ry="15" fill="#7eb8d4" ${I}/>
+<ellipse cx="85" cy="20" rx="64" ry="10" fill="#f7fbff" ${S}/>
+<ellipse cx="112" cy="22" rx="26" ry="7" fill="#d5eaf4"/>
+${hi('M22 18 Q48 12 72 16')}
+<path d="M40 20 H76 M98 20 H126" ${vein}/>`;
+
 export const BATHROOM_ITEMS: ItemDef[] = [
   { kind: 'clawfoot-tub', name: 'Clawfoot Soaker', cat: 'furniture', w: 220, h: 140, vb: '0 0 220 140', svg: tub },
   { kind: 'rain-shower', name: 'Rain Shower', cat: 'furniture', w: 116, h: 250, vb: '0 0 90 194', svg: shower },
-  { kind: 'mirror-vanity', name: 'Mirror Vanity', cat: 'furniture', w: 114, h: 200, vb: '0 0 100 176', svg: vanity },
+  { kind: 'mirror-vanity', name: 'Mirror Vanity', cat: 'furniture', w: 114, h: 216, vb: '0 -14 100 190', svg: vanity },
   { kind: 'little-toilet', name: 'Little Toilet', cat: 'furniture', w: 100, h: 154, vb: '0 0 78 120', svg: toilet },
   { kind: 'towel-ladder', name: 'Linen Ladder', cat: 'furniture', w: 124, h: 198, vb: '0 0 100 160', svg: ladder },
   { kind: 'wall-towel-bar', name: 'Stripe Rail', cat: 'furniture', w: 170, wall: true, vb: '0 0 130 100', svg: towelBar },
@@ -440,6 +462,7 @@ export const BATHROOM_ITEMS: ItemDef[] = [
   { kind: 'sink-step', name: 'Tip-Toe Stool', cat: 'furniture', w: 110, svg: step },
   { kind: 'linen-cupboard', name: 'Linen Cupboard', cat: 'furniture', w: 120, h: 180, vb: '0 0 80 120', svg: cupboard },
   { kind: 'puddle-mat', name: 'Puddle Bath Mat', cat: 'decor', w: 150, h: 30, vb: '0 0 190 38', svg: mat },
+  { kind: 'bath-rug', name: 'Bath Rug', cat: 'decor', w: 140, h: 35, vb: '0 0 170 42', holdable: false, svg: bathRug },
   { kind: 'sunny-ducky', name: 'Sunny Ducky', cat: 'decor', w: 48, holdable: true, svg: ducky },
   { kind: 'shell-soap', name: 'Shell Soap Dish', cat: 'decor', w: 70, svg: soap },
   { kind: 'bubble-bottle', name: 'Suds Flask', cat: 'decor', w: 55, svg: bottle },
@@ -450,6 +473,7 @@ export const BATHROOM_ITEMS: ItemDef[] = [
   { kind: 'robe-hooks', name: 'Robe Hooks', cat: 'decor', w: 140, wall: true, vb: '0 0 120 100', svg: hooks },
   { kind: 'sand-timer', name: 'Sand Timer', cat: 'decor', w: 60, svg: timer },
   { kind: 'mist-fern', name: 'Mist Fern', cat: 'plants', w: 120, svg: fern },
+  { kind: 'fern-stand', name: 'Fern Stand', cat: 'plants', w: 96, h: 154, vb: '0 0 100 160', holdable: false, svg: stand },
   { kind: 'hanging-eucalyptus', name: 'Hanging Eucalyptus', cat: 'plants', w: 100, wall: true, svg: eucalyptus },
   { kind: 'pebble-succulent', name: 'Pebble Succulent', cat: 'plants', w: 70, svg: succulent },
   { kind: 'aloe-friend', name: 'Aloe Friend', cat: 'plants', w: 90, svg: aloe },

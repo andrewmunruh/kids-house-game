@@ -14,20 +14,22 @@ button.spring { animation: pressSpring .42s cubic-bezier(.34, 1.56, .5, 1); }
   68% { transform: rotate(6deg); }
 }
 
-/* Bubbles rise when she uses the tub or the shower. Filled pastels, big enough to see on an iPad. */
-.item .splash { opacity: 0; }
-.item.splashing .splash { opacity: 1; }
-.item .splash circle { transform-box: fill-box; transform-origin: center; }
-.item.splashing .splash circle { animation: sudsRise 1.35s ease-in infinite; }
-.item.splashing .splash circle:nth-child(2) { animation-delay: .08s; }
-.item.splashing .splash circle:nth-child(3) { animation-delay: .2s; }
-.item.splashing .splash circle:nth-child(4) { animation-delay: .32s; }
-.item.splashing .splash circle:nth-child(5) { animation-delay: .12s; }
-.item.splashing .splash circle:nth-child(6) { animation-delay: .4s; }
-@keyframes sudsRise {
-  0% { transform: translateY(6px) scale(.9); opacity: .9; }
-  45% { opacity: 1; }
-  100% { transform: translateY(-42px) scale(1.12); opacity: 0; }
+/* Bubbles rise in front of the kid when she uses the tub or the shower.
+   Eight filled pastels, all on screen together, floating up past her head. */
+.suds { position: absolute; pointer-events: none; overflow: visible; }
+.suds i {
+  position: absolute; display: block; border-radius: 50%; box-sizing: border-box;
+  border: 2.5px solid #5a3d5c; aspect-ratio: 1; height: auto;
+  animation: sudsFront 1.55s ease-out both;
+}
+.suds i::after {
+  content: ''; position: absolute; left: 18%; top: 14%; width: 30%; height: 30%;
+  border-radius: 50%; background: #fff; opacity: .9;
+}
+@keyframes sudsFront {
+  0% { transform: translateY(10px) scale(.9); opacity: 1; }
+  62% { opacity: 1; }
+  100% { transform: translateY(-140px) scale(1.08); opacity: 0; }
 }
 
 /* Name tags step upward when two kids share the same spot. */
@@ -88,4 +90,5 @@ button.spring { animation: pressSpring .42s cubic-bezier(.34, 1.56, .5, 1); }
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  .suds i { animation: none !important; opacity: 1 !important; transform: translateY(-48px); }
 }
