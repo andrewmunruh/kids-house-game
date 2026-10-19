@@ -57,9 +57,10 @@ export function mountSkyToggle(host: HTMLElement): SkyHandle {
     root.style.setProperty('--sky-glow-clear', 'rgba(255, 186, 80, 0)');
     root.style.setProperty('--sky-glow-wash', `rgba(255, 170, 70, ${(g * 0.55).toFixed(3)})`);
     root.style.setProperty('--sky-glow-map', `rgba(255, 196, 110, ${(g * 0.7).toFixed(3)})`);
-    const sh = look.phase === 'golden' ? 0.82 : look.phase === 'dawn' ? 0.22 : 0;
-    root.style.setProperty('--sky-shadow', `rgba(140, 62, 18, ${sh.toFixed(3)})`);
-    const vig = look.phase === 'night' ? 0.55 : look.phase === 'golden' ? 0.22 : look.phase === 'dawn' ? 0.16 : 0;
+    const sh = look.phase === 'golden' ? 0.24 : look.phase === 'dawn' ? 0.22 : 0;
+    const shRgb = look.phase === 'golden' ? '186, 110, 52' : '140, 62, 18';
+    root.style.setProperty('--sky-shadow', `rgba(${shRgb}, ${sh.toFixed(3)})`);
+    const vig = look.phase === 'night' ? 0.55 : look.phase === 'golden' ? 0.08 : look.phase === 'dawn' ? 0.16 : 0;
     root.style.setProperty('--sky-vig', `rgba(12, 10, 32, ${vig.toFixed(3)})`);
     const orb = look.phase === 'golden' ? '255, 196, 80' : look.phase === 'dawn' ? '255, 214, 230' : '255, 246, 214';
     root.style.setProperty('--sky-orb', `rgba(${orb}, ${(Math.min(1, look.glass)).toFixed(3)})`);

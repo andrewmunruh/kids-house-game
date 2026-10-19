@@ -7,7 +7,7 @@ export type SkyPhase = 'dawn' | 'day' | 'golden' | 'night';
 /** One moment of the sky. Colours are hex so the clock can blend them. */
 export interface SkyLook {
   phase: SkyPhase;
-  /** Room veil. Multiply toward the night indigo. Full night is strong enough that the walls read blue, not grey. */
+  /** Room veil. Night multiplies toward indigo. Golden is a normal blend of about 18% peach, closer to day than to night. */
   opacity: number;
   /** Map veil. Stronger than the room: day grass is bright, and night has to turn it blue-green. */
   map: number;
@@ -51,8 +51,9 @@ const DAWN_T: Tone = {
   fieldA: '#f6d0e2', fieldB: '#dcc8f0', win: '#f6c6de', win2: '#e4d0f8', house: '#ffe0ee', mapTint: '#f3c4dc',
 };
 const GOLD_T: Tone = {
-  tint: '#f4a06a', body: '#ffd2b4', pageA: '#ffb07a', pageB: '#ff9ebf', spot: '#ffe4c4',
-  fieldA: '#ffc48e', fieldB: '#ee9470', win: '#ffb07a', win2: '#ff9ec4', house: '#ffc56a', mapTint: '#e07030',
+  // A soft peach. The room lays this on with a normal blend near 18%, so pink walls stay pink.
+  tint: '#ffb38a', body: '#ffe4dc', pageA: '#ffe0d6', pageB: '#f0d8ea', spot: '#fff6ee',
+  fieldA: '#d4eec4', fieldB: '#a3cb8a', win: '#ffc48a', win2: '#ffd4b0', house: '#ffc56a', mapTint: '#ffb38a',
 };
 const NIGHT_T: Tone = {
   tint: '#2a2350', body: '#14182c', pageA: '#1c1748', pageB: '#101832', spot: '#2c2458',
@@ -67,8 +68,8 @@ const STOPS: Stop[] = [
   { m: 6 * 60 + 25, opacity: 0.14, map: 0.16, glow: 0.28, stars: 0.08, glass: 0.9, phase: 'dawn', ...DAWN_T },
   { m: 7 * 60 + 15, opacity: 0, map: 0, glow: 0, stars: 0, glass: 0, phase: 'day', ...DAY_T },
   { m: 16 * 60 + 15, opacity: 0, map: 0, glow: 0, stars: 0, glass: 0, phase: 'day', ...DAY_T },
-  { m: 17 * 60 + 5, opacity: 0.22, map: 0.28, glow: 0.42, stars: 0.02, glass: 0.7, phase: 'golden', ...GOLD_T },
-  { m: 18 * 60 + 10, opacity: 0.46, map: 0.60, glow: 0.72, stars: 0.14, glass: 0.95, phase: 'golden', ...GOLD_T },
+  { m: 17 * 60 + 5, opacity: 0.08, map: 0.10, glow: 0.40, stars: 0.02, glass: 0.55, phase: 'golden', ...GOLD_T },
+  { m: 18 * 60 + 10, opacity: 0.18, map: 0.20, glow: 0.62, stars: 0.06, glass: 0.82, phase: 'golden', ...GOLD_T },
   { m: 19 * 60 + 5, opacity: 0.52, map: 0.68, glow: 0.9, stars: 0.55, glass: 1, phase: 'night', ...NIGHT_T },
   { m: 20 * 60 + 10, opacity: 0.70, map: 0.78, glow: 1, stars: 1, glass: 1, phase: 'night', ...NIGHT_T },
   { m: 24 * 60, opacity: 0.70, map: 0.78, glow: 1, stars: 1, glass: 1, phase: 'night', ...NIGHT_T },

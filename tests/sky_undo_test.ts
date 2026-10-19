@@ -16,7 +16,7 @@ check('noon is day with no veil', noon.phase === 'day' && noon.opacity === 0 && 
 const night = skyLook(at(3), 'auto');
 check('the middle of the night is cozy night', night.phase === 'night' && night.opacity > 0.62 && night.opacity < 0.78 && night.map > 0.7 && night.map < 0.88 && night.glow > 0.8 && night.stars > 0.8 && night.glass > 0.9 && night.tint === '#2a2350');
 const gold = skyLook(at(18, 10), 'auto');
-check('early evening is golden', gold.phase === 'golden' && gold.glow > 0.4 && gold.opacity > 0.3 && gold.opacity < 0.55 && gold.glass > 0.5);
+check('early evening is golden', gold.phase === 'golden' && gold.glow > 0.4 && gold.opacity >= 0.16 && gold.opacity <= 0.2 && gold.glass > 0.5 && gold.tint === '#ffb38a' && gold.opacity < night.opacity * 0.4);
 const dawn = skyLook(at(6, 25), 'auto');
 check('sunrise is dawn', dawn.phase === 'dawn' && dawn.opacity > 0 && dawn.opacity < night.opacity && dawn.glass > 0.4);
 
