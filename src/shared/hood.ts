@@ -139,6 +139,53 @@ function mapAll(token: string): string {
   for (let i = 0; i < token.length; i++) out += SEND_LEET[token[i]] ?? token[i];
   return out;
 }
+/** Cyrillic letters that look like Latin. у maps to y, matching the shape. */
+const CYRILLIC_LOOK: Record<string, string> = {
+  '\u0455': 's', '\u04bb': 'h', '\u0441': 'c', '\u0430': 'a', '\u0435': 'e', '\u043e': 'o',
+  '\u0440': 'p', '\u0456': 'i', '\u0445': 'x', '\u0443': 'y',
+};
+function foldSend(raw: string): string {
+  const lower = raw.normalize('NFKC').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  let out = '';
+  for (let i = 0; i < lower.length; i++) out += CYRILLIC_LOOK[lower[i]] ?? lower[i];
+  return out;
+}
+const SAFE_WORD = new Set(['it', 'its', "it's", 'is', 'as', 'a', 'i', 'uh', 'oh', 'so', 'he', 'she', 'hi', 'um', 'umm', 'hmm', 'hm', 'ah', 'eh', 'er', 'ow', 'ha', 'hey', 'yo', 'ok', 'yeah', 'yes', 'no', 'nah', 'wow', 'ho', 'ooh', 'ahh', 'uhh', 'ohh']);
+function isKeep(c: string): boolean {
+  return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || '@$!+*v|#<'.includes(c);
+}
+/** sh, shh, and shhh are the same interjection. ass is not on this list. */
+function isSafe(token: string): boolean {
+  const k = token.replace(/^!+/, '').replace(/!+$/, '').replace(/\*/g, '');
+  if (!k) return false;
+  if (/^sh+$/.test(k) || SAFE_WORD.has(k)) return true;
+  const m = mapAll(k);
+  return m !== k && (/^sh+$/.test(m) || SAFE_WORD.has(m));
+}
+function gapKind(sep: string): 'space' | 'hyphen' | 'punct' {
+  let kind: 'space' | 'hyphen' | 'punct' = 'space';
+  for (let i = 0; i < sep.length; i++) {
+    const c = sep[i];
+    if (c === ' ' || c === '\t' || c === '\n' || c === '\r') continue;
+    if (c === '-') { kind = 'hyphen'; continue; }
+    return 'punct';
+  }
+  return kind;
+}
+function splitPieces(folded: string): { text: string; gap: 'start' | 'space' | 'hyphen' | 'punct' }[] {
+  const out: { text: string; gap: 'start' | 'space' | 'hyphen' | 'punct' }[] = [];
+  let i = 0;
+  let pending = '';
+  while (i < folded.length) {
+    if (!isKeep(folded[i])) { pending += folded[i]; i++; continue; }
+    let j = i + 1;
+    while (j < folded.length && isKeep(folded[j])) j++;
+    out.push({ text: folded.slice(i, j), gap: out.length === 0 ? 'start' : gapKind(pending) });
+    pending = '';
+    i = j;
+  }
+  return out;
+}
 /** Bang at the edge is both the letter i and a separator. Block if either reading is a swear. */
 function readingsOf(token: string): string[] {
   const out = [mapAll(token)];
@@ -160,19 +207,21 @@ function killPhrase(tokens: string[]): boolean {
 }
 /** Main swears, compounds, obvious disguises, severe slurs, kys, and "kill yourself". */
 function sendSwear(raw: string): boolean {
-  const folded = raw.normalize('NFKC').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  // Periods, commas, and brackets split words. $ @ 5 1 3 0 7 | < # stay on the word, including at an edge.
-  const parts = folded.split(/[^a-z0-9@$!+*v|#<]+/).filter(Boolean);
-  const tokens: string[] = [];
+  const pieces = splitPieces(foldSend(raw));
+  // Letter-by-letter spelling still combines ('s h i t', 'f.u.c.k'). A longer piece stays separate.
+  const tokens: { text: string; gap: 'start' | 'space' | 'hyphen' | 'punct' }[] = [];
   let buf = '';
-  const flush = () => { if (buf) { tokens.push(buf); buf = ''; } };
-  for (let i = 0; i < parts.length; i++) {
-    if (parts[i].length === 1) buf += parts[i];
-    else { flush(); tokens.push(parts[i]); }
+  let bufGap: 'start' | 'space' | 'hyphen' | 'punct' = 'start';
+  const flush = () => { if (buf) { tokens.push({ text: buf, gap: bufGap }); buf = ''; } };
+  for (let i = 0; i < pieces.length; i++) {
+    if (pieces[i].text.length === 1) {
+      if (!buf) bufGap = pieces[i].gap;
+      buf += pieces[i].text;
+    } else { flush(); tokens.push(pieces[i]); }
   }
   flush();
-  const reads = tokens.map(readingsOf);
-  const plain = tokens.map(t => mapAll(t.replace(/^!+/, '').replace(/!+$/, '')).replace(/\*/g, ''));
+  const reads = tokens.map(t => readingsOf(t.text));
+  const plain = tokens.map(t => mapAll(t.text.replace(/^!+/, '').replace(/!+$/, '')).replace(/\*/g, ''));
   if (killPhrase(plain)) return true;
   for (let i = 0; i < reads.length; i++) {
     for (let r = 0; r < reads[i].length; r++) {
@@ -180,7 +229,14 @@ function sendSwear(raw: string): boolean {
       for (let j = 0; j < forms.length; j++) if (blockedWord(forms[j].replace(/\*/g, ''))) return true;
     }
   }
-  for (let i = 0; i < reads.length - 1; i++) {
+  // Join across a space or hyphen only. A comma, ellipsis, or bang between the pieces does not join.
+  // A real word or interjection (it, shh, oh, ...) is never glued on. Both pieces may be longer than one letter, so 'fu ck' still matches.
+  for (let i = 0; i < tokens.length - 1; i++) {
+    const gap = tokens[i + 1].gap;
+    const L = tokens[i].text;
+    const R = tokens[i + 1].text;
+    if (gap === 'punct' || L.endsWith('!') || R.startsWith('!')) continue;
+    if (isSafe(L) || isSafe(R)) continue;
     for (let a = 0; a < reads[i].length; a++) {
       for (let b = 0; b < reads[i + 1].length; b++) {
         const left = reads[i][a].replace(/\*/g, '');

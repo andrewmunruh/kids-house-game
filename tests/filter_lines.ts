@@ -10,7 +10,8 @@ export const LEAKS = [
   'kill yourself', 'kill urself', 'kill ur self',
   'sh!t',
   '$hit', '5hit', '$h!t', '5h1t', '$h1t', '$hitty', '@sshole', '@$$hole', 'sh!7', '$hit!',
-  '8itch', 'b!tc#', 'fuc|<', 'ass-hole', 'fuc k', 'sh it', 'f uck',
+  '8itch', 'b!tc#', 'fuc|<', 'ass-hole', 'fuc k', 'f uck', 'fu ck', 'bi tch', 's h i t',
+  '\u0455hit', '\u0455\u04bb\u0456t', 'fu\u0441k', 'b\u0456t\u0441h', '\u0430\u0455\u0455h\u043el\u0435', 'n\u0456gg\u0435r', 'f\u0430gg\u043et', 'k\u0443s',
 ];
 
 export const KID_OK = [
@@ -30,4 +31,6 @@ export const KID_OK = [
   'roblox user Jane2016', 'Ava Smith', 'you are silly', 'go away',
   'snigger', 'retardant', 'shiitake', 'shitake', 'Nigeria', 'bitcoin', 'fuchsia',
   'killer whale', 'kill the boss in the game',
+  "Shh, it's a surprise", "shh it's a secret", 'shhh its nap time', 'shh it is bedtime',
+  'shh its ok', "shhh... it's late", 'Sh! It is a secret', 'sh it',
 ];
