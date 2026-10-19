@@ -195,19 +195,19 @@ async def lineup_and_perf(b):
     check('a chibi kid holds the teddy', held['kind'] == 'teddy' and held['chibi'] and vis >= 1, str(held) + ' shown ' + str(vis))
     await ctx.close()
 
-async def riding(b):
-    ctx = await b.new_context(viewport={'width': 1180, 'height': 820}, device_scale_factor=1, has_touch=True)
+async def ride_shot(b, name, dress):
+    ctx = await b.new_context(viewport={'width': 820, 'height': 1180}, device_scale_factor=1, has_touch=True)
     await ctx.add_init_script(SKIP_WN)
     pg = await ctx.new_page()
     errs = []
     pg.on('pageerror', lambda e: errs.append(str(e)))
     await pg.goto(URL)
     await pg.wait_for_selector('#stage .char')
-    await pg.evaluate("""() => {
-      const L = { v: 1, hair: 'puffs', hairC: '#2b1d16', skin: '#c68642', eyes: 'sparkle', eyeC: '#3d7ec4', freckles: true, blush: true, top: 'classic', topC: '#ff7aa8', bottom: 'pants', bottomC: '#5aa9e6', dress: 'twirl', dressC: '#f4a3c8', shoes: 'boots', shoesC: '#5a3d5c', acc: ['bow'], accC: '#ffd166' };
+    await pg.evaluate("""(dress) => {
+      const L = { v: 1, hair: 'puffs', hairC: '#2b1d16', skin: '#c68642', eyes: 'round', eyeC: '#7b4fb8', freckles: false, blush: true, top: 'classic', topC: '#ff7aa8', bottom: 'pants', bottomC: '#5aa9e6', dress: dress, dressC: '#f4a3c8', shoes: 'boots', shoesC: '#5a3d5c', acc: ['bow'], accC: '#ffd166' };
       const clean = __avatar.sanitizeLook2(L);
       __store.dispatch({ type: 'char/update', id: 'c1', patch: Object.assign({ size: 'kid', look2: clean }, __avatar.legacyFromLook2(clean)) });
-    }""")
+    }""", dress)
     await go(pg, 'ranch')
     await pg.evaluate("""() => {
       const s = document.getElementById('ranchScroll');
@@ -215,10 +215,24 @@ async def riding(b):
       s.scrollLeft = 2990 * sc - s.clientWidth / 2;
     }""")
     await pg.locator('.horse[data-horse="4"]').click(force=True)
-    await pg.wait_for_timeout(400)
+    await pg.wait_for_timeout(500)
+    await pg.evaluate("""() => {
+      const av = document.querySelector('.savatar.riding.mine');
+      const s = document.getElementById('ranchScroll');
+      if (!av || !s) return;
+      const r = av.getBoundingClientRect();
+      const sr = s.getBoundingClientRect();
+      s.scrollLeft += (r.left + r.width / 2) - (sr.left + sr.width / 2);
+    }""")
+    await pg.wait_for_timeout(250)
+    path = f'{SHOT}/{name}'
+    await pg.screenshot(path=path)
     pose = await pg.evaluate("""() => {
       const av = document.querySelector('.savatar.riding.mine');
       if (!av) return null;
+      const box = av.getBoundingClientRect();
+      const horse = av.querySelector('.mount');
+      const hb = horse ? horse.getBoundingClientRect() : null;
       const legs = [...av.querySelectorAll('.inner .leg')].map(el => getComputedStyle(el).opacity);
       const ride = av.querySelector('.rideleg');
       return {
@@ -227,11 +241,33 @@ async def riding(b):
         thigh: ride ? !!ride.querySelector('.thigh') : false,
         drape: ride ? !!ride.querySelector('.dress') : false,
         hands: av.querySelectorAll('.inner .hand').length,
+        tall: Math.max(box.height, hb ? hb.height : 0),
+        wide: Math.max(box.width, hb ? hb.width : 0),
+        inView: box.top > -20 && box.bottom < 1200 && (hb ? hb.top > -20 && hb.bottom < 1200 : false),
       };
     }""")
-    await pg.locator('.savatar.riding.mine').screenshot(path=f'{SHOT}/kid-riding.png')
     hidden = pose and all(op == '0' for op in pose['legs']) and len(pose['legs']) >= 2
-    check('a chibi kid rides with the outfit leg', pose and pose['chibi'] and pose['thigh'] and pose['drape'] and pose['hands'] >= 2 and hidden and not errs, str(pose) + ' ' + '; '.join(errs[:2]))
+    size = os.path.getsize(path)
+    check(f'{name} shows the whole kid on the horse', pose and pose['chibi'] and pose['thigh'] and pose['hands'] >= 2 and hidden and pose['inView'] and pose['tall'] > 140 and size > 20000 and not errs,
+          f"{pose} bytes {size} {errs[:1]}")
+    if dress:
+        check('a dress drapes over the saddle', bool(pose and pose['drape']), str(pose))
+    else:
+        check('pants stay on the riding thigh', bool(pose and not pose['drape']), str(pose))
+    await ctx.close()
+
+async def riding(b):
+    await ride_shot(b, 'kid-riding-dress.png', 'twirl')
+    await ride_shot(b, 'kid-riding-pants.png', '')
+
+async def proofs(b):
+    subprocess.check_call(['npx', 'tsx', 'tests/avatar_proof.ts'], cwd='/workspace')
+    ctx = await b.new_context(viewport={'width': 1200, 'height': 800}, device_scale_factor=1)
+    pg = await ctx.new_page()
+    await pg.goto('file:///tmp/avatar-proof.html')
+    await pg.locator('#compare').screenshot(path=f'{SHOT}/side-by-side.png')
+    await pg.locator('#hats').screenshot(path=f'{SHOT}/hat-hair-grid.png')
+    check('side-by-side and hat grid were captured', os.path.getsize(f'{SHOT}/side-by-side.png') > 20000 and os.path.getsize(f'{SHOT}/hat-hair-grid.png') > 20000)
     await ctx.close()
 
 async def street(b):
@@ -332,6 +368,7 @@ async def main():
     os.makedirs(SHOT, exist_ok=True)
     async with async_playwright() as p:
         b = await p.chromium.launch()
+        await proofs(b)
         await customizer(b)
         await lineup_and_perf(b)
         await riding(b)

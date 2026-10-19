@@ -28,14 +28,17 @@
 
 /* 820-wide portrait iPad: the layout this screen was drawn for. */
 @media (min-width: 700px) and (max-width: 900px) and (orientation: portrait) {
-  .avStage { width: 250px; height: 400px; }
+  .avStageWrap { flex-basis: 360px; }
+  .avStage { width: 360px; height: 576px; }
+  .avStage svg { width: 100%; height: 100%; }
   .avOpt { min-height: 76px; font-size: 16px; }
   .avSw { width: 64px; height: 64px; }
   .avTab { min-height: 52px; font-size: 18px; padding: 10px 16px; }
 }
 
 @media (max-height: 820px) and (min-width: 900px) {
-  .avStage { width: 200px; height: 300px; }
+  .avStage { width: 280px; height: 448px; }
+  .avStage svg { width: 100%; height: 100%; }
 }
 
 /* Full-quality walk: arms swing outward only. Right arm uses a negative angle. */

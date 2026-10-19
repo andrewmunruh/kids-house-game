@@ -32,7 +32,8 @@ function curlCloud(cx: number, cy: number, r: number, rot: number, u: string, ri
     out += `<path d="M${f(x - 4)} ${f(y + 1)} q1 -5 4.5 -4.5 q3.5 1 2.5 4.5" fill="none" stroke="var(--hair-shade)" stroke-width="2.2" stroke-linecap="round"/>`;
     if (y < cy - 2 && x < cx + 6) out += `<path d="M${f(x - 2.5)} ${f(y - 2.5)} q2 -2 3.5 -1" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".5"/>`;
   }
-  out += `<ellipse cx="${f(cx - 10)}" cy="${f(cy - 12)}" rx="5" ry="3" fill="#fff" opacity=".4" transform="rotate(-35 ${f(cx - 10)} ${f(cy - 12)})"/>`;
+  out += `<ellipse cx="${f(cx - 10)}" cy="${f(cy - 12)}" rx="6" ry="3.4" fill="#fff" opacity=".55" transform="rotate(-35 ${f(cx - 10)} ${f(cy - 12)})"/>`;
+  out += `<path d="M${f(cx - 16)} ${f(cy - 6)} Q${f(cx - 6)} ${f(cy - 18)} ${f(cx + 4)} ${f(cy - 14)}" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".5"/>`;
   return out;
 }
 
@@ -102,7 +103,7 @@ export function hairBack(hair: string, u: string, rich: boolean): string {
   const fam = family(hair);
   if (fam === 'puffs') {
     const r = hair === 'coily' ? 26 : 30;
-    return curlCloud(48, 52, r, 0, u, rich) + curlCloud(152, 52, r, 0.3, u, rich)
+    return curlCloud(48, 52, r, 0, u, rich, 12) + curlCloud(152, 52, r, 0.3, u, rich, 12)
       + `<path d="M42 112 Q38 48 100 44 Q162 48 158 112 Q154 144 100 146 Q46 144 42 112 Z" fill="var(--hair)" ${S(3.2)}/>`
       + tie(66, 68, -35) + tie(134, 68, 35);
   }
@@ -174,7 +175,7 @@ export function hairFront(hair: string, u: string, rich: boolean): string {
         ? 'M40 108 Q36 40 100 34 Q164 40 160 108 L150 96 Q130 108 100 100 Q70 108 50 96 Z'
         : 'M40 106 Q36 36 100 32 Q164 36 160 106 Q154 74 130 62 Q112 70 100 52 Q88 70 70 62 Q46 74 40 106 Z';
     let out = SHADOW + `<path d="${sh}" fill="var(--hair)" ${S(3.2)}/>${vol(sh, u, rich)}${part}`;
-    out += strands(['M84 44 Q70 52 60 70', 'M116 44 Q130 52 140 70', 'M76 42 Q58 56 52 82', 'M124 42 Q142 56 148 82']);
+    out += strands(['M84 44 Q70 52 60 70', 'M116 44 Q130 52 140 70', 'M92 40 Q80 48 74 58', 'M108 40 Q120 48 126 58', 'M76 42 Q58 56 52 82', 'M124 42 Q142 56 148 82']);
     out += hi(['M90 36 Q78 42 70 52', 'M112 36 Q124 42 132 52']);
     if (fam === 'puffs') {
       out += `<path d="M44 96 q-6 4 -2 10 q4 4 0 8" fill="none" stroke="${L}" stroke-width="7" stroke-linecap="round"/><path d="M44 96 q-6 4 -2 10 q4 4 0 8" fill="none" stroke="var(--hair)" stroke-width="3.6" stroke-linecap="round"/>`;
@@ -215,7 +216,8 @@ export function hairFront(hair: string, u: string, rich: boolean): string {
       ? 'M44 108 Q40 50 100 46 Q160 50 156 108 Q148 82 100 74 Q52 82 44 108 Z'
       : 'M40 106 Q36 36 100 32 Q164 36 160 106 Q152 80 138 70 Q126 80 112 76 Q104 82 100 74 Q96 82 88 76 Q74 80 62 70 Q48 80 40 106 Z';
     let out = SHADOW + `<path d="${sh}" fill="var(--hair)" ${S(3.2)}/>${vol(sh, u, rich)}`;
-    out += strands(['M80 44 Q72 58 68 70', 'M120 44 Q128 58 132 70', 'M100 38 Q98 58 100 72']);
+    out += strands(['M80 42 Q72 56 68 68', 'M120 42 Q128 56 132 68', 'M100 36 Q98 56 100 70', 'M90 38 Q84 56 86 72', 'M110 38 Q116 56 114 72']);
+    out += hi(['M86 38 Q80 46 78 54', 'M114 38 Q120 46 122 54']);
     if (fam === 'buns') {
       for (const [x, sg] of [[42, 1], [158, -1]] as const) {
         const d = `M${x} 100 q${-8 * sg} 14 ${-2 * sg} 24 q${5 * sg} 8 ${-1 * sg} 14`;

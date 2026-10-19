@@ -47,6 +47,20 @@ export function hemOf(pose: Pose): number {
   return Math.round(p.y / 2 * 10) / 10;
 }
 
+function channelSum(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  return ((n >> 16) & 255) + ((n >> 8) & 255) + (n & 255);
+}
+/** Near-black hair keeps the approved warm strand color so the lines stay visible. */
+function hairShade(hex: string): string {
+  const shaded = darken(hex, 0.32);
+  return channelSum(shaded) < 80 ? '#5a3a2c' : shaded;
+}
+/** Soft plum on dark hair, like the approved faces. Lighter hair keeps a gentle match. */
+function browOf(hex: string): string {
+  return channelSum(hex) < 140 ? '#3b2340' : darken(hex, 0.12);
+}
+
 let seq = 0;
 function nextUid(): string {
   seq += 1;
@@ -102,32 +116,43 @@ function legPart(side: 'l' | 'r'): string {
 
 function eye(cx: number, cy: number, flip: boolean, u: string, style: string, rich: boolean): string {
   const s = flip ? -1 : 1;
-  const big = style === 'big' || style === 'bright' ? 1.08 : 1;
-  const rx = 13.5 * big, ry = 17 * big;
+  const sc = style === 'big' || style === 'bright' ? 1.08 : style === 'soft' ? 0.94 : 1;
+  const P = (dx: number, dy: number) => `${f(cx + dx * sc)} ${f(cy + dy * sc)}`;
+  const rx = 13.5 * sc, ry = 17 * sc;
   let streaks = '';
   if (rich && style !== 'soft') {
-    const angs = [0.4, 1.1, 1.7, 2.4, 3];
+    const angs = [0.35, 0.95, 1.57, 2.2, 2.8];
     for (let i = 0; i < angs.length; i++) {
       const a = angs[i];
-      streaks += `<path d="M${f(cx + 5 * Math.cos(a))} ${f(cy + 4 + 6 * Math.sin(a))} L${f(cx + 11 * Math.cos(a))} ${f(cy + 2 + 13 * Math.sin(a))}" stroke="#fff" stroke-width="1.1" stroke-linecap="round" opacity=".28"/>`;
+      streaks += `<path d="M${f(cx + 5.5 * Math.cos(a) * sc)} ${f(cy + (4 + 6.5 * Math.sin(a)) * sc)} L${f(cx + 11.5 * Math.cos(a) * sc)} ${f(cy + (2 + 14 * Math.sin(a)) * sc)}" stroke="#fff" stroke-width="1.1" stroke-linecap="round" opacity=".28"/>`;
     }
   }
+  const lashW = style === 'soft' ? 2 : 2.6;
+  const flicks = style === 'soft' ? ''
+    : `<path d="M${P(-16 * s, -8)} q${f(-6 * s * sc)} -2 ${f(-9 * s * sc)} ${f(-9 * sc)} M${P(-17 * s, -2)} q${f(-6 * s * sc)} ${f(-0.5 * sc)} ${f(-10 * s * sc)} ${f(-5 * sc)} M${P(-12 * s, -15)} q${f(-3 * s * sc)} ${f(-4 * sc)} ${f(-4 * s * sc)} ${f(-9 * sc)}" fill="none" stroke="var(--lash)" stroke-width="2.2" stroke-linecap="round"/>`;
+  const extra = style === 'sparkle' || style === 'bright'
+    ? `<path d="M${P(-9 * s, -8)} l.7 1.6 1.6 .7 -1.6 .7 -.7 1.6 -.7 -1.6 -1.6 -.7 1.6 -.7 Z" fill="#fff" opacity=".9"/>`
+    : '';
+  const iris = rich ? `<ellipse cx="${cx}" cy="${f(cy + sc)}" rx="${f(rx)}" ry="${f(ry)}" fill="url(#${u}i)"/>` : '';
   const lid = style === 'sleepy'
-    ? `<path d="M${cx - 16} ${cy - 2} Q${cx} ${cy + 6} ${cx + 16} ${cy - 2} L${cx + 16} ${cy - 18} Q${cx} ${cy - 24} ${cx - 16} ${cy - 18} Z" fill="var(--skin)"/>`
+    ? `<path d="M${P(-17, -4)} Q${cx} ${f(cy + sc)} ${P(17, -4)} L${P(18, -16)} Q${cx} ${f(cy - 20 * sc)} ${P(-18, -16)} Z" fill="var(--skin)"/>`
     : '';
-  const spark = style === 'sparkle' || style === 'bright'
-    ? `<path d="M${cx + 8 * s} ${cy - 12} l1 2.2 2.2 1 -2.2 1 -1 2.2 -1 -2.2 -2.2 -1 2.2 -1 Z" fill="#fff"/>`
-    : '';
-  const iris = rich ? `<ellipse cx="${cx}" cy="${cy + 1}" rx="${f(rx)}" ry="${f(ry)}" fill="url(#${u}i)"/>` : '';
-  return `<ellipse cx="${cx}" cy="${cy + 1}" rx="${f(rx + 2)}" ry="${f(ry + 2)}" fill="#fff"/>`
-    + `<ellipse cx="${cx}" cy="${cy + 1}" rx="${f(rx)}" ry="${f(ry)}" fill="var(--eye)"/>${iris}${streaks}`
-    + `<ellipse cx="${cx}" cy="${cy + 3}" rx="${f(7 * big)}" ry="${f(9 * big)}" fill="#1f1020" opacity=".8"/>`
-    + `<ellipse cx="${cx}" cy="${cy + 1}" rx="${f(rx)}" ry="${f(ry)}" fill="none" stroke="#1f1020" stroke-width="1.6" opacity=".5"/>`
-    + `<ellipse cx="${cx - 5 * s}" cy="${cy - 6}" rx="5" ry="6" fill="#fff" transform="rotate(${-12 * s} ${cx - 5 * s} ${cy - 6})"/>`
-    + `<circle cx="${cx + 5 * s}" cy="${cy + 7}" r="2.4" fill="#fff"/>${spark}`
-    + `<path d="M${cx - 16} ${cy - 2} Q${cx} ${cy - 22} ${cx + 16} ${cy - 4}" fill="none" stroke="var(--lash)" stroke-width="${style === 'soft' ? 3.2 : 4.2}" stroke-linecap="round"/>`
-    + (style === 'soft' ? '' : `<path d="M${cx - 15 * s} ${cy - 6} q${-5 * s} -2 ${-8 * s} -7" fill="none" stroke="var(--lash)" stroke-width="2.2" stroke-linecap="round"/>`)
-    + lid;
+  return `<path d="M${P(-16, -2)} Q${P(-16, -20)} ${P(0, -20)} Q${P(16, -20)} ${P(16, -2)} Q${P(16, 19)} ${P(0, 19)} Q${P(-16, 19)} ${P(-16, -2)} Z" fill="#fff"/>`
+    + `<path d="M${P(-15, -4)} Q${cx} ${f(cy - 21 * sc)} ${P(15, -4)} Q${cx} ${f(cy - 14 * sc)} ${P(-15, -4)} Z" fill="#3a1d3c" opacity=".12"/>`
+    + `<ellipse data-iris="1" cx="${cx}" cy="${f(cy + sc)}" rx="${f(rx)}" ry="${f(ry)}" fill="var(--eye)"/>${iris}${streaks}`
+    + `<ellipse cx="${cx}" cy="${f(cy + 3 * sc)}" rx="${f(7 * sc)}" ry="${f(9 * sc)}" fill="#1f1020" opacity=".8"/>`
+    + `<ellipse cx="${cx}" cy="${f(cy + sc)}" rx="${f(11.3 * sc)}" ry="${f(14.8 * sc)}" fill="none" stroke="#fff" stroke-width="1" opacity=".22"/>`
+    + `<ellipse cx="${cx}" cy="${f(cy + sc)}" rx="${f(rx)}" ry="${f(ry)}" fill="none" stroke="#1f1020" stroke-width="2" opacity=".55"/>`
+    + `<path d="M${P(-9, 12)} Q${cx} ${f(cy + 19.5 * sc)} ${P(9, 12)} Q${cx} ${f(cy + 15.5 * sc)} ${P(-9, 12)} Z" fill="#fff" opacity=".5"/>`
+    + `<ellipse cx="${f(cx - 6 * s * sc)}" cy="${f(cy - 6 * sc)}" rx="${f(5.8 * sc)}" ry="${f(6.8 * sc)}" fill="#fff" transform="rotate(${-15 * s} ${f(cx - 6 * s * sc)} ${f(cy - 6 * sc)})"/>`
+    + `<circle cx="${f(cx + 6 * s * sc)}" cy="${f(cy + 8 * sc)}" r="${f(2.8 * sc)}" fill="#fff"/>`
+    + `<circle cx="${f(cx - 4 * s * sc)}" cy="${f(cy + 10 * sc)}" r="${f(1.3 * sc)}" fill="#fff" opacity=".85"/>`
+    + `<path d="M${P(7 * s, -10)} l${f(sc)} ${f(2.4 * sc)} ${f(2.4 * sc)} ${f(sc)} ${f(-2.4 * sc)} ${f(sc)} ${f(-sc)} ${f(2.4 * sc)} ${f(-sc)} ${f(-2.4 * sc)} ${f(-2.4 * sc)} ${f(-sc)} ${f(2.4 * sc)} ${f(-sc)} Z" fill="#fff"/>`
+    + extra + lid
+    + `<path d="M${P(-17, -1)} Q${P(-16, -21)} ${P(0, -21)} Q${P(16, -21)} ${P(17, -3)} Q${P(14.5, -18.6)} ${P(0, -18.8)} Q${P(-14.5, -18.6)} ${P(-15.5, -1)} Z" fill="var(--lash)" stroke="var(--lash)" stroke-width="${lashW}" stroke-linejoin="round"/>`
+    + flicks
+    + `<path d="M${P(-11, -23)} Q${cx} ${f(cy - 27 * sc)} ${P(11, -23)}" fill="none" stroke="var(--line)" stroke-width="1.3" stroke-linecap="round" opacity=".22"/>`
+    + `<path d="M${P(-5, 20.5)} Q${cx} ${f(cy + 22 * sc)} ${P(5, 20.5)}" fill="none" stroke="var(--lash)" stroke-width="1.3" stroke-linecap="round" opacity=".28"/>`;
 }
 
 function face(look: ReturnType<typeof fillLook2>, u: string, rich: boolean): string {
@@ -141,9 +166,11 @@ function face(look: ReturnType<typeof fillLook2>, u: string, rich: boolean): str
     for (let i = 0; i < dots.length; i++) fr += `<circle cx="${dots[i][0]}" cy="${dots[i][1]}" r="1.5" fill="var(--freckle)" opacity=".7"/>`;
   }
   return blush + fr
-    + '<path d="M64 86 q10 -6 21 -2" fill="none" stroke="var(--brow)" stroke-width="3.2" stroke-linecap="round"/><path d="M115 84 q11 -4 21 2" fill="none" stroke="var(--brow)" stroke-width="3.2" stroke-linecap="round"/>'
+    + '<path data-brow="l" d="M64 86 Q74 80 85 84" fill="none" stroke="var(--brow)" stroke-width="3.2" stroke-linecap="round"/>'
+    + '<path data-brow="r" d="M115 84 Q126 80 136 86" fill="none" stroke="var(--brow)" stroke-width="3.2" stroke-linecap="round"/>'
     + eye(76, 112, false, u, look.eyes, rich) + eye(124, 112, true, u, look.eyes, rich)
-    + '<path d="M98 131 q2 1.6 4 0" fill="none" stroke="var(--line)" stroke-width="2" stroke-linecap="round" opacity=".55"/>'
+    + '<path d="M98 131 q2 1.8 4 0" fill="none" stroke="var(--line)" stroke-width="2" stroke-linecap="round" opacity=".55"/>'
+    + '<ellipse cx="101.5" cy="128.5" rx="1.6" ry="1" fill="#fff" opacity=".6"/>'
     + '<path d="M92 140 Q100 147.5 108 140" fill="none" stroke="var(--line)" stroke-width="2.8" stroke-linecap="round"/>'
     + '<path d="M96 142.6 Q100 145.4 104 142.6 Q100 144 96 142.6 Z" fill="#ff8fa8"/>';
 }
@@ -172,8 +199,8 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean }): s
     '--line:#5a3d5c',
     `--skin:${L.skin}`,
     `--hair:${L.hairC}`,
-    `--hair-shade:${darken(L.hairC, 0.32)}`,
-    `--brow:${darken(L.hairC, 0.2)}`,
+    `--hair-shade:${hairShade(L.hairC)}`,
+    `--brow:${browOf(L.hairC)}`,
     `--eye:${L.eyeC}`,
     '--lash:#3b2340',
     '--blush:#ff6f91',
@@ -193,7 +220,7 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean }): s
   const arms = limb('arm', 'l', `<g class="hand">${armPart('l')}</g>`, pose) + limb('arm', 'r', `<g class="hand">${armPart('r')}</g>`, pose);
   const body = `<g data-layer="body">${legs}${wrapHip(torso() + arms, pose)}${wrapHead(headShape(u), pose)}</g>`;
   const top = L.dress ? dressLayer(pose, L, u, rich, hem) : topLayer(pose, L, u, rich, hem);
-  const shadow = `<g class="shadow"><ellipse cx="100" cy="308" rx="52" ry="8" fill="url(#${u}s)"/><ellipse cx="87" cy="307" rx="14" ry="3.2" fill="#3a1d3c" opacity=".16"/><ellipse cx="113" cy="307" rx="14" ry="3.2" fill="#3a1d3c" opacity=".16"/></g>`;
+  const shadow = `<g class="shadow"><ellipse cx="100" cy="308" rx="52" ry="9" fill="url(#${u}s)"/><ellipse cx="87" cy="307" rx="15" ry="3.6" fill="#3a1d3c" opacity=".16"/><ellipse cx="113" cy="307" rx="15" ry="3.6" fill="#3a1d3c" opacity=".16"/></g>`;
   const layers = [
     `<g data-layer="hair-back">${wrapHead(hairBack(L.hair, u, rich), pose)}</g>`,
     body,
@@ -206,5 +233,5 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean }): s
     wrapHead(accessoryLayer(L), pose),
   ].join('');
   const shownTop = L.dress || L.top;
-  return `<svg data-chibi="1" data-hair="${L.hair}" data-top="${shownTop}" viewBox="0 0 200 320" xmlns="http://www.w3.org/2000/svg" style="${style}">${defs(u, rich)}${shadow}${layers}</svg>`;
+  return `<svg data-chibi="1" data-hair="${L.hair}" data-top="${shownTop}" viewBox="0 0 200 320" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg" style="${style}">${defs(u, rich)}${shadow}${layers}</svg>`;
 }

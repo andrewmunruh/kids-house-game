@@ -5,7 +5,7 @@ import { chibiSVG, handsOf, hemOf, poseFor } from '../src/avatar/draw';
 import { chibiRideLeg } from '../src/avatar/ride';
 import {
   sanitizeLook2, fillLook2, legacyFromLook2, look2FromLegacy, patchFromLook2, randomLook2, withRandomStarter,
-  HAIR_IDS, LOOK2_MAX,
+  HAIR_IDS, EYE_IDS, ACC_IDS, accSlot, LOOK2_MAX,
 } from '../src/shared/avatar';
 import { cleanHouseState, cleanLook, cleanLookPatch, cleanAction, PROTOCOL } from '../src/shared/hood';
 import { initialState, migrate, reduce } from '../src/shared/state';
@@ -35,6 +35,7 @@ const maya = fillLook2({ v: 1, hair: 'puffs', hairC: '#2b1d16', skin: '#8d5524',
 const svg = chibiSVG(maya, { rich: true, uid: 'm' });
 check('chibi marks itself and keeps blush', svg.indexOf('data-chibi="1"') >= 0 && svg.indexOf('radialGradient') >= 0 && svg.indexOf('feGaussianBlur') < 0 && svg.indexOf('--hair:#2b1d16') >= 0);
 check('full quality draws the iris and cloth gradients', svg.indexOf('id="mi"') >= 0 && svg.indexOf('id="mc"') >= 0);
+check('a round eye keeps the kit sparkles, crescent, and gloss', svg.indexOf('data-iris="1"') >= 0 && svg.indexOf('opacity=".5"/>') >= 0 && svg.indexOf('M54 72') >= 0 && svg.indexOf('class="shadow"') >= 0);
 const light = chibiSVG(maya, { rich: false, uid: 'q' });
 check('safari floor skips the heavy gradients', light.indexOf('id="qi"') < 0 && light.indexOf('id="qc"') < 0 && light.indexOf('radialGradient') >= 0 && light.indexOf('data-chibi') >= 0);
 
@@ -91,5 +92,118 @@ check('a kid without look2 stays without it', plain.characters[0].look2 === unde
 check('protocol stays 4', PROTOCOL === 4);
 const act = cleanAction({ type: 'char/update', id: 'c1', patch: { shirt: '#ffffff', look2: { v: 1, hair: 'bob', bad: 'no' } } });
 check('a network patch keeps a cleaned look2', act?.type === 'char/update' && (act as any).patch.look2?.hair === 'bob' && (act as any).patch.shirt === '#ffffff');
+
+function quad(x0: number, y0: number, x1: number, y1: number, x2: number, y2: number, t: number): { x: number; y: number } {
+  const u = 1 - t;
+  return { x: u * u * x0 + 2 * u * t * x1 + t * t * x2, y: u * u * y0 + 2 * u * t * y1 + t * t * y2 };
+}
+function browHappy(d: string): boolean {
+  const n = (d.match(/-?\d*\.?\d+/g) || []).map(Number);
+  if (n.length < 6) return false;
+  const a = { x: n[0], y: n[1] }, c = { x: n[2], y: n[3] }, b = { x: n[4], y: n[5] };
+  const inner = a.x < 100 ? b : a, outer = a.x < 100 ? a : b;
+  if (inner.y > outer.y + 0.4) return false;
+  let peak = Math.min(a.y, b.y);
+  for (let t = 0.15; t < 1; t += 0.1) peak = Math.min(peak, quad(a.x, a.y, c.x, c.y, b.x, b.y, t).y);
+  return peak <= Math.min(inner.y, outer.y) - 1;
+}
+for (const eyes of EYE_IDS) {
+  const face = chibiSVG(fillLook2({ v: 1, eyes, hair: 'short' }), { rich: true, uid: 'e' });
+  const brows = face.match(/data-brow="[lr]" d="([^"]+)"/g) || [];
+  const happy = brows.length === 2 && brows.every(tag => browHappy((tag.match(/d="([^"]+)"/) || [])[1] || ''));
+  check('a ' + eyes + ' face has raised happy brows', happy, brows.join(' '));
+}
+
+interface Pt { x: number; y: number }
+function samplePath(d: string): Pt[] {
+  const tokens = d.match(/[MLHVQZ]|-?\d*\.?\d+/gi) || [];
+  const pts: Pt[] = [];
+  let i = 0, x = 0, y = 0, sx = 0, sy = 0;
+  const num = () => parseFloat(tokens[i++]);
+  while (i < tokens.length) {
+    const cmd = tokens[i++];
+    if (cmd === 'M' || cmd === 'L') { x = num(); y = num(); if (cmd === 'M') { sx = x; sy = y; } pts.push({ x, y }); }
+    else if (cmd === 'H') { x = num(); pts.push({ x, y }); }
+    else if (cmd === 'V') { y = num(); pts.push({ x, y }); }
+    else if (cmd === 'Q') {
+      const x1 = num(), y1 = num(), x2 = num(), y2 = num();
+      for (let t = 0.1; t <= 1.001; t += 0.1) {
+        const p = quad(x, y, x1, y1, x2, y2, Math.min(t, 1));
+        pts.push(p);
+      }
+      x = x2; y = y2;
+    } else if (cmd === 'Z' || cmd === 'z') { x = sx; y = sy; pts.push({ x, y }); }
+  }
+  return pts;
+}
+function attr(tag: string, name: string): string {
+  const m = new RegExp('\\b' + name + '="([^"]*)"').exec(tag);
+  return m ? m[1] : '';
+}
+function inPoly(p: Pt, poly: Pt[]): boolean {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j];
+    if (((a.y > p.y) !== (b.y > p.y)) && p.x < (b.x - a.x) * (p.y - a.y) / ((b.y - a.y) || 1e-9) + a.x) c = !c;
+  }
+  return c;
+}
+function distSeg(p: Pt, a: Pt, b: Pt): number {
+  const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy || 1e-9;
+  let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+const HATS = ACC_IDS.filter(id => accSlot(id) === 'hat');
+let hatFail = '';
+for (const hair of HAIR_IDS) {
+  for (let h = 0; h < HATS.length && !hatFail; h++) {
+    const hat = HATS[h];
+    const svg = chibiSVG(fillLook2({ v: 1, hair, eyes: 'big', acc: [hat], accC: '#ffd166' }), { rich: false, uid: 'h' });
+    const irises: { cx: number; cy: number; rx: number; ry: number }[] = [];
+    const all = svg.match(/<ellipse\b[^>]*>/g) || [];
+    for (let t = 0; t < all.length; t++) {
+      if (all[t].indexOf('data-iris') < 0) continue;
+      irises.push({ cx: +attr(all[t], 'cx'), cy: +attr(all[t], 'cy'), rx: +attr(all[t], 'rx'), ry: +attr(all[t], 'ry') });
+    }
+    const acc = (svg.split('data-layer="accessory">')[1] || '').split('</g>')[0];
+    const tags = acc.match(/<(path|circle|ellipse)\b[^>]*>/g) || [];
+    const eyes: Pt[] = [];
+    for (let e = 0; e < irises.length; e++) {
+      const ir = irises[e];
+      eyes.push({ x: ir.cx, y: ir.cy });
+      eyes.push({ x: ir.cx, y: ir.cy - ir.ry * 0.8 }, { x: ir.cx, y: ir.cy + ir.ry * 0.55 });
+      eyes.push({ x: ir.cx - ir.rx * 0.7, y: ir.cy }, { x: ir.cx + ir.rx * 0.7, y: ir.cy });
+    }
+    for (let t = 0; t < tags.length && !hatFail; t++) {
+      const tag = tags[t];
+      const sw = parseFloat(attr(tag, 'stroke-width') || '0') || 0;
+      const filled = attr(tag, 'fill') !== 'none';
+      if (tag.indexOf('<circle') === 0 || tag.indexOf('<ellipse') === 0) {
+        const cx = +attr(tag, 'cx'), cy = +attr(tag, 'cy');
+        const rx = +(attr(tag, 'rx') || attr(tag, 'r')) + sw / 2;
+        const ry = +(attr(tag, 'ry') || attr(tag, 'r')) + sw / 2;
+        if (cx > 54 && cx < 146 && cy + ry > 77) hatFail = hair + ' ' + hat + ' circle';
+        for (let p = 0; p < eyes.length; p++) {
+          const dx = (eyes[p].x - cx) / rx, dy = (eyes[p].y - cy) / ry;
+          if (dx * dx + dy * dy <= 1) hatFail = hair + ' ' + hat + ' covers an eye';
+        }
+      } else {
+        const poly = samplePath(attr(tag, 'd'));
+        for (let p = 0; p < poly.length; p++) {
+          if (poly[p].x >= 54 && poly[p].x <= 146 && poly[p].y + sw / 2 > 77) hatFail = hair + ' ' + hat + ' dips to ' + poly[p].y.toFixed(1);
+        }
+        for (let p = 0; p < eyes.length && !hatFail; p++) {
+          if (filled && inPoly(eyes[p], poly)) hatFail = hair + ' ' + hat + ' fill';
+          for (let s = 1; s < poly.length && !hatFail; s++) {
+            if (distSeg(eyes[p], poly[s - 1], poly[s]) <= sw / 2 + 0.8) hatFail = hair + ' ' + hat + ' stroke';
+          }
+        }
+      }
+    }
+    if (irises.length < 2) hatFail = hair + ' ' + hat + ' missing eyes';
+  }
+}
+check('every hat sits above the brow on every hairstyle', hatFail === '', hatFail + ' (' + HATS.length * HAIR_IDS.length + ' looks)');
 
 console.log(pass + ' passed');

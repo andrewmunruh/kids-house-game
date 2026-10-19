@@ -48,7 +48,7 @@ function both(fn: (side: 'l' | 'r', pose: Pose) => string, pose: Pose): string {
 const TORSO = 'M66 168 Q72 158 92 158 H108 Q128 158 134 168 L136 228 Q100 236 64 228 Z';
 
 function shirtOpen(pose: Pose, body: string, sleeves: string, u: string, rich: boolean, hem: number, extra = '', folds: string[] = []): string {
-  return `<g class="shirt" data-hem="${hem}">${sleeves}<path d="${body}" fill="var(--top)" ${S(3)}/>${shade(body, u, rich, folds)}${extra}</g>`;
+  return `<g class="shirt" data-hem="${hem}">${sleeves}<path d="${body}" fill="var(--top)" ${S(3)}/>${extra}${shade(body, u, rich, folds)}</g>`;
 }
 
 export function topLayer(pose: Pose, look: Look, u: string, rich: boolean, hem: number): string {
@@ -139,7 +139,7 @@ export function bottomOverLayer(pose: Pose, look: Look, u: string, rich: boolean
   const st = look.bottom;
   if (st === 'overalls') {
     const bib = 'M78 178 H122 L124 230 H76 Z';
-    return `<g data-layer="bottom-over"><path d="M80 176 L72 164 M120 176 L128 164" stroke="${L}" stroke-width="10" stroke-linecap="round"/><path d="M80 176 L72 164 M120 176 L128 164" stroke="var(--bottom)" stroke-width="6" stroke-linecap="round"/><path d="${bib}" fill="var(--bottom)" ${S(3)}/>${shade(bib, u, rich, ['M86 214 q14 4 28 0'])}<rect x="88" y="190" width="24" height="14" rx="3" fill="var(--bottom-trim)" ${S(2)}/><circle cx="84" cy="186" r="3.2" fill="#fff" ${S(1.8)}/><circle cx="116" cy="186" r="3.2" fill="#fff" ${S(1.8)}/></g>`;
+    return `<g data-layer="bottom-over"><path d="M80 176 L72 164 M120 176 L128 164" stroke="${L}" stroke-width="10" stroke-linecap="round"/><path d="M80 176 L72 164 M120 176 L128 164" stroke="var(--bottom)" stroke-width="6" stroke-linecap="round"/><path d="${bib}" fill="var(--bottom)" ${S(3)}/><rect x="88" y="190" width="24" height="14" rx="3" fill="var(--bottom-trim)" ${S(2)}/><circle cx="84" cy="186" r="3.2" fill="#fff" ${S(1.8)}/><circle cx="116" cy="186" r="3.2" fill="#fff" ${S(1.8)}/>${shade(bib, u, rich, ['M86 214 q14 4 28 0'])}</g>`;
   }
   if (st === 'tutu') {
     let tiers = '';
@@ -259,11 +259,11 @@ export function accessoryLayer(look: Look): string {
     if (a === 'bigbow') return bow(100, 70, 1.15);
     if (a === 'headband') return `<path d="M40 96 Q42 40 100 34 Q158 40 160 96" fill="none" stroke="${L}" stroke-width="12" stroke-linecap="round"/><path d="M40 96 Q42 40 100 34 Q158 40 160 96" fill="none" stroke="var(--acc)" stroke-width="7" stroke-linecap="round"/>${bow(100, 32, 0.85)}`;
     if (a === 'flower') return `<g transform="translate(138 78)">${[0, 60, 120, 180, 240, 300].map(a => `<ellipse cx="0" cy="-8" rx="5" ry="8" fill="var(--acc)" ${S(1.6)} transform="rotate(${a})"/>`).join('')}<circle r="4.5" fill="var(--acc2)" ${S(1.6)}/></g>`;
-    if (a === 'cap') return `<path d="M48 96 Q50 48 100 44 Q150 48 152 96 Q130 84 100 86 Q70 84 48 96 Z" fill="var(--acc)" ${S(3)}/><path d="M46 96 Q100 112 168 86 L176 96 Q100 124 40 102 Z" fill="var(--acc)" ${S(3)}/><circle cx="100" cy="46" r="5" fill="#fff" ${S(2)}/>`;
-    if (a === 'beanie') return `<path d="M46 100 Q44 40 100 32 Q156 40 154 100 Q130 88 100 90 Q70 88 46 100 Z" fill="var(--acc)" ${S(3)}/><path d="M46 92 H154" stroke="var(--acc2)" stroke-width="8" stroke-linecap="round"/><circle cx="100" cy="28" r="8" fill="var(--acc2)" ${S(2.4)}/>`;
-    if (a === 'sunhat') return `<path d="M62 88 Q64 48 100 44 Q136 48 138 88 Q120 78 100 80 Q80 78 62 88 Z" fill="var(--acc)" ${S(3)}/><path d="M28 96 Q100 120 172 96 Q160 112 100 118 Q40 112 28 96 Z" fill="var(--acc)" ${S(3)}/><path d="M70 70 Q100 60 130 70" fill="none" stroke="var(--acc2)" stroke-width="4"/>`;
-    if (a === 'catears') return `<path d="M58 70 L70 28 L86 68 Z" fill="var(--acc)" ${S(2.6)}/><path d="M114 68 L130 28 L142 70 Z" fill="var(--acc)" ${S(2.6)}/><path d="M64 62 L72 40 L80 60 Z" fill="var(--acc2)"/><path d="M120 60 L128 40 L136 62 Z" fill="var(--acc2)"/>`;
-    if (a === 'earmuffs') return `<path d="M48 80 Q50 36 100 34 Q150 36 152 80" fill="none" stroke="var(--acc)" stroke-width="6"/><circle cx="42" cy="100" r="16" fill="var(--acc)" ${S(2.8)}/><circle cx="158" cy="100" r="16" fill="var(--acc)" ${S(2.8)}/><circle cx="42" cy="100" r="7" fill="var(--acc2)"/><circle cx="158" cy="100" r="7" fill="var(--acc2)"/>`;
+    if (a === 'cap') return `<path d="M54 64 Q56 20 100 16 Q144 20 146 64 Q128 54 100 56 Q72 54 54 64 Z" fill="var(--acc)" ${S(3)}/><path d="M48 56 Q100 66 152 56 L156 62 Q100 70 44 62 Z" fill="var(--acc)" ${S(3)}/><circle cx="100" cy="18" r="4.5" fill="#fff" ${S(2)}/>`;
+    if (a === 'beanie') return `<path d="M50 66 Q48 14 100 8 Q152 14 150 66 Q128 56 100 58 Q72 56 50 66 Z" fill="var(--acc)" ${S(3)}/><path d="M50 58 H150" stroke="var(--acc2)" stroke-width="7" stroke-linecap="round"/><circle cx="100" cy="8" r="7" fill="var(--acc2)" ${S(2.4)}/>`;
+    if (a === 'sunhat') return `<path d="M66 56 Q68 22 100 18 Q132 22 134 56 Q118 48 100 50 Q82 48 66 56 Z" fill="var(--acc)" ${S(3)}/><path d="M18 56 Q100 68 182 56 Q170 64 100 66 Q30 64 18 56 Z" fill="var(--acc)" ${S(3)}/><path d="M72 46 Q100 38 128 46" fill="none" stroke="var(--acc2)" stroke-width="4"/>`;
+    if (a === 'catears') return `<path d="M58 62 L70 18 L86 60 Z" fill="var(--acc)" ${S(2.6)}/><path d="M114 60 L130 18 L142 62 Z" fill="var(--acc)" ${S(2.6)}/><path d="M64 54 L72 30 L80 52 Z" fill="var(--acc2)"/><path d="M120 52 L128 30 L136 54 Z" fill="var(--acc2)"/>`;
+    if (a === 'earmuffs') return `<path d="M44 68 Q48 26 100 22 Q152 26 156 68" fill="none" stroke="var(--acc)" stroke-width="6"/><circle cx="34" cy="86" r="14" fill="var(--acc)" ${S(2.8)}/><circle cx="166" cy="86" r="14" fill="var(--acc)" ${S(2.8)}/><circle cx="34" cy="86" r="6" fill="var(--acc2)"/><circle cx="166" cy="86" r="6" fill="var(--acc2)"/>`;
     return '';
   }).join('');
   return `<g data-layer="accessory">${parts}</g>`;
