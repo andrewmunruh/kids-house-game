@@ -1,14 +1,45 @@
-# Phone layout. iPad sizes must not match the phone gate. Local preview only.
-import asyncio, os, sys
+# Phone layout. iPad sizes must not match the phone gate.
+# The preview page and the hood server are both required. Nothing is assumed.
+#   python phone_test.py --url http://127.0.0.1:<preview>/kids-house-game/ --port <hood>
+import argparse, asyncio, os, sys
+from urllib.parse import parse_qs, quote, urlencode, urlparse, urlunparse
 from playwright.async_api import async_playwright
 from testnav import (
     K, NOTE_VS_TABLE_JS, SLAY_PINK_3, about_slay_card, dim_card_contrast, face_chroma,
     inject_slay_hand, read_slay_hand, read_wait_style, read_secrets, read_door_hint, read_paddock,
 )
 
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
-SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/phone/'
-os.makedirs(SHOT, exist_ok=True)
+def page_url(raw, port):
+    """Page plus ?hood= for this server. A hood already in the URL must name the same port."""
+    parts = urlparse(raw)
+    if parts.scheme not in ('http', 'https') or not parts.hostname:
+        raise SystemExit('phone_test: --url must be an http(s) page')
+    if not isinstance(port, int) or port < 1 or port > 65535:
+        raise SystemExit('phone_test: --port must be the hood server port')
+    query = parse_qs(parts.query, keep_blank_values=True)
+    got = (query.get('hood') or [''])[0].strip()
+    if got:
+        hood_port = urlparse(got).port
+        if hood_port != port:
+            raise SystemExit('phone_test: --url hood port does not match --port')
+        return raw
+    query['hood'] = [f'http://{parts.hostname}:{port}']
+    flat = [(k, v) for k, vs in query.items() for v in vs]
+    def keep(s, safe, encoding, errors):
+        return quote(s, safe=safe + ':/', encoding=encoding, errors=errors)
+    return urlunparse(parts._replace(query=urlencode(flat, quote_via=keep)))
+
+def resolve(argv):
+    p = argparse.ArgumentParser(prog='phone_test', description='Phone layout. Pass the page and the hood server.')
+    p.add_argument('--url', required=True, help='Preview page. No default.')
+    p.add_argument('--port', required=True, type=int, help='Hood server port. No default.')
+    p.add_argument('--shots', default=os.environ.get('PHONE_SHOTS', 'screens/phone/'), help='Where to write screenshots.')
+    args = p.parse_args(argv)
+    shot = args.shots if args.shots.endswith('/') else args.shots + '/'
+    return page_url(args.url, args.port), shot
+
+URL = ''
+SHOT = 'screens/phone/'
 PHONES = [(390, 844), (844, 390), (375, 667), (667, 375), (932, 430)]
 # Short heights stand in for iPhone landscape with Safari's tab bar showing.
 SHORT = [(844, 300), (667, 280), (932, 340)]
@@ -926,4 +957,7 @@ async def main():
         print('FAILED:', *failed, sep='\n  ')
         sys.exit(1)
 
-asyncio.run(main())
+if __name__ == '__main__':
+    URL, SHOT = resolve(sys.argv[1:])
+    os.makedirs(SHOT, exist_ok=True)
+    asyncio.run(main())
