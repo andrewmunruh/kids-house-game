@@ -1165,13 +1165,13 @@
     "group": "Art",
     "svg": "packs/critter/cr-bird-mobile.svg",
     "widthUnits": 100.0,
-    "heightUnits": 90.0,
+    "heightUnits": 92.0,
     "gameW": 102,
     "viewBox": [
       4.0,
-      2.0,
+      0.0,
       100.0,
-      90.0
+      92.0
     ],
     "room": "nursery",
     "wall": true,
