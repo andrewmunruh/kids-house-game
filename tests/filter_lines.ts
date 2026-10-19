@@ -5,10 +5,12 @@ export const LEAKS = [
   'shit!', 'oh shit!!', 'fuck!', 'bitch!', 'you bitch!', 'kys!', 'f*ck!',
   'Shit!', 'FUCK!',
   'motherfucker', 'motherfucking', 'fuckface', 'fuckyou', 'fuckin', 'phuck', 'fück',
-  'bullshit', 'horseshit', 'dipshit', 'shithead', 'shitface', 'sonofabitch', 'shitake',
+  'bullshit', 'horseshit', 'dipshit', 'shithead', 'shitface', 'sonofabitch',
   'wtf', 'stfu',
   'kill yourself', 'kill urself', 'kill ur self',
   'sh!t',
+  '$hit', '5hit', '$h!t', '5h1t', '$h1t', '$hitty', '@sshole', '@$$hole', 'sh!7', '$hit!',
+  '8itch', 'b!tc#', 'fuc|<', 'ass-hole', 'fuc k', 'sh it', 'f uck',
 ];
 
 export const KID_OK = [
@@ -26,4 +28,6 @@ export const KID_OK = [
   'snapshot of the cat', 'someone left the llama', 'he laughed at the wheel',
   'seven ducks in the pond', 'the skyscraper is tall', 'call 12345',
   'roblox user Jane2016', 'Ava Smith', 'you are silly', 'go away',
+  'snigger', 'retardant', 'shiitake', 'shitake', 'Nigeria', 'bitcoin', 'fuchsia',
+  'killer whale', 'kill the boss in the game',
 ];

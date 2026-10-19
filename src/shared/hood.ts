@@ -75,7 +75,10 @@ export function filterChat(raw: unknown, max = MAX_CHAT): FilterResult {
   // Names and stored letters re-read through here. Keep this list as it was on fbd04db.
   return { ok: true, text };
 }
-const SEND_LEET: Record<string, string> = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's', '!': 'i', '+': 't', 'v': 'u' };
+const SEND_LEET: Record<string, string> = {
+  '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b',
+  '@': 'a', '$': 's', '!': 'i', '+': 't', 'v': 'u', '|': 'k', '<': 'k', '#': 'h',
+};
 function swearShape(s: string): boolean {
   return /^f+u+c+k+$/.test(s) || /^f+u+k+$/.test(s) || /^f+c+k+$/.test(s)
     || /^s+h+i+t+$/.test(s) || /^s+h+t+$/.test(s)
@@ -114,29 +117,36 @@ function starForms(mapped: string): string[] {
   walk(0);
   return out;
 }
-/** Stems that are still the swear when letters repeat or other words are glued on. `ass` and `fag` stay whole-token only. */
-const COMPOUND = [
-  /f+u+c+k+/, /f+u+k+/, /f+c+k+/,
-  /s+h+i+t+/, /s+h+t+/,
-  /b+i+t+c+h+/, /b+t+c+h+/,
-  /a+s+h+o+l+e+/,
-  /d+u+m+b+a+s+/,
-  /n+i+g{2,}e+r+/, /n+i+g{2,}a+/,
-  /f+a+g+o+t+/,
-  /r+e+t+a+r+d+/,
-];
-function hasSwear(s: string): boolean {
+const COMPOUND_PREFIX = ['mother', 'sonofa', 'horse', 'bull', 'dip'];
+const COMPOUND_SUFFIX = ['face', 'head', 'you'];
+/** Whole word, a short ending, or a known compound such as bullshit or motherfucker. Not a loose substring. */
+function blockedWord(s: string): boolean {
   const t = s.replace(/ph(?=u+c+k)/g, 'f').replace(/ph(?=u+k)/g, 'f');
   if (swearToken(t)) return true;
-  for (let i = 0; i < COMPOUND.length; i++) if (COMPOUND[i].test(t)) return true;
-  return /^w+t+f+$/.test(t) || /^s+t+f+u+$/.test(t);
+  if (/^w+t+f+$/.test(t) || /^s+t+f+u+$/.test(t)) return true;
+  for (let i = 0; i < COMPOUND_PREFIX.length; i++) {
+    const p = COMPOUND_PREFIX[i];
+    if (t.startsWith(p) && t.length > p.length + 2 && blockedWord(t.slice(p.length))) return true;
+  }
+  for (let i = 0; i < COMPOUND_SUFFIX.length; i++) {
+    const suf = COMPOUND_SUFFIX[i];
+    if (t.endsWith(suf) && t.length > suf.length + 2 && blockedWord(t.slice(0, -suf.length))) return true;
+  }
+  return false;
 }
-/** Leet marks inside a word only. A number by itself, and the first and last character, stay as written. */
-function mapToken(token: string): string {
-  if (!/[a-z]/.test(token) || token.length < 3) return token;
-  let out = token[0];
-  for (let i = 1; i < token.length - 1; i++) out += SEND_LEET[token[i]] ?? token[i];
-  return out + token[token.length - 1];
+function mapAll(token: string): string {
+  let out = '';
+  for (let i = 0; i < token.length; i++) out += SEND_LEET[token[i]] ?? token[i];
+  return out;
+}
+/** Bang at the edge is both the letter i and a separator. Block if either reading is a swear. */
+function readingsOf(token: string): string[] {
+  const out = [mapAll(token)];
+  if (token.charAt(0) === '!' || token.charAt(token.length - 1) === '!') {
+    const cut = token.replace(/^!+/, '').replace(/!+$/, '');
+    if (cut && cut !== token) out.push(mapAll(cut));
+  }
+  return out;
 }
 function killPhrase(tokens: string[]): boolean {
   for (let i = 0; i < tokens.length; i++) {
@@ -151,7 +161,8 @@ function killPhrase(tokens: string[]): boolean {
 /** Main swears, compounds, obvious disguises, severe slurs, kys, and "kill yourself". */
 function sendSwear(raw: string): boolean {
   const folded = raw.normalize('NFKC').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  const parts = folded.split(/[^a-z0-9@$!+*v]+/).map(p => p.replace(/^[!@$+*]+/, '').replace(/[!@$+*]+$/, '')).filter(Boolean);
+  // Periods, commas, and brackets split words. $ @ 5 1 3 0 7 | < # stay on the word, including at an edge.
+  const parts = folded.split(/[^a-z0-9@$!+*v|#<]+/).filter(Boolean);
   const tokens: string[] = [];
   let buf = '';
   const flush = () => { if (buf) { tokens.push(buf); buf = ''; } };
@@ -160,16 +171,23 @@ function sendSwear(raw: string): boolean {
     else { flush(); tokens.push(parts[i]); }
   }
   flush();
-  const norms = tokens.map(mapToken);
-  if (killPhrase(norms.map(t => t.replace(/\*/g, '')))) return true;
-  for (let i = 0; i < norms.length; i++) {
-    const forms = starForms(norms[i]);
-    for (let j = 0; j < forms.length; j++) if (hasSwear(forms[j])) return true;
+  const reads = tokens.map(readingsOf);
+  const plain = tokens.map(t => mapAll(t.replace(/^!+/, '').replace(/!+$/, '')).replace(/\*/g, ''));
+  if (killPhrase(plain)) return true;
+  for (let i = 0; i < reads.length; i++) {
+    for (let r = 0; r < reads[i].length; r++) {
+      const forms = starForms(reads[i][r]);
+      for (let j = 0; j < forms.length; j++) if (blockedWord(forms[j].replace(/\*/g, ''))) return true;
+    }
   }
-  for (let i = 0; i < norms.length - 1; i++) {
-    const a = norms[i].replace(/\*/g, '');
-    const b = norms[i + 1].replace(/\*/g, '');
-    if (/^d+u+m+b+$/.test(a) && /^a+s+$/.test(b)) return true;
+  for (let i = 0; i < reads.length - 1; i++) {
+    for (let a = 0; a < reads[i].length; a++) {
+      for (let b = 0; b < reads[i + 1].length; b++) {
+        const left = reads[i][a].replace(/\*/g, '');
+        const right = reads[i + 1][b].replace(/\*/g, '');
+        if (left && right && blockedWord(left + right)) return true;
+      }
+    }
   }
   return false;
 }

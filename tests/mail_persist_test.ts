@@ -107,45 +107,57 @@ async function join(port: number, id: string, nickname: string) {
   return { sock, pid: joined.pid as string, token: joined.token as string, hid };
 }
 
-async function gate(port: number, label: string) {
+const ALLOW_PER_HOOD = 12 * 5;
+
+async function checkLines(port: number, lines: string[], bad: string[]) {
   const hood = await createHood(port);
   const owner = await join(port, hood.id, NICKNAMES[0]);
   const pals = [];
-  const slots = Math.ceil(KID_OK.length / 5);
-  for (let i = 1; i < slots && i < NICKNAMES.length; i++) pals.push(await join(port, hood.id, NICKNAMES[i]));
+  const slots = Math.ceil(lines.length / 5);
+  for (let i = 1; i < slots && i < 12; i++) pals.push(await join(port, hood.id, NICKNAMES[i]));
   const senders = [owner, ...pals];
-  const bad: string[] = [];
-  const sender = senders[0];
-  for (const text of LEAKS) {
-    sender.sock.send({ t: 'say', b: { kind: 'text', v: text } });
-    const say = await waitNew(sender.sock, m => m.t === 'sayFail');
-    if (say.reason !== 'words') bad.push('say ' + text + ' ' + say.reason);
-    sender.sock.send({ t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
-    const mail = await waitNew(sender.sock, m => m.t === 'mailFail');
-    if (mail.reason !== 'mail') bad.push('mail ' + text + ' ' + mail.reason);
-  }
-  for (let i = 0; i < KID_OK.length; i++) {
-    const text = KID_OK[i];
-    const pal = senders[Math.floor(i / 5)];
-    pal.sock.send({ t: 'say', b: { kind: 'text', v: text } });
-    const say = await waitNew(pal.sock, m => m.t === 'sayFail');
-    if (say.reason !== 'nowhere') bad.push('say ' + text + ' ' + say.reason);
-    pal.sock.send({ t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
-    const sentAt = pal.sock.inbox.length;
-    let box: any;
-    try {
-      box = await waitNew(owner.sock, m => m.t === 'mailbox' && (m.mailbox?.letters ?? []).some((l: { text: string }) => l.text === text));
-    } catch {
-      const fail = pal.sock.inbox.slice(sentAt).find(m => m.t === 'mailFail');
-      bad.push('mail ' + text + ' ' + (fail?.reason ?? 'missing'));
-      continue;
+  try {
+    for (let i = 0; i < lines.length; i++) {
+      const text = lines[i];
+      const pal = senders[Math.floor(i / 5)];
+      pal.sock.send({ t: 'say', b: { kind: 'text', v: text } });
+      const say = await waitNew(pal.sock, m => m.t === 'sayFail');
+      if (say.reason !== 'nowhere') bad.push('say ' + text + ' ' + say.reason);
+      pal.sock.send({ t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
+      const sentAt = pal.sock.inbox.length;
+      let box: any;
+      try {
+        box = await waitNew(owner.sock, m => m.t === 'mailbox' && (m.mailbox?.letters ?? []).some((l: { text: string }) => l.text === text));
+      } catch {
+        const fail = pal.sock.inbox.slice(sentAt).find(m => m.t === 'mailFail');
+        bad.push('mail ' + text + ' ' + (fail?.reason ?? 'missing'));
+        continue;
+      }
+      const letter = (box.mailbox.letters as { id: string; text: string }[]).find(l => l.text === text)!;
+      owner.sock.send({ t: 'mail', op: 'drop', houseId: owner.hid, id: letter.id });
+      await waitNew(owner.sock, m => m.t === 'mailbox' && !(m.mailbox?.letters ?? []).some((l: { id: string }) => l.id === letter.id));
     }
-    const letter = (box.mailbox.letters as { id: string; text: string }[]).find(l => l.text === text)!;
-    owner.sock.send({ t: 'mail', op: 'drop', houseId: owner.hid, id: letter.id });
-    await waitNew(owner.sock, m => m.t === 'mailbox' && !(m.mailbox?.letters ?? []).some((l: { id: string }) => l.id === letter.id));
+  } finally {
+    for (const p of senders) p.sock.ws.close();
   }
+}
+
+async function gate(port: number, label: string) {
+  const hood = await createHood(port);
+  const owner = await join(port, hood.id, NICKNAMES[0]);
+  const bad: string[] = [];
+  try {
+    for (const text of LEAKS) {
+      owner.sock.send({ t: 'say', b: { kind: 'text', v: text } });
+      const say = await waitNew(owner.sock, m => m.t === 'sayFail');
+      if (say.reason !== 'words') bad.push('say ' + text + ' ' + say.reason);
+      owner.sock.send({ t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
+      const mail = await waitNew(owner.sock, m => m.t === 'mailFail');
+      if (mail.reason !== 'mail') bad.push('mail ' + text + ' ' + mail.reason);
+    }
+  } finally { owner.sock.ws.close(); }
+  for (let i = 0; i < KID_OK.length; i += ALLOW_PER_HOOD) await checkLines(port, KID_OK.slice(i, i + ALLOW_PER_HOOD), bad);
   check(label + ' blocks every leak and accepts every ordinary line', bad.length === 0 && KID_OK.length >= 40, bad.slice(0, 8).join(' | '));
-  for (const p of [owner, ...pals]) p.sock.ws.close();
 }
 
 async function roundTrip(port: number, label: string) {
