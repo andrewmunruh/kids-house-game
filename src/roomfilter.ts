@@ -12,7 +12,10 @@ export function isGenericDecor(item: ShelfItem): boolean {
   return GENERIC.test(blob);
 }
 
+const NURSERY_SKIP = new Set(['pack:ring-light', 'pack:desk-lamp']);
+
 export function itemMatchesRoom(item: ShelfItem, room: string): boolean {
+  if (room === 'nursery' && item.kind && NURSERY_SKIP.has(item.kind)) return false;
   if (room === 'all' || !room) return true;
   const rooms = item.rooms;
   if (!rooms || rooms.length === 0) return true;

@@ -707,7 +707,7 @@ body.view-street .stage { visibility: hidden; }
   body.phone #app { overflow: hidden; max-width: 100%; }
   body.phone .top { flex: 0 0 auto; max-width: 100%; min-width: 0; align-items: center; padding: 4px 6px; gap: 4px; }
   body.phone .tabs { min-width: 0; gap: 4px; }
-  body.phone .tab { flex: 1 1 auto; min-width: max-content; min-height: 44px; padding: 0 6px; font-size: 12px; line-height: 1; white-space: nowrap; text-align: center; }
+  body.phone .tab { flex: 1 1 auto; min-width: max-content; min-height: 44px; padding: 0 2px; font-size: 14px; line-height: 1; white-space: nowrap; text-align: center; }
   body.phone .tools { flex: 0 0 auto; gap: 4px; min-width: 0; }
   body.phone .round { width: 44px; height: 44px; flex: 0 0 44px; padding: 6px; }
   body.phone .minimap { height: 44px; min-width: 64px; }
@@ -810,7 +810,7 @@ body.view-street .stage { visibility: hidden; }
   body.phone #app { top: var(--vvt, 0px); height: var(--vvh, 100dvh); bottom: auto; }
   body.phone .top { flex-wrap: nowrap; padding: 2px 2px 0; gap: 2px; }
   body.phone .tabs { flex: 1 1 auto; order: 0; min-width: 0; }
-  body.phone .tab { font-size: 12px; padding: 0 5px; }
+  body.phone .tab { font-size: 14px; padding: 0 4px; }
   body.phone .tab.on { transform: none; }
   body.phone .minimap { flex: 0 1 48px; width: 48px; min-width: 44px; height: 44px; order: 0; max-width: none; }
   body.phone .tools { order: 0; margin-left: 0; gap: 2px; }

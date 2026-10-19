@@ -1,17 +1,21 @@
 /* Mailboxes on the street, the letter card, and the Play / Decorate toggle.
-   The toggle sits in a lane under the room (fit() keeps the stage above it),
-   never on the room and never in the 5-tab top bar. */
+   The toggle sits in the catalog row, the same height as those chips, so the room
+   stays the size it was before the toggle existed. */
 
-.modeToggle { position: absolute; left: 12px; bottom: 0; z-index: 9600; display: flex; gap: 6px;
-  padding: 6px; background: #fff; border: 4px solid var(--ink); border-radius: 28px; box-shadow: 0 5px 0 rgba(90,61,92,.25); }
-.modeToggle button { display: flex; align-items: center; gap: 6px; min-height: 56px; min-width: 108px; padding: 6px 12px 6px 8px;
-  border-radius: 22px; background: #fff6fa; font-weight: 900; font-size: 18px; border: 3px solid transparent; }
+.modeToggle { position: relative; flex: 0 0 auto; display: flex; align-items: center; gap: 2px; height: 52px;
+  padding: 3px; background: #fff; border: 3px solid var(--ink); border-radius: 16px; box-shadow: 0 3px 0 #e6c9d8; }
+.modeToggle button { display: flex; align-items: center; gap: 4px; height: 42px; min-height: 0; min-width: 0; padding: 0 8px;
+  border-radius: 12px; background: #fff6fa; font-weight: 900; font-size: 15px; border: 3px solid transparent; }
 .modeToggle button.on { background: #fff3b0; border-color: var(--ink); }
 .modeToggle button:active { transform: scale(.96); }
-.modeToggle .modeIco { width: 36px; height: 36px; flex: 0 0 36px; }
+.modeToggle .modeIco { width: 26px; height: 26px; flex: 0 0 26px; }
 .modeToggle .modeIco svg { width: 100%; height: 100%; }
+.modeHint { position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 5; width: max-content; max-width: 240px; margin: 0;
+  background: #fff3b0; border: 3px solid var(--ink); border-radius: 14px; padding: 6px 10px; font-size: 14px; font-weight: 800;
+  line-height: 1.3; box-shadow: 0 4px 0 rgba(90,61,92,.25); }
 body.view-street .modeToggle { display: none !important; }
-body.mode-play .drawer, body.mode-play .toolbar, body.mode-play .bin { display: none !important; }
+body.mode-play .shelf, body.mode-play #roomFilter, body.mode-play #cats, body.mode-play .chipCue,
+body.mode-play .toolbar, body.mode-play .bin { display: none !important; }
 .item.lamp-on .inner { filter: drop-shadow(0 0 10px #ffe066); }
 .item.opened .inner { transform: scale(1.04); }
 
@@ -55,13 +59,9 @@ body.mode-play .drawer, body.mode-play .toolbar, body.mode-play .bin { display: 
 .statusChip { display: inline-block; background: #e7f5ff; border: 3px solid var(--ink); border-radius: 14px; padding: 4px 10px; font-weight: 900; margin-top: 6px; }
 .statusChip.read { background: #d3f9d8; }
 
-body.phone .modeToggle { left: 6px; bottom: 0; padding: 4px; gap: 4px; border-width: 3px; }
-/* Very short landscape: the lane would shrink the room, so the toggle stacks in the side gutter. */
-body.mode-side .modeToggle { flex-direction: column; left: 2px; right: auto; top: 50%; bottom: auto; transform: translateY(-50%); padding: 3px; gap: 3px; }
-body.mode-side .modeToggle button { min-width: 44px; min-height: 44px; }
-body.phone .modeToggle button { min-height: 44px; min-width: 44px; padding: 4px 8px; font-size: 14px; gap: 4px; }
-body.phone .modeToggle .modeWord { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
-body.phone .modeToggle .modeIco { width: 28px; height: 28px; flex-basis: 28px; }
+body.phone .modeToggle { height: 44px; padding: 2px; gap: 2px; }
+body.phone .modeToggle button { height: 36px; min-height: 0; padding: 0 6px; font-size: 14px; gap: 3px; }
+body.phone .modeToggle .modeIco { width: 22px; height: 22px; flex-basis: 22px; }
 body.phone .mailCue { font-size: 16px; padding: 8px 12px; top: 8px; max-width: calc(100% - 16px); }
 body.phone .mailSheet .card { width: 100% !important; }
 body.phone .letter .words { font-size: 18px; }

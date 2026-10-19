@@ -1,5 +1,5 @@
 // Street mailbox: write a short letter, and the owner opens it.
-import { FILTER_MSG, PHRASES, filterChat } from './shared/hood';
+import { FILTER_MSG, PHRASES, cleanMailText, filterChat } from './shared/hood';
 import { MAIL_COLOR, MAIL_COLORS, MAIL_MAX, MAIL_STICKERS, friendlyWhen, stripUrls, type Letter } from './shared/mail';
 
 const O = '#5a3d5c';
@@ -30,12 +30,10 @@ export function mailboxArt(flagUp: boolean): string {
   </svg>`;
 }
 
-export function letterOk(raw: string): { ok: true; text: string } | { ok: false; msg: string } {
-  const f = filterChat(raw, MAIL_MAX);
-  if (!f.ok) return { ok: false, msg: f.reason === 'empty' ? 'Write a little note!' : (FILTER_MSG[f.reason] || "Let's try kind words!") };
-  const text = stripUrls(f.text);
-  if (!text || text !== f.text) return { ok: false, msg: FILTER_MSG.link };
-  return { ok: true, text };
+export function letterOk(raw: string, roster: string[] = []): { ok: true; text: string } | { ok: false; msg: string } {
+  const f = cleanMailText(raw, roster);
+  if (!f.ok) return { ok: false, msg: f.reason === 'empty' ? 'Write a little note!' : (FILTER_MSG[f.reason] || 'Oops, try different words!') };
+  return { ok: true, text: f.text };
 }
 
 const FAIL: Record<string, string> = {
@@ -48,6 +46,7 @@ const FAIL: Record<string, string> = {
   gone: 'That letter is already gone.',
   toobig: 'The mailbox is too full!',
   presetsOnly: 'Typing is turned off: pick a phrase!',
+  unread: 'She still has your letters! Wait until she reads them.',
 };
 
 export function failMsg(reason: string): string { return FAIL[reason] || "Let's try that again!"; }
@@ -233,7 +232,10 @@ export function installMail(opts: {
 
 function showText(text: string): string | null {
   if (!text) return null;
-  const f = letterOk(text);
-  return f.ok ? f.text : null;
+  // Already-delivered letters stay readable. The stricter check applies to new letters only.
+  const f = filterChat(text, MAIL_MAX);
+  if (!f.ok) return null;
+  const text2 = stripUrls(f.text);
+  return text2 && text2 === f.text ? text2 : null;
 }
 function esc(t: string) { return t.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!)); }

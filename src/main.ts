@@ -21,7 +21,7 @@ import { itemMatchesRoom } from './roomfilter';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
-import { syncScenery } from './scenery';
+import { emptyRoomStarters, syncScenery } from './scenery';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
@@ -118,16 +118,16 @@ app.innerHTML = `
     <button class="nudge right" id="nudgeR" aria-label="Look right"><svg viewBox="0 0 40 40"><path d="M16 10 L26 20 L16 30" fill="none" stroke="#5a3d5c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
   <div class="bin" id="bin">${ICON.trash}</div>
-  <div class="modeToggle" id="modeToggle">
-    <button type="button" id="modePlay" data-mode="play" aria-label="Play" aria-pressed="false"><span class="modeIco"></span><span class="modeWord">Play</span></button>
-    <button type="button" id="modeDecorate" data-mode="decorate" aria-label="Decorate" aria-pressed="true"><span class="modeIco"></span><span class="modeWord">Decorate</span></button>
-  </div>
   <div class="houseTag hoodOnly" id="houseTag"></div>
   <div class="secrets" id="secrets"></div>
 </div>
 <div class="drawer">
   <div class="drawerBar" id="drawerBar">
     <div class="drawerTop">
+      <div class="modeToggle" id="modeToggle">
+        <button type="button" id="modePlay" data-mode="play" aria-label="Play" aria-pressed="false"><span class="modeIco"></span><span class="modeWord">Play</span></button>
+        <button type="button" id="modeDecorate" data-mode="decorate" aria-label="Decorate" aria-pressed="true"><span class="modeIco"></span><span class="modeWord">Decorate</span></button>
+      </div>
       <div class="rooms" id="roomFilter"></div>
       <div class="cats" id="cats"></div>
     </div>
@@ -250,115 +250,47 @@ function applyPhoneViewport() {
   appEl.style.height = h + 'px';
   appEl.style.bottom = 'auto';
 }
-/** Height of the Play / Decorate lane under the room. 0 on the map, park, and ranch. */
-let modeLaneCache = 0;
-function modeLane(): number {
-  if (view !== 'house') return 0;
-  const el = $('modeToggle');
-  // The stacked side toggle is taller than the row. Measuring it would inflate the lane.
-  const stacked = document.body.classList.contains('mode-side');
-  if (!stacked && getComputedStyle(el).display !== 'none' && el.offsetHeight > 0)
-    modeLaneCache = Math.ceil(el.offsetHeight) + 6;
-  return modeLaneCache || (document.body.classList.contains('phone') ? 64 : 84);
-}
-/** How the room would scale in a box. Mirrors the branches in fit(). */
-function predictFit(boxW: number, boxH: number, phone: boolean, portrait: boolean) {
-  const aspect = boxW / Math.max(1, boxH);
-  const viewW = portrait
-    ? Math.round(Math.max(480, Math.min(860, H * aspect)))
-    : phone
-      ? Math.round(Math.max(480, Math.min(W, H * aspect)))
-      : 1000;
-  const sc = Math.min(boxW / viewW, boxH / H);
-  return { sc, screenW: viewW * sc, screenH: H * sc };
-}
 function fit() {
   syncPhone();
   applyPhoneViewport();
   syncChrome();
   const wrap = $('stageWrap');
   const phone = document.body.classList.contains('phone');
-  const wantLane = modeLane();
   const boxW = wrap.clientWidth;
-  const fullH = wrap.clientHeight;
-  const portraitGuess = phone ? fullH > boxW * 0.85 : fullH > boxW + 40;
-  // A short phone cannot spare a strip under the room: the stage would stop filling the screen.
-  let lane = wantLane;
-  if (phone && wantLane > 0) {
-    const bare = predictFit(boxW, fullH, true, portraitGuess);
-    const withLane = predictFit(boxW, Math.max(1, fullH - wantLane), true, portraitGuess);
-    // Score against the whole wrap. A lane that fills only the shortened box still
-    // leaves the room short of the screen, which is what the layout checks measure.
-    const fills = (p: { sc: number; screenW: number; screenH: number }) =>
-      (p.screenW / Math.max(1, boxW) >= 0.85 || p.screenH / Math.max(1, fullH) >= 0.85) && 120 * p.sc >= 24;
-    if (!fills(withLane) && fills(bare)) lane = 0;
-  }
-  document.body.classList.toggle('mode-side', lane === 0 && wantLane > 0);
-  const boxH = Math.max(1, fullH - lane);
-  // Portrait uses the whole wrap (the lane is a strip under the room, not a new shape).
-  // iPad keeps the original test. On a phone, a tall tool row can make the stage almost square;
-  // still frame it as portrait so the room fills the screen instead of shrinking to a wide sliver.
-  const portrait = phone
-    ? fullH > boxW * 0.85
-    : fullH > boxW + 40;
+  const boxH = wrap.clientHeight;
+  // Portrait uses the whole wrap. iPad keeps the original test. On a phone, a tall
+  // tool row can make the stage almost square; still frame it as portrait so the room fills the screen.
+  const portrait = phone ? boxH > boxW * 0.85 : boxH > boxW + 40;
   if (portrait) {
-    // Match the free space's shape so the room scales up and fills the height.
-    const aspect = boxW / boxH;
+    const aspect = boxW / Math.max(1, boxH);
     VIEW_W = Math.round(Math.max(480, Math.min(860, H * aspect)));
   } else if (phone) {
-    // Landscape phone: the free box is short and wide. Open the window to that shape
-    // (never wider than the room, never stretched) so the stage uses the width and the height.
-    const aspect = boxW / boxH;
+    const aspect = boxW / Math.max(1, boxH);
     VIEW_W = Math.round(Math.max(480, Math.min(W, H * aspect)));
   } else VIEW_W = 1000;
   stage.style.width = VIEW_W + 'px';
   stage.style.height = H + 'px';
   const sc = Math.min(boxW / VIEW_W, boxH / H);
-  // Centre the stage in the area above the toggle so the lane never covers a tap.
   stage.style.left = '';
-  stage.style.top = lane > 0 ? `calc(50% - ${lane / 2}px)` : '';
+  stage.style.top = '';
   stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
-  if (document.body.classList.contains('mode-side')) parkToggleBesideStage(sc);
-  if (document.body.classList.contains('phone')) stage.style.setProperty('--fit', String(stageScale()));
+  if (phone) stage.style.setProperty('--fit', String(stageScale()));
   placePhoneNudges();
   if (camX > maxCam()) setCam(camX);
   else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
-  // Phone portrait narrows the window after the camera was aimed at a wider view.
   phoneShowKids();
-  if (!document.body.classList.contains('phone') && view === 'house') frameHouseKid(false);
+  if (!phone && view === 'house') frameHouseKid(false);
   syncTabMode();
   if (view === 'ranch') requestAnimationFrame(frameRanchSign);
   clampPhoneBubbles();
   if (phone && view === 'ranch') layoutPaddock();
   placeSecretsPill();
+  play.hint();
 }
-/**
- * Short landscape parks the toggle in the left gutter. If that gutter is narrower
- * than the toggle, narrow the window and shift the stage right so the toggle
- * stays off the room and the right gutter (Surprises) stays put.
- */
-function parkToggleBesideStage(sc: number) {
-  const wrap = $('stageWrap');
-  const toggle = $('modeToggle');
-  const wrapW = wrap.clientWidth;
-  const screenW = stage.getBoundingClientRect().width;
-  const gutter = (wrapW - screenW) / 2;
-  const need = toggle.offsetWidth + 6;
-  if (gutter + 0.5 >= need) return;
-  const rightGutter = Math.max(0, gutter);
-  const targetW = Math.max(120, wrapW - need - rightGutter);
-  VIEW_W = Math.max(480, Math.round(targetW / Math.max(0.05, sc)));
-  stage.style.width = VIEW_W + 'px';
-  const sc2 = Math.min(wrapW / VIEW_W, wrap.clientHeight / H);
-  stage.style.transform = `translate(-50%,-50%) scale(${sc2})`;
-  const screenW2 = VIEW_W * sc2;
-  stage.style.left = (need + screenW2 / 2) + 'px';
-}
-/** Phone arrows live on the wrap in screen pixels. Centre them on the stage, above the mode lane. */
+/** Phone arrows live on the wrap in screen pixels. Centre them on the stage. */
 function placePhoneNudges() {
   const wrap = $('stageWrap');
   const on = document.body.classList.contains('phone') && view === 'house';
-  const side = document.body.classList.contains('mode-side');
   for (const n of [$('nudgeL'), $('nudgeR')]) {
     if (!on || n.parentElement !== wrap) {
       n.style.top = ''; n.style.marginTop = ''; n.style.left = ''; n.style.right = '';
@@ -369,10 +301,7 @@ function placePhoneNudges() {
     const mid = (stageBox.top + stageBox.bottom) / 2 - wrapBox.top;
     n.style.top = mid + 'px';
     n.style.marginTop = (-n.offsetHeight / 2) + 'px';
-    // The stacked toggle owns the left gutter. Keep the arrows on the stage edge.
-    if (side && n.id === 'nudgeL') { n.style.left = Math.max(0, stageBox.left - wrapBox.left + 4) + 'px'; n.style.right = ''; }
-    else if (side && n.id === 'nudgeR') { n.style.right = Math.max(0, wrapBox.right - stageBox.right + 4) + 'px'; n.style.left = ''; }
-    else { n.style.left = ''; n.style.right = ''; }
+    n.style.left = ''; n.style.right = '';
   }
 }
 /**
@@ -920,6 +849,10 @@ function attachShelfDrag(btn: HTMLElement, def: ItemDef) {
         else if (inStage(ev.clientX, ev.clientY)) { const p = toRoom(ev.clientX, ev.clientY); x = p.x; y = snapY(def, p.y + hOf(def) * .2); }
         else return;
         const item: PlacedItem = { id: newId(def.kind.replace(/[^a-z0-9-]/gi, '')), kind: def.kind, x, y, flip: false, z: 0, scale: 1 };
+        if (store.get().rooms[room].items.length === 0) {
+          const starters = emptyRoomStarters(kind => newId(kind));
+          for (let i = 0; i < starters.length; i++) store.dispatch({ type: 'item/add', room, item: starters[i] });
+        }
         store.dispatch({ type: 'item/add', room, item });
         if (!tapped && target) { holdInto(target, item.id); return; }
         selected = item.id; renderItems(store.get());

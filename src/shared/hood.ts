@@ -51,7 +51,7 @@ const EMAIL_RE = /\S+\s*(@|\(at\)|\sat\s)\s*\S+\s*(\.|\sdot\s)\s*\w{2,}/i;
 const HANDLE_RE = /@\w/;
 const ADDRESS_RE = /\b\d{1,6}\s+([a-z]+\s+){0,3}(street|st|road|rd|avenue|ave|lane|ln|drive|dr|court|ct|blvd|boulevard|way|place|pl|circle|cir|terrace|parkway|pkwy|highway|hwy|apt|apartment|unit)\b/i;
 
-export type FilterResult = { ok: true; text: string } | { ok: false; reason: 'empty' | 'long' | 'link' | 'contact' | 'personal' | 'words' };
+export type FilterResult = { ok: true; text: string } | { ok: false; reason: 'empty' | 'long' | 'link' | 'contact' | 'personal' | 'words' | 'mail' };
 export function filterChat(raw: unknown, max = MAX_CHAT): FilterResult {
   if (typeof raw !== 'string') return { ok: false, reason: 'empty' };
   // strip control/zero-width chars, collapse whitespace
@@ -74,8 +74,108 @@ export function filterChat(raw: unknown, max = MAX_CHAT): FilterResult {
 }
 export const FILTER_MSG: Record<string, string> = {
   long: 'That is a bit long!', link: 'No links, please!', contact: 'Keep numbers and contact info secret!', personal: 'Keep personal info secret!',
-  words: "Let's use kind words!", empty: '',
+  words: "Let's use kind words!", mail: 'Oops, try different words!', empty: '',
 };
+
+// Letters are stricter than chat bubbles. The reason sent to the kid is only "mail":
+// the screen says "Oops, try different words!" and does not name the rule.
+const MEAN = new Set<string>([...BAD, 'fat', 'ugly', 'stoopid', 'hateyou', 'hateu', 'shutup']);
+const MEAN_PHRASE = new Set(['hateyou', 'hateu', 'shutup']);
+const DIGIT_WORDS = ['three', 'seven', 'eight', 'four', 'five', 'nine', 'zero', 'one', 'two', 'six', 'ten', 'oh'];
+const COMMON_WORD = new Set([
+  'hi', 'hey', 'hello', 'bye', 'yes', 'no', 'ok', 'okay', 'oh', 'wow', 'yay', 'dear', 'love', 'house', 'cat', 'bed', 'play', 'slay',
+  'cute', 'why', 'your', 'want', 'come', 'look', 'nice', 'the', 'and', 'my', 'our', 'so', 'too', 'very', 'good', 'fun', 'cool',
+  'best', 'friend', 'friends', 'please', 'thanks', 'thank', 'happy', 'birthday', 'morning', 'night', 'day', 'today', 'room', 'home',
+]);
+
+function spelledDigits(token: string): number {
+  const n = token.length;
+  const dp: number[] = [];
+  for (let i = 0; i <= n; i++) dp.push(-1);
+  dp[0] = 0;
+  for (let i = 0; i < n; i++) {
+    if (dp[i] < 0) continue;
+    for (let w = 0; w < DIGIT_WORDS.length; w++) {
+      const word = DIGIT_WORDS[w];
+      if (!token.startsWith(word, i)) continue;
+      const j = i + word.length;
+      const v = dp[i] + (word === 'ten' ? 2 : 1);
+      if (v > dp[j]) dp[j] = v;
+    }
+  }
+  return dp[n];
+}
+
+function mailMean(text: string): boolean {
+  const leet = text.toLowerCase().replace(/[01345$@]/g, ch => LEET[ch] ?? ch);
+  const words = leet.replace(/[*.]/g, '').split(/[^a-z]+/).filter(Boolean);
+  const hit = (tok: string) => {
+    if (MEAN.has(tok) || /^sto+pid$/.test(tok)) return true;
+    const collapsed = tok.replace(/(.)\1+/g, '$1');
+    return collapsed !== tok && (MEAN.has(collapsed) || /^sto+pid$/.test(collapsed));
+  };
+  if (words.some(hit)) return true;
+  let buf = '';
+  const singles: string[] = [];
+  const flush = () => { if (buf.length > 1) singles.push(buf); buf = ''; };
+  for (let i = 0; i < words.length; i++) {
+    if (words[i].length === 1) buf += words[i];
+    else flush();
+  }
+  flush();
+  if (singles.some(hit)) return true;
+  for (let i = 0; i < words.length - 1; i++) if (MEAN_PHRASE.has(words[i] + words[i + 1])) return true;
+  return false;
+}
+
+function mailSchool(text: string): boolean {
+  if (/\b(?:elementary|school|academy)\b/i.test(text)) return true;
+  if (/\b(?:middle|high)\s+school\b/i.test(text)) return true;
+  const re = /\b([A-Za-z]+)\s+(Middle|High)\b/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (!/^[A-Z][a-z]+$/.test(m[1])) continue;
+    if (COMMON_WORD.has(m[1].toLowerCase())) continue;
+    return true;
+  }
+  return false;
+}
+
+/** A capitalised First Last pair. A roster first name is allowed only when the second word is ordinary. */
+function mailNames(text: string, roster: string[]): boolean {
+  const words = text.match(/[A-Za-z]+/g) ?? [];
+  const known = new Set(roster.map(n => n.toLowerCase()));
+  for (let i = 0; i < words.length - 1; i++) {
+    const a = words[i], b = words[i + 1];
+    if (!/^[A-Z][a-z]+$/.test(a) || !/^[A-Z][a-z]+$/.test(b)) continue;
+    const al = a.toLowerCase(), bl = b.toLowerCase();
+    if (COMMON_WORD.has(al) || COMMON_WORD.has(bl)) continue;
+    if (known.has(al) && COMMON_WORD.has(bl)) continue;
+    return true;
+  }
+  return false;
+}
+
+function mailBlocked(text: string, roster: string[]): boolean {
+  if (/\b(?:roblox|minecraft|tiktok|snapchat|discord|instagram|youtube)\b/i.test(text)) return true;
+  if (/\b(?:snap|insta)\b/i.test(text)) return true;
+  if (/\b(?:user|username)\b[\s:._-]*[@#]?[A-Za-z0-9_]{2,}/i.test(text)) return true;
+  if (/(^|\s)@[A-Za-z0-9_]{2,}/.test(text)) return true;
+  if (mailSchool(text)) return true;
+  if (/\bmeet me\b/i.test(text) || /\bcome to\b/i.test(text) || /\bat the park\b/i.test(text)) return true;
+  if (/\bat\s+\d{1,2}\b/.test(text) || /\b\d{1,2}\s*(?:am|pm)\b/i.test(text) || /\b\d{1,2}:\d{2}\b/.test(text)) return true;
+  const numeric = (text.match(/\d/g) ?? []).length;
+  let spelled = 0;
+  const tokens = text.toLowerCase().split(/[^a-z]+/).filter(Boolean);
+  for (let i = 0; i < tokens.length; i++) {
+    const c = spelledDigits(tokens[i]);
+    if (c > 0) spelled += c;
+  }
+  if (numeric + spelled >= 5) return true;
+  if (mailMean(text)) return true;
+  if (mailNames(text, roster)) return true;
+  return false;
+}
 
 // ---------- validation (server-authoritative; also used when importing a local house) ----------
 const ROOMS: RoomId[] = ROOM_IDS;
@@ -187,12 +287,13 @@ export function cleanHouseState(raw: any): GameState {
   return mailbox ? { ...house, mailbox } : house;
 }
 
-/** Same chat filter as bubbles, with the letter length. Links and emails are rejected, and URLs are stripped so they can never be stored. */
-export function cleanMailText(raw: unknown): FilterResult {
+/** Chat filter, then a stricter letter-only pass. Roster names are the street's first names. */
+export function cleanMailText(raw: unknown, roster: string[] = []): FilterResult {
   const f = filterChat(raw, MAIL_MAX);
   if (!f.ok) return f;
   const text = stripUrls(f.text);
   if (!text || text !== f.text) return { ok: false, reason: 'link' };
+  if (mailBlocked(text, roster)) return { ok: false, reason: 'mail' };
   return { ok: true, text };
 }
 

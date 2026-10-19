@@ -24,7 +24,7 @@ preset nickname, and can bring their local house along. Everyone sees changes li
 action. Owners can lock their house (look, don't touch). Chat is proximity speech bubbles: preset phrases and emotes,
 plus optional typed text up to 60 characters, filtered for bad words, numbers, links, emails, and addresses.
 Free typing can be switched off on the grown-up screen. Bubbles are only relayed live, never stored or logged.
-Letters live in each house's mailbox for up to 30 days. They are filtered the same way as chat, and only the writer's first name is stored. A grown-up can read and clear them on the grown-up screen, or turn free typing off so new letters can only use the same preset phrases as chat bubbles.
+Letters live in each house's mailbox for up to 30 days. They are filtered more strictly than chat, and only the writer's first name is stored. A friend can leave three unread letters. A grown-up can read and clear one mailbox or every mailbox, or turn free typing off so new letters can only use the same preset phrases as chat bubbles.
 No emails, real names, or analytics. Offline single-player keeps working at any time.
 
 Server code: `server/core.ts` (platform-agnostic) with two adapters:

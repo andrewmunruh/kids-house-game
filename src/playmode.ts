@@ -37,6 +37,8 @@ export function installPlayMode(root: HTMLElement, opts: { ownHouse: () => boole
   isPlay: () => boolean;
   /** Call when she enters a house. A friend's house starts in Play. Her own house uses the last choice. */
   sync: (own: boolean) => void;
+  /** One phone hint, the first time the catalog row is on screen. */
+  hint: () => void;
 } {
   let mode: HouseMode = 'decorate';
   const playBtn = root.querySelector<HTMLButtonElement>('#modePlay')!;
@@ -65,9 +67,27 @@ export function installPlayMode(root: HTMLElement, opts: { ownHouse: () => boole
     set(next, opts.ownHouse());
   });
   paint();
+  let hinted = false;
+  const hint = () => {
+    if (hinted || !document.body.classList.contains('phone')) return;
+    const key = storeKey('cozy-mode-hint');
+    try { if (localStorage.getItem(key)) { hinted = true; return; } } catch { hinted = true; return; }
+    hinted = true;
+    const tip = document.createElement('p');
+    tip.className = 'modeHint';
+    tip.textContent = 'Play: tap things! Decorate: move things!';
+    root.appendChild(tip);
+    const done = () => {
+      tip.remove();
+      try { localStorage.setItem(key, '1'); } catch { /* private mode */ }
+    };
+    window.setTimeout(done, 6500);
+    tip.addEventListener('click', done);
+  };
   return {
     mode: () => mode,
     isPlay: () => mode === 'play',
     sync(own: boolean) { set(own ? loadOwnMode() : 'play', false); },
+    hint,
   };
 }

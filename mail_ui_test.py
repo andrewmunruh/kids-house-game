@@ -66,7 +66,7 @@ async def shot(pg, name):
     await pg.screenshot(path=path)
     print('SHOT', path, flush=True)
 
-async def presets_and_parent(P, k_house):
+async def presets_and_parent(P, k_house, suffix):
     """freeChat off: phrase chips instead of a text box, and the grown-up can see and clear letters."""
     await P.click('#btnParent')
     await adult(P)
@@ -92,7 +92,7 @@ async def presets_and_parent(P, k_house):
       return {phrase: on ? on.textContent : '', sticker: !!document.querySelector('.stick.on'), box: !!document.querySelector('#mailText')};
     }""")
     check('a preset chip and a sticker can be picked', chosen['phrase'] == 'Come over!' and chosen['sticker'] and not chosen['box'], str(chosen))
-    path = os.path.join(SHOT, 'preset-composer-820x1180.png')
+    path = os.path.join(SHOT, 'preset-composer-' + suffix + '.png')
     await P.screenshot(path=path)
     print('SHOT', path, flush=True)
     await P.click('#mailSend')
@@ -103,7 +103,7 @@ async def presets_and_parent(P, k_house):
     await P.evaluate("() => { const c = document.querySelector('.parent .card'); if (c) c.scrollTop = 0; }")
     text = await P.inner_text('#parentMail')
     check('grown-up mail lists the name, the words, and a date', 'Reagan' in text and 'Come over!' in text and 'Come play today!' in text and re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}, \d{4}', text) is not None, text[:300])
-    path = os.path.join(SHOT, 'grownup-mail-820x1180.png')
+    path = os.path.join(SHOT, 'grownup-mail-' + suffix + '.png')
     await P.screenshot(path=path)
     print('SHOT', path, flush=True)
     btn = P.locator('.pLetter', has_text='Come over!').locator('[data-p="mailClear"]')
@@ -165,8 +165,9 @@ async def flow(browser, w, h, tag):
     await P.click('.swatch[data-color="2"]')
     await P.click('.stick[data-sticker="1"]')
     await shot(P, f'{tag}-write-letter')
-    if tag == 'ipad820':
-        path = os.path.join(SHOT, 'free-text-composer-820x1180.png')
+    if tag in ('ipad820', 'iphone'):
+        suffix = '820x1180' if tag == 'ipad820' else '390x844'
+        path = os.path.join(SHOT, 'free-text-composer-' + suffix + '.png')
         await P.screenshot(path=path)
         print('SHOT', path, flush=True)
     await P.click('#mailSend')
@@ -204,8 +205,22 @@ async def flow(browser, w, h, tag):
         path = os.path.join(SHOT, 'open-letter-820x1180.png')
         await K.screenshot(path=path)
         print('SHOT', path, flush=True)
-    if tag == 'ipad820':
-        await presets_and_parent(P, k_house)
+    if tag in ('ipad820', 'iphone'):
+        suffix = '820x1180' if tag == 'ipad820' else '390x844'
+        await P.click(f'.mapMail[data-mail="{k_house}"]')
+        await P.wait_for_selector('#mailText')
+        await P.fill('#mailText', 'roblox user Jane2016')
+        await P.click('#mailSend')
+        await P.wait_for_selector('.mailErr')
+        err = await P.inner_text('.mailErr')
+        check(f'{tag} a tricky letter gets a friendly oops', err == 'Oops, try different words!' and 'roblox' not in err.lower() and 'school' not in err.lower(), err)
+        path = os.path.join(SHOT, 'rejected-letter-' + suffix + '.png')
+        await P.screenshot(path=path)
+        print('SHOT', path, flush=True)
+        await P.click('.mailSheet [data-m="close"]')
+        await P.wait_for_function("() => !document.querySelector('.sheet:not(.hidden)')")
+        await shots_house(P, suffix)
+        await presets_and_parent(P, k_house, suffix)
     if tag == 'ipad':
         await K.click('[data-m="close"]')
         await K.wait_for_timeout(200)
@@ -223,10 +238,40 @@ async def flow(browser, w, h, tag):
         }""")
         await K.wait_for_timeout(300)
         after = await K.evaluate("__store.get().rooms.living.items[0].x")
-        drawer = await K.evaluate("getComputedStyle(document.querySelector('.drawer')).display")
-        check('play mode blocks a furniture drag and hides the drawer', before == after and drawer == 'none' and await K.evaluate("__ui().play") == 'play', f'{before}->{after} drawer={drawer}')
+        shelf = await K.evaluate("getComputedStyle(document.querySelector('.shelf')).display")
+        toggle = await K.evaluate("getComputedStyle(document.getElementById('modeToggle')).display")
+        check('play mode blocks a furniture drag and hides the shelf', before == after and shelf == 'none' and toggle !== 'none' and await K.evaluate("__ui().play") == 'play', f'{before}->{after} shelf={shelf} toggle={toggle}')
     await P.context.close()
     await K.context.close()
+
+async def shots_house(P, suffix):
+    """Play / Decorate in the catalog row, and the nursery starters after one more item."""
+    hid = await P.evaluate('__hood().myHouseId()')
+    await P.click(f'.mapHouse[data-go="house:{hid}"]')
+    await P.wait_for_selector('#modeToggle')
+    words = await P.evaluate("""() => [...document.querySelectorAll('#modeToggle .modeWord')].map(el => (el.textContent || '').trim())""")
+    box = await P.evaluate("""() => {
+      const b = document.getElementById('modeToggle').getBoundingClientRect();
+      const row = document.querySelector('.drawerTop').getBoundingClientRect();
+      return { y: Math.round(b.y), row: Math.round(row.y), h: Math.round(b.height), same: Math.abs(b.y - row.y) < 8 };
+    }""")
+    check(f'{suffix} Play and Decorate sit in the catalog row', ' '.join(words) == 'Play Decorate' and box['same'] and box['h'] <= 56, str(words) + ' ' + str(box))
+    path = os.path.join(SHOT, 'play-decorate-' + suffix + '.png')
+    await P.screenshot(path=path)
+    print('SHOT', path, flush=True)
+    await P.click('.tab[data-room="nursery"]')
+    await P.wait_for_timeout(200)
+    await P.evaluate("""() => {
+      __store.dispatch({ type: 'item/add', room: 'nursery', item: { id: 'shot-ball', kind: 'ball', x: 1100, y: 520, flip: false, z: 9, scale: 1 } });
+    }""")
+    await P.wait_for_timeout(200)
+    kinds = await P.evaluate("""() => __store.get().rooms.nursery.items.map(i => i.kind)""")
+    check(f'{suffix} nursery starters stay after a new item', all(k in kinds for k in ('cloud-rug', 'crib', 'crib-mobile', 'rocker', 'ball')), str(kinds))
+    path = os.path.join(SHOT, 'nursery-starters-' + suffix + '.png')
+    await P.screenshot(path=path)
+    print('SHOT', path, flush=True)
+    await P.click('#btnMap')
+    await P.wait_for_selector('body.view-map .mapHouse')
 
 async def main():
     async with async_playwright() as p:

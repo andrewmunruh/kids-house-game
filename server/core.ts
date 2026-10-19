@@ -1,7 +1,8 @@
 // Platform-agnostic, server-authoritative neighborhood. One instance per invite code.
 // Adapters (server/node.ts, server/worker.ts) provide storage + sockets.
 // Privacy: no emails, last names, or IP addresses are stored. Chat bubbles are relayed to nearby players only and never logged.
-// Letters are kept on the server for up to 30 days: filtered, first names only. A grown-up can clear them, or limit new letters to preset phrases.
+// Letters are kept on the server for up to 30 days: filtered more strictly than chat, first names only.
+// A kid can leave three unread letters in one mailbox. A grown-up can clear them, or limit new letters to preset phrases.
 import { reduce, initialState, ensureRooms, type GameState, type Dog } from '../src/shared/state';
 import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, cleanPresence, cleanHouseName,
@@ -526,16 +527,18 @@ export class Neighborhood {
         if (typeof raw !== 'string' || PHRASES.indexOf(raw) < 0) return fail('presetsOnly');
         text = raw;
       } else {
-        const cleaned = cleanMailText(raw);
+        const cleaned = cleanMailText(raw, this.meta?.roster ?? []);
         if (!cleaned.ok) return fail(cleaned.reason);
         text = cleaned.text;
       }
       const color = mailColor((m as { color?: unknown }).color);
       const sticker = mailSticker((m as { sticker?: unknown }).sticker);
       if (color < 0 || sticker < 0) return fail('bad');
-      if (!this.mailRate(me.pid, now)) return fail('slow');
       this.freshen(h, now);
       const letters = h.state.mailbox?.letters ?? [];
+      // Three unread letters from the same kid. Reading one opens the slot again.
+      if (letters.filter(l => l.fromPid === me.pid && !l.read).length >= 3) return fail('unread');
+      if (!this.mailRate(me.pid, now)) return fail('slow');
       if (letters.length >= MAIL_CAP) return fail('full');
       const letter: Letter = { id: 'm' + randomToken(8), from: me.nickname, fromPid: me.pid, text, color, sticker, at: now };
       const next: GameState = { ...h.state, mailbox: { letters: [...letters, letter] } };
@@ -619,6 +622,22 @@ export class Neighborhood {
       }
       case 'remove': {
         const p = meta.players[m.pid]; if (!p) break;
+        for (const id of meta.houseOrder) {
+          if (id === p.houseId) continue;
+          const h = this.houses.get(id);
+          if (!h) continue;
+          this.freshen(h);
+          const letters = h.state.mailbox?.letters ?? [];
+          if (!letters.some(l => l.fromPid === p.pid)) continue;
+          const keep = letters.filter(l => l.fromPid !== p.pid);
+          if (keep.length) h.state = { ...h.state, mailbox: { letters: keep } };
+          else {
+            const { mailbox: _drop, ...rest } = h.state;
+            h.state = rest;
+          }
+          this.save(h.id);
+          this.pushMail(h, [p.pid]);
+        }
         delete meta.players[p.pid]; this.houses.delete(p.houseId); meta.houseOrder = meta.houseOrder.filter(id => id !== p.houseId);
         meta.houseOrder.forEach((id, i) => { const h = this.houses.get(id); if (h && h.slot !== i) { h.slot = i; this.save(id); } });
         this.presence.delete(p.pid); this.save('meta'); this.save(p.houseId);

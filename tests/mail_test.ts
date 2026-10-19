@@ -1,6 +1,6 @@
 // Mailbox: filter, cap, expiry, rate limit, author stamp, owner-only reading, old clients.
 import { Neighborhood, type KV, type Conn } from '../server/core';
-import { NICKNAMES, PROTOCOL, cleanMailText } from '../src/shared/hood';
+import { FILTER_MSG, NICKNAMES, PROTOCOL, cleanMailText } from '../src/shared/hood';
 import { initialState, type Cat } from '../src/shared/state';
 import { keepMailbox, stripUrls, MAIL_CAP, MAIL_MAX, MAIL_TTL_MS, type Letter } from '../src/shared/mail';
 import { catAt } from '../src/pets';
@@ -28,6 +28,28 @@ async function main() {
   check('a link is refused', cleanMailText('come see www.example.com').ok === false && (cleanMailText('come see www.example.com') as { reason?: string }).reason === 'link');
   check('an email is refused', cleanMailText('write me at a@b.com').ok === false);
   check('a mean word is refused', cleanMailText('you are stupid').ok === false);
+  const roster = ['Ava', 'Chloe', 'Cada'];
+  const blocked = [
+    'roblox user Jane2016', 'Ava Smith', 'I go to Lincoln Elementary', 'meet me at the park at 3',
+    'fivefivefive-oneoneone-twotwotwotwo', 'st00pid', 'fat', 'ugly', 'f*ck', 'f u c k',
+  ];
+  const alsoBlocked = [
+    'minecraft please', 'snap me', 'insta friend', 'youtube channel', 'username coolkid',
+    'Lincoln School', 'Lincoln Academy', 'Lincoln Middle', 'Lincoln High',
+    'come to my house', 'at the park', 'see you at 3', 'come at 3pm', 'hate you', 'shut up', 'dumb', 'loser', 'kill',
+    'five five five one one', 'my tiktok', 'discord user',
+  ];
+  const allowed = ['Why is your cat in my bed?', 'Your house is so cute!', 'Want to play Slay?', 'Hi Chloe!', 'father', 'skill', 'someone', 'snapshot of the cat', 'so high'];
+  const blockedBad = blocked.filter(t => {
+    const f = cleanMailText(t, roster);
+    return f.ok || (f as { reason?: string }).reason !== 'mail';
+  });
+  const alsoBad = alsoBlocked.filter(t => cleanMailText(t, roster).ok);
+  const allowedBad = allowed.filter(t => !cleanMailText(t, roster).ok);
+  check('trickier letters are blocked without naming the rule', blockedBad.length === 0 && alsoBad.length === 0 && FILTER_MSG.mail === 'Oops, try different words!' && !/roblox|school|stupid|fat/i.test(FILTER_MSG.mail), blockedBad.concat(alsoBad).join(' | '));
+  check('ordinary letters still go through', allowedBad.length === 0, allowedBad.join(' | '));
+  check('Ava Smith is blocked even when Ava is on the roster', cleanMailText('Ava Smith', ['Ava']).ok === false);
+  check('five digits are still refused', cleanMailText('call 12345').ok === false);
   check('urls are stripped', stripUrls('hello') === 'hello' && stripUrls('see http://x.com now') !== 'see http://x.com now' && !stripUrls('see http://x.com now').includes('http'));
   const old = letter({ at: Date.now() - MAIL_TTL_MS - 86400000 });
   const fresh = Array.from({ length: MAIL_CAP + 1 }, (_, i) => letter({ id: 'm' + String(i).padStart(6, '0'), at: Date.now() - i * 1000 }));
@@ -109,9 +131,13 @@ async function main() {
   check('a 31-day-old letter clears when new mail arrives', live().mailbox?.letters.length === 1 && live().mailbox?.letters[0].text === 'A new note' && disk0().mailbox.letters[0].text === 'A new note');
 
   const speedy = await join(1);
-  for (let i = 0; i < 5; i++) await send(speedy.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'Note ' + i, color: 0, sticker: i % 6 });
+  for (let i = 0; i < 5; i++) {
+    await send(speedy.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'Note ' + i, color: 0, sticker: i % 6 });
+    const id = (live().mailbox?.letters ?? []).slice(-1)[0]?.id;
+    if (id) await send(owner.c, { t: 'mail', op: 'read', houseId: owner.hid, id });
+  }
   await send(speedy.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'Too many', color: 0, sticker: 0 });
-  check('the sixth letter in a minute waits', speedy.c.last('mailFail')?.reason === 'slow' && speedy.c.inbox.filter(m => m.t === 'mailbox' && m.houseId === owner.hid).length === 5);
+  check('the sixth letter in a minute waits', speedy.c.last('mailFail')?.reason === 'slow' && (live().mailbox?.letters ?? []).filter(l => l.text.startsWith('Note ')).length === 5 && !(live().mailbox?.letters ?? []).some(l => l.text === 'Too many'));
 
   const oldie = await join(0);
   const writer = await join(1);
@@ -186,6 +212,41 @@ async function main() {
   await hood3.load();
   const cleared = grown.last('parentInfo')?.mail as { letters: unknown[] }[];
   check('the grown-up can clear every mailbox', !hood3.houses.get(owner.hid)!.state.mailbox && !hood3.houses.get(oldie.hid)!.state.mailbox && Array.isArray(cleared) && cleared.every(b => b.letters.length === 0));
+
+  await send(grown, { t: 'parent', key: parentKey, op: 'freeChat', on: true });
+  await send(grown, { t: 'parent', key: parentKey, op: 'rosterAdd', name: 'Ava' });
+  const tricky = ['roblox user Jane2016', 'Ava Smith', 'I go to Lincoln Elementary', 'meet me at the park at 3', 'fivefivefive-oneoneone-twotwotwotwo', 'st00pid', 'fat', 'ugly', 'f*ck', 'f u c k'];
+  for (const text of tricky) await send(locked.c, { t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
+  const mailFails = locked.c.inbox.filter(m => m.t === 'mailFail' && m.reason === 'mail');
+  check('the server blocks trickier letters with a generic reason', mailFails.length === tricky.length && !live().mailbox, String(mailFails.length));
+  const passTexts = ['Why is your cat in my bed?', 'Your house is so cute!', 'Want to play Slay?', 'Hi Chloe!'];
+  const passBox = () => hood.houses.get(fullKid.hid)!.state.mailbox?.letters ?? [];
+  for (const text of passTexts) {
+    await send(sneaky, { t: 'mail', op: 'send', houseId: fullKid.hid, text, color: 1, sticker: 0 });
+    const id = passBox().slice(-1)[0]?.id;
+    if (id) await send(fullKid.c, { t: 'mail', op: 'read', houseId: fullKid.hid, id });
+  }
+  const gotPass = passBox().map(l => l.text);
+  check('ordinary letters are delivered', passTexts.every(t => gotPass.includes(t)), gotPass.join('|'));
+
+  const capBox = () => hood.houses.get(speedy.hid)!.state.mailbox?.letters ?? [];
+  for (let i = 0; i < 3; i++) await send(pal.c, { t: 'mail', op: 'send', houseId: speedy.hid, text: 'Hi!', color: 0, sticker: i % 6 });
+  await send(pal.c, { t: 'mail', op: 'send', houseId: speedy.hid, text: 'Hi!', color: 0, sticker: 0 });
+  check('a fourth unread letter waits', pal.c.last('mailFail')?.reason === 'unread' && capBox().filter(l => l.fromPid === pal.pid && !l.read).length === 3);
+  await send(speedy.c, { t: 'mail', op: 'read', houseId: speedy.hid, id: capBox().find(l => l.fromPid === pal.pid)!.id });
+  await send(pal.c, { t: 'mail', op: 'send', houseId: speedy.hid, text: 'So cute!', color: 1, sticker: 1 });
+  check('reading a letter lets her send again', capBox().some(l => l.text === 'So cute!'), capBox().map(l => l.text).join('|') + ' fail=' + pal.c.last('mailFail')?.reason);
+
+  await send(writer.c, { t: 'mail', op: 'send', houseId: fullKid.hid, text: 'Look at this!', color: 0, sticker: 0 });
+  await send(writer.c, { t: 'mail', op: 'send', houseId: speedy.hid, text: 'Nice!', color: 0, sticker: 1 });
+  check('her letter is in the other mailbox', capBox().some(l => l.fromPid === writer.pid && l.text === 'Nice!'));
+  await send(grown, { t: 'parent', key: parentKey, op: 'remove', pid: writer.pid });
+  await hood.flush();
+  const hood4 = new Neighborhood(kv, { flushMs: 5 });
+  await hood4.load();
+  const stillFull = hood4.houses.get(fullKid.hid)!.state.mailbox?.letters ?? [];
+  const stillSpeedy = hood4.houses.get(speedy.hid)!.state.mailbox?.letters ?? [];
+  check('removing a kid deletes her letters from every mailbox', !hood4.houses.has(writer.hid) && !stillFull.some(l => l.fromPid === writer.pid) && !stillSpeedy.some(l => l.fromPid === writer.pid) && stillFull.some(l => l.text === 'Hi Chloe!') && stillSpeedy.some(l => l.text === 'So cute!'));
 
   console.log(`${pass} passed`);
 }
