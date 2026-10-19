@@ -317,7 +317,8 @@ async def main():
             await P.wait_for_timeout(900)
             mailed = await K2.evaluate("""(id) => { const L = (__hood().view(id).mailbox || {}).letters; return L && L[0] && L[0].text.indexOf('yard') >= 0 && !!L[0].from; }""", k2house)
             check('a letter lands in her mailbox', mailed)
-            # old client (27cfcac) against this new server, visiting the house that now has a nursery
+            # Production baseline (current main) against this server. She already draws the nursery,
+            # chibi avatars, and mailboxes. An edit must still keep the nursery, look2, and the letter.
             serve_build('/tmp/prod-dist')
             old_errs = []
             P.on('pageerror', lambda e: old_errs.append(str(e)))
@@ -326,16 +327,16 @@ async def main():
             except Exception:
                 await P.screenshot(path='/tmp/mig-old-client.png'); raise
             old_tabs = await P.locator('.tab').all_inner_texts()
-            check('old client shows four tabs and does not draw the nursery', len(old_tabs) == 4 and not any('Nursery' in t for t in old_tabs), str(old_tabs))
+            check('baseline client draws the nursery tab', len(old_tabs) == 5 and any('Nursery' in t for t in old_tabs), str(old_tabs))
             face = await P.evaluate("""() => { const svg = document.querySelector('.mapFace.mine svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
-            check('old client draws the new kid without the chibi avatar', face is None and not old_errs, str(face) + ' ' + '; '.join(old_errs[:2]))
+            check('baseline client draws the new kid as a chibi', face == '1' and not old_errs, str(face) + ' ' + '; '.join(old_errs[:2]))
             os.makedirs('/opt/cursor/artifacts', exist_ok=True)
             await P.click('#mapWorld .mapHouse.mine'); await P.wait_for_timeout(900)
             body = await P.evaluate("""() => { const svg = document.querySelector('.char.avatar.mine svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
-            check('old client house body has no chibi markup', body is None and not old_errs, str(body))
+            check('baseline client house body is a chibi', body == '1' and not old_errs, str(body))
             await P.screenshot(path='/opt/cursor/artifacts/old-client-view.png')
             await P.click('#btnMap'); await P.wait_for_timeout(500)
-            check('old client does not show mailboxes', await P.locator('.mapMail').count() == 0)
+            check('baseline client shows mailboxes', await P.locator('.mapMail').count() >= 1)
             await P.evaluate("""() => {
               const L = __hood().players.get(__hood().pid).look;
               __hood().setLook({ skin: L.skin, hair: L.hair, hairStyle: L.hairStyle, shirt: '#80ed99', pants: L.pants, size: L.size, acc: L.acc });
@@ -375,7 +376,7 @@ async def main():
             await rpg.evaluate("""() => __store.dispatch({type:'room/wallpaper', room:'living', color:'#ddeeff'})""")
             await rpg.wait_for_timeout(500)
             kept = await rpg.evaluate("""() => { const s = JSON.parse(localStorage.getItem('cozy-house')); const mail = (s.mailbox && s.mailbox.letters || [])[0]; return { tabs: [...document.querySelectorAll('.tab')].length, nursery: (s.rooms.nursery.items || []).map(i => i.id), yard: (s.rooms.backyard.items || []).map(i => i.id), wall: s.rooms.living.wallpaper, kennel: s.dogKennel || null, kennelItem: (s.rooms.living.items || []).some(i => i.id === 'keep-kennel'), mail: mail && mail.text, boxes: document.querySelectorAll('.mapMail').length }; }""")
-            check('old client keeps a nursery that was already in the save', kept['tabs'] == 4 and kept['nursery'] == ['keep-crib'] and kept['yard'] == ['keep-yard'] and kept['wall'] == '#ddeeff' and kept['kennel'] and kept['kennel']['item'] == 'keep-kennel' and kept['kennelItem'] and kept['mail'] == 'Hi from the mailbox' and kept['boxes'] == 0 and not any(e.startswith('rollback') for e in old_errs), str(kept))
+            check('baseline client draws the saved nursery and keeps the letter', kept['tabs'] == 5 and kept['nursery'] == ['keep-crib'] and kept['yard'] == ['keep-yard'] and kept['wall'] == '#ddeeff' and kept['kennel'] and kept['kennel']['item'] == 'keep-kennel' and kept['kennelItem'] and kept['mail'] == 'Hi from the mailbox' and kept['boxes'] == 0 and not any(e.startswith('rollback') for e in old_errs), str(kept))
             await rb.close()
             serve_build('/tmp/new-dist')
             # ================= Phase C: preview build on the same origin =================

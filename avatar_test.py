@@ -410,7 +410,7 @@ async def street(b):
             await O.wait_for_timeout(600)
             old_face = await O.evaluate("""(pid) => { const el = document.querySelector('.mapFace[data-pid="' + pid + '"] svg'); return el ? el.getAttribute('data-chibi') : 'missing'; }""", pid)
             await O.screenshot(path=f'{SHOT}/old-client-view.png')
-            check('old client sees the new kid without chibi markup', old_face is None and not oerrs, str(old_face) + ' ' + '; '.join(oerrs[:2]))
+            check('baseline client draws the new kid as a chibi', old_face == '1' and not oerrs, str(old_face) + ' ' + '; '.join(oerrs[:2]))
             await ctxo.close()
         finally:
             try:
@@ -418,7 +418,7 @@ async def street(b):
             except Exception:
                 pass
     else:
-        check('old client sees the new kid without chibi markup', False, 'missing /tmp/prod-dist')
+        check('baseline client draws the new kid as a chibi', False, 'missing /tmp/prod-dist')
     await ctxp.close()
     await ctxk.close()
 
