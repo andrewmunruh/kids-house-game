@@ -36,7 +36,7 @@ check('no probe asset is shipped', !names.some(n => n.includes('_probe')));
 
 const sw = readFileSync(join(root, 'public/sw.js'), 'utf8');
 check('art is served from the service worker cache', sw.includes('cache.match') && sw.includes('/assets/art/'));
-check('the service worker does not cache.add a missing image', !sw.includes('cache.add'));
+check('the service worker does not cache.add a missing image', !/\bcache\.add\s*\(/.test(sw));
 check('a missing image is a quiet 404', sw.includes('status:404') || sw.includes('status: 404'));
 
 const py = process.env.ART_PYTHON || ['/tmp/pwvenv/bin/python', 'python3'].find(p => { try { execSync(`test -x ${p}`); return true; } catch { return p === 'python3'; } });

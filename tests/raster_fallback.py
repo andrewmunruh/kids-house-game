@@ -121,7 +121,7 @@ SW = r'''async () => {
   } catch (e) {
     missingStatus = -1;
   }
-  ok('a missing painting does not throw in the service worker', missingStatus === 404);
+  ok('a missing painting does not throw in the service worker (status ' + missingStatus + ')', missingStatus === 404);
   const first = await fetch('/assets/art/any/lamp.webp');
   const second = await fetch('/assets/art/any/lamp.webp');
   ok('a painting can be read back from the service worker', first.ok === true && second.ok === true && first.status === 200);
@@ -154,6 +154,24 @@ def main():
         notes.append(('PASS ' if len(hits('ball')) == 0 else 'FAIL ') + 'a fresh house does not fetch the ball')
         notes.append(('PASS ' if len(hits('balloon')) == 0 and len(hits('tv')) == 0 else 'FAIL ') + 'a fresh house does not fetch unplaced catalog art')
         notes.append(('PASS ' if len(hits('sofa')) == 1 and len(hits('chair')) == 1 else 'FAIL ') + f"save art is fetched once (sofa {len(hits('sofa'))}, chair {len(hits('chair'))})")
+        notes.extend(page.evaluate(r'''async () => {
+          const notes = [];
+          const ok = (name, cond) => notes.push((cond ? 'PASS ' : 'FAIL ') + name);
+          const room = window.__store.get().currentRoom;
+          window.__store.dispatch({ type: 'item/add', room, item: { id: 'ball-probe', kind: 'ball', x: 900, y: 520, flip: false, z: 50, scale: 1 } });
+          const shown = await new Promise(res => {
+            const start = Date.now();
+            const tick = () => {
+              const img = document.querySelector('.item[data-kind="ball"] img.artimg');
+              if (img && img.complete && img.naturalWidth > 0) res(true);
+              else if (Date.now() - start > 4000) res(false);
+              else requestAnimationFrame(tick);
+            };
+            tick();
+          });
+          ok('placing a new item loads its painting', shown === true);
+          return notes;
+        }'''))
         sw_page = context.new_page()
         sw_errors = []
         sw_page.on('pageerror', lambda e: sw_errors.append(str(e)))
@@ -162,6 +180,7 @@ def main():
             worker.on('console', lambda msg: sw_errors.append(msg.text) if msg.type == 'error' else None)
         context.on('serviceworker', on_worker)
         sw_page.goto(origin, wait_until='domcontentloaded')
+        context.route('**/does-not-exist.webp', lambda route: route.abort('failed'))
         notes.extend(sw_page.evaluate(SW))
         noisy = [e for e in sw_errors if 'Failed to execute' in e or 'Cache' in e]
         notes.append(('PASS ' if not noisy else 'FAIL ') + 'the service worker stays quiet when an image is missing' + ((' ' + noisy[0]) if noisy else ''))

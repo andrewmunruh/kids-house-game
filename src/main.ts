@@ -2863,9 +2863,26 @@ function refreshArt(_room?: string): Promise<void> {
   });
   return artBoot;
 }
+function paintLoaded(ids: string[]): void {
+  const want = new Set(ids);
+  const s = store.get();
+  let changed = false;
+  for (const it of s.rooms[s.currentRoom].items) {
+    const def = ITEM_MAP[it.kind];
+    if (!want.has(it.kind) || !def) continue;
+    const inner = layer.querySelector<HTMLElement>(`.item[data-id="${it.id}"] .inner`);
+    if (!inner || inner.querySelector('img.artimg')) continue;
+    inner.innerHTML = svgOf(def, true);
+    changed = true;
+  }
+  if (!changed) return;
+  charEls.forEach(el => { delete el.dataset.held; });
+  renderChars(s);
+  renderDrawer();
+}
 function loadNewArt(): Promise<void> {
   return import('./art/load').then(m => m.boot(location.search, artKinds(store.get()))).then(ids => {
-    for (let i = 0; i < ids.length; i++) if (ITEM_MAP[ids[i]]) { renderItems(store.get()); renderDrawer(); return; }
+    paintLoaded(ids.filter(id => !!ITEM_MAP[id]));
   });
 }
 
