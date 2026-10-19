@@ -1150,7 +1150,13 @@ body.mode-play #decorateUndoSlot { display: none !important; }
   body.phone .basketChip { top: calc(var(--chrome-h, 48px) + 8px); bottom: auto; left: max(8px, env(safe-area-inset-left)); }
 }
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) and (max-width: 700px) {
+  /* Five short names, the minimap, and Chat/Menu/Map already fill a 667px row.
+     Play and Decorate keep their icons and their names in the label, so the row stays one line. */
   body.phone.mode-hood .top { flex-wrap: nowrap; }
   body.phone.mode-hood .tools { flex: 0 0 auto; justify-content: flex-end; }
-  body.phone .tab { font-size: 13px; padding: 0 2px; min-width: max(44px, max-content); }
+  body.phone .tabs { flex: 0 0 auto; min-width: min-content; }
+  body.phone .tab { font-size: 13px; padding: 0; min-width: max(44px, max-content); }
+  body.phone .tools .modeToggle .modeWord { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  body.phone .tools .modeToggle button { width: 44px; min-width: 44px; padding: 0; justify-content: center; }
 }

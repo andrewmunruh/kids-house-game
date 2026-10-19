@@ -620,8 +620,9 @@ async def living_room_one_line(pg, tag):
     data = await pg.evaluate("""() => {
       const tab = [...document.querySelectorAll('.tab')].find(t => (t.getAttribute('aria-label') || t.textContent || '').trim() === 'Living Room');
       if (!tab) return {ok: false};
+      const text = [...tab.childNodes].reverse().find(n => n.nodeType === 3 && (n.textContent || '').trim());
       const range = document.createRange();
-      range.selectNodeContents(tab);
+      range.selectNodeContents(text || tab);
       const lines = range.getClientRects().length;
       const b = tab.getBoundingClientRect();
       return {lines, sw: tab.scrollWidth, cw: tab.clientWidth, w: Math.round(b.width), h: Math.round(b.height),
@@ -741,6 +742,7 @@ async def check_secrets(pg, tag, short):
           not closed['on'] and not closed['overlap'], str(closed))
     await pg.click('#btnMenu')
     await pg.wait_for_selector('#menuPop:not(.hidden)')
+    await pg.locator('#secrets').scroll_into_view_if_needed()
     row = await pg.evaluate("""() => {
       const el = document.getElementById('secrets');
       const b = el.getBoundingClientRect();
