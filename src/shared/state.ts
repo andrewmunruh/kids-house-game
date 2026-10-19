@@ -130,12 +130,12 @@ export function initialState(): GameState {
       // Same shape as the Salon: old saves gain these pieces, version stays 3.
       nursery: { wallpaper: '#d6f3ff', floor: '#f3ddc4', pattern: 1, items: [
         it('cloud-rug', 480, 545, 0), it('crib', 470, 480, 1), it('crib-mobile', 470, 155, 2), it('rocker', 780, 490, 3)] },
-      // Ladder stands left of the window. Shower, tub, vanity, toilet, and fern keep their feet on the floor.
-      // The cubby is a wall shelf beside the window. Open floor on the right is where she stands.
+      // Toilet and soaker fill the opening view, with room for her between them.
+      // Ladder, shower, vanity, and fern continue across the right side of the room.
       bathroom: { wallpaper: '#d7f6f8', floor: '#f3e0c8', pattern: 1, items: [
-        it('puddle-mat', 339, 578, 0), it('rain-shower', 222, 440, 1), it('clawfoot-tub', 339, 542, 3),
-        it('mirror-vanity', 222, 584, 2), it('little-toilet', 121, 572, 4), it('bath-cubby', 117, 200, 5),
-        it('towel-ladder', 121, 440, 6), it('mist-fern', 339, 440, 7)] },
+        it('puddle-mat', 335, 566, 0), it('rain-shower', 758, 460, 1), it('clawfoot-tub', 366, 530, 3),
+        it('mirror-vanity', 909, 528, 2), it('little-toilet', 56, 552, 4), it('bath-cubby', 610, 250, 5),
+        it('towel-ladder', 606, 468, 6), it('mist-fern', 1340, 490, 7)] },
       // Empty on purpose. The backyard scene ships later; the room key has to exist so edits are not dropped.
       backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [] },
     },

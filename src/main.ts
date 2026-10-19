@@ -2100,6 +2100,15 @@ function onPlayTap(el: HTMLElement, id: string) {
   const g = playGesture(it.kind);
   el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle');
   sfx.click();
+  if (it.kind === 'clawfoot-tub' || it.kind === 'rain-shower') {
+    el.classList.remove('splashing'); void el.offsetWidth; el.classList.add('splashing');
+    window.setTimeout(() => el.classList.remove('splashing'), 1400);
+  }
+  if (it.kind === 'sunny-ducky') {
+    const kid = s.characters.find(ch => ch.room === s.currentRoom && !ch.held.right) ?? s.characters.find(ch => ch.room === s.currentRoom && !ch.held.left);
+    if (kid) holdInto({ c: kid, hand: kid.held.right ? 'left' : 'right' }, it.id);
+    return;
+  }
   if (g === 'kennel' || g === 'tower') { onPlaceTap(id); return; }
   if (g === 'lamp') { el.classList.toggle('lamp-on'); return; }
   if (g === 'open') { el.classList.toggle('opened'); return; }

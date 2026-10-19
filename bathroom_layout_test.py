@@ -1,6 +1,8 @@
-# Bathroom starter. Every piece stays inside the stage at the seven sizes,
-# clear of the nav arrows and the Surprises chip. Wall pieces stay off the
-# window and off each other. Nothing overlaps. The mat sits in front of the tub.
+# Bathroom starter. Pieces spread across the room, so a wide opening view is not
+# a left-hand clump and a narrow one may leave some pieces off to the side.
+# Anything on the stage stays clear of the nav arrows and the Surprises chip.
+# Wall pieces stay off the window and off each other. Nothing overlaps.
+# The mat sits in front of the tub. The shower stays much taller than the tub.
 # Fresh page per size so the camera is the one the room opens with.
 import asyncio, sys
 from playwright.async_api import async_playwright
@@ -23,13 +25,17 @@ CHECK = """() => {
   const win = live(document.querySelector('.sceneWin'));
   const items = [...document.querySelectorAll('#layer .item')];
   const problems = [];
+  const onStage = (b) => b.right > sb.left + 1 && b.left < sb.right - 1 && b.bottom > sb.top + 1 && b.top < sb.bottom - 1;
+  let minL = Infinity, maxR = -Infinity;
   for (const el of items) {
     const b = el.getBoundingClientRect();
     const kind = el.dataset.kind;
-    if (b.left < sb.left - 1 || b.top < sb.top - 1 || b.right > sb.right + 1 || b.bottom > sb.bottom + 1)
-      problems.push(kind + ' outside');
+    minL = Math.min(minL, b.left); maxR = Math.max(maxR, b.right);
+    if (!onStage(b)) continue;
     for (const [id, o] of obstacles) if (hits(b, o)) problems.push(kind + ' hits ' + id);
   }
+  if (maxR < sb.left + sb.width * 0.62) problems.push('bunched left');
+  if (minL > sb.left + sb.width * 0.2) problems.push('bunched right');
   const walls = items.filter(el => el.dataset.wall === '1');
   for (let i = 0; i < walls.length; i++) {
     const a = walls[i].getBoundingClientRect();

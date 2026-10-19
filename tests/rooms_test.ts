@@ -6,6 +6,7 @@ import { NICKNAMES, PROTOCOL, cleanAction, cleanFx, cleanHouseState, cleanLook, 
 import { ensureRooms, initialState, migrate, reduce, ROOM_IDS, type GameState } from '../src/shared/state';
 import { BATHROOM_ITEMS } from '../src/bathroom';
 import { playGesture } from '../src/playmode';
+import { catalogShows } from '../src/roomfilter';
 import { patchFromLook2, sanitizeLook2 } from '../src/shared/avatar';
 
 const store = new Map<string, any>();
@@ -368,6 +369,15 @@ async function main() {
   });
   check('bathroom art uses the v2 shadow and no blur', artBad.length === 0, artBad.map(i => i.kind).join(','));
   check('bathroom gestures open the mirrors and wiggle the tub', playGesture('mirror-vanity') === 'open' && playGesture('porthole-mirror') === 'open' && playGesture('clawfoot-tub') === 'wiggle' && playGesture('rain-shower') === 'wiggle' && playGesture('little-toilet') === 'wiggle' && playGesture('sink-step') === 'wiggle' && playGesture('tub') === 'wiggle');
+  check('the sunny ducky is holdable', BATHROOM_ITEMS.find(i => i.kind === 'sunny-ducky')?.holdable === true);
+  const bathShelf = BATHROOM_ITEMS.map(i => ({ ...i, rooms: ['bathroom'] })).filter(i => catalogShows(i, i.cat, 'bathroom', false)).map(i => i.name);
+  const bannedShelf = [
+    { name: 'Bathtub', kind: 'tub', rooms: ['bedroom'], cat: 'furniture' },
+    { name: 'Sink', kind: 'pack:kitchen-sink', rooms: ['kitchen'], cat: 'furniture' },
+    { name: 'Towel Stack', kind: 'pack:towel-stack', rooms: ['salon'], cat: 'decor' },
+    { name: 'Bubble Bath', kind: 'pack:bubble-bath', rooms: ['bedroom'], cat: 'furniture' },
+  ];
+  check('the bathroom shelf keeps the bedroom tub, sink, towel stack, and bubble bath off it', bannedShelf.every(i => !catalogShows(i, i.cat, 'bathroom', false)) && bathShelf.includes('Clawfoot Soaker') && !bathShelf.includes('Bathtub'));
   check('bathroom is a known room and backyard stays tab-less', ROOM_IDS.includes('bathroom') && ROOM_IDS.includes('backyard'));
 
   console.log(`${pass} passed`);

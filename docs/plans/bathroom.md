@@ -27,18 +27,18 @@ Same rules as the nursery, including the strict checks that model client `27cfca
 
 `ensureRooms` already walks `ROOM_IDS`. A save whose `rooms.bathroom` is missing, not an object, or has no `items` array receives the starter room. A bathroom that is already stored is left byte-for-byte alone, including a bathroom a kid has emptied. Each fill-in calls `initialState()` so two houses do not share one starter array (the nursery test mutates one fill-in and checks the next).
 
-Starter pieces match the approved mockup, and every box stays inside the stage at the seven checked sizes:
+Starter pieces are scaled to the kid and spread across the room. A narrow opening view shows the toilet, the soaker, and the mat, with space for her between the toilet and the tub. Wider views continue through the ladder, shower, vanity, and fern. A piece may sit past the portrait stage. Anything on the stage stays clear of the arrows and the Surprises chip.
 
 | kind | name | role |
 | --- | --- | --- |
-| `puddle-mat` | Puddle Bath Mat | front row, in front of the tub, feet on the floor |
-| `rain-shower` | Rain Shower | back row, feet below the baseboard, a walk-in stall about 1.3 times her height |
-| `clawfoot-tub` | Clawfoot Tub | front row, feet on the floor |
-| `mirror-vanity` | Mirror Vanity | front row beside the tub, feet on the floor, sheet proportion |
-| `little-toilet` | Little Toilet | front row, about hip height, feet on the floor |
-| `bath-cubby` | Bath Cubby | wall shelf left of the window, brackets and a wall shadow |
-| `towel-ladder` | Towel Ladder | left of the window, feet below the baseboard, about her height |
-| `mist-fern` | Mist Fern | back row, feet below the baseboard, living-room plant footprint |
+| `puddle-mat` | Puddle Bath Mat | in front of the soaker, feet on the floor |
+| `rain-shower` | Rain Shower | right of the ladder, feet below the baseboard, a walk-in stall about 1.3 times her height |
+| `clawfoot-tub` | Clawfoot Soaker | long tub in the opening view, rim near her waist, feet on the floor |
+| `mirror-vanity` | Mirror Vanity | right of the shower, wall mirror above the cabinet, feet on the floor |
+| `little-toilet` | Little Toilet | left of the opening view, about hip height, feet on the floor |
+| `bath-cubby` | Bath Cubby | wall shelf right of the window, above the ladder |
+| `towel-ladder` | Linen Ladder | right of the window, wide towels over the rungs, about her height |
+| `mist-fern` | Mist Fern | far right, feet below the baseboard, living-room plant footprint |
 
 `migrate` does not bump the version. A version-3 save with no bathroom key gains that starter and keeps every other room. `cleanHouseState` already rebuilds rooms from `ROOMS`, so once `bathroom` is on that list the new Worker keeps it, the same way it keeps a custom nursery.
 
@@ -118,15 +118,15 @@ The thirty drawings follow `docs/art-style-v2` on `cursor/art-refresh` (fetched,
 
 | kind | name | notes |
 | --- | --- | --- |
-| `clawfoot-tub` | Clawfoot Tub | starter, water and bubbles, no one in it |
+| `clawfoot-tub` | Clawfoot Soaker | starter, water and bubbles, no one in it |
 | `rain-shower` | Rain Shower | starter, stall, curtain tied back, no one inside |
 | `mirror-vanity` | Mirror Vanity | starter, cabinet plus the mirror |
 | `little-toilet` | Little Toilet | starter, closed lid, daisy sticker |
-| `towel-ladder` | Towel Ladder | towels on the rungs |
-| `wall-towel-bar` | Wall Towel Bar | wall, one towel |
+| `towel-ladder` | Linen Ladder | wide cloth towels draped on the rungs |
+| `wall-towel-bar` | Stripe Rail | wall, one towel |
 | `bath-cubby` | Bath Cubby | starter, open shelf, towels and a bottle |
 | `clothes-hamper` | Clothes Hamper | lid, a peek of cloth |
-| `sink-step` | Sink Step | two steps, so she can reach |
+| `sink-step` | Tip-Toe Stool | two steps, so she can reach |
 | `linen-cupboard` | Linen Cupboard | tall cabinet |
 
 ### Decor
@@ -136,8 +136,8 @@ The thirty drawings follow `docs/art-style-v2` on `cursor/art-refresh` (fetched,
 | `puddle-mat` | Puddle Bath Mat | starter, floor |
 | `sunny-ducky` | Sunny Ducky | holdable |
 | `shell-soap` | Shell Soap Dish | holdable |
-| `bubble-bottle` | Bubble Bottle | holdable |
-| `bubble-machine` | Bubble Machine | holdable, bubbles from a nozzle |
+| `bubble-bottle` | Suds Flask | holdable |
+| `bubble-machine` | Suds Blower | holdable, bubbles from a nozzle |
 | `brush-cup` | Brush Cup | holdable, two brushes |
 | `porthole-mirror` | Porthole Mirror | wall |
 | `tub-tray` | Tub Tray | rests across the tub |
