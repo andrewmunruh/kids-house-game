@@ -1,7 +1,8 @@
 // Backyard preview for approval mockups. On only with ?yard=1.
-// The drawings follow the art-refresh sample: plum outlines, a top-left gradient,
-// a short highlight, a little texture, and a flat contact shadow. No SVG filters.
-// Nothing here is in the default catalog, and an empty yard stays empty unless this flag is on.
+// Drawings follow the approved art-style v2 (cursor/art-refresh 57da467, not merged):
+// top-left light, a hard cel side plane, an edge highlight, a few texture strokes,
+// a two-ellipse plum contact shadow, plum outlines, and no blur. Gradients are
+// only the sky, glass, and a lamp glow. Nothing here is in the default catalog.
 
 import { svgOf, type ItemDef } from './items';
 import { patchFromLook2, type Look2 } from './shared/avatar';
@@ -11,16 +12,19 @@ const ink = (w = 3.5) => `stroke="${O}" stroke-width="${w}" stroke-linejoin="rou
 
 function shadow(cx: number, rx: number, cy: number): string {
   const inner = Math.round(rx * 0.62);
-  return `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="3.2" fill="${O}" opacity=".08"/><ellipse cx="${cx}" cy="${(cy + 1.3).toFixed(1)}" rx="${inner}" ry="1.5" fill="${O}" opacity=".12"/>`;
-}
-function lin(id: string, light: string, deep: string): string {
-  return `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${light}"/><stop offset="1" stop-color="${deep}"/></linearGradient>`;
+  return `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="3.4" fill="${O}" opacity=".08"/><ellipse cx="${cx}" cy="${(cy + 1.2).toFixed(1)}" rx="${inner}" ry="1.55" fill="${O}" opacity=".12"/>`;
 }
 function hi(d: string, w = 2.2): string {
-  return `<path d="${d}" fill="none" stroke="#fff" stroke-width="${w}" stroke-linecap="round" opacity=".62"/>`;
+  return `<path d="${d}" fill="none" stroke="#fff" stroke-width="${w}" stroke-linecap="round" opacity=".75"/>`;
 }
-function grain(d: string): string {
-  return `<path d="${d}" fill="none" stroke="${O}" stroke-width="1.15" stroke-linecap="round" opacity=".18"/>`;
+function tex(d: string, w = 1.15): string {
+  return `<path d="${d}" fill="none" stroke="${O}" stroke-width="${w}" stroke-linecap="round" opacity=".2"/>`;
+}
+function rad(id: string, color: string, a = '.7'): string {
+  return `<radialGradient id="${id}" cx="40%" cy="40%" r="60%"><stop offset="0" stop-color="${color}" stop-opacity="${a}"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></radialGradient>`;
+}
+function glass(id: string, light: string, deep: string): string {
+  return `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${light}"/><stop offset="1" stop-color="${deep}"/></linearGradient>`;
 }
 
 export function yardPreviewOn(): boolean {
@@ -55,20 +59,19 @@ export const YARD_LOOK: Look2 = {
 };
 export const yardLookPatch = () => patchFromLook2(YARD_LOOK);
 
-export const YARD_KID = { x: 940, y: 548, flip: false as boolean };
-export const YARD_CAT_X = 790;
+/** Play frames 480 world units. The camera stays put so the house stays on the left. */
+export const YARD_CAM = 870;
+export const YARD_KID = { x: 1100, y: 528, flip: true as boolean };
+export const YARD_CAT = { x: 957, y: 518 };
 export const DOOR_KID = { x: 1000, y: 540, flip: true as boolean };
 export const DOOR_CAT_X = 1140;
 
 /** Back-to-front. item/add stamps z from this order. */
 export const YARD_STAGE: { kind: string; x: number; y: number }[] = [
-  { kind: 'birdbath', x: 900, y: 492 },
-  { kind: 'yard-swing', x: 1058, y: 496 },
-  { kind: 'yard-bench', x: 1004, y: 536 },
-  { kind: 'tulip-bed', x: 848, y: 548 },
-  { kind: 'lemonade-cart', x: 1092, y: 548 },
-  { kind: 'sandbox', x: 918, y: 578 },
-  { kind: 'picnic-blanket', x: 1036, y: 588 },
+  { kind: 'lemonade-cart', x: 1142, y: 306 },
+  { kind: 'yard-swing', x: 1284, y: 392 },
+  { kind: 'sandbox', x: 936, y: 584 },
+  { kind: 'picnic-blanket', x: 1062, y: 590 },
 ];
 
 function piece(p: { kind: string; name: string; cat: string; w: number; h: number; vb: string; wall?: boolean; holdable?: boolean; svg: string }): ItemDef {
@@ -76,281 +79,308 @@ function piece(p: { kind: string; name: string; cat: string; w: number; h: numbe
 }
 
 const swing = piece({
-  kind: 'yard-swing', name: 'A-Frame Swing', cat: 'furniture', w: 156, h: 218, vb: '0 0 100 140',
-  svg: `<defs>${lin('ydswingA', '#f6d7b0', '#c9844a')}${lin('ydswingB', '#ffe7c4', '#e0a15f')}${lin('ydswingS', '#fff6ea', '#f0c27a')}</defs>
-    ${shadow(50, 40, 134)}
-    <path d="M10 128 L30 22 L46 128 Z" fill="url(#ydswingA)" ${ink()}/>
-    <path d="M54 128 L70 22 L90 128 Z" fill="url(#ydswingA)" ${ink()}/>
-    ${grain('M22 70 l8 28 M24 96 l6 16 M64 72 l8 26 M66 100 l6 14')}
-    ${hi('M18 48 l8 -16')}
-    <rect x="24" y="16" width="52" height="12" rx="6" fill="url(#ydswingB)" ${ink()}/>
-    ${hi('M30 20 h28')}
-    <path d="M36 28 V86 M64 28 V86" stroke="#f4e2c4" stroke-width="3.2" stroke-linecap="round"/>
-    <path d="M36 28 V86 M64 28 V86" fill="none" ${ink(2.2)}/>
-    <rect x="28" y="82" width="44" height="12" rx="5" fill="url(#ydswingS)" ${ink()}/>
-    ${grain('M34 86 h32 M34 90 h32')}
-    ${hi('M34 84 h20')}
-    <circle cx="36" cy="28" r="2.4" fill="${O}"/><circle cx="64" cy="28" r="2.4" fill="${O}"/>`,
+  kind: 'yard-swing', name: 'A-Frame Swing', cat: 'furniture', w: 96, h: 148, vb: '0 0 100 154',
+  svg: `${shadow(50, 36, 148)}
+    <path d="M14 146 L34 20 L48 146 Z" fill="#f3d2aa" ${ink()}/>
+    <path d="M36 36 L46 140 H34 L26 48 Z" fill="#d4a373"/>
+    <path d="M52 146 L66 20 L86 146 Z" fill="#d4a373" ${ink()}/>
+    <path d="M68 36 L84 140 H72 L58 48 Z" fill="#c99366"/>
+    ${tex('M24 72 l7 24 M26 104 l5 16')}
+    ${hi('M22 48 l6 -14')}
+    <rect x="24" y="14" width="52" height="14" rx="6" fill="#f6e0c4" ${ink()}/>
+    <rect x="54" y="17" width="18" height="8" rx="4" fill="#d4a373"/>
+    ${hi('M30 18 h22')}
+    <path d="M36 28 V92 M64 28 V92" fill="none" stroke="#f6e7c8" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M36 28 V92 M64 28 V92" fill="none" ${ink(2.2)}/>
+    <rect x="28" y="86" width="44" height="14" rx="6" fill="#ffb3c6" ${ink()}/>
+    <rect x="52" y="89" width="16" height="8" rx="3" fill="#e45d88"/>
+    ${tex('M34 92 h28 M34 96 h24')}
+    ${hi('M34 89 h16')}
+    <circle cx="36" cy="28" r="2.2" fill="${O}"/><circle cx="64" cy="28" r="2.2" fill="${O}"/>`,
 });
 
 const sandbox = piece({
-  kind: 'sandbox', name: 'Sandbox', cat: 'furniture', w: 168, h: 105, vb: '0 0 160 100',
-  svg: `<defs>${lin('ydsandW', '#f0c48a', '#c9844a')}${lin('ydsandS', '#ffe7a8', '#f0c36a')}</defs>
-    ${shadow(80, 70, 96)}
-    <path d="M14 46 H146 L138 90 H22 Z" fill="url(#ydsandW)" ${ink()}/>
-    ${hi('M24 52 h70')}
-    <path d="M24 54 H136 L130 82 H30 Z" fill="url(#ydsandS)" ${ink(2.4)}/>
-    ${grain('M40 64 q10 4 8 10 M58 60 q12 6 6 12 M78 66 q8 3 10 8 M100 62 q10 5 6 12 M118 68 q6 3 8 8')}
-    <circle cx="48" cy="70" r="2" fill="#e7b85a" opacity=".7"/><circle cx="88" cy="74" r="2.2" fill="#e7b85a" opacity=".7"/><circle cx="110" cy="68" r="1.8" fill="#fff" opacity=".55"/>
-    <path d="M36 40 h22 l-2 16 h-18 z" fill="#ff8fab" ${ink(2.2)}/>
-    ${hi('M40 44 h10')}
-    <path d="M108 36 l22 -8 4 8 -18 10 z" fill="#8ecae6" ${ink(2.2)}/>
-    <path d="M112 34 l16 -6" ${ink(2.2)}/>`,
+  kind: 'sandbox', name: 'Sandbox', cat: 'furniture', w: 120, h: 54, vb: '0 0 160 72',
+  svg: `${shadow(80, 68, 68)}
+    <path d="M12 28 H148 L138 64 H22 Z" fill="#f3d2aa" ${ink()}/>
+    <path d="M108 32 H144 L136 60 H104 Z" fill="#d4a373"/>
+    <path d="M22 48 H138 L132 62 H28 Z" fill="#c99366"/>
+    ${hi('M22 34 h48')}
+    <path d="M24 34 H136 L130 52 H30 Z" fill="#ffe7a8" ${ink(2.2)}/>
+    <path d="M100 36 H132 L128 50 H98 Z" fill="#f0c36a"/>
+    ${tex('M40 42 q8 3 6 8 M62 40 q10 4 6 9 M86 43 q8 3 8 7')}
+    <path d="M34 22 h20 l-2 14 h-16 z" fill="#ff8fab" ${ink(2.2)}/>
+    <path d="M46 24 H52 V36 H46 Z" fill="#e45d88"/>
+    ${hi('M38 26 h8')}
+    <path d="M112 16 l20 -8 4 8 -16 10 z" fill="#a2d2ff" ${ink(2.2)}/>
+    <path d="M124 16 l8 6 -2 4 z" fill="#7eb4dc"/>
+    <path d="M116 14 l14 -6" ${ink(2.2)}/>`,
 });
 
 const slide = piece({
   kind: 'little-slide', name: 'Little Slide', cat: 'furniture', w: 150, h: 188, vb: '0 0 110 140',
-  svg: `<defs>${lin('ydslideL', '#d7ecff', '#7eb6e0')}${lin('ydslideC', '#fff1f6', '#ff8fab')}${lin('ydslideW', '#f6d7b0', '#d09a55')}</defs>
-    ${shadow(58, 46, 134)}
-    <rect x="16" y="28" width="8" height="100" rx="4" fill="url(#ydslideW)" ${ink()}/>
-    <rect x="40" y="28" width="8" height="78" rx="4" fill="url(#ydslideW)" ${ink()}/>
+  svg: `${shadow(58, 44, 134)}
+    <rect x="16" y="28" width="8" height="100" rx="4" fill="#f3d2aa" ${ink()}/>
+    <rect x="20" y="32" width="3" height="92" rx="1.5" fill="#d4a373"/>
+    <rect x="40" y="28" width="8" height="78" rx="4" fill="#d4a373" ${ink()}/>
     <path d="M16 48 H48 M16 66 H48 M16 84 H48" ${ink(2.4)}/>
-    <rect x="12" y="22" width="40" height="14" rx="5" fill="url(#ydslideL)" ${ink()}/>
-    ${hi('M18 26 h22')}
-    <path d="M48 30 H78 C96 30 102 48 100 70 L92 118 H68 L74 72 C76 50 70 42 52 42 Z" fill="url(#ydslideC)" ${ink()}/>
-    ${hi('M62 40 q16 6 22 28')}
-    ${grain('M80 56 q8 16 6 36 M86 64 q6 14 4 28')}`,
+    <rect x="12" y="22" width="40" height="14" rx="5" fill="#bde0fe" ${ink()}/>
+    <rect x="36" y="25" width="12" height="8" rx="3" fill="#7eb4dc"/>
+    ${hi('M18 26 h18')}
+    <path d="M48 30 H78 C96 30 102 48 100 70 L92 118 H68 L74 72 C76 50 70 42 52 42 Z" fill="#ffb3c6" ${ink()}/>
+    <path d="M78 36 C92 40 98 56 96 74 L90 112 H80 L84 74 C86 56 82 46 74 44 Z" fill="#e45d88"/>
+    ${hi('M60 40 q14 4 18 22')}
+    ${tex('M82 58 q6 14 4 30')}`,
 });
 
 const bench = piece({
   kind: 'yard-bench', name: 'Garden Bench', cat: 'furniture', w: 140, h: 100, vb: '0 0 140 100',
-  svg: `<defs>${lin('ydbench', '#f3d2aa', '#c9844a')}${lin('ydbenchB', '#ffe7c4', '#e0a15f')}</defs>
-    ${shadow(70, 58, 96)}
-    <path d="M18 28 H122 L116 58 H24 Z" fill="url(#ydbenchB)" ${ink()}/>
-    ${grain('M32 36 v16 M48 34 v18 M64 36 v16 M80 34 v18 M96 36 v16 M112 38 v12')}
-    ${hi('M30 32 h48')}
-    <rect x="16" y="54" width="108" height="14" rx="6" fill="url(#ydbench)" ${ink()}/>
-    ${hi('M24 58 h40')}
-    <rect x="22" y="66" width="10" height="26" rx="4" fill="url(#ydbench)" ${ink()}/>
-    <rect x="108" y="66" width="10" height="26" rx="4" fill="url(#ydbench)" ${ink()}/>
-    <path d="M22 78 H32 M108 78 H118" stroke="#fff" stroke-width="1.4" opacity=".4" stroke-linecap="round"/>
-    <path d="M14 24 h10 M116 24 h10" ${ink(2.4)}/>`,
+  svg: `${shadow(70, 56, 96)}
+    <path d="M18 28 H122 L116 56 H24 Z" fill="#f6e0c4" ${ink()}/>
+    <path d="M86 32 H118 L114 52 H84 Z" fill="#d4a373"/>
+    ${tex('M32 36 v14 M50 34 v16 M68 36 v14 M104 36 v12')}
+    ${hi('M28 32 h36')}
+    <rect x="16" y="52" width="108" height="16" rx="6" fill="#f3d2aa" ${ink()}/>
+    <rect x="78" y="55" width="42" height="10" rx="4" fill="#d4a373"/>
+    ${hi('M24 56 h32')}
+    <rect x="22" y="66" width="10" height="26" rx="4" fill="#f0d2b0" ${ink()}/>
+    <rect x="28" y="70" width="3" height="18" fill="#d4a373"/>
+    <rect x="108" y="66" width="10" height="26" rx="4" fill="#d4a373" ${ink()}/>
+    <path d="M14 24 h12 M114 24 h12" ${ink(2.4)}/>`,
 });
 
 const cart = piece({
-  kind: 'lemonade-cart', name: 'Lemonade Cart', cat: 'furniture', w: 124, h: 156, vb: '0 0 110 140',
-  svg: `<defs>${lin('ydcart', '#fff6ea', '#f0d2a4')}${lin('ydawn', '#fff3b0', '#ffd166')}${lin('ydawn2', '#fff', '#ffe08a')}</defs>
-    ${shadow(55, 46, 134)}
-    <path d="M18 48 H96 L90 108 H26 Z" fill="url(#ydcart)" ${ink()}/>
-    ${grain('M34 60 v36 M50 58 v40 M66 60 v36 M80 62 v30')}
-    ${hi('M28 56 v28')}
-    <path d="M14 36 H100 L92 52 H22 Z" fill="url(#ydawn)" ${ink()}/>
-    <path d="M22 40 h16 l-2 10 h-12 z M42 39 h16 l-2 11 h-12 z M62 39 h16 l-2 11 h-12 z" fill="url(#ydawn2)" opacity=".85"/>
-    ${hi('M24 40 h40')}
-    <rect x="30" y="70" width="28" height="22" rx="4" fill="#fff" ${ink(2.2)}/>
-    <path d="M36 70 v22 M44 70 v22 M52 70 v22" stroke="#bde0fe" stroke-width="2"/>
-    <circle cx="78" cy="78" r="10" fill="#ffe566" ${ink(2.2)}/><path d="M78 70 v4" ${ink(2)}/><ellipse cx="84" cy="72" rx="5" ry="3" fill="#80ed99" ${ink(1.6)}/>
-    <circle cx="34" cy="114" r="10" fill="#5a3d5c" ${ink(2.2)}/><circle cx="34" cy="114" r="4" fill="#ffd166"/>
-    <circle cx="82" cy="114" r="10" fill="#5a3d5c" ${ink(2.2)}/><circle cx="82" cy="114" r="4" fill="#ffd166"/>
-    <path d="M48 28 q8 -16 18 -4" fill="none" stroke="#ff8fab" stroke-width="3" stroke-linecap="round"/>`,
+  kind: 'lemonade-cart', name: 'Lemonade Cart', cat: 'furniture', w: 108, h: 121, vb: '0 0 100 112',
+  svg: `${shadow(50, 40, 106)}
+    <path d="M16 40 H86 L80 90 H22 Z" fill="#fff6ea" ${ink()}/>
+    <path d="M62 44 H82 L78 86 H60 Z" fill="#f0d2a4"/>
+    ${tex('M28 52 v28 M42 50 v32 M56 52 v28')}
+    ${hi('M22 48 v22')}
+    <path d="M12 28 H92 L84 44 H20 Z" fill="#ffe08a" ${ink()}/>
+    <path d="M64 32 H88 L82 42 H62 Z" fill="#f0c45c"/>
+    <path d="M22 32 h14 l-1 8 h-12 z M40 31 h14 l-1 9 h-12 z M58 31 h12 l-1 9 h-10 z" fill="#fff6c8"/>
+    ${hi('M20 32 h28')}
+    <rect x="26" y="56" width="26" height="20" rx="3" fill="#f3fbff" ${ink(2.2)}/>
+    <path d="M32 56 v20 M39 56 v20 M46 56 v20" stroke="#a2d2ff" stroke-width="2"/>
+    <circle cx="70" cy="64" r="9" fill="#ffe566" ${ink(2.2)}/>
+    <path d="M74 60 h6 l-1 6 h-4 z" fill="#e0a83a"/>
+    <ellipse cx="76" cy="58" rx="4" ry="2.4" fill="#74c69d" ${ink(1.6)}/>
+    <circle cx="30" cy="96" r="9" fill="${O}" ${ink(2.2)}/><circle cx="30" cy="96" r="3.4" fill="#ffd166"/>
+    <circle cx="74" cy="96" r="9" fill="${O}" ${ink(2.2)}/><circle cx="74" cy="96" r="3.4" fill="#ffd166"/>
+    <path d="M44 18 q8 -12 16 -2" fill="none" stroke="#ff8fab" stroke-width="3" stroke-linecap="round"/>`,
 });
 
 const lounger = piece({
   kind: 'sun-lounger', name: 'Sun Lounger', cat: 'furniture', w: 168, h: 86, vb: '0 0 170 90',
-  svg: `<defs>${lin('ydlounge', '#fff0f6', '#ffb3c6')}${lin('ydloungeW', '#f6d7b0', '#d09a55')}</defs>
-    ${shadow(85, 74, 86)}
-    <path d="M18 58 H156 L148 78 H28 Z" fill="url(#ydloungeW)" ${ink()}/>
-    <path d="M24 30 H132 L148 62 H36 Z" fill="url(#ydlounge)" ${ink()}/>
-    ${grain('M40 40 l8 16 M56 36 l10 20 M74 34 l12 22 M94 36 l10 18 M114 40 l8 14')}
-    ${hi('M36 36 h40')}
-    <rect x="118" y="24" width="28" height="16" rx="7" fill="#fff" ${ink(2.2)}/>
-    <path d="M124 30 q6 3 12 0" fill="none" stroke="#ffb3c6" stroke-width="1.6" stroke-linecap="round"/>
-    <circle cx="40" cy="74" r="6" fill="${O}"/><circle cx="132" cy="74" r="6" fill="${O}"/>`,
+  svg: `${shadow(85, 70, 84)}
+    <path d="M18 56 H156 L148 76 H28 Z" fill="#f3d2aa" ${ink()}/>
+    <path d="M110 58 H152 L146 74 H108 Z" fill="#d4a373"/>
+    <path d="M24 28 H132 L148 60 H36 Z" fill="#ffd4e2" ${ink()}/>
+    <path d="M100 32 H146 L150 58 H108 Z" fill="#e888a8"/>
+    ${tex('M40 38 l8 16 M58 34 l10 18 M78 34 l10 16')}
+    ${hi('M34 34 h36')}
+    <rect x="118" y="20" width="28" height="16" rx="7" fill="#fff" ${ink(2.2)}/>
+    <path d="M136 22 H144 V34 H136 Z" fill="#ffd0e0"/>
+    <path d="M124 28 q6 3 12 0" fill="none" stroke="#ffb3c6" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="40" cy="72" r="6" fill="${O}"/><circle cx="132" cy="72" r="6" fill="${O}"/>`,
 });
 
 const pool = piece({
   kind: 'splash-pool', name: 'Splash Pool', cat: 'furniture', w: 176, h: 96, vb: '0 0 170 96',
-  svg: `<defs>${lin('ydpoolR', '#d7f4ff', '#7ec8e0')}${lin('ydpoolW', '#fff', '#c9f1ff')}</defs>
-    ${shadow(85, 74, 92)}
-    <ellipse cx="85" cy="58" rx="74" ry="30" fill="url(#ydpoolR)" ${ink()}/>
-    <ellipse cx="85" cy="54" rx="60" ry="22" fill="url(#ydpoolW)" ${ink(2.4)}/>
-    <ellipse cx="85" cy="56" rx="48" ry="14" fill="#9ad7f5"/>
-    ${hi('M48 46 q20 -8 40 0')}
-    <circle cx="62" cy="54" r="3" fill="#fff" opacity=".75"/><circle cx="108" cy="58" r="2.4" fill="#fff" opacity=".7"/>
+  svg: `<defs>${glass('ydpoolW', '#f3fbff', '#7ec8e3')}</defs>
+    ${shadow(85, 70, 90)}
+    <ellipse cx="85" cy="58" rx="74" ry="28" fill="#d7f4ff" ${ink()}/>
+    <path d="M85 32 C130 32 156 48 156 58 C156 74 124 86 85 86 C110 86 140 74 140 58 C140 46 116 36 85 36 Z" fill="#7eb4dc"/>
+    <ellipse cx="85" cy="54" rx="58" ry="20" fill="url(#ydpoolW)" ${ink(2.2)}/>
+    ${hi('M48 48 q22 -8 40 0')}
+    <circle cx="64" cy="54" r="3" fill="#fff" opacity=".8"/><circle cx="108" cy="58" r="2.2" fill="#fff" opacity=".7"/>
     <path d="M40 40 q6 -10 4 -16 M128 38 q-4 -12 2 -18" fill="none" stroke="#7ec8e0" stroke-width="2.4" stroke-linecap="round"/>`,
 });
 
 const gate = piece({
   kind: 'picket-gate', name: 'Picket Gate', cat: 'furniture', w: 110, h: 150, vb: '0 0 100 136',
-  svg: `<defs>${lin('ydgate', '#f7fff8', '#d9f2dc')}${lin('ydgateP', '#fff', '#e7f6ea')}</defs>
-    ${shadow(50, 40, 130)}
-    <rect x="14" y="28" width="10" height="96" rx="4" fill="url(#ydgate)" ${ink()}/>
-    <rect x="76" y="28" width="10" height="96" rx="4" fill="url(#ydgate)" ${ink()}/>
-    <rect x="22" y="40" width="56" height="8" rx="3" fill="url(#ydgateP)" ${ink(2.4)}/>
-    <rect x="22" y="78" width="56" height="8" rx="3" fill="url(#ydgateP)" ${ink(2.4)}/>
-    <rect x="30" y="34" width="10" height="78" rx="4" fill="#fff" ${ink(2.4)}/>
-    <rect x="46" y="34" width="10" height="78" rx="4" fill="#fff" ${ink(2.4)}/>
-    <rect x="62" y="34" width="10" height="78" rx="4" fill="#fff" ${ink(2.4)}/>
-    ${hi('M32 42 v24 M48 42 v24')}
-    <circle cx="70" cy="70" r="3.2" fill="#ffd166" ${ink(1.8)}/>
-    <path d="M18 24 h6 M78 24 h6" ${ink(2.2)}/>`,
+  svg: `${shadow(50, 38, 130)}
+    <rect x="14" y="28" width="10" height="96" rx="4" fill="#f7fff8" ${ink()}/>
+    <rect x="20" y="34" width="3" height="84" fill="#d5ead8"/>
+    <rect x="76" y="28" width="10" height="96" rx="4" fill="#d9f2dc" ${ink()}/>
+    <rect x="22" y="40" width="56" height="8" rx="3" fill="#fff" ${ink(2.2)}/>
+    <rect x="22" y="78" width="56" height="8" rx="3" fill="#fff" ${ink(2.2)}/>
+    <rect x="30" y="34" width="10" height="78" rx="4" fill="#fff" ${ink(2.2)}/>
+    <rect x="36" y="40" width="3" height="66" fill="#e7f6ea"/>
+    <rect x="46" y="34" width="10" height="78" rx="4" fill="#f7fff8" ${ink(2.2)}/>
+    <rect x="62" y="34" width="10" height="78" rx="4" fill="#d9f2dc" ${ink(2.2)}/>
+    ${hi('M32 42 v22')}
+    <circle cx="70" cy="70" r="3.2" fill="#ffd166" ${ink(1.8)}/>`,
 });
 
 const blanket = piece({
-  kind: 'picnic-blanket', name: 'Picnic Blanket', cat: 'decor', w: 186, h: 84, vb: '0 0 180 84',
-  svg: `<defs>${lin('ydblank', '#ffd0e0', '#ff8fab')}${lin('ydblank2', '#fff6ea', '#ffd6e4')}</defs>
-    <ellipse cx="90" cy="78" rx="78" ry="6" fill="${O}" opacity=".08"/>
-    <path d="M16 28 Q90 8 164 28 L172 62 Q90 78 8 62 Z" fill="url(#ydblank)" ${ink()}/>
-    <path d="M28 32 Q90 16 152 32 L158 58 Q90 70 22 58 Z" fill="url(#ydblank2)" ${ink(2.2)}/>
-    ${grain('M40 36 l8 22 M60 30 l6 26 M80 28 l4 28 M100 28 l-2 28 M120 30 l-4 26 M140 34 l-6 22')}
-    <rect x="46" y="40" width="22" height="14" rx="4" fill="#fff3b0" ${ink(2)}/>
-    <circle cx="118" cy="46" r="8" fill="#ff6b6b" ${ink(2)}/><ellipse cx="122" cy="40" rx="5" ry="3" fill="#80ed99" ${ink(1.6)}/>
-    <path d="M78 48 h16 v10 h-16 z" fill="#bde0fe" ${ink(1.8)}/>
-    ${hi('M24 40 q20 -6 36 0')}`,
+  kind: 'picnic-blanket', name: 'Picnic Blanket', cat: 'decor', w: 110, h: 36, vb: '0 0 180 59',
+  svg: `${shadow(90, 74, 52)}
+    <path d="M14 16 Q90 6 166 16 L174 40 Q90 52 8 40 Z" fill="#ff8fab" ${ink()}/>
+    <path d="M90 14 Q150 10 170 22 L174 40 Q120 48 90 44 Z" fill="#e45d88"/>
+    <path d="M28 20 Q90 12 150 20 L156 36 Q90 44 24 36 Z" fill="#fff0f5" ${ink(2.2)}/>
+    <path d="M100 16 Q146 14 156 24 L158 36 Q120 42 100 38 Z" fill="#ffd0e0"/>
+    ${tex('M44 24 l4 12 M68 20 l3 14 M92 18 l2 16 M116 20 l-2 14 M138 24 l-3 10')}
+    <rect x="48" y="26" width="20" height="10" rx="3" fill="#fff3b0" ${ink(1.8)}/>
+    <circle cx="118" cy="30" r="6" fill="#ff6b6b" ${ink(1.6)}/><ellipse cx="121" cy="26" rx="3.5" ry="2" fill="#80ed99" ${ink(1.4)}/>
+    ${hi('M24 24 q16 -4 28 0')}`,
 });
 
 const tulips = piece({
   kind: 'tulip-bed', name: 'Tulip Bed', cat: 'decor', w: 140, h: 90, vb: '0 0 140 90',
-  svg: `<defs>${lin('ydbed', '#6fbf73', '#3d9a55')}${lin('ydsoil', '#e7c4a0', '#c49a6c')}</defs>
-    ${shadow(70, 58, 86)}
-    <path d="M10 58 H130 L120 82 H20 Z" fill="url(#ydsoil)" ${ink()}/>
-    <path d="M14 52 H126 Q120 40 70 40 Q20 40 14 52 Z" fill="url(#ydbed)" ${ink()}/>
-    ${grain('M30 50 q4 6 0 10 M48 46 q4 8 0 12 M70 44 q4 8 0 14 M92 46 q4 8 0 12 M112 50 q4 6 0 10')}
-    ${hi('M28 48 q20 -4 36 2')}
-    <g>
-      <path d="M32 58 V34" stroke="#2f8a48" stroke-width="2.4" fill="none"/>
-      <path d="M32 36 q-8 2 -6 12 q8 -2 6 -12" fill="#ff8fab" ${ink(2)}/>
-      <path d="M52 60 V28" stroke="#2f8a48" stroke-width="2.4" fill="none"/>
-      <path d="M52 30 q-8 2 -6 12 q8 -2 6 -12" fill="#ffd166" ${ink(2)}/>
-      <path d="M72 58 V26" stroke="#2f8a48" stroke-width="2.4" fill="none"/>
-      <path d="M72 28 q-9 2 -7 14 q9 -2 7 -14" fill="#ff7096" ${ink(2)}/>
-      <path d="M92 60 V32" stroke="#2f8a48" stroke-width="2.4" fill="none"/>
-      <path d="M92 34 q-8 2 -6 12 q8 -2 6 -12" fill="#fff" ${ink(2)}/>
-      <path d="M110 58 V36" stroke="#2f8a48" stroke-width="2.4" fill="none"/>
-      <path d="M110 38 q-7 2 -5 11 q7 -2 5 -11" fill="#c9a0dc" ${ink(2)}/>
-    </g>`,
+  svg: `${shadow(70, 56, 86)}
+    <path d="M10 58 H130 L120 82 H20 Z" fill="#f0d2b0" ${ink()}/>
+    <path d="M90 60 H126 L118 78 H86 Z" fill="#d4a373"/>
+    <path d="M14 52 H126 Q120 38 70 38 Q20 38 14 52 Z" fill="#74c69d" ${ink()}/>
+    <path d="M78 42 H122 Q116 40 100 44 Q88 52 78 50 Z" fill="#3d9a68"/>
+    ${hi('M28 48 q18 -4 30 2')}
+    ${tex('M36 50 q3 5 0 8 M58 46 q3 6 0 10 M96 48 q3 5 0 8')}
+    <path d="M32 56 V32" stroke="#52b788" stroke-width="2.4" fill="none"/>
+    <path d="M32 34 q-8 2 -6 12 q8 -2 6 -12" fill="#ff8fab" ${ink(2)}/>
+    <path d="M34 36 q4 2 2 8" fill="#e45d88"/>
+    <path d="M54 58 V26" stroke="#52b788" stroke-width="2.4" fill="none"/>
+    <path d="M54 28 q-8 2 -6 12 q8 -2 6 -12" fill="#ffd166" ${ink(2)}/>
+    <path d="M74 56 V24" stroke="#52b788" stroke-width="2.4" fill="none"/>
+    <path d="M74 26 q-9 2 -7 14 q9 -2 7 -14" fill="#ff7096" ${ink(2)}/>
+    <path d="M76 28 q5 2 2 8" fill="#e04578"/>
+    <path d="M94 58 V30" stroke="#52b788" stroke-width="2.4" fill="none"/>
+    <path d="M94 32 q-8 2 -6 12 q8 -2 6 -12" fill="#fff" ${ink(2)}/>
+    <path d="M112 56 V34" stroke="#52b788" stroke-width="2.4" fill="none"/>
+    <path d="M112 36 q-7 2 -5 11 q7 -2 5 -11" fill="#c9a0dc" ${ink(2)}/>`,
 });
 
 const bath = piece({
   kind: 'birdbath', name: 'Birdbath', cat: 'decor', w: 84, h: 126, vb: '0 0 80 120',
-  svg: `<defs>${lin('ydbath', '#f4f7f8', '#c5d0d6')}${lin('ydwater', '#d7f4ff', '#7eb6e8')}</defs>
-    ${shadow(40, 28, 114)}
-    <rect x="34" y="48" width="12" height="58" rx="6" fill="url(#ydbath)" ${ink()}/>
-    ${hi('M37 56 v28')}
-    <ellipse cx="40" cy="104" rx="18" ry="6" fill="url(#ydbath)" ${ink()}/>
-    <ellipse cx="40" cy="36" rx="30" ry="12" fill="url(#ydbath)" ${ink()}/>
-    <ellipse cx="40" cy="34" rx="22" ry="7" fill="url(#ydwater)" ${ink(2.2)}/>
-    ${hi('M26 32 q10 -4 18 0')}
-    <circle cx="34" cy="34" r="1.6" fill="#fff" opacity=".8"/>
+  svg: `<defs>${glass('ydbathW', '#f3fbff', '#8ecae6')}</defs>
+    ${shadow(40, 26, 114)}
+    <rect x="34" y="48" width="12" height="58" rx="5" fill="#f4f7f8" ${ink()}/>
+    <rect x="41" y="52" width="4" height="50" rx="2" fill="#c5d0d6"/>
+    ${hi('M37 58 v24')}
+    <ellipse cx="40" cy="104" rx="18" ry="6" fill="#e7eef2" ${ink()}/>
+    <ellipse cx="40" cy="36" rx="30" ry="12" fill="#f7fafb" ${ink()}/>
+    <path d="M40 24 C62 24 70 34 70 36 C70 46 56 48 40 48 C58 48 66 42 66 36 C66 30 56 26 40 28 Z" fill="#d5dee4"/>
+    <ellipse cx="40" cy="34" rx="22" ry="7" fill="url(#ydbathW)" ${ink(2.2)}/>
+    ${hi('M26 32 q8 -4 16 0')}
     <path d="M58 18 q8 -8 6 2 q6 2 2 8 q-8 0 -8 -10" fill="#ffd166" ${ink(1.8)}/>`,
 });
 
 const pond = piece({
   kind: 'lily-pond', name: 'Lily Pond', cat: 'decor', w: 170, h: 90, vb: '0 0 170 90',
-  svg: `<defs>${lin('ydpond', '#b9e3ff', '#5aa9e6')}${lin('ydpad', '#9be7a8', '#3d9a55')}</defs>
-    ${shadow(85, 72, 84)}
-    <ellipse cx="85" cy="52" rx="74" ry="28" fill="#7d6a4a" ${ink()}/>
-    <ellipse cx="85" cy="50" rx="66" ry="22" fill="url(#ydpond)" ${ink(2.4)}/>
-    ${hi('M40 44 q24 -8 48 2')}
-    <ellipse cx="58" cy="52" rx="16" ry="7" fill="url(#ydpad)" ${ink(2)}/>
-    <ellipse cx="108" cy="48" rx="18" ry="8" fill="url(#ydpad)" ${ink(2)}/>
+  svg: `<defs>${glass('ydpondW', '#eaf6ff', '#5aa9e6')}</defs>
+    ${shadow(85, 70, 84)}
+    <ellipse cx="85" cy="52" rx="74" ry="28" fill="#c4a484" ${ink()}/>
+    <path d="M85 26 C140 28 158 46 158 54 C158 70 124 80 85 80 C120 78 148 66 148 54 C148 42 124 32 85 32 Z" fill="#a88462"/>
+    <ellipse cx="85" cy="50" rx="64" ry="20" fill="url(#ydpondW)" ${ink(2.2)}/>
+    ${hi('M42 44 q22 -6 40 2')}
+    <ellipse cx="58" cy="52" rx="16" ry="7" fill="#95d5b2" ${ink(2)}/>
+    <ellipse cx="66" cy="52" rx="6" ry="4" fill="#3d9a68"/>
+    <ellipse cx="108" cy="48" rx="18" ry="8" fill="#74c69d" ${ink(2)}/>
+    <ellipse cx="116" cy="48" rx="7" ry="5" fill="#3d9a68"/>
     <circle cx="108" cy="46" r="4" fill="#ff8fab" ${ink(1.6)}/>
-    <path d="M70 46 q6 4 0 8" fill="none" stroke="#fff" stroke-width="1.4" opacity=".6"/>`,
+    ${tex('M58 52 h12 M108 48 h14', 1)}`,
 });
 
 const lights = piece({
   kind: 'patio-lights', name: 'Patio Lights', cat: 'decor', w: 190, h: 70, vb: '0 0 180 70', wall: true,
-  svg: `<defs>${lin('ydbulb', '#fff6c8', '#ffd166')}</defs>
-    <path d="M8 16 Q50 36 90 14 Q130 34 172 16" fill="none" stroke="${O}" stroke-width="3" stroke-linecap="round"/>
-    <g>
-      <path d="M28 22 v8" ${ink(2)}/><circle cx="28" cy="40" r="10" fill="url(#ydbulb)" ${ink()}/>${hi('M24 36 q3 -2 4 2')}
-      <path d="M64 28 v8" ${ink(2)}/><circle cx="64" cy="46" r="10" fill="#ffc2d4" ${ink()}/>
-      <path d="M100 20 v8" ${ink(2)}/><circle cx="100" cy="38" r="10" fill="url(#ydbulb)" ${ink()}/>
-      <path d="M136 28 v8" ${ink(2)}/><circle cx="136" cy="46" r="10" fill="#c9f1ff" ${ink()}/>
-      <path d="M162 20 v6" ${ink(2)}/><circle cx="162" cy="36" r="8" fill="#ffd0e8" ${ink()}/>
-    </g>`,
+  svg: `<path d="M8 16 Q50 34 90 14 Q130 32 172 16" fill="none" ${ink(3)}/>
+    <path d="M28 22 v8" ${ink(2)}/><circle cx="28" cy="40" r="10" fill="#fff6c8" ${ink()}/><path d="M32 34 h5 v10 h-4 z" fill="#f0c45c"/>${hi('M24 36 q2 -2 3 1')}
+    <path d="M64 26 v8" ${ink(2)}/><circle cx="64" cy="44" r="10" fill="#ffc2d4" ${ink()}/><path d="M68 38 h5 v10 h-4 z" fill="#e45d88"/>
+    <path d="M100 18 v8" ${ink(2)}/><circle cx="100" cy="36" r="10" fill="#fff1c2" ${ink()}/>${hi('M96 32 q2 -2 3 1')}
+    <path d="M136 26 v8" ${ink(2)}/><circle cx="136" cy="44" r="10" fill="#c9f1ff" ${ink()}/><path d="M140 38 h5 v10 h-4 z" fill="#7eb4dc"/>
+    <path d="M162 18 v6" ${ink(2)}/><circle cx="162" cy="34" r="8" fill="#ffd0e8" ${ink()}/>`,
 });
 
 const toad = piece({
   kind: 'toadstool-light', name: 'Toadstool Light', cat: 'decor', w: 70, h: 84, vb: '0 0 80 96',
-  svg: `<defs>${lin('ydtoad', '#ffd0e0', '#ff7096')}${lin('ydstem', '#fff', '#f6e7dc')}</defs>
-    ${shadow(40, 26, 90)}
-    <path d="M34 70 H46 L44 86 H36 Z" fill="url(#ydstem)" ${ink()}/>
-    <path d="M10 58 Q40 18 70 58 Q40 70 10 58 Z" fill="url(#ydtoad)" ${ink()}/>
-    ${hi('M22 48 q12 -8 20 -2')}
-    <circle cx="28" cy="50" r="4" fill="#fff" opacity=".85"/><circle cx="46" cy="46" r="5" fill="#fff" opacity=".8"/><circle cx="40" cy="58" r="3" fill="#fff" opacity=".75"/>
-    <ellipse cx="40" cy="62" rx="10" ry="3" fill="#ffe7a0" opacity=".7"/>`,
+  svg: `<defs>${rad('ydtoadG', '#ffe7a0', '.85')}</defs>
+    ${shadow(40, 24, 90)}
+    <ellipse cx="40" cy="78" rx="16" ry="6" fill="url(#ydtoadG)"/>
+    <path d="M34 68 H46 L44 84 H36 Z" fill="#fff7f8" ${ink()}/>
+    <path d="M41 70 H45 L44 82 H41 Z" fill="#f0d8cc"/>
+    <path d="M10 56 Q40 16 70 56 Q40 68 10 56 Z" fill="#ff8fab" ${ink()}/>
+    <path d="M42 28 Q62 24 68 52 Q50 60 42 56 Z" fill="#e45d88"/>
+    ${hi('M22 46 q12 -8 18 -2')}
+    <circle cx="28" cy="48" r="4" fill="#fff"/><circle cx="46" cy="44" r="5" fill="#fff"/><circle cx="38" cy="56" r="3" fill="#fff"/>`,
 });
 
 const stones = piece({
   kind: 'stepping-stones', name: 'Stepping Stones', cat: 'decor', w: 160, h: 64, vb: '0 0 160 70',
-  svg: `<defs>${lin('ydstone', '#f7f4ef', '#d9d3cc')}</defs>
-    ${shadow(80, 66, 64)}
-    <ellipse cx="28" cy="40" rx="22" ry="12" fill="url(#ydstone)" ${ink()}/>
-    <ellipse cx="78" cy="46" rx="24" ry="12" fill="url(#ydstone)" ${ink()}/>
-    <ellipse cx="126" cy="38" rx="22" ry="12" fill="url(#ydstone)" ${ink()}/>
-    ${hi('M16 36 q8 -3 14 1')}
-    ${grain('M22 42 h10 M74 48 h12 M120 40 h10')}`,
+  svg: `${shadow(80, 64, 64)}
+    <ellipse cx="28" cy="40" rx="22" ry="12" fill="#f7f4ef" ${ink()}/>
+    <ellipse cx="36" cy="42" rx="10" ry="7" fill="#d9d3cc"/>
+    <ellipse cx="78" cy="46" rx="24" ry="12" fill="#f4f1ec" ${ink()}/>
+    <ellipse cx="88" cy="48" rx="10" ry="7" fill="#d4cdc4"/>
+    <ellipse cx="126" cy="38" rx="22" ry="12" fill="#e7e2dc" ${ink()}/>
+    ${hi('M16 36 q8 -3 12 1')}
+    ${tex('M22 42 h8 M74 48 h10 M118 40 h8')}`,
 });
 
 const pinwheel = piece({
   kind: 'pinwheel', name: 'Pinwheel', cat: 'decor', w: 56, h: 90, vb: '0 0 70 100', holdable: true,
-  svg: `<defs>${lin('ydpin', '#fff', '#e7eef2')}</defs>
-    ${shadow(35, 16, 96)}
-    <path d="M34 96 V42" stroke="#80ed99" stroke-width="4" stroke-linecap="round"/>
+  svg: `${shadow(35, 14, 96)}
+    <path d="M34 96 V42" stroke="#52b788" stroke-width="4" stroke-linecap="round"/>
+    <path d="M36 46 V92" stroke="#3d9a68" stroke-width="1.6" stroke-linecap="round"/>
     <path d="M34 40 L34 14 L50 34 Z" fill="#ff8fab" ${ink(2.2)}/>
+    <path d="M40 22 L48 32 L36 34 Z" fill="#e45d88"/>
     <path d="M34 40 L58 46 L40 54 Z" fill="#ffd166" ${ink(2.2)}/>
+    <path d="M48 44 L56 48 L42 50 Z" fill="#e0a83a"/>
     <path d="M34 40 L34 66 L18 46 Z" fill="#8ecae6" ${ink(2.2)}/>
+    <path d="M30 52 L22 50 L32 46 Z" fill="#5aa9d6"/>
     <path d="M34 40 L12 34 L28 26 Z" fill="#c9a0dc" ${ink(2.2)}/>
-    <circle cx="34" cy="40" r="5" fill="url(#ydpin)" ${ink(2)}/>
-    ${hi('M32 36 q2 -1 3 1')}`,
+    <circle cx="34" cy="40" r="5" fill="#fff" ${ink(2)}/>
+    ${hi('M32 37 q2 -1 2 1')}`,
 });
 
 const barrel = piece({
   kind: 'rain-barrel', name: 'Rain Barrel', cat: 'decor', w: 86, h: 108, vb: '0 0 80 110',
-  svg: `<defs>${lin('ydbar', '#7eb6e0', '#3d7ec4')}${lin('ydbar2', '#b9dcff', '#5aa9e6')}</defs>
-    ${shadow(40, 30, 104)}
-    <path d="M16 28 H64 L70 96 H10 Z" fill="url(#ydbar)" ${ink()}/>
-    ${grain('M24 40 v44 M34 36 v52 M46 36 v52 M56 40 v44')}
-    ${hi('M22 40 v30')}
-    <rect x="12" y="22" width="56" height="12" rx="5" fill="url(#ydbar2)" ${ink()}/>
-    <rect x="14" y="70" width="52" height="8" rx="3" fill="#3d6f9a" opacity=".35"/>
+  svg: `${shadow(40, 28, 104)}
+    <path d="M16 28 H64 L70 96 H10 Z" fill="#8ecae6" ${ink()}/>
+    <path d="M48 32 H66 L70 92 H52 Z" fill="#3d7ea8"/>
+    ${tex('M26 40 v40 M36 36 v48 M46 38 v44')}
+    ${hi('M22 40 v26')}
+    <rect x="12" y="22" width="56" height="12" rx="5" fill="#bde0fe" ${ink()}/>
+    <rect x="46" y="24" width="18" height="8" rx="3" fill="#7eb4dc"/>
+    <rect x="14" y="70" width="52" height="8" rx="3" fill="#2f6f9a" opacity=".28"/>
     <rect x="58" y="48" width="12" height="8" rx="3" fill="#d7ecff" ${ink(2)}/>
     <path d="M70 52 h6" ${ink(2)}/>`,
 });
 
 const bush = piece({
   kind: 'butterfly-bush', name: 'Butterfly Bush', cat: 'plants', w: 120, h: 130, vb: '0 0 100 120',
-  svg: `<defs>${lin('ydbush', '#8ee0a0', '#3d9a55')}</defs>
-    ${shadow(50, 36, 114)}
-    <path d="M46 110 V70" stroke="#2f8a48" stroke-width="4" stroke-linecap="round"/>
-    <ellipse cx="50" cy="58" rx="36" ry="30" fill="url(#ydbush)" ${ink()}/>
-    <ellipse cx="30" cy="66" rx="18" ry="16" fill="#6fce86" ${ink(2.4)}/>
-    <ellipse cx="72" cy="64" rx="18" ry="16" fill="#b6f0c0" ${ink(2.4)}/>
-    ${hi('M28 46 q14 -8 24 2')}
-    <circle cx="36" cy="52" r="4" fill="#c9a0dc" ${ink(1.6)}/><circle cx="52" cy="44" r="4.5" fill="#ff8fab" ${ink(1.6)}/><circle cx="66" cy="54" r="4" fill="#ffd166" ${ink(1.6)}/><circle cx="48" cy="64" r="3.5" fill="#fff" ${ink(1.6)}/>
-    <path d="M78 36 q10 -8 8 2 q8 2 0 8 q-8 -2 -8 -10" fill="#ff8fab" ${ink(1.6)}/>`,
+  svg: `${shadow(50, 34, 114)}
+    <path d="M46 108 V68" stroke="#3d9a68" stroke-width="4" stroke-linecap="round"/>
+    <ellipse cx="50" cy="56" rx="34" ry="28" fill="#74c69d" ${ink()}/>
+    <ellipse cx="30" cy="64" rx="16" ry="14" fill="#95d5b2" ${ink(2.2)}/>
+    <ellipse cx="70" cy="62" rx="18" ry="16" fill="#3d9a68" ${ink(2.2)}/>
+    <path d="M58 40 C70 48 74 64 64 74 C70 60 66 48 58 42 Z" fill="#2f7a52"/>
+    ${hi('M28 46 q12 -6 20 2')}
+    ${tex('M48 40 v24')}
+    <circle cx="36" cy="50" r="4" fill="#c9a0dc" ${ink(1.6)}/><circle cx="52" cy="42" r="4.2" fill="#ff8fab" ${ink(1.6)}/><circle cx="64" cy="52" r="3.6" fill="#ffd166" ${ink(1.6)}/>
+    <path d="M78 34 q10 -8 8 2 q8 2 0 8 q-8 -2 -8 -10" fill="#ff8fab" ${ink(1.6)}/>`,
 });
 
 const hedge = piece({
   kind: 'hedge-row', name: 'Hedge Row', cat: 'plants', w: 190, h: 96, vb: '0 0 180 96',
-  svg: `<defs>${lin('ydhedge', '#7dce8a', '#2f8a48')}</defs>
-    ${shadow(90, 80, 90)}
-    <path d="M8 70 Q20 28 50 40 Q70 18 100 36 Q130 16 160 38 Q176 28 176 70 Z" fill="url(#ydhedge)" ${ink()}/>
-    ${grain('M30 50 q6 8 0 16 M60 42 q6 10 0 18 M100 40 q6 10 0 20 M140 44 q6 10 0 18')}
-    ${hi('M24 48 q16 -6 28 2')}
-    <circle cx="40" cy="48" r="3.5" fill="#ff8fab"/><circle cx="88" cy="40" r="3.5" fill="#ffd166"/><circle cx="132" cy="46" r="3.5" fill="#fff"/><circle cx="150" cy="58" r="3" fill="#c9a0dc"/>`,
+  svg: `${shadow(90, 76, 90)}
+    <path d="M8 70 Q20 28 50 40 Q70 18 100 36 Q130 16 160 38 Q176 28 176 70 Z" fill="#74c69d" ${ink()}/>
+    <path d="M100 28 Q140 18 168 40 Q176 50 174 70 H120 Q130 48 100 40 Z" fill="#3d9a68"/>
+    ${tex('M36 52 q4 6 0 12 M70 44 q4 8 0 14 M150 48 q4 6 0 12')}
+    ${hi('M24 48 q14 -6 24 2')}
+    <circle cx="40" cy="48" r="3.4" fill="#ff8fab"/><circle cx="88" cy="40" r="3.4" fill="#ffd166"/><circle cx="128" cy="46" r="3.2" fill="#fff"/>`,
 });
 
 const cup = piece({
   kind: 'lemonade-cup', name: 'Lemonade Cup', cat: 'food', w: 52, h: 70, vb: '0 0 70 90', holdable: true,
-  svg: `<defs>${lin('ydcup', '#fff6c2', '#ffe566')}${lin('ydcupG', '#fff', '#f7f1e3')}</defs>
-    ${shadow(35, 22, 84)}
-    <path d="M18 28 H52 L48 78 H22 Z" fill="url(#ydcupG)" ${ink()}/>
-    <path d="M20 40 H50 L47 78 H23 Z" fill="url(#ydcup)" ${ink(2.2)}/>
-    ${hi('M24 36 v20')}
-    <path d="M30 18 q5 8 0 14 q-6 -4 0 -14" fill="#ff8fab" ${ink(1.8)}/>
-    <circle cx="40" cy="22" r="6" fill="#ffe566" ${ink(1.8)}/><ellipse cx="44" cy="18" rx="4" ry="2.2" fill="#80ed99" ${ink(1.4)}/>
+  svg: `${shadow(35, 20, 84)}
+    <path d="M18 28 H52 L48 76 H22 Z" fill="#fff" ${ink()}/>
+    <path d="M40 30 H50 L47 74 H40 Z" fill="#f0e6d8"/>
+    <path d="M20 40 H50 L47 76 H23 Z" fill="#ffe566" ${ink(2.2)}/>
+    <path d="M40 42 H48 L46 74 H40 Z" fill="#f0c45c"/>
+    ${hi('M24 36 v16')}
+    <path d="M30 16 q5 8 0 14 q-6 -4 0 -14" fill="#ff8fab" ${ink(1.8)}/>
+    <circle cx="42" cy="20" r="6" fill="#ffe566" ${ink(1.6)}/>
+    <path d="M44 16 h4 l-1 5 h-3 z" fill="#e0a83a"/>
+    <ellipse cx="46" cy="16" rx="3.4" ry="2" fill="#74c69d" ${ink(1.4)}/>
     <rect x="24" y="22" width="22" height="6" rx="2" fill="#fff" ${ink(1.6)}/>`,
 });
 
@@ -370,121 +400,89 @@ export function registerYardItems(items: ItemDef[], map: Record<string, ItemDef>
 
 function cloud(cx: number, cy: number, s: number): string {
   return `<g>
-    <ellipse cx="${cx}" cy="${cy + 8 * s}" rx="${40 * s}" ry="${16 * s}" fill="#c5e4ff" opacity=".35"/>
-    <ellipse cx="${cx - 24 * s}" cy="${cy}" rx="${28 * s}" ry="${16 * s}" fill="#fff"/>
-    <ellipse cx="${cx + 20 * s}" cy="${cy - 2 * s}" rx="${32 * s}" ry="${18 * s}" fill="#fff"/>
-    <ellipse cx="${cx}" cy="${cy + 2 * s}" rx="${36 * s}" ry="${15 * s}" fill="#fff"/>
-    <ellipse cx="${cx - 6 * s}" cy="${cy - 8 * s}" rx="${16 * s}" ry="${9 * s}" fill="#fff" opacity=".9"/>
+    <ellipse cx="${cx - 22 * s}" cy="${cy}" rx="${26 * s}" ry="${14 * s}" fill="#fff"/>
+    <ellipse cx="${cx + 18 * s}" cy="${cy - 2 * s}" rx="${30 * s}" ry="${16 * s}" fill="#fff"/>
+    <ellipse cx="${cx}" cy="${cy + 4 * s}" rx="${34 * s}" ry="${13 * s}" fill="#fff"/>
   </g>`;
 }
 
 function pickets(x0: number, x1: number, top: number, bot: number, step: number): string {
   let s = '';
   const h = bot - top;
-  const pw = Math.max(8, step * 0.46);
+  const pw = Math.max(8, step * 0.42);
   for (let x = x0; x <= x1; x += step) {
-    s += `<rect x="${x}" y="${top}" width="${pw}" height="${h}" rx="3" fill="#f7fff8" ${ink(2.4)}/>`;
-    s += `<path d="M${x + 2.2} ${top + 8} v${Math.round(h * 0.45)}" stroke="#fff" stroke-width="1.4" opacity=".5" fill="none" stroke-linecap="round"/>`;
+    s += `<rect x="${x}" y="${top}" width="${pw}" height="${h}" rx="3" fill="#f7fff8" ${ink(2.2)}/>`;
+    s += `<rect x="${(x + pw * 0.62).toFixed(1)}" y="${top + 4}" width="${(pw * 0.28).toFixed(1)}" height="${(h - 10).toFixed(1)}" fill="#d5ead8"/>`;
+    s += `<path d="M${(x + 2).toFixed(1)} ${top + 8} v${Math.round(h * 0.35)}" stroke="#fff" stroke-width="1.3" opacity=".7" fill="none" stroke-linecap="round"/>`;
   }
-  const rail = (y: number) => `<rect x="${x0 - 2}" y="${y}" width="${x1 - x0 + pw + 4}" height="8" rx="3" fill="#fff" ${ink(2.2)}/>`;
-  s += rail(top + h * 0.32) + rail(top + h * 0.66);
   return s;
 }
 
 function tree(x: number, scale: number): string {
-  const y = 250;
+  const y = 168;
   return `<g>
-    <rect x="${x - 12 * scale}" y="${y + 40 * scale}" width="${24 * scale}" height="${150 * scale}" rx="${8 * scale}" fill="#c9844a" ${ink()}/>
-    <path d="M${x - 6 * scale} ${y + 60 * scale} v${70 * scale}" stroke="#f6d7b0" stroke-width="2" opacity=".45" fill="none"/>
-    <ellipse cx="${x}" cy="${y}" rx="${78 * scale}" ry="${58 * scale}" fill="#3d9a55" ${ink()}/>
-    <ellipse cx="${x - 36 * scale}" cy="${y + 16 * scale}" rx="${40 * scale}" ry="${32 * scale}" fill="#5cb87a" ${ink(2.6)}/>
-    <ellipse cx="${x + 40 * scale}" cy="${y + 18 * scale}" rx="${38 * scale}" ry="${30 * scale}" fill="#8ed9a0" ${ink(2.6)}/>
-    <ellipse cx="${x - 10 * scale}" cy="${y - 16 * scale}" rx="${28 * scale}" ry="${16 * scale}" fill="#b6f0c0" opacity=".55"/>
-    <circle cx="${x - 20 * scale}" cy="${y - 8 * scale}" r="${6 * scale}" fill="#ff8fab"/>
-    <circle cx="${x + 18 * scale}" cy="${y + 6 * scale}" r="${5 * scale}" fill="#ffd166"/>
-    <circle cx="${x + 4 * scale}" cy="${y - 22 * scale}" r="${5 * scale}" fill="#fff"/>
+    <rect x="${x - 11 * scale}" y="${y + 36 * scale}" width="${22 * scale}" height="${150 * scale}" rx="${6 * scale}" fill="#e7b98a" ${ink()}/>
+    <rect x="${x + 2 * scale}" y="${y + 44 * scale}" width="${7 * scale}" height="${130 * scale}" fill="#c99366"/>
+    ${tex(`M${x - 4 * scale} ${y + 70 * scale} v${40 * scale}`)}
+    <ellipse cx="${x - 28 * scale}" cy="${y + 18 * scale}" rx="${40 * scale}" ry="${32 * scale}" fill="#95d5b2" ${ink(2.4)}/>
+    <ellipse cx="${x}" cy="${y}" rx="${70 * scale}" ry="${52 * scale}" fill="#74c69d" ${ink()}/>
+    <ellipse cx="${x + 36 * scale}" cy="${y + 10 * scale}" rx="${40 * scale}" ry="${34 * scale}" fill="#3d9a68" ${ink(2.4)}/>
+    <path d="M${x + 8 * scale} ${y - 20 * scale} C${x + 40 * scale} ${y - 10 * scale} ${x + 50 * scale} ${y + 16 * scale} ${x + 20 * scale} ${y + 28 * scale} C${x + 40 * scale} ${y + 8 * scale} ${x + 28 * scale} ${y - 8 * scale} ${x + 10 * scale} ${y - 12 * scale} Z" fill="#2f7a52"/>
+    <path d="M${x - 24 * scale} ${y - 8 * scale} q${16 * scale} -8 ${26 * scale} 2" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".6"/>
+    <circle cx="${x - 16 * scale}" cy="${y - 6 * scale}" r="${5 * scale}" fill="#ff8fab"/>
+    <circle cx="${x + 10 * scale}" cy="${y + 8 * scale}" r="${4.5 * scale}" fill="#ffd166"/>
   </g>`;
 }
 
-function bloom(x: number, y: number, color: string, r = 7): string {
-  return `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" ${ink(2)}/><circle cx="${x - r * 0.25}" cy="${y - r * 0.28}" r="${r * 0.28}" fill="#fff" opacity=".75"/>`;
-}
-
-function grassBits(): string {
-  let s = '';
-  for (let i = 0; i < 90; i++) {
-    const x = 660 + ((i * 137) % 1500);
-    const y = 445 + ((i * 53) % 140);
-    const h = 10 + (i % 6) * 2;
-    s += `<path d="M${x} ${y} q${(i % 5) - 2} ${-h} 3 ${-h - 3}" fill="none" stroke="#2f8a48" stroke-width="1.5" opacity=".28" stroke-linecap="round"/>`;
-  }
-  for (let i = 0; i < 16; i++) {
-    const x = 720 + ((i * 173) % 1200);
-    const y = 470 + ((i * 67) % 110);
-    s += `<circle cx="${x}" cy="${y}" r="3.2" fill="#7dce8a"/><circle cx="${x + 5}" cy="${y + 1}" r="3.2" fill="#8ed9a0"/><circle cx="${x + 2}" cy="${y - 4}" r="3.2" fill="#b6f0c0"/>`;
-  }
-  return s;
+function bloom(x: number, y: number, color: string, r = 6): string {
+  return `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" ${ink(1.8)}/><circle cx="${x + r * 0.35}" cy="${y + r * 0.15}" r="${r * 0.28}" fill="${color === '#fff' ? '#f0d0dc' : '#e888a8'}" opacity=".9"/>`;
 }
 
 /** Full-world outdoor paint. The stage camera crops it to the same window as every other room. */
 export function yardBackyardScenery(): string {
-  const flowers = [
-    [760, 500, '#ff8fab'], [790, 512, '#ffd166'], [830, 496, '#fff'],
-    [1188, 470, '#ff8fab'], [1220, 488, '#c9a0dc'], [1254, 468, '#ffd166'],
-    [980, 455, '#fff'], [1010, 448, '#ffb3c6'],
-  ].map(([x, y, c]) => bloom(Number(x), Number(y), String(c), 6)).join('');
   return `<svg class="yardWorld" viewBox="0 0 2400 600" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      ${lin('ydsky', '#eaf7ff', '#8ec8f0')}
-      ${lin('ydgrass', '#d9f5b8', '#67b86a')}
-      ${lin('ydwall', '#fffaf3', '#f0e0cf')}
-      ${lin('yddoor', '#f7e7ff', '#c9a0dc')}
-      ${lin('ydroof', '#ffd0e0', '#ff8fab')}
+      <linearGradient id="ydsky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#6eb6e8"/>
+        <stop offset=".48" stop-color="#c5e6fb"/>
+        <stop offset="1" stop-color="#fff3df"/>
+      </linearGradient>
+      ${rad('ydsun', '#ffe566', '.55')}
     </defs>
     <rect width="2400" height="430" fill="url(#ydsky)"/>
-    <rect y="300" width="2400" height="130" fill="#fff6e4" opacity=".28"/>
-    <circle cx="1188" cy="78" r="78" fill="#ffe566" opacity=".18"/>
-    <circle cx="1188" cy="78" r="34" fill="#ffe566"/>
-    <circle cx="1176" cy="66" r="10" fill="#fff" opacity=".7"/>
-    ${cloud(760, 58, 1.25)}${cloud(980, 112, 0.9)}${cloud(1180, 52, 1.05)}${cloud(1380, 96, 0.8)}${cloud(560, 100, 0.75)}
-    <ellipse cx="1400" cy="392" rx="980" ry="40" fill="#c6e8a4" opacity=".7"/>
-    ${pickets(880, 2200, 328, 414, 26)}
-    <rect y="400" width="2400" height="200" fill="url(#ydgrass)"/>
-    <rect y="430" width="2400" height="28" fill="#fff" opacity=".08"/>
-    <rect y="500" width="2400" height="22" fill="#2f8a48" opacity=".05"/>
-    <rect y="545" width="2400" height="18" fill="#fff" opacity=".06"/>
-    ${grassBits()}
-    <path d="M800 446 C 880 500, 960 540, 1080 592" fill="none" stroke="#e6c48a" stroke-width="46" stroke-linecap="round"/>
-    <path d="M800 446 C 880 500, 960 540, 1080 592" fill="none" stroke="#f6e2b6" stroke-width="22" stroke-linecap="round"/>
-    <ellipse cx="860" cy="490" rx="16" ry="8" fill="#f7edd4" ${ink(2)} opacity=".85"/>
-    <ellipse cx="960" cy="540" rx="18" ry="8" fill="#f7edd4" ${ink(2)} opacity=".85"/>
-    <ellipse cx="1048" cy="576" rx="16" ry="7" fill="#f7edd4" ${ink(2)} opacity=".85"/>
-    ${tree(1010, 1.05)}
-    ${tree(1260, 0.82)}
-    <path d="M640 176 H910 L890 196 H660 Z" fill="url(#ydroof)" ${ink()}/>
-    ${hi('M670 182 h120', 3)}
-    <rect x="662" y="192" width="228" height="236" rx="8" fill="url(#ydwall)" ${ink()}/>
-    ${grain('M678 214 H874 M678 236 H874 M678 258 H874 M678 280 H874 M678 302 H874 M678 324 H874 M678 346 H874 M678 368 H874 M678 390 H874')}
-    <rect x="748" y="248" width="78" height="176" rx="8" fill="url(#yddoor)" ${ink()}/>
-    <rect x="760" y="262" width="54" height="36" rx="6" fill="#c9ecff" ${ink(2.2)}/>
-    <path d="M787 262 V298 M760 280 H814" ${ink(2)}/>
-    <circle cx="774" cy="274" r="6" fill="#fff" opacity=".7"/>
-    <rect x="762" y="312" width="50" height="48" rx="4" fill="#f3e4ff" ${ink(2)}/>
-    <rect x="762" y="368" width="50" height="44" rx="4" fill="#f3e4ff" ${ink(2)}/>
-    ${hi('M766 318 v28')}
-    <circle cx="804" cy="352" r="4" fill="#ffd166" ${ink(1.6)}/>
-    <rect x="820" y="230" width="58" height="50" rx="8" fill="#c9ecff" ${ink()}/>
-    <path d="M849 230 V280 M820 255 H878" ${ink(2.2)}/>
-    <path d="M814 230 q6 16 0 28" fill="none" stroke="#ff8fab" stroke-width="8" stroke-linecap="round"/>
-    <path d="M884 230 q-6 16 0 28" fill="none" stroke="#ff8fab" stroke-width="8" stroke-linecap="round"/>
-    <rect x="816" y="276" width="66" height="10" rx="3" fill="#ffe7c2" ${ink(2)}/>
-    ${bloom(830, 272, '#ff8fab', 4)}${bloom(848, 270, '#ffd166', 4)}${bloom(866, 272, '#fff', 4)}
-    <rect x="652" y="420" width="248" height="16" rx="4" fill="#e7d3b0" ${ink(2.4)}/>
-    <ellipse cx="800" cy="448" rx="36" ry="8" fill="#d7b48a" ${ink(2)}/>
-    ${flowers}
-    ${bloom(740, 560, '#ff8fab', 8)}${bloom(768, 574, '#ffd166', 7)}${bloom(792, 552, '#fff', 6)}
-    ${bloom(1148, 575, '#c9a0dc', 7)}${bloom(1176, 560, '#ff8fab', 8)}${bloom(1160, 588, '#ffd166', 6)}
-    ${pickets(1088, 1500, 286, 508, 34)}
+    <circle id="ydSunGlow" cx="1180" cy="68" r="62" fill="url(#ydsun)"/>
+    <circle id="ydSun" cx="1180" cy="68" r="30" fill="#ffe566"/>
+    <circle cx="1170" cy="58" r="8" fill="#fff" opacity=".8"/>
+    ${cloud(980, 96, 1.05)}${cloud(1320, 78, 0.85)}${cloud(1500, 120, 0.7)}
+    ${pickets(1000, 1680, 268, 372, 28)}
+    <rect y="360" width="2400" height="240" fill="#c6ef9a"/>
+    <rect y="360" width="2400" height="28" fill="#e7f8c8"/>
+    <rect y="520" width="2400" height="80" fill="#9ed67a"/>
+    <path d="M900 470 q40 -16 20 -8 M1040 500 q30 -14 16 -6 M1240 540 q28 -12 14 -4" fill="none" stroke="#3d9a68" stroke-width="1.4" stroke-linecap="round" opacity=".22"/>
+    ${tree(1160, 0.92)}
+    <path d="M790 128 H1070 L1048 156 H812 Z" fill="#ffb3c6" ${ink()}/>
+    <path d="M960 132 H1064 L1046 152 H972 Z" fill="#e45d88"/>
+    ${hi('M830 136 h80', 3)}
+    <rect x="820" y="150" width="230" height="180" rx="6" fill="#fff6ea" ${ink()}/>
+    <rect x="990" y="156" width="52" height="168" fill="#f0dcc4"/>
+    ${tex('M836 172 H1000 M836 196 H1000 M836 220 H990 M836 268 H1000 M836 292 H980')}
+    <rect x="900" y="156" width="48" height="52" rx="6" fill="#c9ecff" ${ink()}/>
+    <rect x="932" y="160" width="12" height="44" fill="#8ecae6"/>
+    <path d="M924 156 V208 M900 182 H948" ${ink(2)}/>
+    <rect x="950" y="186" width="76" height="180" rx="6" fill="#f3e4ff" ${ink()}/>
+    <rect x="1000" y="192" width="20" height="168" fill="#d4b4e6"/>
+    <rect x="962" y="200" width="52" height="36" rx="4" fill="#c9ecff" ${ink(2)}/>
+    <path d="M988 200 V236 M962 218 H1014" ${ink(2)}/>
+    <rect x="964" y="248" width="48" height="46" rx="3" fill="#f7ecff" ${ink(2)}/>
+    <rect x="996" y="252" width="12" height="38" fill="#e0c8f0"/>
+    <rect x="964" y="304" width="48" height="46" rx="3" fill="#f7ecff" ${ink(2)}/>
+    ${hi('M970 254 v24')}
+    <circle cx="1004" cy="292" r="3.4" fill="#ffd166" ${ink(1.6)}/>
+    <rect x="808" y="324" width="254" height="14" rx="3" fill="#e7d3b0" ${ink(2.2)}/>
+    <ellipse cx="988" cy="372" rx="40" ry="8" fill="#f0d2b0" ${ink(2)}/>
+    <ellipse cx="1008" cy="374" rx="16" ry="5" fill="#d4a373"/>
+    ${bloom(1056, 348, '#ff8fab', 6)}${bloom(1074, 362, '#ffd166', 5)}${bloom(1090, 346, '#fff', 5)}
+    ${bloom(1272, 528, '#ff8fab', 6)}${bloom(1292, 544, '#ffd166', 5)}
   </svg>`;
 }
 
@@ -495,18 +493,20 @@ function doorBox(x: number, y: number, w: number, h: number): string {
 }
 
 const livingDoorArt = `<svg class="doorArt" viewBox="0 0 100 150">
-  <defs>${lin('ydldoor', '#f7e7ff', '#c9a0dc')}${lin('ydlframe', '#fff6ea', '#f0d8c4')}</defs>
-  <ellipse cx="50" cy="146" rx="36" ry="4" fill="${O}" opacity=".1"/>
-  <rect x="8" y="8" width="84" height="136" rx="10" fill="url(#ydlframe)" ${ink()}/>
-  <rect x="18" y="18" width="64" height="114" rx="6" fill="url(#ydldoor)" ${ink()}/>
-  <rect x="26" y="26" width="48" height="32" rx="5" fill="#c9ecff" ${ink(2.2)}/>
-  <path d="M50 26 V58 M26 42 H74" ${ink(2)}/>
-  <circle cx="38" cy="34" r="5" fill="#fff" opacity=".75"/>
-  <rect x="26" y="66" width="48" height="28" rx="4" fill="#f3e4ff" ${ink(2)}/>
-  <rect x="26" y="98" width="48" height="26" rx="4" fill="#f3e4ff" ${ink(2)}/>
-  ${hi('M30 70 v16')}
-  <circle cx="66" cy="92" r="4" fill="#ffd166" ${ink(1.6)}/>
-  <rect x="16" y="132" width="68" height="8" rx="3" fill="#e7d3b0" ${ink(2)}/>
+  <ellipse cx="50" cy="146" rx="34" ry="3.2" fill="${O}" opacity=".1"/>
+  <rect x="8" y="8" width="84" height="136" rx="8" fill="#fff6ea" ${ink()}/>
+  <rect x="70" y="14" width="16" height="122" rx="4" fill="#f0dcc4"/>
+  <rect x="18" y="18" width="64" height="114" rx="6" fill="#f3e4ff" ${ink()}/>
+  <rect x="62" y="24" width="14" height="102" rx="4" fill="#d4b4e6"/>
+  <rect x="26" y="28" width="46" height="32" rx="4" fill="#c9ecff" ${ink(2.2)}/>
+  <rect x="58" y="32" width="10" height="24" fill="#8ecae6"/>
+  <path d="M49 28 V60 M26 44 H72" ${ink(2)}/>
+  <rect x="26" y="68" width="46" height="26" rx="3" fill="#f7ecff" ${ink(2)}/>
+  <rect x="58" y="72" width="10" height="18" fill="#e0c8f0"/>
+  <rect x="26" y="100" width="46" height="24" rx="3" fill="#f7ecff" ${ink(2)}/>
+  ${hi('M30 74 v14')}
+  <circle cx="64" cy="92" r="3.5" fill="#ffd166" ${ink(1.6)}/>
+  <rect x="16" y="132" width="68" height="8" rx="2" fill="#e7d3b0" ${ink(2)}/>
 </svg>`;
 
 /** Living-room door is drawn on the button. The yard door is painted in the scenery; the button is the hint. */
@@ -514,10 +514,81 @@ export function yardDoorMarkup(where: 'living' | 'yard'): string {
   if (where === 'living') {
     return `<button type="button" class="yardDoor" data-yard-go="backyard" aria-label="Backyard" style="${doorBox(820, 508, 150, 240)}">${livingDoorArt}<span class="yardHintLabel"><span>Backyard</span></span></button>`;
   }
-  return `<button type="button" class="yardDoor yardHint" data-yard-go="living" aria-label="Back inside" style="${doorBox(786, 448, 100, 310)}"><span class="yardHintLabel"><span>Back inside</span></span></button>`;
+  return `<button type="button" class="yardDoor" data-yard-go="living" aria-label="Back inside" style="${doorBox(988, 366, 76, 180)}"><span class="yardHintLabel"><span>Back inside</span></span></button>`;
+}
+
+function sheetCard(name: string, art: string): string {
+  const safe = name.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!));
+  return `<figure class="ysCard"><div class="ysArt">${art}</div><figcaption>${safe}</figcaption></figure>`;
 }
 
 export function yardSheetHTML(): string {
-  const cards = YARD_ITEMS.map(d => `<figure class="ysCard"><div class="ysArt">${svgOf(d)}</div><figcaption>${d.name.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!))}</figcaption></figure>`).join('');
+  const cards = YARD_ITEMS.map(d => sheetCard(d.name, svgOf(d))).join('');
   return `<div class="yardSheet" data-yard-sheet="1"><h1>Backyard pieces</h1><div class="ysGrid">${cards}</div></div>`;
+}
+
+/** House pieces copied from the approved sample so the comparison is the real sofa, lamp, and plant. */
+function houseCard(name: string, body: string): string {
+  return sheetCard(name, `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">${body}</svg>`);
+}
+export function yardCompareHTML(): string {
+  const sampleShadow = (cx: number, rx: number) => shadow(cx, rx, 96.4);
+  const sofa = `
+    ${sampleShadow(50, 40)}
+    <path d="M18 58 V30 Q18 18 32 18 H68 Q82 18 82 30 V58 Z" fill="#ffb7cc" ${ink()}/>
+    <path d="M56 24 H76 Q80 24 80 32 V52 H56 Z" fill="#e888a8"/>
+    <circle cx="34" cy="38" r="3.4" fill="#ff8fab" ${ink(2)}/><circle cx="33" cy="37" r="1.1" fill="#fff"/>
+    <circle cx="50" cy="36" r="3.4" fill="#ff8fab" ${ink(2)}/><circle cx="49" cy="35" r="1.1" fill="#fff"/>
+    <circle cx="66" cy="38" r="3.4" fill="#e45d88" ${ink(2)}/><circle cx="65" cy="37" r="1.1" fill="#fff"/>
+    <rect x="4" y="44" width="20" height="38" rx="10" fill="#ff7096" ${ink()}/>
+    <ellipse cx="14" cy="44" rx="12" ry="9" fill="#ff9ab6" ${ink()}/>
+    <ellipse cx="9" cy="41" rx="4" ry="2.4" fill="#fff" opacity=".7"/>
+    <rect x="76" y="44" width="20" height="38" rx="10" fill="#e04878" ${ink()}/>
+    <ellipse cx="86" cy="44" rx="12" ry="9" fill="#e45d88" ${ink()}/>
+    <rect x="20" y="64" width="60" height="16" rx="6" fill="#ff8fab" ${ink()}/>
+    <rect x="22" y="56" width="28" height="22" rx="7" fill="#ffe0ea" ${ink(2.4)}/>
+    <rect x="50" y="56" width="28" height="22" rx="7" fill="#ffc2d4" ${ink(2.4)}/>
+    <rect x="66" y="58" width="10" height="18" rx="4" fill="#e888a8"/>
+    <path d="M26 60 h20 M54 60 h16 M26 74 h20 M54 74 h16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+    <path d="M50 58 v18" fill="none" stroke="#e45d88" stroke-width="2.2" stroke-linecap="round"/>
+    <rect x="26" y="46" width="20" height="16" rx="5" fill="#fff" ${ink(2.2)}/>
+    <path d="M33 52 c-2.2 -3.2 -6.4 -.4 -3.4 2.6 c1 1.2 3.4 2.6 3.4 2.6 c0 0 2.4 -1.4 3.4 -2.6 c3 -3 -1.2 -5.8 -3.4 -2.6 z" fill="#ff8fab"/>
+    <path d="M41 56 c-1.4 -2 -4.2 0 -2.2 1.8 c.7 .8 2.2 1.6 2.2 1.6 c0 0 1.5 -.8 2.2 -1.6 c2 -1.8 -.8 -3.8 -2.2 -1.8 z" fill="#7eb4dc"/>
+    <rect x="16" y="84" width="7" height="10" rx="2" fill="${O}"/>
+    <rect x="77" y="84" width="7" height="10" rx="2" fill="${O}"/>`;
+  const lamp = `
+    <defs>${rad('a2lamp-glow', '#ffd56a', '.95')}</defs>
+    ${sampleShadow(50, 22)}
+    <path d="M34 8 L42 8 L37 40 L24 40 Z" fill="#fff6d4"/>
+    <path d="M42 8 L50 8 L50 40 L37 40 Z" fill="#ffe08a"/>
+    <path d="M50 8 L58 8 L63 40 L50 40 Z" fill="#f0c45c"/>
+    <path d="M58 8 L66 8 L76 40 L63 40 Z" fill="#e0a83a"/>
+    <path d="M24 40 L34 8 H66 L76 40 Z" fill="none" ${ink()}/>
+    <path d="M42 8 L37 40 M50 8 V40 M58 8 L63 40" fill="none" stroke="${O}" stroke-width="2" stroke-linecap="round"/>
+    <ellipse cx="50" cy="36" rx="20" ry="10" fill="url(#a2lamp-glow)"/>
+    <rect x="46" y="40" width="8" height="42" rx="3" fill="#e4ccf2" ${ink()}/>
+    <rect x="50" y="44" width="4" height="34" rx="2" fill="#c49ad4"/>
+    <ellipse cx="50" cy="88" rx="20" ry="6" fill="#d4b4e6" ${ink()}/>
+    <ellipse cx="60" cy="90" rx="8" ry="3" fill="#b888c8"/>
+    <ellipse cx="42" cy="86" rx="6" ry="2" fill="#fff" opacity=".55"/>`;
+  const plant = `
+    ${sampleShadow(50, 30)}
+    <ellipse cx="30" cy="40" rx="14" ry="22" fill="#b7ebc8" ${ink()} transform="rotate(-30 30 40)"/>
+    <path d="M34 28 C30 40 32 52 44 58" fill="#52b078"/>
+    <ellipse cx="72" cy="42" rx="13" ry="20" fill="#3d9a68" ${ink()} transform="rotate(26 72 42)"/>
+    <path d="M50 66 C40 44 42 18 50 6 C58 18 60 44 50 66 Z" fill="#d8f6e4" ${ink()}/>
+    <path d="M54 18 C60 32 58 48 50 58 C56 44 58 28 54 18 Z" fill="#52b078"/>
+    <path d="M50 14 V52" fill="none" stroke="#2f7a52" stroke-width="1.4" stroke-linecap="round" opacity=".55"/>
+    <path d="M40 60 C34 50 24 48 22 38 C32 44 38 54 42 64 Z" fill="#74c69d" ${ink(2.2)}/>
+    <path d="M28 64 H74 L68 94 H34 Z" fill="#e8845a" ${ink()}/>
+    <path d="M58 66 H72 L68 92 H60 Z" fill="#c45c38"/>
+    <rect x="22" y="58" width="58" height="10" rx="4" fill="#f0a078" ${ink()}/>
+    <rect x="56" y="60" width="20" height="6" rx="3" fill="#d47848"/>
+    <ellipse cx="50" cy="65" rx="20" ry="3" fill="#a86a42" opacity=".4"/>
+    <path d="M28 62 h14" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".65"/>`;
+  const byKind = Object.fromEntries(YARD_ITEMS.map(d => [d.kind, d]));
+  const row = (house: string, houseArt: string, kind: string) =>
+    houseCard(house, houseArt) + sheetCard(byKind[kind].name, svgOf(byKind[kind]));
+  const rows = row('Sofa', sofa, 'yard-swing') + row('Lamp', lamp, 'lemonade-cart') + row('Plant', plant, 'birdbath');
+  return `<div class="yardSheet yardCompare" data-yard-compare="1"><h1>House style and the yard</h1><p class="ysNote">Sofa, lamp, and plant are the approved refresh. Swing, cart, and birdbath use the same light.</p><div class="ysPair">${rows}</div></div>`;
 }

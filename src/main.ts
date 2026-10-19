@@ -27,7 +27,7 @@ import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
 import { emptyRoomStarters, setRoomScenery, syncScenery } from './scenery';
-import { DOOR_CAT_X, DOOR_KID, YARD_CAT_X, YARD_KID, YARD_STAGE, registerYardItems, yardBackyardScenery, yardDoorMarkup, yardLookPatch, yardPreviewOn, yardSheetHTML, yardShot } from './yard';
+import { DOOR_CAT_X, DOOR_KID, YARD_CAM, YARD_CAT, YARD_KID, YARD_STAGE, registerYardItems, yardBackyardScenery, yardCompareHTML, yardDoorMarkup, yardLookPatch, yardPreviewOn, yardSheetHTML, yardShot } from './yard';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
@@ -282,6 +282,7 @@ function fit() {
   stage.style.left = '';
   stage.style.top = '';
   stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
+  stage.style.setProperty('--yard-sc', String(sc || 1));
   if (phone) stage.style.setProperty('--fit', String(stageScale()));
   placePhoneNudges();
   if (camX > maxCam()) setCam(camX);
@@ -294,6 +295,7 @@ function fit() {
   if (phone && view === 'ranch') layoutPaddock();
   placeSecretsPill();
   play.hint();
+  frameYardCam();
 }
 /** Phone arrows live on the wrap in screen pixels. Centre them on the stage. */
 function placePhoneNudges() {
@@ -2236,9 +2238,10 @@ function tickCat() {
   layer.querySelectorAll<HTMLElement>('.item.toy-live').forEach(el => el.classList.remove('toy-live'));
   if (tower && mood === 'play' && perch && !leaping) layer.querySelector<HTMLElement>(`.item[data-id="${tower.id}"]`)?.classList.add('toy-live');
   // __pinCat holds her on a character's feet for tests. She stays under characters (5000 + y).
-  const pin = (window as any).__pinCat as { x: number } | null;
+  const pin = (window as any).__pinCat as { x: number; y?: number } | null;
   const pinned = !!(pin && Number.isFinite(pin.x));
-  const foot = !pinned && perch && tower ? towerFootY(tower.y, th, perch as 1 | 2) : !pinned && b.curl && bed ? bed.y - bed.h * (bed.pet ? 0.38 : 0.2) : CAT_Y;
+  const pinY = pinned && Number.isFinite(pin!.y) ? pin!.y! : CAT_Y;
+  const foot = !pinned && perch && tower ? towerFootY(tower.y, th, perch as 1 | 2) : !pinned && b.curl && bed ? bed.y - bed.h * (bed.pet ? 0.38 : 0.2) : pinY;
   placeEl(catEl, pinned ? pin!.x : x, foot, !pinned && perch ? 110 : 150, !pinned && perch ? 92 : 128);
   catEl.style.zIndex = String(4000 + Math.round(foot));
   catSpot = { x: pinned ? pin!.x : x, perch, leap: leaping };
@@ -2850,7 +2853,7 @@ function bootYardPreview() {
   if (!kid) return;
   const door = shot === 'door';
   store.dispatch({ type: 'char/update', id: kid.id, patch: { ...yardLookPatch(), flip: door ? DOOR_KID.flip : YARD_KID.flip } });
-  store.dispatch({ type: 'cat/set', cat: { name: 'Clover', coat: 3, room: door ? 'living' : 'backyard', x: door ? DOOR_CAT_X : YARD_CAT_X } });
+  store.dispatch({ type: 'cat/set', cat: { name: 'Clover', coat: 3, room: door ? 'living' : 'backyard', x: door ? DOOR_CAT_X : YARD_CAT.x } });
   store.dispatch({ type: 'dog/set', dog: { name: 'Sunny', breed: 3, owner: kid.id } });
   if (!store.get().rooms.backyard.items.some(i => i.kind === 'yard-swing')) {
     for (const p of YARD_STAGE) {
@@ -2865,10 +2868,11 @@ function bootYardPreview() {
     store.dispatch({ type: 'char/move', id: kid.id, room: door ? 'living' : 'backyard', x: spot.x, y: spot.y });
     store.dispatch({ type: 'room/switch', room: door ? 'living' : 'backyard' });
   }
-  (window as any).__pinCat = { x: door ? DOOR_CAT_X : YARD_CAT_X };
+  (window as any).__pinCat = door ? { x: DOOR_CAT_X } : { x: YARD_CAT.x, y: YARD_CAT.y };
   if (shot === 'play') $('modePlay').click();
   else if (shot === 'decorate' || shot === 'door') $('modeDecorate').click();
   if (shot === 'sheet') document.body.insertAdjacentHTML('beforeend', yardSheetHTML());
+  if (shot === 'compare') document.body.insertAdjacentHTML('beforeend', yardCompareHTML());
   $('scenery').addEventListener('click', e => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-yard-go]');
     if (!b) return;
@@ -2878,15 +2882,16 @@ function bootYardPreview() {
     const spot = go === 'backyard' ? YARD_KID : DOOR_KID;
     store.dispatch({ type: 'char/update', id: who.id, patch: { flip: spot.flip } });
     store.dispatch({ type: 'char/move', id: who.id, room: go, x: spot.x, y: spot.y });
-    if (store.get().cat) store.dispatch({ type: 'cat/move', room: go, x: go === 'backyard' ? YARD_CAT_X : DOOR_CAT_X });
-    (window as any).__pinCat = { x: go === 'backyard' ? YARD_CAT_X : DOOR_CAT_X };
+    if (store.get().cat) store.dispatch({ type: 'cat/move', room: go, x: go === 'backyard' ? YARD_CAT.x : DOOR_CAT_X });
+    (window as any).__pinCat = go === 'backyard' ? { x: YARD_CAT.x, y: YARD_CAT.y } : { x: DOOR_CAT_X };
     store.dispatch({ type: 'room/switch', room: go });
     requestAnimationFrame(frameYardCam);
   });
   document.body.dataset.yard = 'ready';
 }
 function frameYardCam() {
-  if (!yardOn || yardShot() === 'sheet') return;
+  if (!yardOn || yardShot() === 'sheet' || yardShot() === 'compare') return;
+  if (store.get().currentRoom === 'backyard') { setCam(YARD_CAM); return; }
   const kid = store.get().characters.find(c => c.room === store.get().currentRoom);
   if (kid) setCam(kid.x - VIEW_W / 2);
 }

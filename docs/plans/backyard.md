@@ -6,14 +6,17 @@ The nursery already shipped, and so did the empty `backyard` room key (commit `9
 
 The shots are the real stage. `?yard=1` is a dev preview only: it registers the 20 drawings, paints the yard, and places a sample set so the pictures can be taken. A normal load does not do that, and an empty yard stays empty. At 820×1180 the Play stage measures **796×995** (Play hides the shelf, so the stage is taller) and the Decorate stage measures **796×872**. Both match the living room at that size.
 
+The 20 drawings follow the approved art refresh (`docs/art-style-v2.md` on `cursor/art-refresh` at `57da467`, not merged): top-left light, a cel side plane, an edge highlight, texture strokes, a plum two-ellipse shadow, and no blur. `yard-vs-house.png` puts the swing, lemonade cart, and birdbath next to that branch's sofa, lamp, and plant.
+
 | | iPad 820×1180 | Phone 390×844 |
 |---|---|---|
 | Yard, Play | `docs/plans/mockups/yard-play-820x1180.png` | `docs/plans/mockups/yard-play-390x844.png` |
 | Yard, Decorate, outdoor shelf | `docs/plans/mockups/yard-decorate-820x1180.png` | `docs/plans/mockups/yard-decorate-390x844.png` |
 | Living room, back door | `docs/plans/mockups/living-door-820x1180.png` | `docs/plans/mockups/living-door-390x844.png` |
 | All 20 pieces | `docs/plans/mockups/backyard-pieces.png` | |
+| Beside the house style | `docs/plans/mockups/yard-vs-house.png` | |
 
-`?yard=1&shot=play`, `decorate`, `door`, or `sheet`.
+`?yard=1&shot=play`, `decorate`, `door`, `sheet`, or `compare`.
 
 ## Recommendation
 
