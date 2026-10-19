@@ -50,13 +50,16 @@ export function mountSkyToggle(host: HTMLElement): SkyHandle {
     root.style.setProperty('--sky-win', look.win);
     root.style.setProperty('--sky-win-2', look.win2);
     root.style.setProperty('--sky-house-win', look.house);
+    root.style.setProperty('--sky-map-tint', look.mapTint);
     // Plain rgba so Safari 16 can paint them. Hot centers stay nearly solid so the pool still reads through a dim room.
     root.style.setProperty('--sky-glow-soft', `rgba(255, 186, 80, ${(g * 0.72).toFixed(3)})`);
     root.style.setProperty('--sky-glow-hot', `rgba(255, 220, 120, ${(g * 0.96).toFixed(3)})`);
     root.style.setProperty('--sky-glow-wash', `rgba(255, 170, 70, ${(g * 0.55).toFixed(3)})`);
     root.style.setProperty('--sky-glow-map', `rgba(255, 196, 110, ${(g * 0.7).toFixed(3)})`);
-    const sh = look.phase === 'golden' ? 0.9 : look.phase === 'dawn' ? 0.28 : 0;
-    root.style.setProperty('--sky-shadow', `rgba(120, 64, 28, ${sh.toFixed(3)})`);
+    const sh = look.phase === 'golden' ? 0.82 : look.phase === 'dawn' ? 0.22 : 0;
+    root.style.setProperty('--sky-shadow', `rgba(140, 62, 18, ${sh.toFixed(3)})`);
+    const vig = look.phase === 'night' ? 0.55 : look.phase === 'golden' ? 0.22 : look.phase === 'dawn' ? 0.16 : 0;
+    root.style.setProperty('--sky-vig', `rgba(12, 10, 32, ${vig.toFixed(3)})`);
     const orb = look.phase === 'golden' ? '255, 196, 80' : look.phase === 'dawn' ? '255, 214, 230' : '255, 246, 214';
     root.style.setProperty('--sky-orb', `rgba(${orb}, ${(Math.min(1, look.glass)).toFixed(3)})`);
     root.dataset.sky = look.phase;
@@ -189,13 +192,23 @@ function placeStreetSky(sky: HTMLElement) {
   }
 }
 
-/** Stars, the moon, and fireflies live on the map. renderMap replaces its HTML, so put the layer back. */
+/** Tint, streetlamps, stars, and fireflies live on the map. renderMap replaces its HTML, so put the layers back. */
 function keepStreetBits(world: HTMLElement) {
+  const tint = document.createElement('div');
+  tint.className = 'skyTint';
+  tint.setAttribute('aria-hidden', 'true');
+  const lamps = document.createElement('div');
+  lamps.className = 'skyLamps';
+  lamps.setAttribute('aria-hidden', 'true');
   const bits = document.createElement('div');
   bits.className = 'skyBits';
   bits.setAttribute('aria-hidden', 'true');
   bits.innerHTML = '<i class="star"></i><i class="star"></i><i class="star"></i><i class="star"></i><i class="star"></i><i class="star"></i><i class="fly"></i><i class="fly"></i><i class="fly"></i><i class="fly"></i><i class="fly"></i>';
-  const ensure = () => { if (!world.contains(bits)) world.appendChild(bits); };
+  const ensure = () => {
+    if (!world.contains(tint)) world.appendChild(tint);
+    if (!world.contains(lamps)) world.appendChild(lamps);
+    if (!world.contains(bits)) world.appendChild(bits);
+  };
   ensure();
   new MutationObserver(ensure).observe(world, { childList: true });
 }

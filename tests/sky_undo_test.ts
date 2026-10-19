@@ -14,9 +14,9 @@ const at = (h: number, min = 0) => new Date(2026, 5, 15, h, min, 0);
 const noon = skyLook(at(12), 'auto');
 check('noon is day with no veil', noon.phase === 'day' && noon.opacity === 0 && noon.glow === 0 && noon.stars === 0);
 const night = skyLook(at(3), 'auto');
-check('the middle of the night is cozy night', night.phase === 'night' && night.opacity > 0.45 && night.opacity < 0.58 && night.map > 0.4 && night.map < 0.55 && night.glow > 0.8 && night.stars > 0.8 && night.glass > 0.9);
+check('the middle of the night is cozy night', night.phase === 'night' && night.opacity > 0.62 && night.opacity < 0.78 && night.map > 0.7 && night.map < 0.88 && night.glow > 0.8 && night.stars > 0.8 && night.glass > 0.9 && night.tint === '#2a2350');
 const gold = skyLook(at(18, 10), 'auto');
-check('early evening is golden', gold.phase === 'golden' && gold.glow > 0.4 && gold.opacity > 0 && gold.opacity < 0.3 && gold.glass > 0.5);
+check('early evening is golden', gold.phase === 'golden' && gold.glow > 0.4 && gold.opacity > 0.3 && gold.opacity < 0.55 && gold.glass > 0.5);
 const dawn = skyLook(at(6, 25), 'auto');
 check('sunrise is dawn', dawn.phase === 'dawn' && dawn.opacity > 0 && dawn.opacity < night.opacity && dawn.glass > 0.4);
 

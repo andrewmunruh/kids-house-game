@@ -7,9 +7,9 @@ export type SkyPhase = 'dawn' | 'day' | 'golden' | 'night';
 /** One moment of the sky. Colours are hex so the clock can blend them. */
 export interface SkyLook {
   phase: SkyPhase;
-  /** Room / ranch / park veil. Full night stays under 0.6 so the walls stay a dim blue, not a blackout. */
+  /** Room veil. Multiply toward the night indigo. Full night is strong enough that the walls read blue, not grey. */
   opacity: number;
-  /** Map veil. A little stronger than the room so the grass reads as night. */
+  /** Map veil. Stronger than the room: day grass is bright, and night has to turn it blue-green. */
   map: number;
   /** 0..1 warm light from windows, lamps, string lights, night-lights, and TVs. */
   glow: number;
@@ -27,6 +27,8 @@ export interface SkyLook {
   win: string;
   win2: string;
   house: string;
+  /** Multiply (night) or wash (golden) laid over the map ground and trees. */
+  mapTint: string;
 }
 
 /** New key. Not `cozy-house`, and not sent to the street. */
@@ -34,7 +36,7 @@ export const SKY_KEY = 'cozy-sky';
 
 interface Tone {
   tint: string; body: string; pageA: string; pageB: string; spot: string;
-  fieldA: string; fieldB: string; win: string; win2: string; house: string;
+  fieldA: string; fieldB: string; win: string; win2: string; house: string; mapTint: string;
 }
 interface Stop extends Tone {
   m: number; opacity: number; map: number; glow: number; stars: number; glass: number; phase: SkyPhase;
@@ -42,38 +44,38 @@ interface Stop extends Tone {
 
 const DAY_T: Tone = {
   tint: '#fff6e4', body: '#ffe9f0', pageA: '#ffe0ec', pageB: '#e6ddff', spot: '#fff6fa',
-  fieldA: '#c9f2c7', fieldB: '#8fd18a', win: '#a2d2ff', win2: '#b9e3ff', house: '#fff3b0',
+  fieldA: '#c9f2c7', fieldB: '#8fd18a', win: '#a2d2ff', win2: '#b9e3ff', house: '#fff3b0', mapTint: '#ffffff',
 };
 const DAWN_T: Tone = {
   tint: '#e7b4cc', body: '#f6dce8', pageA: '#ffd0e6', pageB: '#e6d2f8', spot: '#fff0f6',
-  fieldA: '#f6d0e2', fieldB: '#dcc8f0', win: '#f6c6de', win2: '#e4d0f8', house: '#ffe0ee',
+  fieldA: '#f6d0e2', fieldB: '#dcc8f0', win: '#f6c6de', win2: '#e4d0f8', house: '#ffe0ee', mapTint: '#f3c4dc',
 };
 const GOLD_T: Tone = {
-  tint: '#e8883a', body: '#ffd2b4', pageA: '#ffb07a', pageB: '#ff9ebf', spot: '#ffe4c4',
-  fieldA: '#ffc48e', fieldB: '#ee9470', win: '#ffb07a', win2: '#ff9ec4', house: '#ffc56a',
+  tint: '#f4a06a', body: '#ffd2b4', pageA: '#ffb07a', pageB: '#ff9ebf', spot: '#ffe4c4',
+  fieldA: '#ffc48e', fieldB: '#ee9470', win: '#ffb07a', win2: '#ff9ec4', house: '#ffc56a', mapTint: '#e07030',
 };
 const NIGHT_T: Tone = {
-  tint: '#1a2744', body: '#14182c', pageA: '#1c1748', pageB: '#101832', spot: '#2c2458',
-  fieldA: '#243868', fieldB: '#12182e', win: '#1a245c', win2: '#12183a', house: '#ffe08a',
+  tint: '#2a2350', body: '#14182c', pageA: '#1c1748', pageB: '#101832', spot: '#2c2458',
+  fieldA: '#1a2458', fieldB: '#0c1028', win: '#1a245c', win2: '#12183a', house: '#ffe9a0', mapTint: '#102044',
 };
 
 // Minutes from midnight. Neighbours blend so dawn and dusk ease in instead of popping.
 const STOPS: Stop[] = [
-  { m: 0, opacity: 0.50, map: 0.46, glow: 1, stars: 1, glass: 1, phase: 'night', ...NIGHT_T },
-  { m: 5 * 60, opacity: 0.50, map: 0.46, glow: 0.95, stars: 0.95, glass: 1, phase: 'night', ...NIGHT_T },
-  { m: 5 * 60 + 35, opacity: 0.26, map: 0.26, glow: 0.55, stars: 0.42, glass: 0.8, phase: 'dawn', ...DAWN_T },
-  { m: 6 * 60 + 25, opacity: 0.14, map: 0.12, glow: 0.28, stars: 0.08, glass: 0.9, phase: 'dawn', ...DAWN_T },
+  { m: 0, opacity: 0.70, map: 0.78, glow: 1, stars: 1, glass: 1, phase: 'night', ...NIGHT_T },
+  { m: 5 * 60, opacity: 0.70, map: 0.78, glow: 0.95, stars: 0.95, glass: 1, phase: 'night', ...NIGHT_T },
+  { m: 5 * 60 + 35, opacity: 0.42, map: 0.34, glow: 0.55, stars: 0.42, glass: 0.8, phase: 'dawn', ...DAWN_T },
+  { m: 6 * 60 + 25, opacity: 0.14, map: 0.16, glow: 0.28, stars: 0.08, glass: 0.9, phase: 'dawn', ...DAWN_T },
   { m: 7 * 60 + 15, opacity: 0, map: 0, glow: 0, stars: 0, glass: 0, phase: 'day', ...DAY_T },
   { m: 16 * 60 + 15, opacity: 0, map: 0, glow: 0, stars: 0, glass: 0, phase: 'day', ...DAY_T },
-  { m: 17 * 60 + 5, opacity: 0.12, map: 0.12, glow: 0.42, stars: 0.02, glass: 0.7, phase: 'golden', ...GOLD_T },
-  { m: 18 * 60 + 10, opacity: 0.20, map: 0.20, glow: 0.72, stars: 0.14, glass: 0.95, phase: 'golden', ...GOLD_T },
-  { m: 19 * 60 + 5, opacity: 0.34, map: 0.32, glow: 0.9, stars: 0.55, glass: 1, phase: 'night', ...NIGHT_T },
-  { m: 20 * 60 + 10, opacity: 0.50, map: 0.46, glow: 1, stars: 1, glass: 1, phase: 'night', ...NIGHT_T },
-  { m: 24 * 60, opacity: 0.50, map: 0.46, glow: 1, stars: 1, glass: 1, phase: 'night', ...NIGHT_T },
+  { m: 17 * 60 + 5, opacity: 0.22, map: 0.28, glow: 0.42, stars: 0.02, glass: 0.7, phase: 'golden', ...GOLD_T },
+  { m: 18 * 60 + 10, opacity: 0.46, map: 0.60, glow: 0.72, stars: 0.14, glass: 0.95, phase: 'golden', ...GOLD_T },
+  { m: 19 * 60 + 5, opacity: 0.52, map: 0.68, glow: 0.9, stars: 0.55, glass: 1, phase: 'night', ...NIGHT_T },
+  { m: 20 * 60 + 10, opacity: 0.70, map: 0.78, glow: 1, stars: 1, glass: 1, phase: 'night', ...NIGHT_T },
+  { m: 24 * 60, opacity: 0.70, map: 0.78, glow: 1, stars: 1, glass: 1, phase: 'night', ...NIGHT_T },
 ];
 
 const DAY: SkyLook = { phase: 'day', opacity: 0, map: 0, glow: 0, stars: 0, glass: 0, ...DAY_T };
-const NIGHT: SkyLook = { phase: 'night', opacity: 0.50, map: 0.46, glow: 1, stars: 1, glass: 1, ...NIGHT_T };
+const NIGHT: SkyLook = { phase: 'night', opacity: 0.70, map: 0.78, glow: 1, stars: 1, glass: 1, ...NIGHT_T };
 
 function hex(c: string): [number, number, number] {
   const h = c.replace('#', '');
@@ -112,6 +114,7 @@ export function skyAuto(date: Date): SkyLook {
     win: mixHex(a.win, b.win, t),
     win2: mixHex(a.win2, b.win2, t),
     house: mixHex(a.house, b.house, t),
+    mapTint: mixHex(a.mapTint, b.mapTint, t),
   };
 }
 
