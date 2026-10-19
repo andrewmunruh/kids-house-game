@@ -133,9 +133,9 @@ export function initialState(): GameState {
       // Toilet and soaker fill the opening view, with room for her between them.
       // Ladder, shower, vanity, and fern continue across the right side of the room.
       bathroom: { wallpaper: '#d7f6f8', floor: '#f3e0c8', pattern: 1, items: [
-        it('puddle-mat', 335, 566, 0), it('rain-shower', 758, 460, 1), it('clawfoot-tub', 366, 530, 3),
-        it('mirror-vanity', 909, 528, 2), it('little-toilet', 56, 552, 4), it('bath-cubby', 610, 250, 5),
-        it('towel-ladder', 606, 468, 6), it('mist-fern', 1340, 490, 7)] },
+        it('puddle-mat', 260, 566, 0), it('rain-shower', 758, 460, 1), it('clawfoot-tub', 260, 530, 3),
+        it('mirror-vanity', 909, 528, 2), it('little-toilet', 56, 552, 4), it('bath-cubby', 410, 230, 5),
+        it('towel-ladder', 606, 468, 6), it('mist-fern', 1240, 490, 7)] },
       // Empty on purpose. The backyard scene ships later; the room key has to exist so edits are not dropped.
       backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [] },
     },

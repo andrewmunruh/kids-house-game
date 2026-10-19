@@ -63,6 +63,7 @@ export function syncScenery(root: HTMLElement, room: string, items: { kind: stri
   const next = room + (empty ? '|e' : '') + (hasWindow ? '|w' : '');
   if (next === sig && root.childElementCount) return;
   sig = next;
-  root.innerHTML = (hasWindow ? '' : windowSVG(room)) + (empty ? startersSVG() : '');
+  const tile = room === 'bathroom' ? '<div class="tileBand" aria-hidden="true"></div>' : '';
+  root.innerHTML = (hasWindow ? '' : windowSVG(room)) + tile + (empty ? startersSVG() : '');
   root.dataset.room = room;
 }

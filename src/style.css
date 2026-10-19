@@ -647,10 +647,12 @@ body.is-preview .shelf { width: auto; margin-right: 96px; }
 /* ---------- polish: portrait, tap targets, home, phone note ---------- */
 .minimap { flex: 0 0 auto; min-width: 128px; width: 180px; height: 48px; }
 /* Six room tabs. 1180 keeps the full word Bathroom.
+   The top padding stays 10px, the same as the five-tab bar, so the stage
+   does not grow. Only the horizontal gaps shrink to fit Bath on that row.
    1024 tightens the same row so Map stays on screen.
    820 uses the short word Bath (see tabsCompact) so seven tools still fit. */
 @media (min-width: 1101px) {
-  body:not(.phone) .top { padding: 8px 12px 4px; gap: 8px; }
+  body:not(.phone) .top { padding: 10px 12px 4px; gap: 8px; }
   body:not(.phone) .tabs { gap: 6px; flex: 0 1 auto; min-width: 0; }
   body:not(.phone) .tab { padding: 8px 10px; font-size: 16px; }
   body:not(.phone) .minimap { width: 140px; min-width: 112px; }

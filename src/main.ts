@@ -830,6 +830,7 @@ function attachCharDrag(el: HTMLElement) {
           return;
         }
         sfx.drop(); bounce(el);
+        if (!moved && play.isPlay() && cur) splashTubInFront(cur.x, cur.y);
         if (moved) requestAnimationFrame(() => frameHouseKid(true));
       },
     });
@@ -1203,15 +1204,20 @@ function attachMyAvatarDrag(el: HTMLElement) {
     e.preventDefault(); e.stopPropagation(); if (twoFinger || !hood) return;
     const p0 = myPres(); if (!p0 || p0.where !== 'house') return;
     const q0 = toRoom(e.clientX, e.clientY), off = { x: p0.x - q0.x, y: p0.y - q0.y };
-    let lastX = p0.x; el.classList.add('lifted'); sfx.pick();
+    let lastX = p0.x, moved = false; el.classList.add('lifted'); sfx.pick();
     startDrag(e, {
       onMove(ev) {
         const q = toRoom(ev.clientX, ev.clientY), cur = myPres(); if (!cur || cur.where !== 'house') return;
+        if (Math.hypot(q.x - q0.x, q.y - q0.y) > 6) moved = true;
         const x = Math.max(40, Math.min(W - 40, q.x + off.x)), y = Math.max(FLOOR_Y + 40, Math.min(H, q.y + off.y));
         const flip = Math.abs(x - lastX) > 3 ? x < lastX : cur.flip; if (Math.abs(x - lastX) > 3) lastX = x;
         setMyPres({ ...cur, x, y, flip }); renderAvatars(); renderMinimap(store.get());
       },
-      onUp() { el.classList.remove('lifted'); sfx.drop(); bounce(el); requestAnimationFrame(() => frameHouseKid(true)); },
+      onUp() {
+        el.classList.remove('lifted'); sfx.drop(); bounce(el);
+        if (!moved && play.isPlay()) { const cur = myPres(); if (cur && cur.where === 'house') splashTubInFront(cur.x, cur.y); }
+        requestAnimationFrame(() => frameHouseKid(true));
+      },
     });
   });
 }
@@ -2100,10 +2106,7 @@ function onPlayTap(el: HTMLElement, id: string) {
   const g = playGesture(it.kind);
   el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle');
   sfx.click();
-  if (it.kind === 'clawfoot-tub' || it.kind === 'rain-shower') {
-    el.classList.remove('splashing'); void el.offsetWidth; el.classList.add('splashing');
-    window.setTimeout(() => el.classList.remove('splashing'), 1400);
-  }
+  if (it.kind === 'clawfoot-tub' || it.kind === 'rain-shower') splashItem(el);
   if (it.kind === 'sunny-ducky') {
     const kid = s.characters.find(ch => ch.room === s.currentRoom && !ch.held.right) ?? s.characters.find(ch => ch.room === s.currentRoom && !ch.held.left);
     if (kid) holdInto({ c: kid, hand: kid.held.right ? 'left' : 'right' }, it.id);
@@ -2113,6 +2116,23 @@ function onPlayTap(el: HTMLElement, id: string) {
   if (g === 'lamp') { el.classList.toggle('lamp-on'); return; }
   if (g === 'open') { el.classList.toggle('opened'); return; }
   if (g === 'sit') sitAt(it);
+}
+function splashItem(el: HTMLElement) {
+  el.classList.remove('splashing'); void el.offsetWidth; el.classList.add('splashing');
+  window.setTimeout(() => el.classList.remove('splashing'), 1400);
+}
+/** A tap on the kid standing in front of the soaker blows the same bubbles as tapping the tub. */
+function splashTubInFront(x: number, y: number) {
+  const room = store.get().rooms[store.get().currentRoom];
+  if (!room) return;
+  for (const it of room.items) {
+    if (it.kind !== 'clawfoot-tub') continue;
+    const half = (ITEM_MAP[it.kind]?.w ?? 220) * it.scale / 2;
+    if (x < it.x - half - 36 || x > it.x + half + 36) continue;
+    if (y < it.y - 40 || y > it.y + 90) continue;
+    const el = layer.querySelector<HTMLElement>(`.item[data-id="${it.id}"]`);
+    if (el) splashItem(el);
+  }
 }
 function sitAt(it: PlacedItem) {
   const y = Math.max(FLOOR_Y + 40, it.y - 8);
