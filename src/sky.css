@@ -199,6 +199,20 @@ html.sky-live .grWorld::before {
   background: radial-gradient(circle, var(--sky-glow-hot) 0%, var(--sky-glow-soft) 18%, var(--sky-glow-clear) 46%);
 }
 .item.is-light > .inner { position: relative; z-index: 1; }
+/* A second, softer pool above the furniture, just under each lamp, so nearby pieces look warm-lit.
+   The gradient is clear before the element edge. Name tags sit on the kids, above this. */
+.skyPuddles { position: absolute; inset: 0; pointer-events: none; }
+.skyPuddles i {
+  position: absolute;
+  display: block;
+  opacity: 0.62;
+  background: radial-gradient(circle, var(--sky-glow-hot) 0%, var(--sky-glow-soft) 22%, var(--sky-glow-clear) 48%);
+}
+/* The pool shares the furniture's band and paints after it. The lamp and window step above their own pool. */
+html[data-sky="night"] #layer > .item.is-light,
+html[data-sky="golden"] #layer > .item.is-light {
+  z-index: calc(var(--iz) + 1) !important;
+}
 .item.is-light[data-kind="window"]::before,
 .item.is-light[data-kind="tv"]::before { top: 46%; }
 .sceneLamp::after { left: -40%; top: -10%; width: 180%; height: 120%; z-index: -1; }

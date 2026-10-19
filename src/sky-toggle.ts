@@ -21,7 +21,54 @@ const ICON: Record<SkyChoice, string> = { day: SUN, night: MOON, auto: AUTO };
 
 const PHONE_MQ = '(pointer: coarse) and (max-width: 600px), (pointer: coarse) and (orientation: landscape) and (max-height: 500px)';
 
+/** Artwork tint. A colour matrix keeps transparent padding clear, so there is no box around an item.
+ *  In an external stylesheet url(#id) points at the CSS file, so these rules live in the page. */
+function mountInk() {
+  if (document.getElementById('skyInk')) return;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.id = 'skyInk';
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('width', '0');
+  svg.setAttribute('height', '0');
+  svg.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;overflow:hidden;pointer-events:none';
+  // 28% and 16% toward #2a2350. 18% and 12% toward #ffb38a. Alpha stays put.
+  svg.innerHTML = `
+    <filter id="skyNightInk" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.72 0 0 0 0.046  0 0.72 0 0 0.038  0 0 0.72 0 0.088  0 0 0 1 0"/></filter>
+    <filter id="skyNightKid" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.84 0 0 0 0.026  0 0.84 0 0 0.022  0 0 0.84 0 0.050  0 0 0 1 0"/></filter>
+    <filter id="skyGoldInk" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.82 0 0 0 0.180  0 0.82 0 0 0.126  0 0 0.82 0 0.097  0 0 0 1 0"/></filter>
+    <filter id="skyGoldKid" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.88 0 0 0 0.120  0 0.88 0 0 0.084  0 0 0.88 0 0.065  0 0 0 1 0"/></filter>`;
+  document.body.appendChild(svg);
+  const style = document.createElement('style');
+  style.id = 'skyInkCss';
+  style.textContent = `
+    html[data-sky="night"] #layer > .item:not(.is-light) > .inner,
+    html[data-sky="night"] #layer > .pet > .inner,
+    html[data-sky="night"] .scenery .sceneRug svg,
+    html[data-sky="night"] .scenery .scenePlant svg,
+    html[data-sky="night"] .scenery .sceneWin svg { filter: url("#skyNightInk"); }
+    html[data-sky="night"] #layer > .char > .inner,
+    html[data-sky="night"] #layer > .char > .hands { filter: url("#skyNightKid"); }
+    html[data-sky="night"] #layer > .item.sel:not(.is-light) > .inner { filter: url("#skyNightInk") drop-shadow(0 0 0 #fff) drop-shadow(0 0 6px #fff) drop-shadow(0 0 3px #ffd166); }
+    html[data-sky="night"] #layer > .item.lifted:not(.is-light) > .inner { filter: url("#skyNightInk") drop-shadow(0 14px 8px rgba(0,0,0,.18)); }
+    html[data-sky="night"] #layer > .char.active > .inner { filter: url("#skyNightKid") drop-shadow(0 0 4px #fff) drop-shadow(0 0 2px #ffd166); }
+    html[data-sky="night"] #layer > .char.hold-target > .inner { filter: url("#skyNightKid") drop-shadow(0 0 6px #fff) drop-shadow(0 0 8px #80ed99); }
+    html[data-sky="golden"] #layer > .item:not(.is-light) > .inner,
+    html[data-sky="golden"] #layer > .pet > .inner,
+    html[data-sky="golden"] .scenery .sceneRug svg,
+    html[data-sky="golden"] .scenery .scenePlant svg,
+    html[data-sky="golden"] .scenery .sceneWin svg { filter: url("#skyGoldInk"); }
+    html[data-sky="golden"] #layer > .char > .inner,
+    html[data-sky="golden"] #layer > .char > .hands { filter: url("#skyGoldKid"); }
+    html[data-sky="golden"] #layer > .item.sel:not(.is-light) > .inner { filter: url("#skyGoldInk") drop-shadow(0 0 0 #fff) drop-shadow(0 0 6px #fff) drop-shadow(0 0 3px #ffd166); }
+    html[data-sky="golden"] #layer > .item.lifted:not(.is-light) > .inner { filter: url("#skyGoldInk") drop-shadow(0 14px 8px rgba(0,0,0,.18)); }
+    html[data-sky="golden"] #layer > .char.active > .inner { filter: url("#skyGoldKid") drop-shadow(0 0 4px #fff) drop-shadow(0 0 2px #ffd166); }
+    html[data-sky="golden"] #layer > .char.hold-target > .inner { filter: url("#skyGoldKid") drop-shadow(0 0 6px #fff) drop-shadow(0 0 8px #80ed99); }
+  `;
+  document.head.appendChild(style);
+}
+
 export function mountSkyToggle(host: HTMLElement): SkyHandle {
+  mountInk();
   const simple = skyIsSimple();
   let choice: SkyChoice = loadChoice();
   let frozen: Date | null = null;

@@ -616,11 +616,14 @@ function renderItems(s: GameState) {
     el.classList.toggle('is-light', isLightKind(it.kind, !!def.light));
     const box = placedBox(def, it.scale);
     placeEl(el, it.x, it.y, box.w, box.h);
-    el.style.zIndex = String(1000 + it.z);
+    const iz = 1000 + it.z;
+    el.style.zIndex = String(iz);
+    el.style.setProperty('--iz', String(iz));
     el.classList.toggle('flipped', it.flip);
     el.classList.toggle('sel', selected === it.id);
   }
   layer.querySelectorAll<HTMLElement>('.item').forEach(el => { if (!seen.has(el.dataset.id!)) el.remove(); });
+  syncSkyPuddles();
   syncScenery($('scenery'), s.currentRoom, room.items);
   renderToolbar(s); renderMinimap(s);
 }
@@ -637,6 +640,32 @@ function heldHTML(c: Character) {
     return `<div class="held ${it.flip ? 'flipped' : ''}" data-hand="${hand}" style="left:${(hx - iw / 2) / bw * 100}%;top:${(hy - ih * 0.62) / bh * 100}%;width:${iw / bw * 100}%;height:${ih / bh * 100}%"><div class="inner">${svgOf(def)}</div></div>`;
   }).join('');
 }
+/** Warm pools just under each lamp and window, so furniture in the glow is lit and the glass stays on top. */
+function syncSkyPuddles() {
+  let host = layer.querySelector<HTMLElement>('#skyPuddles');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'skyPuddles';
+    host.className = 'skyPuddles';
+  }
+  layer.appendChild(host);
+  const lights = [...layer.querySelectorAll<HTMLElement>('.item.is-light')];
+  while (host.children.length > lights.length) host.lastElementChild!.remove();
+  while (host.children.length < lights.length) host.appendChild(document.createElement('i'));
+  lights.forEach((el, i) => {
+    const puddle = host.children[i] as HTMLElement;
+    const l = parseFloat(el.style.left), t = parseFloat(el.style.top);
+    const w = parseFloat(el.style.width), h = parseFloat(el.style.height);
+    const win = el.dataset.kind === 'window' || el.dataset.kind === 'tv';
+    puddle.style.left = (l - 0.6 * w) + '%';
+    puddle.style.top = (t - (win ? 0.38 : 0.5) * h) + '%';
+    puddle.style.width = (2.2 * w) + '%';
+    puddle.style.height = (2 * h) + '%';
+    // Same band as the furniture. At night and golden the lamp itself steps one above this, so the shade and glass stay clear.
+    puddle.style.zIndex = String(parseInt(el.style.zIndex || '1000', 10));
+  });
+}
+
 function renderChars(s: GameState) {
   const here = s.characters.filter(c => c.room === s.currentRoom);
   for (const [id, el] of charEls) if (!here.some(c => c.id === id)) { el.remove(); charEls.delete(id); }
