@@ -46,7 +46,7 @@ function startersSVG() {
   </svg></div>`;
 }
 
-/** Real rug, lamp, and plant for the first thing placed in an empty indoor room. The yard stays empty: sky and grass are the room. */
+/** Real rug, lamp, and plant for the first thing placed in an empty indoor room. The yard does not gain those on the first drop. */
 export function emptyRoomStarters(makeId: (kind: string) => string, room?: string): { id: string; kind: string; x: number; y: number; flip: false; z: number; scale: number }[] {
   if (room === 'backyard') return [];
   return [

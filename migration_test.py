@@ -5,11 +5,30 @@
 #           copy of the production data (like deploying the Worker). Every house, item, character, pet, roster name,
 #           sign-in token and street membership must be identical.
 #  Phase C  the PREVIEW build (prefixed keys) opened on the same origin must not change a single production key.
-# Usage: migration_test.py   (needs: /tmp/prodtree = git worktree of main, builds in /tmp/prod-dist, /tmp/new-dist, /tmp/preview-dist)
+# Usage: migration_test.py
+#   The old build is the cfc0e4a baseline: nursery and backyard already exist (the yard is empty).
+#   Ports and directories are parameters (flags or env), with the historical defaults:
+#     --prod-tree / PROD_TREE       --prod-dist / PROD_DIST
+#     --new-dist / NEW_DIST         --preview-dist / PREVIEW_DIST
+#     --port-web / PORT_WEB         --port-hood / PORT_HOOD
+#     --port-prev / PORT_PREV       --work / MIG_ROOT
 import asyncio, json, os, shutil, subprocess, time, sys, signal
 from playwright.async_api import async_playwright
 from testnav import to_map, go
-ROOT = os.path.dirname(os.path.abspath(__file__)); M = '/tmp/migr'; WWW = M + '/www'; PORT_WEB = 4190; PORT_HOOD = 8795; PORT_PREV = 8796
+def opt(flag, env, default):
+    if flag in sys.argv:
+        i = sys.argv.index(flag)
+        if i + 1 < len(sys.argv): return sys.argv[i + 1]
+    return os.environ.get(env, default)
+ROOT = os.path.dirname(os.path.abspath(__file__))
+PROD_TREE = opt('--prod-tree', 'PROD_TREE', '/tmp/prodtree')
+PROD_DIST = opt('--prod-dist', 'PROD_DIST', '/tmp/prod-dist')
+NEW_DIST = opt('--new-dist', 'NEW_DIST', '/tmp/new-dist')
+PREVIEW_DIST = opt('--preview-dist', 'PREVIEW_DIST', '/tmp/preview-dist')
+M = opt('--work', 'MIG_ROOT', '/tmp/migr'); WWW = M + '/www'
+PORT_WEB = int(opt('--port-web', 'PORT_WEB', '4190'))
+PORT_HOOD = int(opt('--port-hood', 'PORT_HOOD', '8795'))
+PORT_PREV = int(opt('--port-prev', 'PORT_PREV', '8796'))
 BASE = f'http://localhost:{PORT_WEB}'; URL = f'{BASE}/kids-house-game/?hood=http://localhost:{PORT_HOOD}'
 res = {}
 def check(name, ok, extra=''):
@@ -30,23 +49,52 @@ def stop(pr):
     time.sleep(1)
 def free_ports(*ports):  # leftovers from an aborted run would answer instead of this run's servers
     import re
-    out = subprocess.run(['ss', '-ltnp'], capture_output=True, text=True).stdout
-    for line in out.splitlines():
-        if any(re.search(rf':{p}\b', line) for p in ports):
-            for pid in re.findall(r'pid=(\d+)', line):
-                try: os.killpg(os.getpgid(int(pid)), signal.SIGTERM)
-                except Exception:
-                    try: os.kill(int(pid), signal.SIGTERM)
-                    except Exception: pass
+    pids = set()
+    try:
+        out = subprocess.run(['ss', '-ltnp'], capture_output=True, text=True)
+        text = out.stdout or ''
+    except FileNotFoundError:
+        text = ''
+    if text:
+        for line in text.splitlines():
+            if any(re.search(rf':{p}\b', line) for p in ports):
+                pids.update(re.findall(r'pid=(\d+)', line))
+    else:
+        hexports = {format(int(p), '04X') for p in ports}
+        inodes = set()
+        for name in ('/proc/net/tcp', '/proc/net/tcp6'):
+            try: lines = open(name).read().splitlines()[1:]
+            except OSError: continue
+            for line in lines:
+                parts = line.split()
+                if len(parts) < 10: continue
+                if parts[1].rsplit(':', 1)[-1] in hexports and parts[3] == '0A':
+                    inodes.add(parts[9])
+        if inodes:
+            for pid in os.listdir('/proc'):
+                if not pid.isdigit(): continue
+                fd = f'/proc/{pid}/fd'
+                try: ents = os.listdir(fd)
+                except OSError: continue
+                for ent in ents:
+                    try: target = os.readlink(f'{fd}/{ent}')
+                    except OSError: continue
+                    if target.startswith('socket:[') and target[8:-1] in inodes:
+                        pids.add(pid)
+    for pid in pids:
+        try: os.killpg(os.getpgid(int(pid)), signal.SIGTERM)
+        except Exception:
+            try: os.kill(int(pid), signal.SIGTERM)
+            except Exception: pass
     time.sleep(1)
 def serve_build(dist):  # "deploy": swap what the web server serves at /kids-house-game/
     link = WWW + '/kids-house-game'
     if os.path.islink(link): os.unlink(link)
     os.symlink(dist, link)
 WN_LATEST = __import__('re').search(r'CHANGELOG: ChangeEntry\[\] = \[\s*\{\s*v:\s*(\d+)', open(__import__('os').path.dirname(__import__('os').path.abspath(__file__)) + '/src/whatsnew.ts').read()).group(1)
-OLD_MAIN = open('/tmp/prodtree/src/main.ts').read()
+OLD_MAIN = open(PROD_TREE + '/src/main.ts').read()
 OLD_HAS_MAP = 'id="btnMap"' in OLD_MAIN  # map era (1b33280+): joining lands on the map, the ranch is reached from the map
-WN_OLD = __import__('re').search(r'CHANGELOG: ChangeEntry\[\] = \[\s*\{\s*v:\s*(\d+)', open('/tmp/prodtree/src/whatsnew.ts').read()).group(1)  # old (production) build's latest What's new
+WN_OLD = __import__('re').search(r'CHANGELOG: ChangeEntry\[\] = \[\s*\{\s*v:\s*(\d+)', open(PROD_TREE + '/src/whatsnew.ts').read()).group(1)  # old (production) build's latest What's new
 async def adult(pg):
     await pg.wait_for_selector('.adultCard .q'); q = int(await pg.get_attribute('.adultCard .q', 'data-q'))
     for d in str(q): await pg.click(f'.adultCard [data-k="{d}"]')
@@ -109,9 +157,9 @@ def disk_room_names(folder):
 
 async def main():
     shutil.rmtree(M, ignore_errors=True); os.makedirs(WWW); os.makedirs(M + '/data')
-    os.symlink('/tmp/preview-dist', WWW + '/cozy-preview')
+    os.symlink(PREVIEW_DIST, WWW + '/cozy-preview')
     free_ports(PORT_WEB, PORT_HOOD, PORT_PREV)
-    serve_build('/tmp/prod-dist')
+    serve_build(PROD_DIST)
     # static web server like GitHub Pages, but with no-cache so the "update" is picked up right away (Pages caches up to 10 min)
     code = ("import http.server, functools\n"
             "class H(http.server.SimpleHTTPRequestHandler):\n"
@@ -120,7 +168,7 @@ async def main():
             "    def send_head(self):\n        self.headers.replace_header('If-Modified-Since', '') if self.headers.get('If-Modified-Since') else None\n        return super().send_head()\n"
             f"http.server.ThreadingHTTPServer(('', {PORT_WEB}), functools.partial(H, directory='{WWW}')).serve_forever()")
     web = subprocess.Popen([sys.executable, '-c', code], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-    prod = server('/tmp/prodtree', M + '/data', PORT_HOOD); wait_port(PORT_HOOD); wait_port(PORT_WEB)
+    prod = server(PROD_TREE, M + '/data', PORT_HOOD); wait_port(PORT_HOOD); wait_port(PORT_WEB)
     try:
         async with async_playwright() as p:
             b = await p.chromium.launch()
@@ -190,8 +238,8 @@ async def main():
             # ================= Phase B: ship the new build =================
             stop(prod); time.sleep(1)
             shutil.copytree(M + '/data', M + '/data-new'); files_a = {f: open(f'{M}/data/{f}').read() for f in os.listdir(M + '/data')}
-            new = server(ROOT, M + '/data-new', PORT_HOOD); serve_build('/tmp/new-dist'); wait_port(PORT_HOOD)
-            new_js = [f for f in os.listdir('/tmp/new-dist/assets') if f.startswith('index-') and f.endswith('.js')][0]
+            new = server(ROOT, M + '/data-new', PORT_HOOD); serve_build(NEW_DIST); wait_port(PORT_HOOD)
+            new_js = [f for f in os.listdir(NEW_DIST + '/assets') if f.startswith('index-') and f.endswith('.js')][0]
             for i, pg in enumerate((P, K2, K3)):
                 for attempt in range(4):
                     await pg.goto(URL); await pg.wait_for_timeout(300)
@@ -218,13 +266,20 @@ async def main():
                 if fields or rooms or towers or set(OLD_ROOMS) - set(shared):
                     rooms_ok = False
                     room_notes.append(f'{hid}: fields={fields} rooms={rooms} towers={towers}')
-            gained = all(
+            # cfc0e4a already stores the nursery starters and an empty backyard. A saved empty yard stays empty.
+            def yard_items(h):
+                return (h['view']['rooms'].get('backyard') or {}).get('items') or []
+            baseline = all(
                 h['view']['rooms'].get('nursery') and [i['kind'] for i in h['view']['rooms']['nursery']['items']] == STARTER_KINDS
-                and h['view']['rooms'].get('backyard', {}).get('items') == []
+                and yard_items(h) == []
+                for h in snap_a['houses'].values())
+            kept_yard = all(
+                yard_items(h) == []
+                and [i['kind'] for i in h['view']['rooms']['nursery']['items']] == STARTER_KINDS
                 and (h['view'].get('dogKennel') or None) is None
-                for h in snap_b['houses'].values()) and all('nursery' not in h['view']['rooms'] and 'backyard' not in h['view']['rooms'] for h in snap_a['houses'].values())
+                for h in snap_b['houses'].values())
             check('every room is identical (items, positions, flips, paint, characters, cats, pets, kennel, cat tower)',
-                  rooms_ok and gained, ('; '.join(room_notes) + f' {n_items_a} items').strip())
+                  rooms_ok and baseline and kept_yard, ('; '.join(room_notes) + f' {n_items_a} items').strip())
             check('every kid identical (name, look, dog, basket, house)', snap_a['players'] == snap_b['players'])
             check('shared garden identical', snap_a['plots'] == snap_b['plots'])
             check('settings identical', snap_a['settings'] == snap_b['settings'])
@@ -254,15 +309,17 @@ async def main():
             check('roster + grown-up key still work (parent screen)', roster_a == roster_b and roster_b is not None, json.dumps(roster_b))
             await P.click('.hoodSheet [data-m="close"]')
             check('production data files were never modified (new server ran on a copy)', all(open(f'{M}/data/{f}').read() == v for f, v in files_a.items()))
-            check('an old stored house stays without a nursery on disk until the first edit', all('nursery' not in names and 'backyard' not in names for names in disk_room_names(M + '/data-new').values()) and disk_room_names(M + '/data-new') == disk_room_names(M + '/data'))
+            disk_new = disk_room_names(M + '/data-new')
+            check('a cfc0e4a house already stores the nursery and the yard', all('nursery' in names and 'backyard' in names for names in disk_new.values()) and disk_new == disk_room_names(M + '/data'))
             # solo save from the old build, opened by the new build (not signed in)
             solo_ctx = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
             await solo_ctx.add_init_script("if (!sessionStorage.getItem('solo-set')) { sessionStorage.setItem('solo-set','1'); localStorage.setItem('cozy-whatsnew','999'); localStorage.setItem('cozy-house', " + json.dumps(json.dumps(solo_a)) + "); }")
             solo = await solo_ctx.new_page(); solo.on('pageerror', lambda e: errs.append('solo ' + str(e)))
             await solo.goto(f'{BASE}/kids-house-game/?hood=http://localhost:{PORT_HOOD}'); await solo.wait_for_selector('#stage .char'); await solo.wait_for_timeout(400)
-            solo_now = await solo.evaluate("""() => { const s = __store.get(); return { v: s.version, old: Object.fromEntries(['living','bedroom','kitchen','salon'].map(r => [r, s.rooms[r].items.map(i => i.id)])), nursery: s.rooms.nursery.items.map(i => i.kind), tabs: [...document.querySelectorAll('.tab')].map(t => t.textContent.trim()) }; }""")
-            solo_old = {r: [i['id'] for i in solo_a['rooms'][r]['items']] for r in solo_a['rooms']}
-            check('an old solo save gains a nursery with starter pieces and loses nothing', solo_now['v'] == 3 and solo_now['nursery'] == STARTER_KINDS and all(sorted(solo_now['old'][r]) == sorted(solo_old[r]) for r in solo_old) and solo_now['tabs'][-1] == 'Nursery')
+            solo_now = await solo.evaluate("""() => { const s = __store.get(); return { v: s.version, old: Object.fromEntries(['living','bedroom','kitchen','salon'].map(r => [r, s.rooms[r].items.map(i => i.id)])), nursery: s.rooms.nursery.items.map(i => i.kind), yard: s.rooms.backyard.items.map(i => i.id), tabs: [...document.querySelectorAll('.tab')].map(t => t.textContent.trim()) }; }""")
+            solo_old = {r: [i['id'] for i in solo_a['rooms'][r]['items']] for r in OLD_ROOMS}
+            solo_yard = [i['id'] for i in solo_a['rooms'].get('backyard', {}).get('items', [])]
+            check('an old solo save keeps its nursery and its saved yard', solo_now['v'] == 3 and solo_now['nursery'] == STARTER_KINDS and solo_now['yard'] == solo_yard and all(sorted(solo_now['old'][r]) == sorted(solo_old[r]) for r in OLD_ROOMS) and solo_now['tabs'][-1] == 'Nursery')
             follow = await solo.evaluate("""() => { const s = __store.get(); const p = __pets(); return { kennel: s.dogKennel || null, name: s.dog && s.dog.name, following: p.dogs.indexOf('solo') >= 0, shown: p.kennel }; }""")
             check('an old save loads with the dog following', not follow['kennel'] and follow['name'] == 'Rocket' and follow['following'] and not follow['shown'], str(follow))
             await solo.evaluate("""() => __store.dispatch({type:'item/add', room:'nursery', item:{id:'solo-round', kind:'bunny-plush', x:420, y:500, flip:false}})""")
@@ -316,8 +373,8 @@ async def main():
               h.dispatch(id, {type:'item/add', room:'backyard', item:{id:'keep-swing', kind:'yard-swing', x:1160, y:548, flip:false, z:1, scale:1}});
             }""")
             await K2.wait_for_timeout(700)
-            # old client (27cfcac) against this new server, visiting the house that now has a nursery and a yard
-            serve_build('/tmp/prod-dist')
+            # old client (cfc0e4a: nursery tab, empty yard key, no yard door) against this new server
+            serve_build(PROD_DIST)
             old_errs = []
             P.on('pageerror', lambda e: old_errs.append(str(e)))
             await P.goto(URL); await P.wait_for_timeout(1500)
@@ -325,16 +382,16 @@ async def main():
             except Exception:
                 await P.screenshot(path='/tmp/mig-old-client.png'); raise
             old_tabs = await P.locator('.tab').all_inner_texts()
-            check('old client shows four tabs and does not draw the nursery', len(old_tabs) == 4 and not any('Nursery' in t for t in old_tabs), str(old_tabs))
+            check('old client shows the nursery tab and no yard tab', len(old_tabs) == 5 and any('Nursery' in t for t in old_tabs) and not any('Yard' in t or 'Backyard' in t for t in old_tabs), str(old_tabs))
             face = await P.evaluate("""() => { const svg = document.querySelector('.mapFace.mine svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
-            check('old client draws the new kid without the chibi avatar', face is None and not old_errs, str(face) + ' ' + '; '.join(old_errs[:2]))
+            check('old client draws the avatar v2 kid', face == '1' and not old_errs, str(face) + ' ' + '; '.join(old_errs[:2]))
             os.makedirs('/opt/cursor/artifacts', exist_ok=True)
             await P.click('#mapWorld .mapHouse.mine'); await P.wait_for_timeout(900)
             body = await P.evaluate("""() => { const svg = document.querySelector('.char.avatar.mine svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
-            check('old client house body has no chibi markup', body is None and not old_errs, str(body))
+            check('old client house body keeps the chibi markup', body == '1' and not old_errs, str(body))
             await P.screenshot(path='/opt/cursor/artifacts/old-client-view.png')
             await P.click('#btnMap'); await P.wait_for_timeout(500)
-            check('old client does not show mailboxes', await P.locator('.mapMail').count() == 0)
+            check('old client shows mailboxes', await P.locator('.mapMail').count() >= 1)
             await P.evaluate("""() => {
               const L = __hood().players.get(__hood().pid).look;
               __hood().setLook({ skin: L.skin, hair: L.hair, hairStyle: L.hairStyle, shirt: '#80ed99', pants: L.pants, size: L.size, acc: L.acc });
@@ -345,7 +402,7 @@ async def main():
             await P.click(f'.mapHouse[data-go="house:{k2house}"]'); await P.wait_for_timeout(900)
             old_tabs_house = await P.locator('#tabs .tab').count()
             old_door = await P.locator('.yardDoor, .backDoor').count()
-            check('old client shows four tabs and no door after a friend fills the yard', old_tabs_house == 4 and old_door == 0 and not old_errs, f'tabs={old_tabs_house} door={old_door} ' + '; '.join(old_errs[:2]))
+            check('old client shows five tabs and no door after a friend fills the yard', old_tabs_house == 5 and old_door == 0 and not old_errs, f'tabs={old_tabs_house} door={old_door} ' + '; '.join(old_errs[:2]))
             await P.evaluate("""() => { const h = __hood(), id = """ + json.dumps(k2house) + """; const kind = Object.keys(__items)[0]; h.dispatch(id, {type:'item/add', room:'living', item:{id:'old-client-edit', kind, x:440, y:520, flip:false}}); }""")
             await P.wait_for_timeout(900)
             k2_sees = await K2.evaluate("""() => { const s = __hood().view(""" + json.dumps(k2house) + """); return { edit: s.rooms.living.items.some(i => i.id === 'old-client-edit'), nursery: s.rooms.nursery.items.map(i => i.id) }; }""")
@@ -382,9 +439,9 @@ async def main():
             await rpg.evaluate("""() => __store.dispatch({type:'room/wallpaper', room:'living', color:'#ddeeff'})""")
             await rpg.wait_for_timeout(500)
             kept = await rpg.evaluate("""() => { const s = JSON.parse(localStorage.getItem('cozy-house')); const mail = (s.mailbox && s.mailbox.letters || [])[0]; return { tabs: [...document.querySelectorAll('.tab')].length, nursery: (s.rooms.nursery.items || []).map(i => i.id), yard: (s.rooms.backyard.items || []).map(i => i.id), wall: s.rooms.living.wallpaper, kennel: s.dogKennel || null, kennelItem: (s.rooms.living.items || []).some(i => i.id === 'keep-kennel'), mail: mail && mail.text, boxes: document.querySelectorAll('.mapMail').length }; }""")
-            check('old client keeps a nursery that was already in the save', kept['tabs'] == 4 and kept['nursery'] == ['keep-crib'] and kept['yard'] == ['keep-yard'] and kept['wall'] == '#ddeeff' and kept['kennel'] and kept['kennel']['item'] == 'keep-kennel' and kept['kennelItem'] and kept['mail'] == 'Hi from the mailbox' and kept['boxes'] == 0 and not any(e.startswith('rollback') for e in old_errs), str(kept))
+            check('old client keeps a nursery that was already in the save', kept['tabs'] == 5 and kept['nursery'] == ['keep-crib'] and kept['yard'] == ['keep-yard'] and kept['wall'] == '#ddeeff' and kept['kennel'] and kept['kennel']['item'] == 'keep-kennel' and kept['kennelItem'] and kept['mail'] == 'Hi from the mailbox' and not any(e.startswith('rollback') for e in old_errs), str(kept))
             await rb.close()
-            serve_build('/tmp/new-dist')
+            serve_build(NEW_DIST)
             # ================= Phase C: preview build on the same origin =================
             stop(new); prev_srv = server(ROOT, M + '/data-preview', PORT_PREV); wait_port(PORT_PREV)
             ls_before = await P.evaluate(LS)
@@ -403,6 +460,6 @@ async def main():
     finally:
         for pr in (web, prod):
             stop(pr)
-        subprocess.run("pkill -f 'HOOD_DATA=/tmp/migr' ; true", shell=True)
+        subprocess.run("pkill -f 'HOOD_DATA=" + M + "' ; true", shell=True)
     print(f"\n{sum(res.values())}/{len(res)} passed")
 asyncio.run(main())

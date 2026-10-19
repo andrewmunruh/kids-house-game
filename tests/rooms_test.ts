@@ -19,6 +19,7 @@ type C = Conn & { inbox: any[]; last(t: string): any };
 const mk = (): C => { const inbox: any[] = []; return { inbox, send(s: string) { inbox.push(JSON.parse(s)); }, close() {}, last(t: string) { return [...inbox].reverse().find(m => m.t === t); } } as any; };
 const look = { skin: '#f1c27d', hair: '#3b2219', hairStyle: 0, shirt: '#ff7aa8', pants: '#5b8def', size: 'kid', acc: 0 };
 const starterKinds = () => initialState().rooms.nursery.items.map(i => i.kind);
+const yardStarterKinds = () => initialState().rooms.backyard.items.map(i => i.kind);
 const strip = (s: GameState): GameState => {
   const rooms = { ...s.rooms } as GameState['rooms'];
   delete (rooms as any).nursery; delete (rooms as any).backyard;
@@ -34,14 +35,15 @@ function oldClientMigrate(saved: any) {
 async function main() {
   check('protocol stays 4', PROTOCOL === 4);
   const fresh = initialState();
-  check('save version stays 3', fresh.version === 3 && fresh.rooms.nursery.items.length === 4 && fresh.rooms.backyard.items.length === 0);
+  check('save version stays 3', fresh.version === 3 && fresh.rooms.nursery.items.length === 4 && yardStarterKinds().join(',') === 'yard-bench,tulip-bed');
   check('starter pieces are the crib, rug, mobile and rocker', starterKinds().join(',') === 'cloud-rug,crib,crib-mobile,rocker');
+  check('a new yard starts with a bench and flowers', yardStarterKinds().join(',') === 'yard-bench,tulip-bed');
 
   const old = strip(fresh);
   old.rooms.living.items = [...old.rooms.living.items, { id: 'kept-sofa', kind: 'sofa', x: 20, y: 400, flip: false, z: 9, scale: 1 }];
   const a = ensureRooms(old);
   const b = ensureRooms(strip(initialState()));
-  check('a house with no nursery gains the starter layout', a.rooms.nursery.items.map(i => i.kind).join(',') === starterKinds().join(',') && a.rooms.backyard.items.length === 0);
+  check('a house with no nursery gains the starter layout', a.rooms.nursery.items.map(i => i.kind).join(',') === starterKinds().join(',') && a.rooms.backyard.items.map(i => i.kind).join(',') === yardStarterKinds().join(','));
   check('existing living-room items are not replaced', a.rooms.living.items.some(i => i.id === 'kept-sofa') && a.rooms.living.items.length === old.rooms.living.items.length);
   a.rooms.nursery.items.push({ id: 'extra', kind: 'rattle', x: 1, y: 1, flip: false, z: 9, scale: 1 });
   check('each fill-in gets its own starter objects', b.rooms.nursery.items.length === 4 && !b.rooms.nursery.items.some(i => i.id === 'extra'));
@@ -50,7 +52,10 @@ async function main() {
   custom.rooms.nursery = { ...custom.rooms.nursery, items: [{ id: 'my-doll', kind: 'doll-rose', x: 30, y: 40, flip: true, z: 2, scale: 1 }] };
   delete (custom.rooms as any).backyard;
   const kept = ensureRooms(custom);
-  check('a nursery a kid already has is not replaced by the starter set', kept.rooms.nursery.items.length === 1 && kept.rooms.nursery.items[0].id === 'my-doll' && kept.rooms.backyard.items.length === 0);
+  check('a nursery a kid already has is not replaced by the starter set', kept.rooms.nursery.items.length === 1 && kept.rooms.nursery.items[0].id === 'my-doll' && kept.rooms.backyard.items.map(i => i.kind).join(',') === yardStarterKinds().join(','));
+  const savedYard = initialState();
+  savedYard.rooms.backyard = { ...savedYard.rooms.backyard, items: [] };
+  check('a saved empty yard is never refilled', ensureRooms(savedYard) === savedYard && savedYard.rooms.backyard.items.length === 0);
 
   const emptied = initialState();
   emptied.rooms.nursery.items = [];
@@ -60,7 +65,7 @@ async function main() {
   check('migrate fills a version-3 save and leaves the version alone', migrated.version === 3 && migrated.rooms.nursery.items.map(i => i.kind).join(',') === starterKinds().join(',') && migrated.rooms.living.items.length === initialState().rooms.living.items.length);
 
   const cleaned = cleanHouseState(strip(initialState()));
-  check('cleanHouseState of a 4-room house adds the starter nursery and an empty backyard', cleaned.rooms.nursery.items.map(i => i.kind).join(',') === starterKinds().join(',') && cleaned.rooms.backyard.items.length === 0 && cleaned.rooms.living.items.length === initialState().rooms.living.items.length);
+  check('cleanHouseState of a 4-room house adds the starter nursery and the starter yard', cleaned.rooms.nursery.items.map(i => i.kind).join(',') === starterKinds().join(',') && cleaned.rooms.backyard.items.map(i => i.kind).join(',') === yardStarterKinds().join(',') && cleaned.rooms.living.items.length === initialState().rooms.living.items.length);
   const cleanedCustom = cleanHouseState(custom);
   check('cleanHouseState keeps a custom nursery', cleanedCustom.rooms.nursery.items.length === 1 && cleanedCustom.rooms.nursery.items[0].id === 'my-doll');
 
@@ -96,7 +101,7 @@ async function main() {
   await hood2.load();
   const mem = hood2.houses.get(hid)!.state;
   const diskRooms = Object.keys(store.get('house:' + hid).state.rooms);
-  check('loading an old stored house fills the nursery in memory', mem.rooms.nursery.items.map(i => i.kind).join(',') === starterKinds().join(',') && mem.rooms.backyard.items.length === 0 && mem.rooms.living.items.some(i => i.id === 'from-disk'));
+  check('loading an old stored house fills the nursery in memory', mem.rooms.nursery.items.map(i => i.kind).join(',') === starterKinds().join(',') && mem.rooms.backyard.items.map(i => i.kind).join(',') === yardStarterKinds().join(',') && mem.rooms.living.items.some(i => i.id === 'from-disk'));
   check('that fill-in does not write the house back yet', !diskRooms.includes('nursery') && !diskRooms.includes('backyard') && puts.slice(putsBefore).every(k => k !== hid && k !== 'house:' + hid));
 
   const c2 = mk();

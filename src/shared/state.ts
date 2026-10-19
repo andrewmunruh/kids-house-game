@@ -132,8 +132,11 @@ export function initialState(): GameState {
       // Same shape as the Salon: old saves gain these pieces, version stays 3.
       nursery: { wallpaper: '#d6f3ff', floor: '#f3ddc4', pattern: 1, items: [
         it('cloud-rug', 480, 545, 0), it('crib', 470, 480, 1), it('crib-mobile', 470, 155, 2), it('rocker', 780, 490, 3)] },
-      // Empty on purpose. Sky and grass are the room. A stored empty yard is never refilled.
-      backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [] },
+      // A brand-new yard gets a bench and flowers. A stored yard, even with items: [], is never refilled.
+      backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [
+        { id: 'yard-bench-1', kind: 'yard-bench', x: 1360, y: 520, flip: false, z: 1, scale: 1 },
+        { id: 'tulip-bed-2', kind: 'tulip-bed', x: 1500, y: 560, flip: false, z: 2, scale: 1 },
+      ] },
     },
     characters: [
       newCharacter({ id: 'c1', skin: '#f1c27d', hair: '#5b3a29', hairStyle: 2, shirt: '#ff7aa8', pants: '#5aa9e6', room: 'living', x: 330 + V1_OFFSET, y: 540 }),

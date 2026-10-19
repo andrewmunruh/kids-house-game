@@ -75,9 +75,23 @@ check('the first drop in an empty room keeps the rug, lamp, and plant', ['rug', 
 placed = reduce(placed, { type: 'item/delete', room: 'living', id: 's-rug' });
 check('she can remove the rug and the lamp and plant stay', !placed.rooms.living.items.some(i => i.id === 's-rug') && placed.rooms.living.items.some(i => i.id === 's-lamp') && placed.rooms.living.items.some(i => i.id === 's-plant'));
 const again = initialState();
-check('a new house does not save the starter rug yet', again.rooms.backyard.items.length === 0 && again.rooms.nursery.items.some(i => i.kind === 'crib') && again.version === 3);
+check('a new house does not save the starter rug yet', again.rooms.backyard.items.map(i => i.kind).join(',') === 'yard-bench,tulip-bed' && !again.rooms.backyard.items.some(i => i.kind === 'rug' || i.kind === 'lamp' || i.kind === 'plant') && again.rooms.nursery.items.some(i => i.kind === 'crib') && again.version === 3);
 const migrated = migrate(JSON.parse(JSON.stringify(again)));
-check('migrate does not invent starter pieces', migrated.rooms.backyard.items.length === 0 && migrated.rooms.nursery.items.length === again.rooms.nursery.items.length && migrated.rooms.living.items.length === again.rooms.living.items.length);
+check('migrate does not invent starter pieces', migrated.rooms.backyard.items.map(i => i.id).join(',') === again.rooms.backyard.items.map(i => i.id).join(',') && migrated.rooms.nursery.items.length === again.rooms.nursery.items.length && migrated.rooms.living.items.length === again.rooms.living.items.length);
+const emptiedYard = initialState();
+emptiedYard.rooms.backyard = { ...emptiedYard.rooms.backyard, items: [] };
+check('migrate leaves a saved empty yard empty', migrate(emptiedYard).rooms.backyard.items.length === 0);
+const yardOnly = (it: { name: string; kind: string; cat: string; rooms: string[]; pack?: string }) =>
+  catalogShows(it, it.cat, 'backyard', false) && (it.pack ? catalogShows(it, 'pack:' + it.pack, 'backyard', false) : true);
+const windowItem = { name: 'Window', kind: 'window', cat: 'decor', rooms: ['any'] };
+const clock = { name: 'Clock', kind: 'clock', cat: 'decor', rooms: ['any'] };
+const ringLight = { name: 'Ring Light', kind: 'pack:ring-light', cat: 'decor', rooms: ['any'], pack: 'welcome-home' };
+const curtains = { name: 'Scallop Curtains', kind: 'pack:curtains', cat: 'decor', rooms: ['any'], pack: 'cozy' };
+const swing = { name: 'A-Frame Swing', kind: 'yard-swing', cat: 'furniture', rooms: ['backyard'] };
+const fire = { name: 'Fire Pit', kind: 'pack:fire-pit', cat: 'furniture', rooms: ['backyard'], pack: 'welcome-home' };
+const yardSrc = readFileSync(new URL('../src/yard.ts', import.meta.url), 'utf8');
+const yardKinds = new Set([...yardSrc.matchAll(/\bkind: '([a-z0-9-]+)'/g)].map(m => m[1]));
+check('the yard shelf lists only yard pieces', !yardOnly(windowItem) && !yardOnly(clock) && !yardOnly(ringLight) && !yardOnly(curtains) && yardOnly(swing) && yardOnly(fire) && catalogShows(windowItem, 'decor', 'living', false) && yardKinds.size >= 30);
 check('an older client can place the same rug', !!cleanAction({ type: 'item/add', room: 'backyard', item: starters[0] }));
 
 const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');

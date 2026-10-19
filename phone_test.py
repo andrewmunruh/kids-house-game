@@ -6,8 +6,31 @@ from testnav import (
     inject_slay_hand, read_slay_hand, read_wait_style, read_secrets, read_door_hint, read_paddock,
 )
 
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
-SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/phone/'
+def opt(flag, env, default):
+    if flag in sys.argv:
+        i = sys.argv.index(flag)
+        if i + 1 < len(sys.argv): return sys.argv[i + 1]
+    return os.environ.get(env, default)
+def positionals():
+    skip = False
+    out = []
+    valued = {'--web-port', '--hood-port', '--port'}
+    for a in sys.argv[1:]:
+        if skip:
+            skip = False
+            continue
+        if a in valued:
+            skip = True
+            continue
+        if a.startswith('--'):
+            continue
+        out.append(a)
+    return out
+WEB_PORT = opt('--web-port', 'WEB_PORT', opt('--port', 'PORT', '4173'))
+HOOD_PORT = opt('--hood-port', 'HOOD_PORT', '8787')
+_pos = positionals()
+URL = _pos[0] if _pos and _pos[0].startswith('http') else f'http://localhost:{WEB_PORT}/kids-house-game/?hood=http://localhost:{HOOD_PORT}'
+SHOT = _pos[1] if _pos and _pos[0].startswith('http') and len(_pos) > 1 else (_pos[0] if _pos and not _pos[0].startswith('http') else 'screens/phone/')
 os.makedirs(SHOT, exist_ok=True)
 PHONES = [(390, 844), (844, 390), (375, 667), (667, 375), (932, 430)]
 # Short heights stand in for iPhone landscape with Safari's tab bar showing.
@@ -734,9 +757,8 @@ async def check_zoo_hint(pg, tag):
           hint.get('fs', 0) >= 12 and hint.get('on') and 'Petting zoo' in (hint.get('text') or ''),
           str(hint))
 
-async def check_yard_door(pg, tag):
-    """Hit target stays at least 44px on the stage, and the hint is not clipped."""
-    box = await pg.evaluate("""() => {
+def yard_door_js():
+    return """() => {
       const b = document.querySelector('.yardDoor');
       const a = b && b.querySelector('.doorArt');
       const hint = b && b.querySelector('.yardHintLabel');
@@ -744,21 +766,50 @@ async def check_yard_door(pg, tag):
       const r = b.getBoundingClientRect();
       const ar = a.getBoundingClientRect();
       const hr = hint.getBoundingClientRect();
-      const stage = document.querySelector('.stage').getBoundingClientRect();
-      const iw = Math.min(r.right, stage.right) - Math.max(r.left, stage.left);
-      const ih = Math.min(r.bottom, stage.bottom) - Math.max(r.top, stage.top);
-      const artOn = Math.min(ar.right, stage.right) - Math.max(ar.left, stage.left);
-      const inside = (box, host) => box.width > 8 && box.left >= host.left - 1 && box.right <= host.right + 1 && box.top >= host.top - 1 && box.bottom <= host.bottom + 1;
+      const stageEl = document.querySelector('.stage');
+      const stage = stageEl.getBoundingClientRect();
+      const sc = stage.width / (stageEl.offsetWidth || 1);
+      const inside = (box, host) => box.width > 8 && box.height > 8 && box.left >= host.left - 1 && box.right <= host.right + 1 && box.top >= host.top - 1 && box.bottom <= host.bottom + 1;
+      const arrows = [...document.querySelectorAll('.nudge')].filter(n => !n.classList.contains('off') && n.offsetParent);
+      const overlap = (box, o) => box.left < o.right - 1 && box.right > o.left + 1 && box.top < o.bottom - 1 && box.bottom > o.top + 1;
+      const cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2;
+      const top = document.elementFromPoint(cx, cy);
       return {
         w: Math.round(r.width), h: Math.round(r.height), aw: Math.round(ar.width),
-        onStageW: Math.round(iw), onStageH: Math.round(ih), onArtW: Math.round(artOn),
-        hintIn: inside(hr, stage),
+        doorIn: inside(r, stage), artIn: inside(ar, stage), hintIn: inside(hr, stage),
+        clear: arrows.every(n => !overlap(r, n.getBoundingClientRect()) && !overlap(ar, n.getBoundingClientRect())),
+        onDoor: !!(top && top.closest('.yardDoor')),
+        fs: Math.round(parseFloat(getComputedStyle(hint).fontSize) * sc * 10) / 10,
+        label: (hint.textContent || '').trim(),
+        cx, cy,
       };
-    }""")
-    check(f'{tag} back door is at least 44px',
+    }"""
+
+async def check_yard_door(pg, tag):
+    """The whole door and its label sit on the stage, clear of the pan arrows."""
+    box = await pg.evaluate(yard_door_js())
+    check(f'{tag} back door is fully on stage',
           box and box['w'] >= 44 and box['h'] >= 44 and box['aw'] >= 44
-          and box['onStageW'] >= 44 and box['onStageH'] >= 44 and box['onArtW'] >= 44 and box['hintIn'],
+          and box['doorIn'] and box['artIn'] and box['hintIn'] and box['clear'] and box['onDoor'] and box['fs'] >= 13,
           str(box))
+
+async def tap_yard_door(pg, tag):
+    """A real click, not a dispatched event, and the kid is in the yard afterwards."""
+    await pg.evaluate("""() => { if (__store.get().currentRoom !== 'living') __store.dispatch({type:'room/switch', room:'living'}); }""")
+    await pg.wait_for_timeout(280)
+    box = await pg.evaluate(yard_door_js())
+    check(f'{tag} back door is fully on stage',
+          box and box['doorIn'] and box['artIn'] and box['hintIn'] and box['clear'] and box['onDoor'] and box['fs'] >= 13 and box['w'] >= 44,
+          str({k: box[k] for k in box if k not in ('cx', 'cy')} if box else None))
+    if not box: return
+    await pg.mouse.click(box['cx'], box['cy'])
+    await pg.wait_for_timeout(350)
+    room = await pg.evaluate("() => __store.get().currentRoom")
+    check(f'{tag} a real tap on the back door opens the yard', room == 'backyard', str(room))
+    back = await pg.evaluate(yard_door_js())
+    check(f'{tag} Back inside is fully on stage',
+          back and back['label'] == 'Back inside' and back['hintIn'] and back['doorIn'] and back['fs'] >= 13,
+          str({k: back[k] for k in ('label', 'hintIn', 'doorIn', 'fs', 'w')} if back else None))
 
 async def check_secrets_off_sky(pg, tag):
     """844×390: a centred pill sits on the sky. It parks in the gutter or the top row."""
@@ -947,6 +998,20 @@ async def ipad_pass(b, w, h):
     await check_long_hand(pg, tag, two_row=True, center=(w, h) == (820, 1180))
     await ctx.close()
 
+DOOR_TAPS = [(390, 844), (375, 667), (430, 932)]
+
+async def yard_door_pass(browser, engine, w, h):
+    tag = f'{engine} {w}x{h}'
+    ctx = await browser.new_context(viewport={'width': w, 'height': h}, has_touch=True, is_mobile=True, device_scale_factor=1)
+    await ctx.add_init_script(f"localStorage.setItem('{K('cozy-whatsnew')}','999')")
+    pg = await ctx.new_page()
+    pg.on('pageerror', lambda e: check(f'{tag} no page error', False, str(e)))
+    await pg.goto(URL, wait_until='networkidle')
+    await pg.wait_for_selector('#stage .char')
+    await dismiss_note(pg)
+    await tap_yard_door(pg, tag)
+    await ctx.close()
+
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
@@ -957,7 +1022,18 @@ async def main():
             await phone_pass(b, w, h, save)
         for w, h in SHORT:
             await short_chrome_pass(b, w, h)
+        for w, h in DOOR_TAPS:
+            await yard_door_pass(b, 'chromium', w, h)
         await b.close()
+        try:
+            wb = await p.webkit.launch()
+        except Exception as e:
+            check('webkit back door tap', False, 'webkit did not launch: ' + str(e))
+            wb = None
+        if wb:
+            for w, h in DOOR_TAPS:
+                await yard_door_pass(wb, 'webkit', w, h)
+            await wb.close()
     failed = [k for k, v in res.items() if not v]
     print(f'\n{len(res) - len(failed)}/{len(res)} passed', flush=True)
     if failed:
