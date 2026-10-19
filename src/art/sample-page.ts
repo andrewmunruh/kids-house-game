@@ -111,7 +111,7 @@ function room(which: 'living' | 'bedroom'): void {
   const names = spots.map(s => ITEM_MAP[s.kind].name).join(', ');
   const root = document.getElementById('app')!;
   root.innerHTML = `<div id="shot">
-    <header><h1>${title}</h1><p class="sub">${names}. Same size and floor point.</p></header>
+    <header><h1>${title}</h1><p class="sub">${names}. Same sizes, staged in one frame.</p></header>
     <div class="block"><h2>Before</h2><div class="frame" id="before"></div></div>
     <div class="block"><h2>After</h2><div class="frame" id="after"></div></div>
   </div>`;

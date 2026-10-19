@@ -121,9 +121,20 @@ The wardrobe file on disk is unchanged. The sample is an inline stand-in used on
 
 ## Frame time
 
-Rough numbers from the sample bench (`art-sample.html?view=bench`) in headless Chrome on this build machine, not on an iPad. The bench builds a room layer, forces layout, then nudges it for about 70 frames. 48 items is a busy room. 80 is the room cap.
+Rough numbers from `art-sample.html?view=bench` in headless Chrome on this build machine. This is not an iPad 10th gen. The bench builds a room layer, forces layout, then nudges that layer for about 70 frames. 48 items is a busy room. 80 is the room cap.
 
-The measured times are filled in after the bench run on this branch. Treat a result near 16.7ms as "on the display refresh," and treat a large gap between Before and After as a reason to simplify the sample before drawing the rest.
+Two runs. While the layer was nudged, every case sat on the display refresh: p50 16.7 ms, p95 16.7–16.8 ms, max 16.8 ms, for the current art and the sample, at 48 items and at 80. Building the layer (parse the SVG and force layout, one timing per run) was about 3–4 ms for the current art and about 5–8 ms for the sample. Both are under one frame, including at the room cap. The thing that would miss 60 fps on an iPad is a blur filter on every piece, and the sample does not use one.
+
+Markup per sample piece is 1090–2590 bytes (rug smallest, sofa largest).
+
+## Pictures
+
+- `docs/art-sample/contact-sheet.png` — before / after, with display names
+- `docs/art-sample/living-820x1180.png` — living room, current art on top, sample below
+- `docs/art-sample/bedroom-820x1180.png` — bedroom, same
+- `docs/art-sample/contact-sheet-night.png` — the after column under a flat indigo veil
+
+The room shots stage the sample pieces so they fit in one iPad-portrait frame. They use each piece's real width, height, and bottom-center anchor. They are not a change to the starter rooms in a save.
 
 ## Not in this pass
 
