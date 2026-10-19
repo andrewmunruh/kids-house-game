@@ -34,8 +34,14 @@ check('the kennel still shows in the living room', itemMatchesRoom({ name: 'Dog 
 
 const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
 const juice = readFileSync(new URL('../src/juice.css', import.meta.url), 'utf8');
+const sceneryCss = readFileSync(new URL('../src/scenery.css', import.meta.url), 'utf8');
+const vite = readFileSync(new URL('../vite.config.ts', import.meta.url), 'utf8');
+const jsFresh = ['juice.ts', 'nametags.ts', 'framekid.ts', 'roomfilter.ts', 'scenery.ts'].map(f => readFileSync(new URL('../src/' + f, import.meta.url), 'utf8')).join('\n');
 check('the surprise banner keeps the only hop keyframes', (css.match(/@keyframes\s+hop\b/g) || []).length === 1 && (css.match(/animation:\s*hop\b/g) || []).length === 1);
 check('pets bounce with their own names', /@keyframes\s+petHop\b/.test(css) && /@keyframes\s+petSpin\b/.test(css) && /animation:\s*petHop\b/.test(css));
 check('reduced motion is honoured in CSS', /prefers-reduced-motion:\s*reduce/.test(juice) && /animation-duration:\s*0\.01ms/.test(juice));
+check('vite builds for safari 16', /target:\s*'safari16'/.test(vite) && /cssTarget:\s*'safari16'/.test(vite));
+check('new css avoids nesting, color-mix, view transitions, and :has()', !/color-mix\(|view-transition|:has\(/.test(juice + sceneryCss) && !/(^|[^\w-])&(?=[\s.:#[,{])/.test(juice + sceneryCss));
+check('new js avoids findLast and toSorted', !/\.(findLast|toSorted|toReversed|toSpliced)\b/.test(jsFresh));
 
 console.log(`${pass} passed`);
