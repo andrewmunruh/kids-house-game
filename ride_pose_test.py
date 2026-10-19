@@ -164,9 +164,14 @@ async def main():
         await pg.wait_for_timeout(350)
         m0 = await me(pg)
         check('mount rainbow pony', m0 and m0.get('ride') == 4 and abs(m0['x'] - 2990) < 5, str(m0))
-        toast = await pg.evaluate("""() => [...document.querySelectorAll('.toast')].map(t => ({ top: getComputedStyle(t).top, text: t.textContent }))""")
+        toast = await pg.evaluate("""() => [...document.querySelectorAll('.toast')].map(t => {
+          const b = t.getBoundingClientRect();
+          return { y: Math.round(b.top), text: t.textContent };
+        })""")
         riding = next((t for t in toast if t['text'] and 'riding' in t['text']), None)
-        check('riding toast sits at the top', riding and riding['top'] == '76px', str(toast))
+        # The toast stack hangs under the top bar. A second line sits just below the first.
+        # A bottom toast would sit near the horse, hundreds of pixels lower.
+        check('riding toast sits at the top', riding and 40 <= riding['y'] <= 180, str(toast))
 
         # dog was left at the gate; while riding it should close a long gap faster than a walk
         d0 = (await pg.evaluate('__pets()'))['dogPos'].get('solo')

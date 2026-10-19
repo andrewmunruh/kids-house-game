@@ -22,6 +22,10 @@ async def drag(pg, a, b, steps=12):
     await pg.mouse.move(*a); await pg.mouse.down(); await pg.mouse.move(*b, steps=steps); await pg.mouse.up(); await pg.wait_for_timeout(300)
 async def center(loc):
     b = await loc.bounding_box(); return (b['x'] + b['width'] / 2, b['y'] + b['height'] / 2)
+async def stage_point(pg, xf, yf):
+    """A point on the room. The mode lane sits under the stage, so a fixed screen y can miss it."""
+    b = await pg.evaluate("""() => { const r = document.querySelector('.stage').getBoundingClientRect(); return {x:r.x, y:r.y, w:r.width, h:r.height}; }""")
+    return (b['x'] + b['w'] * xf, b['y'] + b['h'] * yf)
 items = lambda pg: pg.evaluate("__store.get().rooms.living.items.map(i => i.id)")
 
 async def main():
@@ -120,7 +124,7 @@ async def run(P, K2, K3, mk, errs, check):
         before = await items(P)
         await K2.click('#modeDecorate'); await K2.wait_for_timeout(200)
         await K2.click('.cat[data-cat="pets"]'); th = K2.locator('.shelf .thing').first
-        await drag(K2, await center(th), (560, 560)); await P.wait_for_timeout(700)
+        await drag(K2, await center(th), await stage_point(K2, 0.55, 0.72)); await P.wait_for_timeout(700)
         after = await items(P); await check('K2 adds item -> P sees it live', len(after) == len(before) + 1, f'{len(before)}->{len(after)}')
         newid = [i for i in after if i not in before][0] if len(after) > len(before) else None
         if newid:  # P moves it, K2 sees the move
@@ -196,7 +200,7 @@ async def run(P, K2, K3, mk, errs, check):
         k3ui = await K3.evaluate("__ui()"); await check('removed player K3 is back in solo mode', k3ui['mode'] == 'solo', str(k3ui))
         await check('K2 street now has 2 houses', await K2.evaluate("__hood().houses.size") == 2)
         # offline still works for K3
-        await K3.screenshot(path='/tmp/k3-removed.png'); n0 = len(await items(K3)); await K3.click('#roomFilter [data-rf="all"]'); await K3.click('.cat[data-cat="food"]'); await drag(K3, await center(K3.locator('.shelf .thing').first), (250, 560))
+        await K3.screenshot(path='/tmp/k3-removed.png'); n0 = len(await items(K3)); await K3.click('#roomFilter [data-rf="all"]'); await K3.click('.cat[data-cat="food"]'); await drag(K3, await center(K3.locator('.shelf .thing').first), await stage_point(K3, 0.32, 0.72))
         await check('solo play still works after removal', len(await items(K3)) == n0 + 1, f'{n0} -> {len(await items(K3))} ' + str(await K3.evaluate("document.body.className")))
         await K3.screenshot(path=SHOT + '09-K3-removed-back-to-solo.png')
         await P.click('.hoodSheet [data-m="close"]')
