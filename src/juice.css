@@ -36,7 +36,7 @@ button.spring { animation: pressSpring .42s cubic-bezier(.34, 1.56, .5, 1); }
   body.tabs-compact:not(.phone) .tabs { flex: 1 1 auto; min-width: 0; }
   body.tabs-compact:not(.phone) .tab {
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
-    padding: 2px 5px; font-size: 14px; line-height: 1.05; letter-spacing: -0.02em;
+    padding: 2px 3px; font-size: 14px; line-height: 1.05; letter-spacing: -0.03em;
     min-width: 44px; min-height: 44px; white-space: nowrap;
   }
   body.tabs-compact:not(.phone) .tab .tabIco { width: 16px; height: 10px; flex: none; }

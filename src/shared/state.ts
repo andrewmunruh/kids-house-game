@@ -4,11 +4,11 @@ import { sanitizeLook2, withRandomStarter, type Look2 } from './avatar';
 // so a future multiplayer server can validate/relay the same actions.
 import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plot, type RanchOp } from './ranch';
 import { keepMailbox, type Mailbox } from './mail';
-export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon' | 'nursery' | 'backyard';
+export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon' | 'nursery' | 'bathroom' | 'backyard';
 /** Display order is the client's tab list. Backyard is a room id only until its scene ships. */
-export const ROOM_IDS: RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard'];
+export const ROOM_IDS: RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'bathroom', 'backyard'];
 /** Rooms with a tab. A save pointing at anything else opens the living room. */
-export const TAB_ROOMS: readonly RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery'];
+export const TAB_ROOMS: readonly RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'bathroom'];
 /** Room size in world units. v1 rooms were 1000 wide; v2 rooms are 2.4x wider. */
 export const ROOM_W = 2400, ROOM_H = 600, V1_ROOM_W = 1000;
 /** v1 layouts are re-centred in the wider room so nothing a child built moves relative to anything else. */
@@ -130,6 +130,9 @@ export function initialState(): GameState {
       // Same shape as the Salon: old saves gain these pieces, version stays 3.
       nursery: { wallpaper: '#d6f3ff', floor: '#f3ddc4', pattern: 1, items: [
         it('cloud-rug', 480, 545, 0), it('crib', 470, 480, 1), it('crib-mobile', 470, 155, 2), it('rocker', 780, 490, 3)] },
+      // Same shape as the nursery: a save that has never had this room gains the four starters.
+      bathroom: { wallpaper: '#d7f6f8', floor: '#f3e0c8', pattern: 1, items: [
+        it('puddle-mat', 280, 548, 0), it('clawfoot-tub', 280, 490, 1), it('mirror-vanity', 680, 480, 2), it('towel-ladder', 80, 470, 3)] },
       // Empty on purpose. The backyard scene ships later; the room key has to exist so edits are not dropped.
       backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [] },
     },

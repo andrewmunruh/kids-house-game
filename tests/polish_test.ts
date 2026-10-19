@@ -38,6 +38,11 @@ check('ring light and desk lamp stay off the nursery shelf',
   !itemMatchesRoom({ name: 'Ring Light', kind: 'pack:ring-light', rooms: ['any'], cat: 'decor' }, 'nursery')
   && !itemMatchesRoom({ name: 'Desk Lamp', kind: 'pack:desk-lamp', rooms: ['any'], cat: 'decor' }, 'nursery'));
 check('ring light still shows in the living room', itemMatchesRoom({ name: 'Ring Light', kind: 'pack:ring-light', rooms: ['any'], cat: 'decor' }, 'living'));
+check('ring light and desk lamp stay off the bathroom shelf',
+  !itemMatchesRoom({ name: 'Ring Light', kind: 'pack:ring-light', rooms: ['any'], cat: 'decor' }, 'bathroom')
+  && !itemMatchesRoom({ name: 'Desk Lamp', kind: 'pack:desk-lamp', rooms: ['any'], cat: 'decor' }, 'bathroom'));
+check('a plant still shows in the bathroom', itemMatchesRoom({ name: 'Fern', kind: 'fern', rooms: ['any'], cat: 'plants' }, 'bathroom'));
+check('the bedroom bathtub stays off the bathroom shelf', !itemMatchesRoom({ name: 'Bathtub', kind: 'tub', rooms: ['bedroom'], cat: 'furniture' }, 'bathroom'));
 
 const manifest = JSON.parse(readFileSync(new URL('../assets/items/manifest.json', import.meta.url), 'utf8')) as { slug?: string; name?: string; room?: string; category?: string; pack?: string; type?: string }[];
 const catalog = (Array.isArray(manifest) ? manifest : []).filter(e => e && e.slug && e.type !== 'wallpaper' && e.type !== 'floor').map(e => ({

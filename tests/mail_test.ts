@@ -89,7 +89,7 @@ async function main() {
   const grab = (file: string) => {
     for (const m of readFileSync(file, 'utf8').matchAll(/name:\s*(?:'([^']*)'|"([^"]*)")/g)) expectNames.add(m[1] ?? m[2]);
   };
-  grab('src/items.ts'); grab('src/nursery.ts');
+  grab('src/items.ts'); grab('src/nursery.ts'); grab('src/bathroom.ts');
   for (const m of readFileSync('src/eggs.ts', 'utf8').matchAll(/item:\s*\{[^}]*name:\s*(?:'([^']*)'|"([^"]*)")/g)) expectNames.add(m[1] ?? m[2]);
   for (const kid of ['Cada', 'Sloane', 'Chloe', 'Quinn', 'Reagan']) expectNames.delete(kid);
   const missingNames = [...expectNames].filter(n => !named.has(n));

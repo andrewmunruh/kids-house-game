@@ -56,6 +56,7 @@ const ROOMS: { id: RoomId; name: string; color: string }[] = [
   { id: 'kitchen', name: 'Kitchen', color: '#5cc985' },
   { id: 'salon', name: 'Salon', color: '#f0a0d8' },
   { id: 'nursery', name: 'Nursery', color: '#9ad7f5' },
+  { id: 'bathroom', name: 'Bathroom', color: '#5ec4c0' },
 ];
 const roomColor = (r: string) => ROOMS.find(x => x.id === r)?.color ?? '#ccc';
 
@@ -439,13 +440,17 @@ function moveKidX(kid: HTMLElement, x: number) {
   const c = store.get().characters.find(ch => ch.id === id); if (!c) return;
   store.dispatch({ type: 'char/move', id, room: store.get().currentRoom, x, y: c.y });
 }
-const TAB_SHORT: Record<string, string> = { living: 'Living', bedroom: 'Bed', kitchen: 'Kitchen', salon: 'Salon', nursery: 'Nursery' };
+const TAB_SHORT: Record<string, string> = { living: 'Living', bedroom: 'Bed', kitchen: 'Kitchen', salon: 'Salon', nursery: 'Nursery', bathroom: 'Bath' };
 const TAB_ICO = `<svg class="tabIco" viewBox="0 0 16 12" aria-hidden="true"><path d="M1 6 L8 1 L15 6 V11 H1 Z" fill="currentColor"/></svg>`;
 function tabsCompact() {
   return window.matchMedia('(max-width: 900px) and (min-height: 700px)').matches && !document.body.classList.contains('phone');
 }
+/** Phones and the tight portrait iPad row use the short word. iPad landscape keeps Bathroom. */
+function tabsShort() {
+  return tabsCompact() || document.body.classList.contains('phone');
+}
 function syncTabMode() {
-  const next = tabsCompact() ? 'c' : 'f';
+  const next = tabsCompact() ? 'c' : document.body.classList.contains('phone') ? 's' : 'f';
   if (next === tabMode) return;
   tabMode = next;
   renderTabs(store.get());
@@ -553,10 +558,11 @@ function renderMinimap(s: GameState) {
 }
 function renderTabs(s: GameState) {
   const compact = tabsCompact();
-  tabMode = compact ? 'c' : 'f';
+  const short = tabsShort();
+  tabMode = compact ? 'c' : short ? 's' : 'f';
   document.body.classList.toggle('tabs-compact', compact);
   $('tabs').innerHTML = ROOMS.map(r => {
-    const label = compact ? (TAB_SHORT[r.id] ?? r.name) : r.name;
+    const label = short ? (TAB_SHORT[r.id] ?? r.name) : r.name;
     return `<button class="tab ${s.currentRoom === r.id ? 'on' : ''}" data-room="${r.id}" style="--c:${r.color}" aria-label="${r.name}">${compact ? TAB_ICO : ''}${label}</button>`;
   }).join('');
 }

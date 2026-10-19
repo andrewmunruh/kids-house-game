@@ -5,7 +5,7 @@ const O = '#5a3d5c';
 const s = `stroke="${O}" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"`;
 
 const CURTAIN: Record<string, string> = {
-  living: '#ff8fab', bedroom: '#c9a0dc', kitchen: '#8fd6a6', salon: '#f0a0d8', nursery: '#9ad7f5', backyard: '#80ed99',
+  living: '#ff8fab', bedroom: '#c9a0dc', kitchen: '#8fd6a6', salon: '#f0a0d8', nursery: '#9ad7f5', bathroom: '#5ec4c0', backyard: '#80ed99',
 };
 
 function windowSVG(room: string) {

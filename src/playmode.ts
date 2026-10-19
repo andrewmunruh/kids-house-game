@@ -23,7 +23,7 @@ export function playGesture(kind: string): PlayGesture {
   if (kind === 'cat-tower') return 'tower';
   if (kind === 'lamp' || /(^|:)lamp|starlamp|light/.test(kind)) return 'lamp';
   if (kind === 'fridge' || kind === 'stove' || kind === 'vanity' || kind === 'bookshelf' || kind === 'window' || kind === 'mirror' || kind === 'tv'
-    || /fridge|stove|cabinet|drawer|vanity/.test(kind)) return 'open';
+    || /fridge|stove|cabinet|drawer|vanity|mirror/.test(kind)) return 'open';
   if (kind === 'sofa' || kind === 'armchair' || kind === 'chair' || kind === 'stool' || kind === 'bed' || kind === 'crib'
     || /(sofa|armchair|chair|stool|bench)/.test(kind)) return 'sit';
   return 'wiggle';

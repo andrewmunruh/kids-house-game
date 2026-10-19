@@ -1,6 +1,6 @@
 # Bathroom
 
-Plan and mockups only. No room, no items, and no Worker change are in this branch. Nothing here is deployed.
+The bathroom is in the game on this branch: room id, four starters, thirty shelf pieces, and a Worker allow-list. Art follows `docs/art-style-v2` on `cursor/art-refresh` (fetched, not merged). Nothing here is deployed. The mockups below are the direction Andy approved.
 
 The nursery is the pattern: room id on the house, starter pieces for a save that has never had the room, version left at 3, protocol left at 4, and the server allow-list is the same `ROOM_IDS` list the client already trusts. Commits worth reading beside this note are `9acd1a9` (nursery room and the server names), `1f0aa5c` (strict migration), and the old-client model in `tests/rooms_test.ts`.
 
@@ -108,7 +108,7 @@ Generic decor still appears, the way it does in the nursery: plants, and decor w
 
 Thirty names, ten to a shelf. None of these strings are in `src/shared/catalog-names.ts`. Kinds are new. Wall pieces use `wall: true` and snap to the wall the way the crib mobile does. Small decor is holdable. Furniture is not.
 
-Art for all thirty is one pass: plum outline `#5a3d5c`, soft plum shading at low opacity, a white highlight, a contact shadow, and a few specks of texture. No blur filter, no `color-mix()`, no extra bitmap. That is the direction the avatar shading already uses in `src/avatar/geom.ts`, so a later art pass should not have to redraw the pack. The contact sheets show all thirty, in that style. Nobody is in the water. The toilet is a closed lid and a daisy.
+The thirty drawings follow `docs/art-style-v2` on `cursor/art-refresh` (fetched, not merged): plum outline `#5a3d5c` at weight 3.5, light from the top left, a two-tone cel side plane, a white edge tick, a few texture strokes, and the two-ellipse plum contact shadow on floor pieces. Rugs and wall pieces have no shadow. No blur filter, no `color-mix()`, no bitmap. Glass is two flat tones plus a white tick, so copies of one piece never share a gradient id. Nobody is in the water. The toilet is a closed lid and a daisy.
 
 ### Furniture
 
