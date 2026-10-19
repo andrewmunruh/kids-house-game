@@ -1,6 +1,7 @@
-# Drawn (alpha) bounds of each living-room WebP vs the SVG getBBox, same bottom-center anchor.
-# The item box is square and the WebP is square at 2×w, so object-fit: contain paints the
-# bitmap 1:1. Alpha fractions of the file are the on-screen fractions.
+# Drawn (alpha) bounds of each living-room WebP vs the SVG's visible art.
+# The contact-shadow ellipse is not part of that box; the stroke is.
+# The item box is square and the WebP is square at 3×w, so object-fit: contain
+# paints the bitmap 1:1. Alpha fractions of the file are the on-screen fractions.
 import base64
 import json
 import sys
@@ -8,9 +9,10 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-ROOT = Path('/workspace')
+ROOT = Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else Path(__file__).resolve().parents[1]
 TOL = 0.03
-LIMIT = 40 * 1024
+LIMIT = 60 * 1024
+SCALE = 3
 
 JS = r'''async ({ b64, svg, vb }) => {
   const img = new Image();
@@ -38,13 +40,28 @@ JS = r'''async ({ b64, svg, vb }) => {
   el.setAttribute('width', '1000');
   el.setAttribute('height', '1000');
   document.body.appendChild(el);
-  const bb = el.getBBox();
+  let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+  for (const n of el.querySelectorAll('*')) {
+    const fill = (n.getAttribute('fill') || '').toLowerCase();
+    const op = parseFloat(n.getAttribute('opacity') || '1');
+    if (n.localName === 'ellipse' && fill === '#000' && op < 0.5) continue;
+    const bb = n.getBBox();
+    if (!(bb.width || bb.height)) continue;
+    const sw = parseFloat(n.getAttribute('stroke-width') || '0');
+    const pad = sw / 2;
+    minX = Math.min(minX, bb.x - pad);
+    minY = Math.min(minY, bb.y - pad);
+    maxX = Math.max(maxX, bb.x + bb.width + pad);
+    maxY = Math.max(maxY, bb.y + bb.height + pad);
+  }
   const box = el.viewBox.baseVal;
   el.remove();
+  minX = Math.max(0, minX); minY = Math.max(0, minY);
+  maxX = Math.min(box.width, maxX); maxY = Math.min(box.height, maxY);
   return {
     nw: img.naturalWidth, nh: img.naturalHeight, clear,
     ax: l, ay: t, aw: r - l + 1, ah: b - t + 1,
-    sx: bb.x, sy: bb.y, sw: bb.width, sh: bb.height,
+    sx: minX, sy: minY, sw: maxX - minX, sh: maxY - minY,
     vx: box.width, vy: box.height,
   };
 }'''
@@ -58,16 +75,16 @@ def main():
         page = browser.new_page()
         page.set_content('<!doctype html><meta charset="utf-8"><body></body>')
         for it in items:
-            path = ROOT / 'assets' / 'art' / 'living' / f"{it['kind']}.webp"
+            path = ROOT / 'assets' / 'art' / 'any' / f"{it['kind']}.webp"
             size = path.stat().st_size
             b64 = base64.b64encode(path.read_bytes()).decode()
             m = page.evaluate(JS, {'b64': b64, 'svg': it['svg'], 'vb': it['vb']})
-            side = it['w'] * 2
+            side = it['w'] * SCALE
             notes = []
             if m['nw'] != side or m['nh'] != side or it['h'] != it['w']:
                 notes.append(f"size {m['nw']}x{m['nh']} want {side} (h {it['h']})")
             if size > LIMIT:
-                notes.append(f'{size}B over 40KB')
+                notes.append(f'{size}B over 60KB')
             if m['clear'] <= 0:
                 notes.append('no transparent pixels')
             sw, sh = m['sw'] / m['vx'], m['sh'] / m['vy']

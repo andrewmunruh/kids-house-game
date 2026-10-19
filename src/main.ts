@@ -15,6 +15,7 @@ import { parkSceneSVG, swingSVG, ballSVG, treeIcon, pawIcon, gateIcon, streetGat
 import { houseSVG, ICONS, toast, adultCheck } from './hood-ui';
 import { initEggs, foundSet, EGGS } from './eggs';
 import { ITEMS, ITEM_MAP, svgOf, hOf, installArtFallback, type Category, type ItemDef } from './items';
+import { artSolid, topHit } from './art/hit';
 import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
 import { characterSVG, handsFor, SIZE_SCALE } from './character';
 import { lookStamp, look2FromLegacy, legacyFromLook2, randomLook2, patchFromLook2, sanitizeLook2, type Look2 } from './shared/avatar';
@@ -591,7 +592,7 @@ function renderItems(s: GameState) {
       el.className = 'item'; el.dataset.id = it.id;
       el.innerHTML = `<div class="inner">${svgOf(def)}</div>`;
       layer.appendChild(el);
-      el.addEventListener('pointerdown', e => beginItemDrag(el!, e));
+      el.addEventListener('pointerdown', e => onItemPointer(el!, e));
     }
     el.dataset.kind = it.kind;
     const box = placedBox(def, it.scale);
@@ -744,6 +745,28 @@ function startDrag(e: PointerEvent, ctx: DragCtx) {
   window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
 }
 
+function forwardPointer(e: PointerEvent): PointerEvent {
+  return new PointerEvent('pointerdown', {
+    bubbles: true, cancelable: true, clientX: e.clientX, clientY: e.clientY,
+    pointerId: e.pointerId, pointerType: e.pointerType, button: e.button, buttons: e.buttons, isPrimary: e.isPrimary,
+  });
+}
+
+/** A clear part of a painting does not grab. The tap lands on the item or kid behind it, or pans the room. */
+function onItemPointer(el: HTMLElement, e: PointerEvent) {
+  const t = e.target as Element | null;
+  const img = t && t.closest ? t.closest('img.artimg') as HTMLImageElement | null : null;
+  if (img && !artSolid(img, e.clientX, e.clientY)) {
+    const next = topHit(e.clientX, e.clientY);
+    const item = next?.closest('.item') as HTMLElement | null;
+    const ch = next?.closest('.char') as HTMLElement | null;
+    if (item && item !== el) { e.stopPropagation(); beginItemDrag(item, e); }
+    else if (ch) { e.stopPropagation(); ch.dispatchEvent(forwardPointer(e)); }
+    return;
+  }
+  beginItemDrag(el, e);
+}
+
 function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
   e.preventDefault(); e.stopPropagation();
   if (twoFinger) return;
@@ -792,7 +815,9 @@ function beginHeldDrag(charEl: HTMLElement, heldEl: HTMLElement, e: PointerEvent
 function attachCharDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
     const heldEl = (e.target as HTMLElement).closest<HTMLElement>('.held');
-    if (heldEl) { if (play.isPlay()) { e.preventDefault(); e.stopPropagation(); return; } if (!canEdit()) { e.stopPropagation(); lockedNudge(el); return; } return beginHeldDrag(el, heldEl, e); }
+    const heldImg = heldEl?.querySelector('img.artimg') as HTMLImageElement | null;
+    const heldClear = !!heldImg && !artSolid(heldImg, e.clientX, e.clientY);
+    if (heldEl && !heldClear) { if (play.isPlay()) { e.preventDefault(); e.stopPropagation(); return; } if (!canEdit()) { e.stopPropagation(); lockedNudge(el); return; } return beginHeldDrag(el, heldEl, e); }
     e.preventDefault(); e.stopPropagation();
     if (twoFinger) return;
     if (!canEdit()) { lockedNudge(el); return; }
@@ -2817,12 +2842,16 @@ bindGameRoom({
   soloLook: () => { const s = local.get(); return { look: cleanLook(s.characters[0] ?? {}), dog: s.dog ?? null }; },
 });
 
-// Raster files load per room, after the SVG is already on screen. A room with no
-// WebP does not paint a second time. ?art=v1 never asks for the files.
+// Paintings load once, by item id, after the SVG is already on screen. A later
+// room change does not load a second set or swap a piece that is already raster.
+// ?art=v1 never asks for the files.
+let artBoot: Promise<void> | null = null;
 function refreshArt(room: string): Promise<void> {
-  return import('./art/load').then(m => m.boot(location.search, room)).then(ids => {
+  if (artBoot) return artBoot;
+  artBoot = import('./art/load').then(m => m.boot(location.search, room)).then(ids => {
     for (let i = 0; i < ids.length; i++) if (ITEM_MAP[ids[i]]) { renderAll(); renderDrawer(); return; }
   });
+  return artBoot;
 }
 
 // ---------- start ----------

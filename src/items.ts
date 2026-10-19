@@ -90,12 +90,14 @@ export const hOf = (d: ItemDef) => d.h ?? d.w;
 export const svgMarkup = (d: ItemDef) => d.img
   ? `<img class="packimg" src="${esc(d.img)}" alt="${esc(d.name)}" draggable="false" />`
   : `<svg viewBox="${d.vb ?? '0 0 100 100'}" xmlns="http://www.w3.org/2000/svg">${d.svg}</svg>`;
-// A 2× WebP replaces the SVG only when this page asked for raster and the file loaded.
+// A 3× WebP replaces the SVG only when this page asked for raster and the file loaded.
 // The footprint stays the item's w/h. A broken image falls back through installArtFallback.
+// Floor pieces get a separate contact shadow, so the painting's own feet stay on the SVG's feet.
 export const svgOf = (d: ItemDef) => {
   const url = rasterOn() ? rasterUrl(d.kind) : undefined;
   if (!url) return svgMarkup(d);
-  return `<img class="packimg artimg" data-kind="${esc(d.kind)}" src="${esc(url)}" alt="${esc(d.name)}" draggable="false" />`;
+  const shade = d.wall ? '' : '<i class="artshade" aria-hidden="true"></i>';
+  return `${shade}<img class="packimg artimg" data-kind="${esc(d.kind)}" src="${esc(url)}" alt="${esc(d.name)}" draggable="false" />`;
 };
 
 let artFallbackOn = false;
@@ -109,6 +111,7 @@ export function installArtFallback(): void {
     const d = ITEM_MAP[img.dataset.kind || ''];
     if (!d) return;
     img.dataset.fell = '1';
+    img.parentElement?.querySelector('.artshade')?.remove();
     const hold = document.createElement('div');
     hold.innerHTML = svgMarkup(d);
     const next = hold.firstElementChild;

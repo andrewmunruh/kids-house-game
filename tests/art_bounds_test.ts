@@ -1,9 +1,13 @@
-// Each living-room raster's drawn pixels sit on the SVG's drawn box, at the same feet.
+// Each living-room raster's drawn pixels sit on the SVG's visible art, shadows excluded.
 import { execFile } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 
+const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const KINDS = ['armchair', 'ball', 'balloon', 'bookshelf', 'chair', 'clock', 'lamp', 'picture', 'plant', 'rug', 'sofa', 'table', 'tv', 'window'];
+const py = process.env.ART_PYTHON || ['/tmp/pwvenv/bin/python', 'python3'].find(p => existsSync(p) || p === 'python3')!;
 
 let pass = 0;
 const check = (name: string, ok: boolean, extra = '') => {
@@ -12,7 +16,7 @@ const check = (name: string, ok: boolean, extra = '') => {
 };
 
 const vite = await createServer({
-  configFile: '/workspace/vite.config.ts',
+  configFile: join(root, 'vite.config.ts'),
   server: { middlewareMode: true },
   appType: 'custom',
   logLevel: 'error',
@@ -27,10 +31,11 @@ const items = KINDS.map(kind => {
 });
 await vite.close();
 check('fourteen living kinds are in the catalog', items.every(i => i && i.w > 0 && i.svg.length > 0));
-writeFileSync('/tmp/art-bounds-items.json', JSON.stringify(items));
+const json = join(process.env.TMPDIR || '/tmp', 'art-bounds-items.json');
+writeFileSync(json, JSON.stringify(items));
 
 await new Promise<void>((resolve) => {
-  execFile('/tmp/pwvenv/bin/python', ['tests/art_bounds.py', '/tmp/art-bounds-items.json'], { timeout: 60000 }, (err, stdout, stderr) => {
+  execFile(py, [join(root, 'tests/art_bounds.py'), json, root], { timeout: 60000 }, (err, stdout, stderr) => {
     if (stdout) process.stdout.write(stdout);
     if (stderr) process.stderr.write(stderr);
     check('raster alpha bounds match the svg within 3%', !err);

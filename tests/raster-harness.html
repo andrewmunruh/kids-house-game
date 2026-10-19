@@ -4,12 +4,13 @@
 <script type="module">
 import { ART_RASTER, artRasterOn, setArtFromSearch, setArtRaster } from '/src/art/flag.ts';
 import { rasterUrl, rememberRaster } from '/src/art/cache.ts';
-import { loadArtRoom } from '/src/art/load.ts';
+import { loadAllArt } from '/src/art/load.ts';
 import { ITEM_MAP, svgOf, installArtFallback } from '/src/items.ts';
+import { artSolid } from '/src/art/hit.ts';
 
 installArtFallback();
-const ids = await loadArtRoom('living');
+const ids = await loadAllArt();
 const w = window;
-w.__art = { ART_RASTER, artRasterOn, setArtFromSearch, setArtRaster, rasterUrl, rememberRaster, svgOf, sofa: ITEM_MAP.sofa, ids, has: (id) => !!ITEM_MAP[id] };
+w.__art = { ART_RASTER, artRasterOn, setArtFromSearch, setArtRaster, rasterUrl, rememberRaster, svgOf, artSolid, sofa: ITEM_MAP.sofa, window: ITEM_MAP.window, ids, has: (id) => !!ITEM_MAP[id] };
 w.__artReady = true;
 </script>
