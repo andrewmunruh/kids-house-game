@@ -31,7 +31,8 @@ body.mode-play .toolbar, body.mode-play .bin { display: none !important; }
 .mailCue.show { display: block; animation: cueBob 1.4s ease-in-out infinite; }
 @keyframes cueBob { 50% { transform: translateX(-50%) translateY(-4px); } }
 
-.mailSheet { z-index: 21000; }
+/* Above the preview badge (z-index 100000) so its corner never covers the ✕. */
+.mailSheet { z-index: 110000; }
 .mailSheet .card { width: min(520px, 94vw); }
 .mailTo { font-weight: 900; font-size: 18px; margin: 0 0 8px; }
 .letter { position: relative; border: 4px solid var(--ink); border-radius: 18px; padding: 14px 14px 12px; margin: 8px 0;

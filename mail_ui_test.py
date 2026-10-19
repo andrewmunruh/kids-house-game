@@ -92,6 +92,25 @@ async def presets_and_parent(P, k_house, suffix):
       return {phrase: on ? on.textContent : '', sticker: !!document.querySelector('.stick.on'), box: !!document.querySelector('#mailText')};
     }""")
     check('a preset chip and a sticker can be picked', chosen['phrase'] == 'Come over!' and chosen['sticker'] and not chosen['box'], str(chosen))
+    if suffix == '390x844':
+        covered = await P.evaluate("""() => {
+          document.body.classList.add('is-preview');
+          if (!document.querySelector('.previewRibbon')) {
+            const d = document.createElement('div'); d.className = 'previewRibbon'; d.textContent = 'PREVIEW';
+            document.body.appendChild(d);
+          }
+          const btn = document.querySelector('.mailSheet .close');
+          const rib = document.querySelector('.previewRibbon');
+          const c = btn.getBoundingClientRect();
+          const r = rib.getBoundingClientRect();
+          const ix = Math.min(c.right, r.right) - Math.max(c.left, r.left);
+          const iy = Math.min(c.bottom, r.bottom) - Math.max(c.top, r.top);
+          const zS = parseFloat(getComputedStyle(document.querySelector('.mailSheet')).zIndex) || 0;
+          const zR = parseFloat(getComputedStyle(rib).zIndex) || 0;
+          return { ix, iy, zS, zR, cy: Math.round(c.y), ry: Math.round(r.y), covered: ix > 1 && iy > 1 && !(zS > zR) };
+        }""")
+        check('preview badge does not cover the mail close button', not covered['covered'] and covered['zS'] > covered['zR'] and covered['ix'] <= 1, str(covered))
+        await P.evaluate("() => { document.body.classList.remove('is-preview'); document.querySelector('.previewRibbon')?.remove(); }")
     path = os.path.join(SHOT, 'preset-composer-' + suffix + '.png')
     await P.screenshot(path=path)
     print('SHOT', path, flush=True)

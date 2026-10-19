@@ -17,7 +17,7 @@ import { ITEMS, ITEM_MAP, svgOf, hOf, type Category, type ItemDef } from './item
 import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
 import { characterSVG, SKINS, HAIRS, CLOTHES, HAIR_STYLES, ACCESSORIES, SIZES, SIZE_SCALE, HANDS } from './character';
 import { sfx, setSound } from './sound';
-import { itemMatchesRoom } from './roomfilter';
+import { catalogShows } from './roomfilter';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
@@ -63,8 +63,7 @@ const TABS: Tab[] = [
 TABS.push({ id: 'secrets', name: 'Secrets', icon: 'egg:chloe-starlamp', kind: 'cat' });
 for (const it of ITEMS) if (!TABS.some(t => t.kind === 'cat' && t.id === it.cat)) TABS.push({ id: it.cat, name: it.cat, icon: it.kind, kind: 'cat' });
 for (const it of ITEMS) if (it.pack && !TABS.some(t => t.id === 'pack:' + it.pack)) TABS.push({ id: 'pack:' + it.pack, name: packLabel(it.pack), icon: it.kind, kind: 'pack' });
-const matchesRoom = (item: ItemDef, f: string) => itemMatchesRoom(item, f);
-const tabItems = (tab: string, rf: string) => ITEMS.filter(i => (!i.secret || foundSet().has(i.secret)) && (tab.startsWith('pack:') ? i.pack === tab.slice(5) : i.cat === tab) && matchesRoom(i, rf));
+const tabItems = (tab: string) => ITEMS.filter(i => catalogShows(i, tab, store.get().currentRoom, roomFilter === 'all', foundSet()));
 
 const WALLS = ['#ffd6e0', '#d9ccff', '#cdf3dc', '#cfe8ff', '#fff1b8', '#ffe0c7', '#ffffff', '#f6c1ff'];
 const FLOORS = ['#e8b98a', '#f2d0a4', '#c99366', '#ffe7a8', '#bfe3d0', '#d6d6f5', '#ffc8dd', '#9fb4c7'];
@@ -908,9 +907,9 @@ function renderDrawer() {
   const rname = ROOMS.find(r => r.id === room)?.name ?? 'This room';
   const all = rf === 'all';
   $('roomFilter').innerHTML = `<button class="rf ${all ? 'on' : ''}" data-rf="${all ? 'room' : 'all'}">${all ? 'Just ' + rname : 'All rooms'}</button>`;
-  const hasSecrets = tabItems('secrets', 'all').length > 0;
+  const hasSecrets = tabItems('secrets').length > 0;
   // Pack tabs stay on screen in every room (Glossy is all salon pieces, and kids still need to see it).
-  const visible = TABS.filter(t => t.id !== 'secrets' && (t.kind === 'people' || t.kind === 'pack' || tabItems(t.id, rf).length));
+  const visible = TABS.filter(t => t.id !== 'secrets' && (t.kind === 'people' || t.kind === 'pack' || tabItems(t.id).length));
   if (!(currentTab === 'secrets' && hasSecrets) && !visible.some(t => t.id === currentTab)) currentTab = visible[1]?.id ?? '__people';
   $('cats').innerHTML = visible.map(t => `<button class="cat ${t.kind} ${t.id === currentTab ? 'on' : ''}" data-cat="${t.id}" aria-label="${t.name}" title="${t.name}">${t.kind === 'people' ? PEOPLE_ICON : t.kind === 'pack' ? `<span class="packicon">${svgOf(ITEM_MAP[t.icon])}</span><span class="packname">${t.name}</span>` : svgOf(ITEM_MAP[t.icon])}</button>`).join('')
     + (hasSecrets ? `<button class="cat secretTab ${currentTab === 'secrets' ? 'on' : ''}" data-cat="secrets" aria-label="Secrets" title="Secrets">🎁</button>` : '');
@@ -936,7 +935,7 @@ function renderDrawer() {
     }
     return;
   }
-  const list = tabItems(currentTab, currentTab.startsWith('pack:') ? 'all' : rf);
+  const list = tabItems(currentTab);
   if (!list.length) shelf.innerHTML = `<div class="empty">Nothing here yet!</div>`;
   for (const d of list) {
     const b = document.createElement('button'); b.className = 'thing'; b.setAttribute('aria-label', d.name);

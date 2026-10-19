@@ -722,8 +722,9 @@ body.view-street .stage { visibility: hidden; }
   body.phone .shelf { height: 80px; width: 100%; margin-right: 0; padding: 6px 8px; gap: 8px; }
   body.phone .thing { flex: 0 0 64px; width: 64px; height: 64px; min-width: 44px; min-height: 44px; padding: 6px; border-radius: 16px; }
   body.phone.is-preview .shelf { width: 100%; margin-right: 0; }
-  body.phone .previewRibbon { top: calc(var(--chrome-h, 48px) + 2px); right: max(0px, env(safe-area-inset-right)); bottom: auto; left: auto;
-    border-radius: 0 0 0 12px; border-top: 0; border-right: 0; }
+  /* Top-left, clear of the mail composer's ✕ (that button sits in the top-right corner). */
+  body.phone .previewRibbon { top: calc(var(--chrome-h, 48px) + 2px); left: max(0px, env(safe-area-inset-left)); right: auto; bottom: auto;
+    border-radius: 0 0 12px 0; border-top: 0; border-left: 0; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); }
   body.phone .nudge { top: 50%; width: 44px; height: 64px; margin-top: -32px; }
   body.phone .nudge.left { left: max(4px, env(safe-area-inset-left)); }
   body.phone .nudge.right { right: max(4px, env(safe-area-inset-right)); }

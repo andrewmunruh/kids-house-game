@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolveFrame } from '../src/framekid';
 import { assignLanes, initials } from '../src/nametags';
-import { itemMatchesRoom } from '../src/roomfilter';
+import { catalogShows, itemMatchesRoom } from '../src/roomfilter';
 import { emptyRoomStarters } from '../src/scenery';
 import { initialState, migrate, reduce, type GameState } from '../src/shared/state';
 import { cleanAction } from '../src/shared/hood';
@@ -38,6 +38,32 @@ check('ring light and desk lamp stay off the nursery shelf',
   !itemMatchesRoom({ name: 'Ring Light', kind: 'pack:ring-light', rooms: ['any'], cat: 'decor' }, 'nursery')
   && !itemMatchesRoom({ name: 'Desk Lamp', kind: 'pack:desk-lamp', rooms: ['any'], cat: 'decor' }, 'nursery'));
 check('ring light still shows in the living room', itemMatchesRoom({ name: 'Ring Light', kind: 'pack:ring-light', rooms: ['any'], cat: 'decor' }, 'living'));
+
+const manifest = JSON.parse(readFileSync(new URL('../assets/items/manifest.json', import.meta.url), 'utf8')) as { slug?: string; name?: string; room?: string; category?: string; pack?: string; type?: string }[];
+const catalog = (Array.isArray(manifest) ? manifest : []).filter(e => e && e.slug && e.type !== 'wallpaper' && e.type !== 'floor').map(e => ({
+  kind: 'pack:' + e.slug!.trim(),
+  name: e.name || e.slug!,
+  cat: (e.category || 'decor').trim().toLowerCase(),
+  pack: (e.pack || '').trim().toLowerCase() || undefined,
+  rooms: [(e.room || 'any').trim().toLowerCase()],
+}));
+const excluded = new Set(['pack:ring-light', 'pack:desk-lamp']);
+const tabs = new Set<string>(['decor']);
+for (const it of catalog) {
+  tabs.add(it.cat);
+  if (it.pack) tabs.add('pack:' + it.pack);
+}
+const leaked: string[] = [];
+for (const showAll of [false, true]) {
+  for (const tab of tabs) {
+    for (const it of catalog) {
+      if (excluded.has(it.kind) && catalogShows(it, tab, 'nursery', showAll)) leaked.push((showAll ? 'all:' : 'room:') + tab + ':' + it.name);
+    }
+  }
+}
+check('nursery catalog tabs leave out ring light and desk lamp', leaked.length === 0 && [...tabs].some(t => t.startsWith('pack:')), leaked.join(', '));
+const ring = catalog.find(it => it.kind === 'pack:ring-light');
+check('ring light stays on its pack tab outside the nursery', !!ring && !!ring.pack && catalogShows(ring, 'pack:' + ring.pack, 'living', false));
 
 const fresh = initialState();
 const starters = emptyRoomStarters(k => 's-' + k);
