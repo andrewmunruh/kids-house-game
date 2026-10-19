@@ -1,5 +1,5 @@
 // Mailbox: filter, cap, expiry, rate limit, author stamp, owner-only reading, old clients.
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { Neighborhood, type KV, type Conn } from '../server/core';
 import { FILTER_MSG, MAIL_FREE_DEFAULT, NICKNAMES, PROTOCOL, cleanMailText, filterChat, mailIsFree } from '../src/shared/hood';
 import { CATALOG_NAMES } from '../src/shared/catalog-names';
@@ -95,9 +95,19 @@ async function main() {
   });
   const allowedBad = allowed.filter(t => !cleanMailText(t, roster).ok);
   const named = new Set(CATALOG_NAMES);
-  const manifest = JSON.parse(readFileSync('assets/items/manifest.json', 'utf8')) as { name?: string; type?: string }[];
   const expectNames = new Set<string>();
-  for (const e of manifest) if (e?.name && e.type !== 'wallpaper' && e.type !== 'floor') expectNames.add(e.name);
+  const itemManifests = ['assets/items/manifest.json'];
+  const packRoot = 'assets/items/packs';
+  if (existsSync(packRoot)) {
+    for (const d of readdirSync(packRoot, { withFileTypes: true })) {
+      const p = `${packRoot}/${d.name}/manifest.json`;
+      if (d.isDirectory() && existsSync(p)) itemManifests.push(p);
+    }
+  }
+  for (const file of itemManifests) {
+    const manifest = JSON.parse(readFileSync(file, 'utf8')) as { name?: string; type?: string }[];
+    for (const e of manifest) if (e?.name && e.type !== 'wallpaper' && e.type !== 'floor') expectNames.add(e.name);
+  }
   const grab = (file: string) => {
     for (const m of readFileSync(file, 'utf8').matchAll(/name:\s*(?:'([^']*)'|"([^"]*)")/g)) expectNames.add(m[1] ?? m[2]);
   };

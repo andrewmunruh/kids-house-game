@@ -6,18 +6,30 @@
 //     pattern:  { type: 'wallpaper'|'floor', slug, name, pack }                      -> assets/patterns/<pack>/<slug>.png|svg|webp
 //   assets/patterns/manifest.json   (optional) same format, pattern entries only.
 import type { ItemDef } from './items';
+import { CRITTER_PACK_NAMES } from './packs-critter';
 
 const SIZE_W: Record<string, number> = { small: 80, medium: 150, large: 260 };
-export const PACK_NAMES: Record<string, string> = { 'welcome-home': 'Welcome Home', 'sunny-vibes': 'Sunny Vibes', glossy: 'Glossy', cottage: 'Cozy Cottage' };
+// Each pack adds its names from its own module. Keep new packs on their own line.
+export const PACK_NAMES: Record<string, string> = {
+  'welcome-home': 'Welcome Home', 'sunny-vibes': 'Sunny Vibes', glossy: 'Glossy', cottage: 'Cozy Cottage',
+  ...CRITTER_PACK_NAMES,
+};
 export const packLabel = (p: string) => PACK_NAMES[p] ?? p.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
 export interface PackEntry { slug: string; name?: string; room?: string; category?: string; size?: string; pack?: string; type?: string; holdable?: boolean;
   // optional extras some deliveries include:
-  gameCategory?: string; tag?: string; gameW?: number; widthUnits?: number; heightUnits?: number; png?: string; svg?: string; wall?: boolean; designW?: number }
+  gameCategory?: string; tag?: string; gameW?: number; widthUnits?: number; heightUnits?: number; png?: string; svg?: string; wall?: boolean; designW?: number;
+  /** Shelf group inside one pack tab, so a big pack can show about ten pieces at a time. */
+  group?: string; rooms?: string[] }
 export interface PatternDef { id: string; name: string; pack: string; kind: 'wallpaper' | 'floor'; url: string }
 
 // import.meta.glob returns {} when nothing matches, so missing files are fine.
-const manifests = import.meta.glob(['../assets/items/manifest.json', '../assets/patterns/manifest.json'], { eager: true, query: '?raw', import: 'default' }) as Record<string, string>;
+const manifests = import.meta.glob([
+  '../assets/items/manifest.json',
+  '../assets/patterns/manifest.json',
+  '../assets/items/packs/*/manifest.json',
+  '../assets/patterns/*/manifest.json',
+], { eager: true, query: '?raw', import: 'default' }) as Record<string, string>;
 const itemFiles = import.meta.glob(['../assets/items/**/*.{png,svg,webp,PNG,SVG,WEBP}', '!../assets/items/**/_*'], { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const patternFiles = import.meta.glob(['../assets/patterns/**/*.{png,svg,webp,PNG,SVG,WEBP}', '!../assets/patterns/**/_*'], { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 
@@ -48,6 +60,13 @@ const TAB_ALIASES: Record<string, string> = {
 function tabFor(c: unknown) { const k = typeof c === 'string' ? c.trim().toLowerCase() : ''; return TAB_ALIASES[k] ?? TAB_ALIASES[k.replace(/s$/, '')] ?? 'decor'; }
 const norm = (s: unknown, d: string) => (typeof s === 'string' && s.trim() ? s.trim().toLowerCase() : d);
 const isPattern = (e: PackEntry) => ['wallpaper', 'floor'].includes(norm(e.type, ''));
+function roomsFor(e: PackEntry): string[] {
+  if (Array.isArray(e.rooms) && e.rooms.length) {
+    const rooms = e.rooms.map(r => norm(r, '')).filter(Boolean);
+    if (rooms.length) return rooms;
+  }
+  return [norm(e.room, 'any')];
+}
 
 const seen = new Set<string>();
 export const PACK_ITEMS: ItemDef[] = entries.filter(e => !isPattern(e)).flatMap(e => {
@@ -64,7 +83,8 @@ export const PACK_ITEMS: ItemDef[] = entries.filter(e => !isPattern(e)).flatMap(
   const h = Math.round(w * Math.min(4, Math.max(0.2, ratio)));
   // optional manifest `holdable`; default: small/medium non-furniture items can be held
   const holdable = typeof e.holdable === 'boolean' ? e.holdable : size !== 'large' && cat !== 'furniture';
-  return [{ kind: `pack:${slug}`, name: e.name || slug, cat, rooms: [room], w, h, wall: e.wall === true || undefined, svg: '', img, pack: pack || undefined, holdable } satisfies ItemDef];
+  const group = typeof e.group === 'string' && e.group.trim() ? e.group.trim() : undefined;
+  return [{ kind: `pack:${slug}`, name: e.name || slug, cat, rooms: roomsFor(e), w, h, wall: e.wall === true || undefined, svg: '', img, pack: pack || undefined, holdable, group } satisfies ItemDef];
 });
 
 export const PATTERNS_FROM_PACKS: PatternDef[] = entries.filter(isPattern).flatMap(e => {

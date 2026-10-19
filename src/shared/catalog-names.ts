@@ -1,5 +1,7 @@
 // Display names of catalog items and pack items. Letters may name the furniture.
-export const CATALOG_NAMES: readonly string[] = [
+import { CRITTER_CORNER_NAMES } from './catalog-names-critter';
+
+const BASE_CATALOG_NAMES = [
   "Acorn Friend",
   "Alarm Clock",
   "Apple",
@@ -325,5 +327,7 @@ export const CATALOG_NAMES: readonly string[] = [
   "Wood Stool",
   "Wood Wall Clock",
   "Wooden Bed",
-  "Yard Sign"
+  "Yard Sign",
 ];
+// Each pack concatenates its own list. Add the next pack as another argument.
+export const CATALOG_NAMES: readonly string[] = BASE_CATALOG_NAMES.concat(CRITTER_CORNER_NAMES);

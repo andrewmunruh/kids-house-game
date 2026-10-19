@@ -1,0 +1,65 @@
+[
+  {
+    "slug": "cr-paw-peach",
+    "name": "Paw Print Peach",
+    "type": "wallpaper",
+    "pack": "critter",
+    "svg": "critter/cr-paw-peach.svg"
+  },
+  {
+    "slug": "cr-forest",
+    "name": "Forest Friends",
+    "type": "wallpaper",
+    "pack": "critter",
+    "svg": "critter/cr-forest.svg"
+  },
+  {
+    "slug": "cr-honeycomb",
+    "name": "Honeycomb",
+    "type": "wallpaper",
+    "pack": "critter",
+    "svg": "critter/cr-honeycomb.svg"
+  },
+  {
+    "slug": "cr-sleepy-clouds",
+    "name": "Sleepy Clouds",
+    "type": "wallpaper",
+    "pack": "critter",
+    "svg": "critter/cr-sleepy-clouds.svg"
+  },
+  {
+    "slug": "cr-leafy",
+    "name": "Leafy Green",
+    "type": "wallpaper",
+    "pack": "critter",
+    "svg": "critter/cr-leafy.svg"
+  },
+  {
+    "slug": "cr-foam-tiles",
+    "name": "Foam Play Tiles",
+    "type": "floor",
+    "pack": "critter",
+    "svg": "critter/cr-foam-tiles.svg"
+  },
+  {
+    "slug": "cr-moss",
+    "name": "Moss Carpet",
+    "type": "floor",
+    "pack": "critter",
+    "svg": "critter/cr-moss.svg"
+  },
+  {
+    "slug": "cr-light-oak",
+    "name": "Light Oak",
+    "type": "floor",
+    "pack": "critter",
+    "svg": "critter/cr-light-oak.svg"
+  },
+  {
+    "slug": "cr-pebble",
+    "name": "Pebble Path",
+    "type": "floor",
+    "pack": "critter",
+    "svg": "critter/cr-pebble.svg"
+  }
+]

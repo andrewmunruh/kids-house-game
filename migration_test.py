@@ -46,6 +46,8 @@ def serve_build(dist):  # "deploy": swap what the web server serves at /kids-hou
 WN_LATEST = __import__('re').search(r'CHANGELOG: ChangeEntry\[\] = \[\s*\{\s*v:\s*(\d+)', open(__import__('os').path.dirname(__import__('os').path.abspath(__file__)) + '/src/whatsnew.ts').read()).group(1)
 OLD_MAIN = open('/tmp/prodtree/src/main.ts').read()
 OLD_HAS_MAP = 'id="btnMap"' in OLD_MAIN  # map era (1b33280+): joining lands on the map, the ranch is reached from the map
+OLD_HAS_NURSERY = "id: 'nursery'" in OLD_MAIN  # current main already draws the nursery
+OLD_HAS_MAIL = 'mapMail' in OLD_MAIN  # current main already draws mailboxes
 WN_OLD = __import__('re').search(r'CHANGELOG: ChangeEntry\[\] = \[\s*\{\s*v:\s*(\d+)', open('/tmp/prodtree/src/whatsnew.ts').read()).group(1)  # old (production) build's latest What's new
 async def adult(pg):
     await pg.wait_for_selector('.adultCard .q'); q = int(await pg.get_attribute('.adultCard .q', 'data-q'))
@@ -218,13 +220,19 @@ async def main():
                 if fields or rooms or towers or set(OLD_ROOMS) - set(shared):
                     rooms_ok = False
                     room_notes.append(f'{hid}: fields={fields} rooms={rooms} towers={towers}')
-            gained = all(
-                h['view']['rooms'].get('nursery') and [i['kind'] for i in h['view']['rooms']['nursery']['items']] == STARTER_KINDS
-                and h['view']['rooms'].get('backyard', {}).get('items') == []
-                and (h['view'].get('dogKennel') or None) is None
-                for h in snap_b['houses'].values()) and all('nursery' not in h['view']['rooms'] and 'backyard' not in h['view']['rooms'] for h in snap_a['houses'].values())
+            # Current main already stores a nursery (and an empty backyard). The "old save had
+            # no nursery" half is only for a build that truly predates those rooms. Room identity
+            # stays in rooms_ok either way.
+            old_lacks_nursery = all('nursery' not in h['view']['rooms'] and 'backyard' not in h['view']['rooms'] for h in snap_a['houses'].values())
+            if old_lacks_nursery:
+                gained = all(
+                    h['view']['rooms'].get('nursery') and [i['kind'] for i in h['view']['rooms']['nursery']['items']] == STARTER_KINDS
+                    and h['view']['rooms'].get('backyard', {}).get('items') == []
+                    and (h['view'].get('dogKennel') or None) is None
+                    for h in snap_b['houses'].values())
+                check('an old stored house gains a starter nursery and an empty backyard', gained, f'{n_items_a} items')
             check('every room is identical (items, positions, flips, paint, characters, cats, pets, kennel, cat tower)',
-                  rooms_ok and gained, ('; '.join(room_notes) + f' {n_items_a} items').strip())
+                  rooms_ok, ('; '.join(room_notes) + f' {n_items_a} items').strip())
             check('every kid identical (name, look, dog, basket, house)', snap_a['players'] == snap_b['players'])
             check('shared garden identical', snap_a['plots'] == snap_b['plots'])
             check('settings identical', snap_a['settings'] == snap_b['settings'])
@@ -254,15 +262,25 @@ async def main():
             check('roster + grown-up key still work (parent screen)', roster_a == roster_b and roster_b is not None, json.dumps(roster_b))
             await P.click('.hoodSheet [data-m="close"]')
             check('production data files were never modified (new server ran on a copy)', all(open(f'{M}/data/{f}').read() == v for f, v in files_a.items()))
-            check('an old stored house stays without a nursery on disk until the first edit', all('nursery' not in names and 'backyard' not in names for names in disk_room_names(M + '/data-new').values()) and disk_room_names(M + '/data-new') == disk_room_names(M + '/data'))
+            disk_before = disk_room_names(M + '/data')
+            disk_copy = disk_room_names(M + '/data-new')
+            if all('nursery' not in names and 'backyard' not in names for names in disk_before.values()):
+                check('an old stored house stays without a nursery on disk until the first edit', all('nursery' not in names and 'backyard' not in names for names in disk_copy.values()) and disk_copy == disk_before)
+            else:
+                check('an old stored house keeps the nursery already on disk until the first edit', disk_copy == disk_before, json.dumps({'before': disk_before, 'copy': disk_copy})[:300])
             # solo save from the old build, opened by the new build (not signed in)
             solo_ctx = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
             await solo_ctx.add_init_script("if (!sessionStorage.getItem('solo-set')) { sessionStorage.setItem('solo-set','1'); localStorage.setItem('cozy-whatsnew','999'); localStorage.setItem('cozy-house', " + json.dumps(json.dumps(solo_a)) + "); }")
             solo = await solo_ctx.new_page(); solo.on('pageerror', lambda e: errs.append('solo ' + str(e)))
             await solo.goto(f'{BASE}/kids-house-game/?hood=http://localhost:{PORT_HOOD}'); await solo.wait_for_selector('#stage .char'); await solo.wait_for_timeout(400)
             solo_now = await solo.evaluate("""() => { const s = __store.get(); return { v: s.version, old: Object.fromEntries(['living','bedroom','kitchen','salon'].map(r => [r, s.rooms[r].items.map(i => i.id)])), nursery: s.rooms.nursery.items.map(i => i.kind), tabs: [...document.querySelectorAll('.tab')].map(t => t.textContent.trim()) }; }""")
-            solo_old = {r: [i['id'] for i in solo_a['rooms'][r]['items']] for r in solo_a['rooms']}
-            check('an old solo save gains a nursery with starter pieces and loses nothing', solo_now['v'] == 3 and solo_now['nursery'] == STARTER_KINDS and all(sorted(solo_now['old'][r]) == sorted(solo_old[r]) for r in solo_old) and solo_now['tabs'][-1] == 'Nursery')
+            solo_old = {r: [i['id'] for i in solo_a['rooms'][r]['items']] for r in OLD_ROOMS}
+            rooms_kept = all(sorted(solo_now['old'][r]) == sorted(solo_old[r]) for r in OLD_ROOMS) and solo_now['tabs'][-1] == 'Nursery' and solo_now['v'] == 3
+            if 'nursery' not in solo_a['rooms']:
+                check('an old solo save gains a nursery with starter pieces and loses nothing', rooms_kept and solo_now['nursery'] == STARTER_KINDS)
+            else:
+                kept_kinds = [i['kind'] for i in solo_a['rooms']['nursery']['items']]
+                check('an old solo save keeps its nursery and loses nothing', rooms_kept and solo_now['nursery'] == kept_kinds, str(solo_now['nursery']))
             follow = await solo.evaluate("""() => { const s = __store.get(); const p = __pets(); return { kennel: s.dogKennel || null, name: s.dog && s.dog.name, following: p.dogs.indexOf('solo') >= 0, shown: p.kennel }; }""")
             check('an old save loads with the dog following', not follow['kennel'] and follow['name'] == 'Rocket' and follow['following'] and not follow['shown'], str(follow))
             await solo.evaluate("""() => __store.dispatch({type:'item/add', room:'nursery', item:{id:'solo-round', kind:'bunny-plush', x:420, y:500, flip:false}})""")
@@ -289,10 +307,14 @@ async def main():
                 for v in blob.values():
                     if isinstance(v, dict) and v.get('id') == k2house and isinstance(v.get('state'), dict):
                         disk_after = v['state']
+            k2_rooms = snap_a['houses'][k2house]['view']['rooms']
+            expect_kinds = [i['kind'] for i in k2_rooms['nursery']['items']] if 'nursery' in k2_rooms else STARTER_KINDS
+            after_items = (((disk_after or {}).get('rooms') or {}).get('nursery') or {}).get('items') or []
             check('the first edit writes the nursery onto the old stored house without dropping items',
-                  disk_after and any(i['id'] == 'friend-nur' for i in disk_after['rooms']['nursery']['items'])
-                  and [i['kind'] for i in disk_after['rooms']['nursery']['items'] if i['id'] != 'friend-nur'] == STARTER_KINDS
-                  and all(sorted(i['id'] for i in disk_after['rooms'][r]['items']) == sorted(before_items[r]) for r in OLD_ROOMS))
+                  bool(disk_after) and any(i['id'] == 'friend-nur' for i in after_items)
+                  and [i['kind'] for i in after_items if i['id'] != 'friend-nur'] == expect_kinds
+                  and all(sorted(i['id'] for i in disk_after['rooms'][r]['items']) == sorted(before_items[r]) for r in OLD_ROOMS),
+                  str([i.get('id') for i in after_items]))
             # Kennel the dog on the new build, then an old client edits the same house.
             await K2.evaluate("""() => { const h = __hood(), id = h.myHouseId();
               h.dispatch(id, {type:'item/add', room:'living', item:{id:'keep-kennel', kind:'kennel', x:1100, y:520, flip:false, z:1, scale:1}});
@@ -321,7 +343,10 @@ async def main():
             except Exception:
                 await P.screenshot(path='/tmp/mig-old-client.png'); raise
             old_tabs = await P.locator('.tab').all_inner_texts()
-            check('old client shows four tabs and does not draw the nursery', len(old_tabs) == 4 and not any('Nursery' in t for t in old_tabs), str(old_tabs))
+            if OLD_HAS_NURSERY:
+                check('old client shows the nursery it already knows', len(old_tabs) == 5 and any('Nursery' in t for t in old_tabs) and not old_errs, str(old_tabs))
+            else:
+                check('old client shows four tabs and does not draw the nursery', len(old_tabs) == 4 and not any('Nursery' in t for t in old_tabs), str(old_tabs))
             face = await P.evaluate("""() => { const svg = document.querySelector('.mapFace.mine svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
             check('old client draws the new kid without the chibi avatar', face is None and not old_errs, str(face) + ' ' + '; '.join(old_errs[:2]))
             os.makedirs('/opt/cursor/artifacts', exist_ok=True)
@@ -330,7 +355,11 @@ async def main():
             check('old client house body has no chibi markup', body is None and not old_errs, str(body))
             await P.screenshot(path='/opt/cursor/artifacts/old-client-view.png')
             await P.click('#btnMap'); await P.wait_for_timeout(500)
-            check('old client does not show mailboxes', await P.locator('.mapMail').count() == 0)
+            mailboxes = await P.locator('.mapMail').count()
+            if OLD_HAS_MAIL:
+                check('old client still draws the mailboxes it already knows', mailboxes >= 1, str(mailboxes))
+            else:
+                check('old client does not show mailboxes', mailboxes == 0)
             await P.evaluate("""() => {
               const L = __hood().players.get(__hood().pid).look;
               __hood().setLook({ skin: L.skin, hair: L.hair, hairStyle: L.hairStyle, shirt: '#80ed99', pants: L.pants, size: L.size, acc: L.acc });
@@ -370,7 +399,8 @@ async def main():
             await rpg.evaluate("""() => __store.dispatch({type:'room/wallpaper', room:'living', color:'#ddeeff'})""")
             await rpg.wait_for_timeout(500)
             kept = await rpg.evaluate("""() => { const s = JSON.parse(localStorage.getItem('cozy-house')); const mail = (s.mailbox && s.mailbox.letters || [])[0]; return { tabs: [...document.querySelectorAll('.tab')].length, nursery: (s.rooms.nursery.items || []).map(i => i.id), yard: (s.rooms.backyard.items || []).map(i => i.id), wall: s.rooms.living.wallpaper, kennel: s.dogKennel || null, kennelItem: (s.rooms.living.items || []).some(i => i.id === 'keep-kennel'), mail: mail && mail.text, boxes: document.querySelectorAll('.mapMail').length }; }""")
-            check('old client keeps a nursery that was already in the save', kept['tabs'] == 4 and kept['nursery'] == ['keep-crib'] and kept['yard'] == ['keep-yard'] and kept['wall'] == '#ddeeff' and kept['kennel'] and kept['kennel']['item'] == 'keep-kennel' and kept['kennelItem'] and kept['mail'] == 'Hi from the mailbox' and kept['boxes'] == 0 and not any(e.startswith('rollback') for e in old_errs), str(kept))
+            expect_tabs = 5 if OLD_HAS_NURSERY else 4
+            check('old client keeps a nursery that was already in the save', kept['tabs'] == expect_tabs and kept['nursery'] == ['keep-crib'] and kept['yard'] == ['keep-yard'] and kept['wall'] == '#ddeeff' and kept['kennel'] and kept['kennel']['item'] == 'keep-kennel' and kept['kennelItem'] and kept['mail'] == 'Hi from the mailbox' and kept['boxes'] == 0 and not any(e.startswith('rollback') for e in old_errs), str(kept))
             await rb.close()
             serve_build('/tmp/new-dist')
             # ================= Phase C: preview build on the same origin =================

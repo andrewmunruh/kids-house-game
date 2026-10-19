@@ -9,16 +9,25 @@ async def main():
         pg.on('response', lambda r: r.status >= 400 and bad.append((r.status, r.url)))
         await pg.goto(URL); await pg.evaluate("localStorage.clear()"); await pg.reload(); await pg.wait_for_timeout(800)
         n = await pg.evaluate("Object.keys(__items).length"); print('image items loaded:', n)
-        # 218 image items, plus 36 in the Cozy Cottage pack.
-        if n != 254: raise SystemExit(f'expected 254 pack items, got {n}')
+        # 218 image items, plus 36 in Cozy Cottage, plus 62 in Critter Corner.
+        if n != 316: raise SystemExit(f'expected 316 pack items, got {n}')
         print('tabs:', await pg.locator('.cat').evaluate_all("e=>e.map(x=>x.dataset.cat)"))
         # walk every tab under "All" and check every drawer image decodes
         broken = []; total = 0
-        for cat in await pg.locator('.cat').evaluate_all("e=>e.map(x=>x.dataset.cat)"):
-            await pg.click(f'.cat[data-cat="{cat}"]'); await pg.wait_for_timeout(150)
+        async def check_shelf():
+            nonlocal total, broken
             await pg.evaluate("Promise.all([...document.querySelectorAll('.shelf img')].map(i => i.decode().catch(()=>{})))")
             res = await pg.evaluate("[...document.querySelectorAll('.shelf img')].map(i => [i.alt, i.naturalWidth > 0])")
             total += len(res); broken += [a for a, ok in res if not ok]
+        for cat in await pg.locator('.cat').evaluate_all("e=>e.map(x=>x.dataset.cat)"):
+            await pg.click(f'.cat[data-cat="{cat}"]'); await pg.wait_for_timeout(150)
+            groups = await pg.locator('.shelfGroup').evaluate_all("e=>e.map(x=>x.dataset.group)")
+            if groups:
+                for g in groups:
+                    await pg.click(f'.shelfGroup[data-group="{g}"]'); await pg.wait_for_timeout(80)
+                    await check_shelf()
+            else:
+                await check_shelf()
         print('drawer images checked:', total, 'broken:', broken)
         # patterns
         await pg.click('[data-room="salon"]'); await pg.wait_for_timeout(400)
@@ -28,8 +37,8 @@ async def main():
         walls = await pg.locator('.dot.tile[data-act="wtile"]').count()
         floors = await pg.locator('.dot.tile[data-act="ftile"]').count()
         print('wall tiles:', walls, 'floor tiles:', floors)
-        # 9 wallpapers + 6 floors, plus Cozy Cottage's 6 wallpapers and 4 floors.
-        if walls != 15 or floors != 10: raise SystemExit(f'expected 15 wall / 10 floor tiles, got {walls} / {floors}')
+        # Welcome, Sunny, Glossy, Nursery, and Cottage, plus Critter Corner's 5 wallpapers and 4 floors.
+        if walls != 23 or floors != 16: raise SystemExit(f'expected 23 wall / 16 floor tiles, got {walls} / {floors}')
         await pg.click('.dot.tile[data-v="glossy/pink-hearts"]'); await pg.click('.dot.tile[data-v="glossy/pink-check-floor"]'); await pg.wait_for_timeout(500)
         await pg.screenshot(path='screens/19-paint-panel-pack-patterns.png')
         await pg.click('.close'); await pg.wait_for_timeout(500)
