@@ -44,26 +44,29 @@ ${hi('M22 52 Q48 44 66 48')}
 <circle cx="104" cy="28" r="3.4" fill="#f0c36a" ${S}/><circle cx="118" cy="24" r="3.4" fill="#f0c36a" ${S}/>
 ${hi('M114 36 V44')}`;
 
-// Tall stall standing on its tray: glass, curtain pulled aside, rain head.
-const shower = `${shadow(24, 14, 172)}
-<path d="M6 156 H42 L38 170 H10 Z" fill="#f7fbff" ${I}/>
-<path d="M26 158 H40 L38 168 H28 Z" fill="#c5d4e2"/>
-<rect x="12" y="36" width="26" height="122" rx="3" fill="#e7f6ff" ${I}/>
-<path d="M26 38 H36 V156 H26 Z" fill="#b7d4ea"/>
-${hi('M16 46 V146')}
-<rect x="30" y="96" width="5" height="4" rx="1.4" fill="#f0c36a" ${S}/>
-<rect x="4" y="28" width="40" height="6" rx="3" fill="#e7b56e" ${I}/>
-<path d="M28 29 H42 V33 H28 Z" fill="#c9924a"/>
-<circle cx="10" cy="31" r="1.5" fill="#f3d2aa" ${S}/><circle cx="18" cy="31" r="1.5" fill="#f3d2aa" ${S}/>
-<path d="M6 34 C4 72 5 124 8 158 C16 122 12 72 16 34 Z" fill="#ffb7cc" ${I}/>
-<path d="M11 36 C10 76 11 126 13 156 C17 124 15 76 18 36 Z" fill="#e888a8"/>
-${hi('M8 50 V132')}
-<rect x="19" y="8" width="6" height="18" rx="2" fill="#f4f7f8" ${S}/>
-<path d="M22 10 H25 V24 H22 Z" fill="#c5d0d8"/>
-<ellipse cx="22" cy="30" rx="8" ry="3.6" fill="#e8eef2" ${S}/>
-<path d="M26 28 H30 V32 H26 Z" fill="#c5d0d8"/>
-<circle cx="19" cy="29" r="1" fill="#7ec8e3"/><circle cx="22" cy="28" r="1" fill="#7ec8e3"/><circle cx="25" cy="29" r="1" fill="#7ec8e3"/>
-<path d="M17 40 V68 M22 40 V78 M27 40 V64" stroke="#7ec8e3" stroke-width="2.2" stroke-linecap="round"/>`;
+// Walk-in stall in three-quarter view: tiled back wall, right side wall, glass door, rain head, tray.
+const shower = `${shadow(46, 36, 188)}
+<path d="M2 164 H88 L80 190 H10 Z" fill="#f7fbff" ${I}/>
+<path d="M54 166 H86 L78 188 H56 Z" fill="#c5d4e2"/>
+<rect x="12" y="156" width="62" height="12" rx="2" fill="#d7eef8" ${S}/>
+<rect x="8" y="42" width="48" height="114" fill="#9fd4ea" ${I}/>
+<path d="M38 44 H54 V154 H38 Z" fill="#7eb8d4"/>
+<path d="M8 66 H54 M8 90 H54 M8 114 H54 M8 138 H54 M24 44 V154 M40 44 V154" stroke="${O}" stroke-width="2.2"/>
+<path d="M54 50 L80 64 L80 168 L54 154 Z" fill="#d7eaf4" ${I}/>
+<path d="M64 60 L78 70 L78 162 L64 150 Z" fill="#b7d0e0"/>
+<path d="M56 82 L78 94 M56 108 L78 120 M56 134 L78 146" stroke="${O}" stroke-width="2.2"/>
+<rect x="12" y="50" width="22" height="100" rx="2" fill="#f7fbff" ${I}/>
+<path d="M26 52 H32 V148 H26 Z" fill="#d5eaf4"/>
+${hi('M16 60 V138')}
+<rect x="18" y="92" width="4" height="16" rx="1.5" fill="#f0c36a" ${S}/>
+<rect x="62" y="16" width="6" height="30" rx="2" fill="#f4f7f8" ${S}/>
+<path d="M64 18 H68 V44 H64 Z" fill="#c5d0d8"/>
+<rect x="14" y="22" width="54" height="7" rx="3" fill="#e8eef2" ${I}/>
+<path d="M46 24 H66 V28 H46 Z" fill="#c5d0d8"/>
+<ellipse cx="18" cy="26" rx="16" ry="7" fill="#f4f7f8" ${S}/>
+<path d="M24 22 H34 V30 H24 Z" fill="#d5e0e8"/>
+<circle cx="10" cy="25" r="1.5" fill="#7ec8e3"/><circle cx="16" cy="24" r="1.5" fill="#7ec8e3"/><circle cx="22" cy="25" r="1.5" fill="#7ec8e3"/>
+<path d="M8 32 V56 M14 32 V68 M20 32 V52 M26 32 V62" stroke="#7ec8e3" stroke-width="2.2" stroke-linecap="round"/>`;
 
 // Cabinet, counter, inset basin and faucet, round mirror above.
 const vanity = `${shadow(40, 26, 116)}
@@ -110,7 +113,7 @@ ${hi('M8 24 H18')}
 ${hi('M34 58 Q42 54 48 56')}
 ${daisy(46, 59)}`;
 
-// Two rails the full height of the tile, four rungs, a towel in two tails.
+// Two rails, four rungs. Each towel folds over a rung and hangs as two straight tails.
 const ladder = `${shadow(26, 14, 124)}
 <path d="M8 4 H16 L18 120 H10 Z" fill="#f3d2aa" ${I}/>
 <path d="M13 6 H16 L18 118 H14 Z" fill="#e7b56e"/>
@@ -120,12 +123,14 @@ const ladder = `${shadow(26, 14, 124)}
 <rect x="12" y="44" width="29" height="5" rx="1.5" fill="#e7c49a" ${S}/>
 <rect x="11" y="66" width="30" height="5" rx="1.5" fill="#f0d2b0" ${S}/>
 <rect x="11" y="88" width="31" height="5" rx="1.5" fill="#e7c49a" ${S}/>
-<path d="M14 42 H40 L36 64 H30 L26 50 H22 L16 66 H14 Z" fill="#fff" ${I}/>
-<path d="M28 44 H38 L36 62 H30 Z" fill="#ffe4ea"/>
-<path d="M18 52 H26 M30 48 H36" stroke="#8ecae6" stroke-width="2.2" stroke-linecap="round"/>
-<path d="M14 62 H40 L36 96 H30 L24 74 H20 L14 98 Z" fill="#ffb7cc" ${I}/>
-<path d="M28 64 H38 L36 94 H30 Z" fill="#e888a8"/>
-${hi('M16 46 H26')}<path d="M12 14 H18" ${vein}/>`;
+<path d="M11 40 H41 V60 H33 V50 H21 V56 H11 Z" fill="#fff" ${I}/>
+<path d="M35 48 H41 V60 H35 Z" fill="#e4eef4"/>
+<path d="M14 50 H18 M34 52 H38" stroke="#8ecae6" stroke-width="2.2" stroke-linecap="round"/>
+${hi('M14 42 H28')}
+<path d="M11 64 H41 V98 H33 V74 H21 V90 H11 Z" fill="#ffb7cc" ${I}/>
+<path d="M35 72 H41 V98 H35 Z" fill="#e888a8"/>
+<path d="M14 80 H18 M34 84 H38" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+${hi('M14 66 H28')}<path d="M12 14 H18" ${vein}/>`;
 
 const towelBar = `<path d="M18 28 V18 H28 V28 M102 28 V18 H112 V28" fill="none" ${S}/>
 <path d="M16 30 H114" stroke="#d4a373" stroke-width="7" stroke-linecap="round"/>
@@ -408,12 +413,12 @@ ${hi('M38 74 H50')}`;
 
 export const BATHROOM_ITEMS: ItemDef[] = [
   { kind: 'clawfoot-tub', name: 'Clawfoot Tub', cat: 'furniture', w: 110, h: 100, vb: '0 0 140 100', svg: tub },
-  { kind: 'rain-shower', name: 'Rain Shower', cat: 'furniture', w: 68, h: 250, vb: '0 0 48 176', svg: shower },
-  { kind: 'mirror-vanity', name: 'Mirror Vanity', cat: 'furniture', w: 74, h: 150, vb: '0 0 80 120', svg: vanity },
-  { kind: 'little-toilet', name: 'Little Toilet', cat: 'furniture', w: 58, h: 90, vb: '0 0 78 120', svg: toilet },
+  { kind: 'rain-shower', name: 'Rain Shower', cat: 'furniture', w: 116, h: 250, vb: '0 0 90 194', svg: shower },
+  { kind: 'mirror-vanity', name: 'Mirror Vanity', cat: 'furniture', w: 88, h: 132, vb: '0 0 80 120', svg: vanity },
+  { kind: 'little-toilet', name: 'Little Toilet', cat: 'furniture', w: 72, h: 112, vb: '0 0 78 120', svg: toilet },
   { kind: 'towel-ladder', name: 'Towel Ladder', cat: 'furniture', w: 78, h: 192, vb: '0 0 52 128', svg: ladder },
   { kind: 'wall-towel-bar', name: 'Wall Towel Bar', cat: 'decor', w: 170, wall: true, vb: '0 0 130 100', svg: towelBar },
-  { kind: 'bath-cubby', name: 'Bath Cubby', cat: 'furniture', w: 62, h: 80, svg: cubby },
+  { kind: 'bath-cubby', name: 'Bath Cubby', cat: 'furniture', w: 62, h: 64, svg: cubby },
   { kind: 'clothes-hamper', name: 'Clothes Hamper', cat: 'furniture', w: 130, svg: hamper },
   { kind: 'sink-step', name: 'Sink Step', cat: 'furniture', w: 110, svg: step },
   { kind: 'linen-cupboard', name: 'Linen Cupboard', cat: 'furniture', w: 120, h: 180, vb: '0 0 80 120', svg: cupboard },
