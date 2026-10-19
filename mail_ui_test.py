@@ -123,6 +123,8 @@ async def presets_and_parent(P, k_house, suffix):
     }""")
     await P.reload()
     await P.wait_for_selector('body.view-map #btnParent', timeout=12000)
+    if await P.locator('#phoneOk').is_visible():
+        await P.click('#phoneOk', force=True)
     await P.click('#btnParent')
     await adult(P)
     await P.wait_for_selector('#parentMail')
