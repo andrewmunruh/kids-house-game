@@ -3,7 +3,7 @@ import './juice.css';
 import './scenery.css';
 import './mail.css';
 import './avatar.css';
-import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapTreesSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
+import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapTreesSVG, mapSkySVG, mapMeadowSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
 import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
 import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterChat, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, cleanPetName, CAT_NAMES, DOG_NAMES, PARK_W, PARK_SPOTS, SLIDE, DOG_AREA, mailIsFree, type Presence, type Bubble, type Look, type Fx } from './shared/hood';
@@ -112,7 +112,7 @@ app.innerHTML = `
     <button type="button" class="menuRow" id="btnPaint" aria-label="Colors"><span class="mIco">${ICON.paint}</span><span class="mLabel">Wall &amp; floor colors</span></button>
     <button type="button" class="menuRow" id="secrets" aria-label="Surprises, 0 of 5"><span class="mIco secGift">🎁</span><span class="mLabel"><span class="secWord">Surprises </span><span class="secCount">0/5</span></span></button>
     <p class="menuGroup houseGroup">House</p>
-    <button type="button" class="menuRow lockRow" id="btnLock" aria-label="Lock house"><span class="mIco" id="lockIco"></span><span class="mLabel" id="lockLabel">Lock my house</span></button>
+    <button type="button" class="menuRow lockRow" id="btnLock" aria-label="Lock house"><span class="mIco" id="lockIco">${ICONS.lockOff}</span><span class="mLabel" id="lockLabel">Lock my house</span></button>
     <button type="button" class="menuRow mailRow" id="btnMail" aria-label="Mailbox"><span class="mIco">${MAIL_ICON}</span><span class="mLabel">Mailbox</span><span class="menuNew" id="mailNew"></span></button>
     <!-- cursor/daynight-undo mounts Day / Night / Auto here. Hidden until that branch fills it. -->
     <div id="menuDaySlot" class="menuSlot" hidden></div>
@@ -161,7 +161,7 @@ app.innerHTML = `
 <div class="street park hidden" id="park"><div class="streetScroll" id="parkScroll"><div class="parkWorld" id="parkWorld"></div></div></div>
 <div class="street grRoom hidden" id="gameroom"><div class="streetScroll" id="grScroll"><div class="parkWorld grWorld" id="grWorld"></div></div><div id="grSolo" class="grSolo hidden">Play with friends on your street</div></div>
 <div id="tableOverlay" class="tableOverlay hidden"></div>
-<div class="street mapView hidden" id="street"><button class="mailCue" id="mailCue" type="button">You've got mail!</button><div class="mapWorld" id="mapWorld"></div></div>
+<div class="street mapView hidden" id="street"><div class="mapSky">${mapSkySVG}</div><div class="mapMeadow">${mapMeadowSVG}</div><button class="mailCue" id="mailCue" type="button">You've got mail!</button><div class="mapWorld" id="mapWorld"></div></div>
 <div class="chatTray hidden" id="chatTray"></div>
 <div class="sheet hidden" id="sheet"><div class="card" id="card"></div></div>
 <div class="fx" id="fx"></div>
@@ -1418,7 +1418,7 @@ type Place = { kind: 'house'; houseId: string; room?: RoomId } | { kind: 'home' 
 const mapAnchors = new Map<string, { x: number; y: number }>(); // where face markers stand for each place (map units)
 let mapKey = '';
 let fakeHouses = 0; // test hook only: draw a pretend street with this many houses
-/** Fit the whole street in the window. Empty bands stay as sky and grass, never a crop. */
+/** Fit the whole street in the window. Sky and grass around the card are scenery, never a crop. */
 function mapScale() {
   const r = $('street');
   const w = Math.max(1, r.clientWidth), h = Math.max(1, r.clientHeight);

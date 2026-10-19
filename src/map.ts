@@ -12,6 +12,8 @@ export const CLUB = { x: 400, y: 260 };
 export const BARN_PIN = { x: 905, y: 92 };
 
 const tree = (x: number, y: number, s = 1, c = '#5cc985') => `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cx="0" cy="22" rx="20" ry="6" fill="#000" opacity=".1"/><rect x="-5" y="2" width="10" height="20" rx="4" fill="#c99366" ${st(3)}/><circle cx="0" cy="-10" r="20" fill="${c}" ${st(3)}/><circle cx="-12" cy="-2" r="12" fill="${c}" ${st(3)}/><circle cx="12" cy="-3" r="13" fill="${c}" ${st(3)}/><circle cx="-5" cy="-16" r="5" fill="#fff" opacity=".35"/></g>`;
+const puff = (x: number, y: number, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})" fill="#fff"><ellipse cx="0" cy="10" rx="46" ry="22"/><ellipse cx="-36" cy="16" rx="28" ry="16"/><ellipse cx="38" cy="14" rx="30" ry="18"/><ellipse cx="10" cy="2" rx="24" ry="18"/></g>`;
+const bloom = (x: number, y: number, c: string, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})">${[0, 72, 144, 216, 288].map(a => `<circle cx="${(Math.cos(a * Math.PI / 180) * 8).toFixed(1)}" cy="${(Math.sin(a * Math.PI / 180) * 8).toFixed(1)}" r="6.5" fill="${c}" ${st(2)}/>`).join('')}<circle r="4.5" fill="#ffd43b" ${st(2)}/></g>`;
 const flower = (x: number, y: number, c: string) => `<g transform="translate(${x} ${y})">${[0, 72, 144, 216, 288].map(a => `<circle cx="${Math.cos(a * Math.PI / 180) * 4}" cy="${Math.sin(a * Math.PI / 180) * 4}" r="3.6" fill="${c}"/>`).join('')}<circle r="2.6" fill="#ffd43b"/></g>`;
 
 /** The ground: grass, meadows, a pond, the road, the town square with its fountain. */
@@ -48,6 +50,32 @@ export function mapTreesSVG(spots: { x: number; y: number; r: number }[], onRoad
   }
   return `<svg class="mapTrees" viewBox="0 0 ${MAP_W} ${MAP_H}" xmlns="http://www.w3.org/2000/svg">${out.join('')}</svg>`;
 }
+
+/** Sky behind a portrait letterbox. Clouds sit in the band above the map card. */
+export const mapSkySVG = `<svg class="mapSkyArt" viewBox="0 0 900 200" preserveAspectRatio="xMidYMin slice" aria-hidden="true">
+  ${puff(280, 28, 1.05)}${puff(430, 8, 0.8)}${puff(560, 36, 0.95)}
+  ${puff(250, 88, 0.75)}${puff(390, 108, 1.05)}${puff(540, 96, 0.85)}${puff(640, 78, 0.7)}
+  <g fill="none" stroke-linecap="round">
+    ${['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#4dabf7'].map((c, i) => `<path d="M300 ${118 + i * 6} A70 48 0 0 1 430 ${112 + i * 6}" stroke="${c}" stroke-width="5"/>`).join('')}
+  </g>
+</svg>`;
+
+/** Hills, a fence, and flowers in the grass band under the map card. */
+export const mapMeadowSVG = `<svg class="mapMeadowArt" viewBox="0 0 900 320" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+  <path d="M0 108 C 90 62 170 118 280 84 C 390 50 470 112 590 78 C 700 48 790 100 900 72 V 220 H0 Z" fill="#c9f2c4"/>
+  <path d="M0 148 C 130 108 250 168 400 132 C 540 100 680 168 900 128 V 260 H0 Z" fill="#9be39a"/>
+  <path d="M0 200 C 160 168 320 230 500 196 C 660 168 780 220 900 190 V 320 H0 Z" fill="#7dce78"/>
+  <g stroke="#c99366" stroke-width="7" stroke-linecap="round">
+    <path d="M16 168 H884"/><path d="M16 194 H884"/>
+    ${Array.from({ length: 17 }, (_, i) => `<path d="M${28 + i * 52} 146 V218"/>`).join('')}
+  </g>
+  <g stroke="#fff6e6" stroke-width="3" stroke-linecap="round" opacity=".9">
+    <path d="M16 164 H884"/><path d="M16 190 H884"/>
+  </g>
+  ${[[48, 188, '#ff8fab', 0.85], [120, 176, '#ffd43b', 0.7], [200, 198, '#b197fc', 0.9], [280, 172, '#ff8fab', 0.75], [360, 204, '#74c0fc', 0.8], [450, 178, '#ffd43b', 0.85], [530, 200, '#ff8fab', 0.75], [620, 174, '#b197fc', 0.8], [700, 196, '#69db7c', 0.7], [790, 180, '#ffd43b', 0.85]].map(([x, y, c, s]) => bloom(+x, +y, String(c), +s)).join('')}
+  ${[[80, 248, '#ff8fab'], [160, 268, '#b197fc'], [250, 242, '#ffd43b'], [340, 274, '#ff8fab'], [430, 250, '#74c0fc'], [520, 270, '#b197fc'], [610, 246, '#ffd43b'], [700, 272, '#ff8fab'], [790, 252, '#69db7c']].map(([x, y, c]) => bloom(+x, +y, String(c), 1.05)).join('')}
+  ${[[110, 304, '#ffd43b'], [230, 292, '#ff8fab'], [360, 308, '#b197fc'], [490, 294, '#74c0fc'], [620, 306, '#ff8fab'], [750, 296, '#ffd43b']].map(([x, y, c]) => bloom(+x, +y, String(c), 0.9)).join('')}
+</svg>`;
 
 /** The park from above-ish: lawn, swing set, slide, a tree. */
 export const parkMiniSVG = `<svg viewBox="0 0 200 170"><ellipse cx="100" cy="100" rx="94" ry="62" fill="#7fd68a" ${st()}/>

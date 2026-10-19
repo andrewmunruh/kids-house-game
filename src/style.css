@@ -191,7 +191,8 @@ body.mode-hood.own-house:not(.view-street) .ownOnly { display: block !important;
 body.has-hood:not(.mode-hood) .soloOnly { display: block !important; }
 body.view-street .streetOnly { display: block !important; }
 body.view-street .streetTitle { display: block !important; }
-body.view-street .tabs, body.view-street .minimap, body.view-street #btnPaint { display: none; }
+/* Room tabs belong inside a house. Ranch, Park, Clubhouse, and the Map show the place name. */
+body.view-street .tabs, body.view-street .minimap, body.view-street #btnPaint { display: none !important; }
 body.view-street .top { justify-content: space-between; }
 body.locked .drawer .cats, body.locked .drawer .rooms { opacity: .35; pointer-events: none; }
 body.locked #btnPaint { opacity: .4; }
@@ -589,10 +590,15 @@ body.view-ranch #btnHood, body.view-park #btnHood { display: none !important; }
 /* ===================== neighborhood map (preview-map) ===================== */
 .mapView { display: block; overflow: hidden; touch-action: none; overscroll-behavior: none;
   background:
-    radial-gradient(circle at 78% 18%, #fff6c2 0 22px, rgba(255,246,194,0) 26px),
-    linear-gradient(#8ecae6 0%, #d4f1ff 36%, #c9f2c4 36%, #7dce78 100%); }
+    radial-gradient(circle at 84% 7%, #fff6c2 0 26px, rgba(255,246,194,0) 30px),
+    linear-gradient(#8ecae6 0%, #d4f1ff 38%, #c9f2c4 38%, #7dce78 100%); }
 .mapView.hidden { display: none; }
-.mapWorld { position: relative; border-radius: calc(34px * var(--sc, 1)); box-shadow: 0 0 0 4px var(--ink), 0 10px 0 rgba(90,61,92,.18); transition: transform .36s cubic-bezier(.5,0,.75,0), opacity .36s ease-in; }
+/* The street stays fully on screen. These bands fill the sky and grass the card does not cover. */
+.mapSky, .mapMeadow { position: absolute; left: 0; right: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.mapSky { top: 0; height: 36%; }
+.mapMeadow { bottom: 0; height: 38%; }
+.mapSky svg, .mapMeadow svg { width: 100%; height: 100%; overflow: hidden; }
+.mapWorld { position: relative; z-index: 1; border-radius: calc(34px * var(--sc, 1)); box-shadow: 0 0 0 4px var(--ink), 0 10px 0 rgba(90,61,92,.18); transition: transform .36s cubic-bezier(.5,0,.75,0), opacity .36s ease-in; }
 .mapClip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
 .mapClip > svg, .mapWorld > svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
 .mapWorld.zoomIn { transform: scale(2.6); opacity: 0; }
