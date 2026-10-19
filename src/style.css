@@ -60,6 +60,8 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .shelf { flex: none; height: 112px; width: 100%; display: flex; gap: 12px; overflow-x: auto; padding: 8px 12px; background: rgba(255,255,255,.7); border-radius: 26px; border: 4px solid var(--ink); touch-action: pan-x; scrollbar-width: none; }
 .shelf::-webkit-scrollbar { display: none; }
 .thing { flex: 0 0 96px; height: 96px; background: #fff; border-radius: 22px; padding: 10px; box-shadow: 0 4px 0 #e6c9d8; transition: transform .15s; touch-action: none; }
+.shelfGroup { flex: 0 0 auto; align-self: center; min-width: 44px; min-height: 44px; height: 72px; padding: 0 14px; border-radius: 18px; background: #fff; border: 3px solid transparent; box-shadow: 0 3px 0 #e6c9d8; font-weight: 900; font-size: 15px; line-height: 1.1; white-space: nowrap; color: var(--ink); }
+.shelfGroup.on { background: #fff3b0; border-color: var(--ink); }
 .thing:active, .thing.pressed { transform: scale(.88) rotate(-4deg); }
 .ghost { position: fixed; z-index: 99999; pointer-events: none; filter: drop-shadow(0 12px 8px rgba(0,0,0,.2)); animation: wob .5s ease-in-out infinite alternate; }
 @keyframes wob { from { transform: rotate(-4deg) scale(1.05); } to { transform: rotate(4deg) scale(1.05); } }
@@ -721,6 +723,7 @@ body.view-street .stage { visibility: hidden; }
   body.phone .rf { min-width: 44px; min-height: 44px; flex: 0 0 auto; }
   body.phone .shelf { height: 80px; width: 100%; margin-right: 0; padding: 6px 8px; gap: 8px; }
   body.phone .thing { flex: 0 0 64px; width: 64px; height: 64px; min-width: 44px; min-height: 44px; padding: 6px; border-radius: 16px; }
+  body.phone .shelfGroup { height: 44px; min-height: 44px; font-size: 14px; padding: 0 10px; }
   body.phone.is-preview .shelf { width: 100%; margin-right: 0; }
   /* Top-left, clear of the mail composer's ✕ (that button sits in the top-right corner). */
   body.phone .previewRibbon { top: calc(var(--chrome-h, 48px) + 2px); left: max(0px, env(safe-area-inset-left)); right: auto; bottom: auto;
@@ -803,6 +806,7 @@ body.view-street .stage { visibility: hidden; }
   body.phone .tools { order: 3; margin-left: auto; }
   body.phone .shelf { height: 96px; }
   body.phone .thing { flex-basis: 76px; width: 76px; height: 76px; }
+  body.phone .shelfGroup { height: 56px; font-size: 14px; }
 }
 
 /* Landscape phone: one chrome row, a short drawer, arrows and Surprises on the edges,
@@ -819,6 +823,7 @@ body.view-street .stage { visibility: hidden; }
   body.phone .drawerTop { gap: 4px; }
   body.phone .shelf { height: 48px; padding: 0 6px; border-width: 2px; }
   body.phone .thing { flex-basis: 44px; width: 44px; height: 44px; padding: 2px; }
+  body.phone .shelfGroup { height: 44px; font-size: 13px; padding: 0 8px; }
   body.phone .stageWrap { margin: 0 2px; }
   body.phone .nudge { top: 50%; }
   body.phone .phoneNote { display: none !important; }

@@ -1,6 +1,6 @@
 // Nursery + backyard: missing rooms are filled without overwriting a stored room,
 // edits to both rooms are accepted, and an old client's save cannot drop them.
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { Neighborhood, type KV, type Conn } from '../server/core';
 import { NICKNAMES, PROTOCOL, cleanAction, cleanFx, cleanHouseState, cleanLook, cleanLookPatch, cleanPresence } from '../src/shared/hood';
 import { ensureRooms, initialState, migrate, reduce, type GameState } from '../src/shared/state';
@@ -197,8 +197,24 @@ async function main() {
 
   // Nursery shelf: pack items with no room used to default to "any" and leak in.
   // "any" may only be generic decor. Room-specific pieces keep the shelf they belong on.
-  const manifest = JSON.parse(readFileSync(new URL('../assets/items/manifest.json', import.meta.url), 'utf8')) as { slug: string; name: string; room?: string; category?: string; tag?: string; type?: string; pack?: string }[];
-  const patterns = JSON.parse(readFileSync(new URL('../assets/patterns/manifest.json', import.meta.url), 'utf8')) as { name: string; type?: string }[];
+  const manifestFiles = [new URL('../assets/items/manifest.json', import.meta.url)];
+  const packRoot = new URL('../assets/items/packs/', import.meta.url);
+  if (existsSync(packRoot)) {
+    for (const d of readdirSync(packRoot, { withFileTypes: true })) {
+      const file = new URL(`${d.name}/manifest.json`, packRoot);
+      if (d.isDirectory() && existsSync(file)) manifestFiles.push(file);
+    }
+  }
+  const manifest = manifestFiles.flatMap(file => JSON.parse(readFileSync(file, 'utf8')) as { slug: string; name: string; room?: string; category?: string; tag?: string; type?: string; pack?: string }[]);
+  const patternFiles = [new URL('../assets/patterns/manifest.json', import.meta.url)];
+  const patRoot = new URL('../assets/patterns/', import.meta.url);
+  if (existsSync(patRoot)) {
+    for (const d of readdirSync(patRoot, { withFileTypes: true })) {
+      const file = new URL(`${d.name}/manifest.json`, patRoot);
+      if (d.isDirectory() && existsSync(file)) patternFiles.push(file);
+    }
+  }
+  const patterns = patternFiles.flatMap(file => JSON.parse(readFileSync(file, 'utf8')) as { name: string; type?: string }[]);
   const genericDecor = (e: { name?: string; category?: string; tag?: string }) => {
     const tag = String(e.tag || '').toLowerCase(), cat = String(e.category || '').toLowerCase(), name = String(e.name || '').toLowerCase();
     if (cat === 'plants' || tag === 'plant' || tag === 'plants') return true;

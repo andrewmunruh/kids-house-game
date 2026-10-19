@@ -159,6 +159,7 @@ const stage = $('stage'), world = $('world'), layer = $('layer'), toolbar = $('t
 let selected: string | null = null;          // selected room item (UI only)
 let activeChar: string | null = store.get().characters[0]?.id ?? null; // character being edited (UI only)
 let currentTab = 'furniture';
+let packGroup = ''; // which shelf inside a grouped pack tab (Critter Corner's Nook, Den, …)
 let roomFilter = ''; // '' follows the room you're in; 'all' shows every room's things
 let tabMode = '';
 let uid = Date.now() % 100000;
@@ -945,8 +946,32 @@ function renderDrawer() {
     }
     return;
   }
-  const list = tabItems(currentTab);
-  if (!list.length) shelf.innerHTML = `<div class="empty">Nothing here yet!</div>`;
+  let list = tabItems(currentTab);
+  // Shelf groups belong to a pack tab. Category tabs still list every piece for the room,
+  // including ones that have no group, so a grouped pack cannot hide the older furniture.
+  const groups: string[] = [];
+  if (currentTab.startsWith('pack:')) {
+    for (const d of list) if (d.group && !groups.includes(d.group)) groups.push(d.group);
+  }
+  if (groups.length > 1) {
+    if (!groups.includes(packGroup)) packGroup = groups[0];
+    for (const name of groups) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'shelfGroup' + (name === packGroup ? ' on' : '');
+      b.dataset.group = name;
+      b.setAttribute('aria-label', name);
+      b.setAttribute('aria-pressed', name === packGroup ? 'true' : 'false');
+      b.textContent = name;
+      shelf.appendChild(b);
+    }
+    list = list.filter(d => d.group === packGroup);
+  }
+  if (!list.length && !groups.length) shelf.innerHTML = `<div class="empty">Nothing here yet!</div>`;
+  else if (!list.length) {
+    const empty = document.createElement('div'); empty.className = 'empty'; empty.textContent = 'Nothing here yet!';
+    shelf.appendChild(empty);
+  }
   for (const d of list) {
     const b = document.createElement('button'); b.className = 'thing'; b.setAttribute('aria-label', d.name);
     b.innerHTML = svgOf(d); shelf.appendChild(b); attachShelfDrag(b, d);
@@ -1065,7 +1090,11 @@ $('tabs').addEventListener('click', e => {
 });
 $('cats').addEventListener('click', e => {
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-cat]'); if (!b) return;
-  currentTab = b.dataset.cat!; sfx.click(); renderDrawer();
+  currentTab = b.dataset.cat!; packGroup = ''; sfx.click(); renderDrawer();
+});
+$('shelf').addEventListener('click', e => {
+  const b = (e.target as HTMLElement).closest<HTMLElement>('[data-group]'); if (!b) return;
+  packGroup = b.dataset.group || ''; sfx.click(); renderDrawer();
 });
 $('roomFilter').addEventListener('click', e => {
   const sec = (e.target as HTMLElement).closest<HTMLElement>('[data-cat]'); if (sec) { currentTab = sec.dataset.cat!; sfx.click(); renderDrawer(); return; }
