@@ -59,14 +59,14 @@ const shower = `${shadow(46, 36, 188)}
 <path d="M26 52 H32 V148 H26 Z" fill="#d5eaf4"/>
 ${hi('M16 60 V138')}
 <rect x="18" y="92" width="4" height="16" rx="1.5" fill="#f0c36a" ${S}/>
-<rect x="62" y="16" width="6" height="30" rx="2" fill="#f4f7f8" ${S}/>
-<path d="M64 18 H68 V44 H64 Z" fill="#c5d0d8"/>
-<rect x="14" y="22" width="54" height="7" rx="3" fill="#e8eef2" ${I}/>
-<path d="M46 24 H66 V28 H46 Z" fill="#c5d0d8"/>
-<ellipse cx="18" cy="26" rx="16" ry="7" fill="#f4f7f8" ${S}/>
-<path d="M24 22 H34 V30 H24 Z" fill="#d5e0e8"/>
-<circle cx="10" cy="25" r="1.5" fill="#7ec8e3"/><circle cx="16" cy="24" r="1.5" fill="#7ec8e3"/><circle cx="22" cy="25" r="1.5" fill="#7ec8e3"/>
-<path d="M8 32 V56 M14 32 V68 M20 32 V52 M26 32 V62" stroke="#7ec8e3" stroke-width="2.2" stroke-linecap="round"/>`;
+<rect x="44" y="48" width="8" height="10" rx="2" fill="#f4f7f8" ${S}/>
+<path d="M48 50 H52 V56 H48 Z" fill="#c5d0d8"/>
+<rect x="26" y="50" width="22" height="5" rx="2" fill="#e8eef2" ${S}/>
+<path d="M40 51 H46 V54 H40 Z" fill="#c5d0d8"/>
+<ellipse cx="26" cy="56" rx="10" ry="4.5" fill="#f4f7f8" ${S}/>
+<path d="M30 54 H36 V58 H30 Z" fill="#d5e0e8"/>
+<circle cx="20" cy="55" r="1.2" fill="#7ec8e3"/><circle cx="25" cy="54.5" r="1.2" fill="#7ec8e3"/><circle cx="30" cy="55" r="1.2" fill="#7ec8e3"/>
+<path d="M18 60 V84 M24 60 V96 M30 60 V80" stroke="#7ec8e3" stroke-width="2.2" stroke-linecap="round"/>`;
 
 // Cabinet, counter, inset basin and faucet, round mirror above.
 const vanity = `${shadow(40, 26, 116)}
@@ -113,7 +113,7 @@ ${hi('M8 24 H18')}
 ${hi('M34 58 Q42 54 48 56')}
 ${daisy(46, 59)}`;
 
-// Two rails, four rungs. Each towel folds over a rung and hangs as two straight tails.
+// Two rails, four rungs. Each towel is a rounded fold over a rung, sagging in the middle, with two soft tails.
 const ladder = `${shadow(26, 14, 124)}
 <path d="M8 4 H16 L18 120 H10 Z" fill="#f3d2aa" ${I}/>
 <path d="M13 6 H16 L18 118 H14 Z" fill="#e7b56e"/>
@@ -123,14 +123,13 @@ const ladder = `${shadow(26, 14, 124)}
 <rect x="12" y="44" width="29" height="5" rx="1.5" fill="#e7c49a" ${S}/>
 <rect x="11" y="66" width="30" height="5" rx="1.5" fill="#f0d2b0" ${S}/>
 <rect x="11" y="88" width="31" height="5" rx="1.5" fill="#e7c49a" ${S}/>
-<path d="M11 40 H41 V60 H33 V50 H21 V56 H11 Z" fill="#fff" ${I}/>
-<path d="M35 48 H41 V60 H35 Z" fill="#e4eef4"/>
-<path d="M14 50 H18 M34 52 H38" stroke="#8ecae6" stroke-width="2.2" stroke-linecap="round"/>
-${hi('M14 42 H28')}
-<path d="M11 64 H41 V98 H33 V74 H21 V90 H11 Z" fill="#ffb7cc" ${I}/>
-<path d="M35 72 H41 V98 H35 Z" fill="#e888a8"/>
-<path d="M14 80 H18 M34 84 H38" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
-${hi('M14 66 H28')}<path d="M12 14 H18" ${vein}/>`;
+<path d="M14 42 C18 36 34 36 38 42 C40 46 36 49 34 50 C32 58 31 62 29 63 C27 64 26 61 26 58 C26 52 25 51 24 53 C23 55 22 52 21 50 C18 46 14 48 14 42 Z" fill="#fff" ${I}/>
+<path d="M32 50 C34 56 33 62 32 63 C30 62 29 56 30 50 Z" fill="#e4eef4"/>
+<path d="M17 52 Q19 58 18 62 M31 54 Q33 60 32 63" stroke="#8ecae6" stroke-width="2.2" stroke-linecap="round"/>
+${hi('M18 40 Q26 37 32 40')}
+<path d="M14 64 C18 58 34 58 38 64 C40 68 36 72 33 74 C32 88 31 100 29 102 C27 104 25 100 26 92 C27 80 25 74 24 76 C23 80 21 96 19 98 C17 100 15 96 16 86 C16 76 14 70 14 64 Z" fill="#ffb7cc" ${I}/>
+<path d="M33 74 C35 86 34 100 32 102 C30 98 29 84 31 74 Z" fill="#e888a8"/>
+${hi('M18 63 Q26 60 32 63')}<path d="M12 14 H18" ${vein}/>`;
 
 const towelBar = `<path d="M18 28 V18 H28 V28 M102 28 V18 H112 V28" fill="none" ${S}/>
 <path d="M16 30 H114" stroke="#d4a373" stroke-width="7" stroke-linecap="round"/>
