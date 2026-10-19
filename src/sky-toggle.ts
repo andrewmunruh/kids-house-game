@@ -98,6 +98,8 @@ export function mountSkyToggle(host: HTMLElement): SkyHandle {
   } catch { /* old matchMedia */ }
   try { matchMedia(PHONE_MQ).addEventListener?.('change', () => dockSkyChrome()); } catch { /* old matchMedia */ }
   window.addEventListener('resize', () => dockSkyChrome());
+  // The map covers the drawer, so the sun/moon button has to hop back to the top bar.
+  new MutationObserver(() => dockSkyChrome()).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
   return {
     choice: () => choice,
@@ -108,25 +110,82 @@ export function mountSkyToggle(host: HTMLElement): SkyHandle {
 }
 
 /**
- * Phones have no spare pixels in the top bar, so the two mounts sit in the
- * scrolling decorate row (it does not grow the stage). iPad keeps them fixed
- * in the gaps of the top bar. The menu branch can move the nodes later.
+ * The top bar has no spare gap once Lock and Chat are showing, so in a house
+ * both mounts sit in the decorate row, after Play / Decorate. That row scrolls
+ * instead of growing, so the stage stays the same size. The map covers that
+ * row, so the sun/moon button returns to the top bar there. The menu branch
+ * can move the nodes later.
  */
 export function dockSkyChrome() {
   const sky = document.getElementById('skyMount');
   const undo = document.getElementById('undoMount');
   if (!sky || !undo) return;
-  const phone = document.body.classList.contains('phone');
+  const street = document.body.classList.contains('view-street');
   const bar = document.querySelector('.drawerTop');
   const app = document.getElementById('app');
-  if (phone && bar) {
+  if (!street && bar) {
     const mode = document.getElementById('modeToggle');
     if (mode && mode.parentElement === bar) {
       mode.after(sky);
       sky.after(undo);
     } else if (sky.parentElement !== bar) bar.append(sky, undo);
-  } else if (app && sky.parentElement !== app) {
+    sky.style.left = '';
+    sky.style.top = '';
+    undo.style.left = '';
+    undo.style.top = '';
+  } else if (app && (sky.parentElement !== app || undo.parentElement !== app)) {
     app.append(sky, undo);
+  }
+  if (street) placeStreetSky(sky);
+}
+
+/** The map title and the tool row change width together, so the sun/moon button takes the first free 44px slot in the top bar. */
+function placeStreetSky(sky: HTMLElement) {
+  const size = 44;
+  const gap = 6;
+  const blocks: { left: number; right: number; top: number; bottom: number }[] = [];
+  const title = document.querySelector('.streetTitle');
+  if (title && getComputedStyle(title).display !== 'none') {
+    const range = document.createRange();
+    range.selectNodeContents(title);
+    const r = range.getBoundingClientRect();
+    if (r.width > 2) blocks.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
+  }
+  const nodes = document.querySelectorAll('.tools button, .tab, #minimap');
+  for (let i = 0; i < nodes.length; i++) {
+    const el = nodes[i] as HTMLElement;
+    if (getComputedStyle(el).display === 'none') continue;
+    const r = el.getBoundingClientRect();
+    if (r.width > 2 && r.height > 2) blocks.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
+  }
+  const bar = document.querySelector('.top');
+  if (!bar) return;
+  const top = bar.getBoundingClientRect();
+  const hit = (x: number, y: number) => {
+    for (let i = 0; i < blocks.length; i++) {
+      const o = blocks[i];
+      if (x + size > o.left + 1 && x < o.right - 1 && y + size > o.top + 1 && y < o.bottom - 1) return true;
+    }
+    return false;
+  };
+  const spots: number[][] = [];
+  if (blocks.length) {
+    const words = blocks[0];
+    spots.push([words.right + gap, words.top + (words.bottom - words.top - size) / 2]);
+  }
+  const bottom = top.bottom;
+  for (let y = top.top; y + size <= bottom + 1; y += 4) {
+    for (let x = top.left + 2; x + size <= top.right - 2; x += 4) spots.push([x, y]);
+  }
+  for (let i = 0; i < spots.length; i++) {
+    const x = Math.round(Math.max(top.left, Math.min(spots[i][0], top.right - size)));
+    const y = Math.round(Math.max(0, spots[i][1]));
+    if (y + size > bottom + 2) continue;
+    if (!hit(x, y)) {
+      sky.style.left = x + 'px';
+      sky.style.top = y + 'px';
+      return;
+    }
   }
 }
 

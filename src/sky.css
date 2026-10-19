@@ -241,8 +241,9 @@ html[data-sky="golden"] .mapFace .fname {
   box-shadow: 0 0 10px 3px rgba(255, 232, 180, 0.95), 0 2px 0 rgba(90, 61, 92, 0.25);
 }
 
-/* Single mount points. Fixed in the top bar, off the stage. The menu branch can move the nodes.
-   1180: one gap before the minimap, one gap after it. */
+/* Single mount points. In a house they sit in the decorate row (the top bar has no
+   gap once Lock and Chat show). On the map the row is covered, so the sun/moon
+   button is fixed in the title gap. The menu branch can move the nodes. */
 #skyMount, #undoMount {
   position: fixed;
   z-index: 9600;
@@ -252,8 +253,16 @@ html[data-sky="golden"] .mapFace .fname {
   height: 44px;
 }
 #skyMount[hidden], #undoMount[hidden] { display: none !important; }
-body:not(.view-street) #skyMount { left: 564px; }
-body:not(.view-street) #undoMount { left: 792px; }
+.drawerTop > #skyMount,
+.drawerTop > #undoMount {
+  position: relative;
+  top: auto;
+  left: auto;
+  height: auto;
+  flex: 0 0 auto;
+  pointer-events: auto;
+  z-index: auto;
+}
 body.view-street #skyMount { left: 150px; }
 
 .skyBtn {
@@ -289,19 +298,13 @@ body.view-street #skyMount { left: 150px; }
 .undoBtn.is-empty { background: #fff; }
 .undoBtn:active { transform: scale(0.96); }
 
-/* 1024: the gaps sit closer together. */
+/* 1024: the map title is shorter, so the sun/moon button sits closer in. */
 @media (max-width: 1100px) and (min-width: 901px) {
-  #skyMount, #undoMount { top: 8px; }
-  body:not(.view-street) #skyMount { left: 470px; }
-  body:not(.view-street) #undoMount { left: 650px; }
-  body.view-street #skyMount { left: 136px; }
+  body.view-street #skyMount { top: 8px; left: 136px; }
 }
-/* 820×1180: the room tabs leave a hole before the minimap. */
+/* 820×1180: same, in the title gap. */
 @media (max-width: 900px) and (min-height: 700px) {
-  #skyMount, #undoMount { top: 3px; }
-  body:not(.view-street) #skyMount { left: 310px; }
-  body:not(.view-street) #undoMount { left: 358px; }
-  body.view-street #skyMount { left: 124px; }
+  body.view-street #skyMount { top: 3px; left: 124px; }
 }
 
 /* Phones: the top bar is full, so the mounts join the scrolling decorate row.
