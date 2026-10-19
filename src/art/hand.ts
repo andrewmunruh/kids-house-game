@@ -246,11 +246,11 @@ export const HAND: Record<string, V2Mark> = {
   `) },
 
   rocker: { vb: VB, body: pack(`
-    ${sh(50, 42)}
-    <path d="M8 66 C28 98 72 98 92 66 L86 60 C70 82 30 82 14 60 Z" fill="#d4b4e8" ${ink()}/>
-    <path d="M50 78 C64 70 80 62 92 66 L86 60 C74 64 62 72 50 74 Z" fill="#c49ad4"/>
-    <rect x="32" y="72" width="8" height="18" rx="3" fill="#ead8f6" ${ink(2.2)}/>
-    <rect x="60" y="72" width="8" height="18" rx="3" fill="#c49ad4" ${ink(2.2)}/>
+    ${sh(50, 30)}
+    <path d="M14 87 Q50 104 86 87 Q88 84 82 81 Q50 96 18 81 Q12 84 14 87 Z" fill="#d4b4e8" ${ink()}/>
+    <path d="M20 82 Q50 95 80 82" fill="none" stroke="#f6e9ff" stroke-width="2.4" stroke-linecap="round"/>
+    <rect x="34" y="74" width="7" height="16" rx="2.5" fill="#ead8f6" ${ink(2.2)}/>
+    <rect x="59" y="74" width="7" height="16" rx="2.5" fill="#c49ad4" ${ink(2.2)}/>
     <rect x="30" y="28" width="40" height="36" rx="12" fill="#f3e4ff" ${ink()}/>
     <rect x="52" y="32" width="16" height="28" rx="8" fill="#c49ad4"/>
     <path d="M20 48 Q16 70 30 80 H70 Q84 70 80 48 Z" fill="#fff" ${ink()}/>
