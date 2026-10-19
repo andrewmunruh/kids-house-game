@@ -94,8 +94,6 @@ function armPart(side: 'l' | 'r'): string {
   const wx = hx - m, wy = hy - 7;
   const t = -m;
   let out = `<path d="${taper([sx, sy], [wx, wy], 18, 13, -3 * m)}" fill="var(--skin)" ${S(3)}/>`;
-  const ex = (sx + wx) / 2 + 2 * m, ey = (sy + wy) / 2;
-  out += `<path d="M${f(sx + 3 * m)} ${f(sy + 10)} Q${f(ex)} ${f(ey)} ${f(wx - m)} ${f(wy - 6)}" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".28"/>`;
   out += `<path class="hand" d="M${f(hx - 8)} ${f(hy - 4)} Q${f(hx - 8)} ${f(hy - 10)} ${f(hx)} ${f(hy - 10)} Q${f(hx + 8)} ${f(hy - 10)} ${f(hx + 8)} ${f(hy - 3)} Q${f(hx + 8.5)} ${f(hy + 9)} ${f(hx)} ${f(hy + 9.5)} Q${f(hx - 8.5)} ${f(hy + 9)} ${f(hx - 8)} ${f(hy - 4)} Z" fill="var(--skin)" ${S(2.8)}/>`;
   out += `<ellipse cx="${f(hx + 7 * t)}" cy="${f(hy - 1)}" rx="3.4" ry="5" fill="var(--skin)" ${S(2.4)} transform="rotate(${-20 * t} ${f(hx + 7 * t)} ${f(hy - 1)})"/>`;
   out += `<path d="M${f(hx - 3 * t)} ${f(hy + 3)} v4 M${f(hx + 0.5 * t)} ${f(hy + 3.5)} v4" stroke="var(--line)" stroke-width="1.5" stroke-linecap="round" opacity=".45"/>`;

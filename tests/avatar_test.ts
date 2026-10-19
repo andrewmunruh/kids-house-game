@@ -59,17 +59,23 @@ check('ride leg keeps the saddle class names', ride.indexOf('class="thigh cloth"
 const skirtRide = chibiRideLeg(fillLook2({ v: 1, bottom: 'skirt', dress: 'party', dressC: '#ffc2da', skin: '#ffe0c4' }));
 check('a dress drapes the riding thigh', skirtRide.indexOf('#ffc2da') >= 0 && skirtRide.indexOf('#ffe0c4') >= 0 && skirtRide.indexOf('class="dress"') >= 0);
 check('pants do not drape a skirt over the saddle', ride.indexOf('class="dress"') < 0);
-function pathYs(svg: string, cls: string): number[] {
+function pathPairs(svg: string, cls: string): { xs: number[]; ys: number[] } {
   const m = svg.match(new RegExp('class="' + cls + '" d="([^"]+)"'));
   const n = m ? (m[1].match(/-?\d*\.?\d+/g) || []).map(Number) : [];
-  const ys: number[] = [];
-  for (let i = 1; i < n.length; i += 2) ys.push(n[i]);
-  return ys;
+  const xs: number[] = [], ys: number[] = [];
+  for (let i = 0; i + 1 < n.length; i += 2) { xs.push(n[i]); ys.push(n[i + 1]); }
+  return { xs, ys };
 }
-const thighYs = pathYs(ride, 'thigh cloth');
-const shinYs = pathYs(ride, 'shin cloth');
-check('the near leg bends from the saddle down to the belly',
-  thighYs.length > 1 && Math.max(...thighYs) - Math.min(...thighYs) < 20 && Math.max(...shinYs) >= 98 && Math.max(...shinYs) - Math.min(...shinYs) > 24);
+const thigh = pathPairs(ride, 'thigh cloth');
+const shin = pathPairs(ride, 'shin cloth');
+const shoe = pathPairs(ride, 'shoe');
+const dressRide = chibiRideLeg(fillLook2({ v: 1, dress: 'twirl', dressC: '#f4a3c8', skin: '#c68642', shoes: 'boots', shoesC: '#5a3d5c' }));
+const drape = pathPairs(dressRide, 'dress');
+const span = (ns: number[]) => Math.max(...ns) - Math.min(...ns);
+check('the near leg is a short bend that stops mid-side',
+  span(thigh.xs) > span(thigh.ys) && span(shin.ys) > span(shin.xs) && span(shin.ys) > 8
+  && shoe.ys.length > 0 && Math.max(...shoe.ys) < 82 && Math.max(...shoe.ys) > 64);
+check('the skirt drape stays hip-wide', drape.xs.length > 1 && span(drape.xs) < 22 && dressRide.indexOf('stroke-width="12"') < 0 && dressRide.indexOf('stroke-width="11"') < 0);
 
 const ivy = chibiSVG(fillLook2({ v: 1, hair: 'pony', top: 'stripes', topC: '#ffffff', bottom: 'overalls', bottomC: '#ffd34e', shoes: 'boots', shoesC: '#ff9ec4', freckles: true }), { rich: true, uid: 'iv' });
 const ivyBottom = (ivy.split('data-layer="bottom"')[1] || '').split('data-layer=')[0];

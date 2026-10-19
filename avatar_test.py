@@ -227,6 +227,23 @@ async def ride_shot(b, name, dress):
     await pg.wait_for_timeout(250)
     path = f'{SHOT}/{name}'
     await pg.screenshot(path=path)
+    zoom = path.replace('.png', '-zoom.png')
+    clip = await pg.evaluate("""() => {
+      const av = document.querySelector('.savatar.riding.mine');
+      const mount = av && av.querySelector('.mount');
+      if (!av || !mount) return null;
+      const a = av.getBoundingClientRect(), m = mount.getBoundingClientRect();
+      const left = Math.max(0, Math.min(a.left, m.left) - 12);
+      const top = Math.max(0, Math.min(a.top, m.top) - 12);
+      const right = Math.min(window.innerWidth, Math.max(a.right, m.right) + 12);
+      const bottom = Math.min(window.innerHeight, Math.max(a.bottom, m.bottom) + 12);
+      return { x: left, y: top, width: right - left, height: bottom - top };
+    }""")
+    if clip and clip['width'] > 40 and clip['height'] > 40:
+        raw = '/tmp/ride-zoom-raw.png'
+        await pg.screenshot(path=raw, clip=clip)
+        subprocess.check_call(['ffmpeg', '-y', '-i', raw, '-vf', 'scale=iw*2:ih*2', '-frames:v', '1', zoom], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        check(name.replace('.png', '') + ' zoom covers the rider', os.path.getsize(zoom) > 8000)
     pose = await pg.evaluate("""() => {
       const av = document.querySelector('.savatar.riding.mine');
       if (!av) return null;
