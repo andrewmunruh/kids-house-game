@@ -218,7 +218,9 @@ async def main():
                 if fields or rooms or towers or set(OLD_ROOMS) - set(shared):
                     rooms_ok = False
                     room_notes.append(f'{hid}: fields={fields} rooms={rooms} towers={towers}')
-            gained = all(
+            # Production (cfc0e4a) already stores a nursery and a backyard. Older baselines gain them here.
+            already = all('nursery' in h['view']['rooms'] and 'backyard' in h['view']['rooms'] for h in snap_a['houses'].values())
+            gained = already or all(
                 h['view']['rooms'].get('nursery') and [i['kind'] for i in h['view']['rooms']['nursery']['items']] == STARTER_KINDS
                 and h['view']['rooms'].get('backyard', {}).get('items') == []
                 and (h['view'].get('dogKennel') or None) is None
@@ -254,14 +256,17 @@ async def main():
             check('roster + grown-up key still work (parent screen)', roster_a == roster_b and roster_b is not None, json.dumps(roster_b))
             await P.click('.hoodSheet [data-m="close"]')
             check('production data files were never modified (new server ran on a copy)', all(open(f'{M}/data/{f}').read() == v for f, v in files_a.items()))
-            check('an old stored house stays without a nursery on disk until the first edit', all('nursery' not in names and 'backyard' not in names for names in disk_room_names(M + '/data-new').values()) and disk_room_names(M + '/data-new') == disk_room_names(M + '/data'))
+            disk_old, disk_new = disk_room_names(M + '/data'), disk_room_names(M + '/data-new')
+            had_nursery = any('nursery' in names for names in disk_old.values())
+            check('stored rooms stay as production left them until the first edit',
+                  disk_new == disk_old and (had_nursery or all('nursery' not in names and 'backyard' not in names for names in disk_new.values())))
             # solo save from the old build, opened by the new build (not signed in)
             solo_ctx = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
             await solo_ctx.add_init_script("if (!sessionStorage.getItem('solo-set')) { sessionStorage.setItem('solo-set','1'); localStorage.setItem('cozy-whatsnew','999'); localStorage.setItem('cozy-house', " + json.dumps(json.dumps(solo_a)) + "); }")
             solo = await solo_ctx.new_page(); solo.on('pageerror', lambda e: errs.append('solo ' + str(e)))
             await solo.goto(f'{BASE}/kids-house-game/?hood=http://localhost:{PORT_HOOD}'); await solo.wait_for_selector('#stage .char'); await solo.wait_for_timeout(400)
             solo_now = await solo.evaluate("""() => { const s = __store.get(); return { v: s.version, old: Object.fromEntries(['living','bedroom','kitchen','salon'].map(r => [r, s.rooms[r].items.map(i => i.id)])), nursery: s.rooms.nursery.items.map(i => i.kind), tabs: [...document.querySelectorAll('.tab')].map(t => t.textContent.trim()) }; }""")
-            solo_old = {r: [i['id'] for i in solo_a['rooms'][r]['items']] for r in solo_a['rooms']}
+            solo_old = {r: [i['id'] for i in solo_a['rooms'][r]['items']] for r in solo_a['rooms'] if r in solo_now['old']}
             check('an old solo save gains a nursery with starter pieces and loses nothing', solo_now['v'] == 3 and solo_now['nursery'] == STARTER_KINDS and all(sorted(solo_now['old'][r]) == sorted(solo_old[r]) for r in solo_old) and solo_now['tabs'][-1] == 'Nursery')
             follow = await solo.evaluate("""() => { const s = __store.get(); const p = __pets(); return { kennel: s.dogKennel || null, name: s.dog && s.dog.name, following: p.dogs.indexOf('solo') >= 0, shown: p.kennel }; }""")
             check('an old save loads with the dog following', not follow['kennel'] and follow['name'] == 'Rocket' and follow['following'] and not follow['shown'], str(follow))
@@ -273,9 +278,9 @@ async def main():
             # street: first nursery edit writes the filled room, and the other iPad sees it
             k2house = ids_a[1][1]
             if not await P.evaluate("document.body.classList.contains('view-house') && __ui().currentHouseId === " + json.dumps(k2house)):
-                await P.click('#btnMap'); await P.wait_for_timeout(400); await P.click(f'.mapHouse[data-go="house:{k2house}"]'); await P.wait_for_timeout(800)
+                await to_map(P); await P.click(f'.mapHouse[data-go="house:{k2house}"]'); await P.wait_for_timeout(800)
             if (await K2.evaluate("__ui()")).get('currentHouseId') != k2house:
-                await K2.click('#btnMap'); await K2.wait_for_timeout(400); await K2.click('#mapWorld .mapHouse.mine'); await K2.wait_for_timeout(800)
+                await to_map(K2); await K2.click('#mapWorld .mapHouse.mine'); await K2.wait_for_timeout(800)
             before_items = {r: [i['id'] for i in snap_a['houses'][k2house]['view']['rooms'][r]['items']] for r in OLD_ROOMS}
             await K2.evaluate("""() => { const h = __hood(), id = h.myHouseId(); h.dispatch(id, {type:'item/add', room:'nursery', item:{id:'friend-nur', kind:'night-light', x:300, y:460, flip:false}}); h.dispatch(id, {type:'room/wallTile', room:'nursery', tile:'nursery/cloud-sky'}); }""")
             await K2.wait_for_timeout(800)
