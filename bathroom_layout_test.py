@@ -1,7 +1,7 @@
 # Bathroom starter. Every piece stays inside the stage at the seven sizes,
 # clear of the nav arrows and the Surprises chip. Wall pieces stay off the
-# window and off each other. Fresh page per size so the camera is the one
-# the room opens with.
+# window and off each other. The rug sits under the tub, and no other pair overlaps.
+# Fresh page per size so the camera is the one the room opens with.
 import asyncio, sys
 from playwright.async_api import async_playwright
 
@@ -36,6 +36,15 @@ CHECK = """() => {
     if (win && hits(a, win)) problems.push(walls[i].dataset.kind + ' hits window');
     for (let j = i + 1; j < walls.length; j++) {
       if (hits(a, walls[j].getBoundingClientRect())) problems.push(walls[i].dataset.kind + ' hits ' + walls[j].dataset.kind);
+    }
+  }
+  const rugPair = (a, b) => (a === 'puddle-mat' && b === 'clawfoot-tub') || (a === 'clawfoot-tub' && b === 'puddle-mat');
+  for (let i = 0; i < items.length; i++) {
+    for (let j = i + 1; j < items.length; j++) {
+      const ak = items[i].dataset.kind, bk = items[j].dataset.kind;
+      const overlap = hits(items[i].getBoundingClientRect(), items[j].getBoundingClientRect());
+      if (rugPair(ak, bk)) { if (!overlap) problems.push('rug misses tub'); }
+      else if (overlap) problems.push(ak + ' overlaps ' + bk);
     }
   }
   return { n: items.length, problems };

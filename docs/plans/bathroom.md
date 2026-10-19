@@ -31,12 +31,12 @@ Starter pieces match the approved mockup, and every box stays inside the stage a
 
 | kind | name | role |
 | --- | --- | --- |
-| `puddle-mat` | Puddle Bath Mat | the rug, in front of the tub |
-| `rain-shower` | Rain Shower | back-left |
-| `clawfoot-tub` | Clawfoot Tub | center-front |
-| `mirror-vanity` | Mirror Vanity | beside the toilet |
-| `little-toilet` | Little Toilet | beside the vanity |
-| `bath-cubby` | Bath Cubby | the small shelf |
+| `puddle-mat` | Puddle Bath Mat | under the tub, the only overlap |
+| `rain-shower` | Rain Shower | back-left, against the wall |
+| `clawfoot-tub` | Clawfoot Tub | center, clear of the shower |
+| `mirror-vanity` | Mirror Vanity | right wall, mirror above the cabinet |
+| `little-toilet` | Little Toilet | right front |
+| `bath-cubby` | Bath Cubby | far left front |
 
 `migrate` does not bump the version. A version-3 save with no bathroom key gains that starter and keeps every other room. `cleanHouseState` already rebuilds rooms from `ROOMS`, so once `bathroom` is on that list the new Worker keeps it, the same way it keeps a custom nursery.
 
