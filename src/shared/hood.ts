@@ -53,54 +53,43 @@ const EMAIL_RE = /\S+\s*(@|\(at\)|\sat\s)\s*\S+\s*(\.|\sdot\s)\s*\w{2,}/i;
 const HANDLE_RE = /@\w/;
 const ADDRESS_RE = /\b\d{1,6}\s+([a-z]+\s+){0,3}(street|st|road|rd|avenue|ave|lane|ln|drive|dr|court|ct|blvd|boulevard|way|place|pl|circle|cir|terrace|parkway|pkwy|highway|hwy|apt|apartment|unit)\b/i;
 
-const HELL_SAFE = /hello|shell|help|helmet|helicopter|helen|bushel/;
-const CONTRACTION = new Set(['ll', 're', 've', 'nt']);
-function collapseRuns(w: string): string {
-  return w.replace(/(.)\1+/g, '$1');
-}
-/** Whole-word hell / dumbass, including spaced, dotted, leet, and stretched spellings. hello, help, and dummy stay. */
-function explicitWords(raw: string): boolean {
-  const hellLeet: Record<string, string> = { '0': 'o', '1': 'l', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's', '!': 'i', '+': 't' };
-  const norm = raw.toLowerCase().replace(/[013457@$!+]/g, c => hellLeet[c] ?? c);
-  const hellToken = (w: string) => {
-    const c = collapseRuns(w);
-    if (HELL_SAFE.test(w) || HELL_SAFE.test(c)) return false;
-    let i = 0;
-    while ((i = c.indexOf('hel', i)) >= 0) {
-      const before = i > 0 ? c[i - 1] : '';
-      const after = c[i + 3] || '';
-      if (after !== 'o' && after !== 'p' && after !== 'i' && before !== 's') return true;
-      i += 3;
+// 1 maps to L here, so he11 is hell. The chat leet map maps 1 to I and must not change.
+const EXPLICIT_LEET: Record<string, string> = { '0': 'o', '1': 'l', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's', 'v': 'u' };
+function explicitToken(raw: string): boolean {
+  const mapped = raw.toLowerCase().replace(/[013457@$v]/g, c => EXPLICIT_LEET[c] ?? c);
+  if (!/^[a-z*]+$/.test(mapped)) return false;
+  const pos: number[] = [];
+  for (let i = 0; i < mapped.length; i++) if (mapped[i] === '*') pos.push(i);
+  if (pos.length > 2) return false;
+  const chars = mapped.split('');
+  const wordHit = (s: string) => (/^h+e+l+$/.test(s) && (s.match(/l/g) ?? []).length >= 2) || /^d+u+m+b+a+s+$/.test(s);
+  const walk = (n: number): boolean => {
+    if (n === pos.length) return wordHit(chars.join(''));
+    for (let a = 97; a <= 122; a++) {
+      chars[pos[n]] = String.fromCharCode(a);
+      if (walk(n + 1)) return true;
     }
     return false;
   };
-  const dumbassToken = (w: string) => {
-    const c = collapseRuns(w);
-    return c === 'dumbas' || (c.length > 6 && c.length <= 20 && c.endsWith('dumbas'));
+  return walk(0);
+}
+/** Whole token only: hell, dumbass, and stretched or leet forms (h3ll, he11, hellll, h*ll, dvmbass, d*mbass).
+ *  Single letters glue (h e l l, h.e.l.l). Neighbouring words do not, and hel inside a word does not. */
+function explicitWords(raw: string): boolean {
+  const parts = raw.toLowerCase().split(/[^a-z0-9@$*]+/).filter(Boolean);
+  let buf = '';
+  const flush = () => {
+    const hit = buf.length >= 4 && explicitToken(buf);
+    buf = '';
+    return hit;
   };
-  const bags = [norm, norm.replace(/[^a-z\s]+/g, ''), norm.replace(/[^a-z\s]+/g, 'e'), norm.replace(/[^a-z\s]+/g, 'a')];
-  for (let b = 0; b < bags.length; b++) {
-    const words = bags[b].split(/[^a-z]+/).filter(Boolean);
-    let buf = '';
-    const hitBuf = () => {
-      const got = buf.length >= 3 && (hellToken(buf) || dumbassToken(buf));
-      buf = '';
-      return got;
-    };
-    for (let i = 0; i < words.length; i++) {
-      const w = words[i];
-      if (hellToken(w) || dumbassToken(w)) return true;
-      if (w.length === 1) buf += w;
-      else if (hitBuf()) return true;
-      const second = words[i + 1];
-      if (second && !CONTRACTION.has(second)) {
-        const glued = w + second;
-        if (hellToken(glued) || dumbassToken(glued)) return true;
-      }
-    }
-    if (hitBuf()) return true;
+  for (let i = 0; i < parts.length; i++) {
+    const w = parts[i];
+    if (explicitToken(w)) return true;
+    if (w.length === 1) buf += w;
+    else if (flush()) return true;
   }
-  return false;
+  return flush();
 }
 
 export type FilterResult = { ok: true; text: string } | { ok: false; reason: 'empty' | 'long' | 'link' | 'contact' | 'personal' | 'words' | 'mail' };
@@ -122,8 +111,16 @@ export function filterChat(raw: unknown, max = MAX_CHAT): FilterResult {
   const squashed = norm.replace(/[^a-z]/g, '').replace(/(.)\1{2,}/g, '$1$1');
   if (toks.some(t => BAD.includes(t) || BAD.includes(t.replace(/(.)\1+/g, '$1'))) || BAD.filter(b => b.length >= 5).some(b => squashed.includes(b)))
     return { ok: false, reason: 'words' };
-  if (explicitWords(text)) return { ok: false, reason: 'words' };
+  // Stored mail, pet names, kid names, and house names all come through here.
+  // A stricter rule belongs on a new bubble or a new letter, never on this re-read.
   return { ok: true, text };
+}
+/** A new chat bubble. Letters already block f*ck and kys; bubbles do too. Stored data stays on filterChat. */
+export function filterSay(raw: unknown, max = MAX_CHAT): FilterResult {
+  const f = filterChat(raw, max);
+  if (!f.ok) return f;
+  if (mailMean(f.text) || explicitWords(f.text)) return { ok: false, reason: 'words' };
+  return f;
 }
 export const FILTER_MSG: Record<string, string> = {
   long: 'That is a bit long!', link: 'No links, please!', contact: 'Keep numbers and contact info secret!', personal: 'Keep personal info secret!',
@@ -481,6 +478,8 @@ export function cleanHouseState(raw: any): GameState {
 export function cleanMailText(raw: unknown, roster: string[] = []): FilterResult {
   const f = filterChat(raw, MAIL_MAX);
   if (!f.ok) return f;
+  // New letters only. filterMailbox re-reads stored letters with filterChat, which stays the old rule.
+  if (explicitWords(f.text)) return { ok: false, reason: 'mail' };
   const text = stripUrls(f.text);
   if (!text || text !== f.text) return { ok: false, reason: 'link' };
   if (mailBlocked(typeof raw === 'string' ? raw : text, roster)) return { ok: false, reason: 'mail' };

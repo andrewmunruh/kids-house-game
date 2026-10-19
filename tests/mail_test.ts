@@ -1,7 +1,7 @@
 // Mailbox: filter, cap, expiry, rate limit, author stamp, owner-only reading, old clients.
 import { readFileSync } from 'node:fs';
 import { Neighborhood, type KV, type Conn } from '../server/core';
-import { FILTER_MSG, MAIL_FREE_DEFAULT, NICKNAMES, PROTOCOL, cleanMailText, filterChat, mailIsFree } from '../src/shared/hood';
+import { FILTER_MSG, MAIL_FREE_DEFAULT, NICKNAMES, PROTOCOL, cleanFirstName, cleanHouseName, cleanMailText, cleanPetName, filterChat, filterMailbox, filterSay, mailIsFree } from '../src/shared/hood';
 import { CATALOG_NAMES } from '../src/shared/catalog-names';
 import { initialState, type Cat } from '../src/shared/state';
 import { keepMailbox, stripUrls, MAIL_CAP, MAIL_MAX, MAIL_TTL_MS, type Letter } from '../src/shared/mail';
@@ -52,6 +52,9 @@ async function main() {
     'best way to play', 'cool drive in my house', 'Text me back with a letter', 'Text me back in the game', 'my favorite number is seven',
     'Come see my Ring Light!',
     'you are silly', 'you dummy', 'meanie', 'so stinky', 'hello friend', 'please help', 'a pretty seashell', 'dummmmy', 'he will come play',
+    'silly', 'dummy', 'stinky',
+    'the lamp is pretty', 'the lake', 'the last one', 'the leaf', 'the llama', 'wheel', 'haha he laughed', "Rachel's House",
+    'Rachel', 'Michelle', 'Chelsea', 'Ethel', 'Mitchell', 'hello', 'help', 'shell', 'heel', "he'll", "she'll", 'helicopter', 'Helen', 'gotohell', 'seashell',
     'seven', 'one two',
     ...CATALOG_NAMES.filter(n => n.length <= MAIL_MAX),
   ];
@@ -60,7 +63,7 @@ async function main() {
     'my favorite number is seven eight nine', 'one two three', 'call me with a letter', 'text me your phone',
     'Ring Light Smith', 'Emma Ring Light', 'Big Monitor street', 'Gaming Chair Lane 12', 'I live on Gaming Chair Lane',
     'fuck', 'nigger',
-    'go to hell', 'you dumbass', 'dumb ass', 'dumb@ss', 'h3ll', 'heeellll', 'h e l l', 'd.u.m.b.a.s.s', 'dumb-ass', 'go-to-hell', 'you are a dumbass', 'duuumbass', 'h*ll', 'helllll', 'gotohell',
+    'go to hell', 'go to hell!', 'go-to-hell', 'go.to.hell', 'you dumbass', 'dumb ass', 'dumb@ss', 'h3ll', 'he11', 'heeellll', 'hellll', 'h e l l', 'h.e.l.l', 'd.u.m.b.a.s.s', 'd u m b a s s', 'dumb-ass', 'you are a dumbass', 'duuumbass', 'h*ll', 'helllll', 'dvmbass', 'd*mbass', 'f*ck', 'kys',
   ];
   const rows: { text: string; want: string }[] = [
     ...blocked.map(text => ({ text, want: 'mail' })),
@@ -109,12 +112,25 @@ async function main() {
   const missingNames = [...expectNames].filter(n => !named.has(n));
   check('every catalog and pack name is allow-listed', missingNames.length === 0 && CATALOG_NAMES.length > 100, missingNames.slice(0, 8).join(' | '));
   check('trickier letters are blocked without naming the rule', blockedBad.length === 0 && alsoBad.length === 0 && phraseBad.length === 0 && tableBad.length === 0 && FILTER_MSG.mail === 'Oops, try different words!' && !/roblox|school|stupid|fat/i.test(FILTER_MSG.mail), blockedBad.concat(alsoBad, phraseBad, tableBad).join(' | '));
-  const explicit = ['go to hell', 'you dumbass', 'dumb ass', 'dumb@ss', 'h3ll', 'heeellll', 'h e l l', 'd.u.m.b.a.s.s', 'dumb-ass', 'h*ll', 'he11', 'd u m b a s s'];
-  const mild = ['you are silly', 'you dummy', 'meanie', 'so stinky', 'hello friend', 'please help', 'a pretty seashell', 'dummmmy'];
-  const explicitBad = explicit.filter(t => filterChat(t, 80).ok || cleanMailText(t, roster).ok);
-  const mildBad = mild.filter(t => !filterChat(t, 80).ok || !cleanMailText(t, roster).ok);
-  check('explicit words are blocked in chat and mail', explicitBad.length === 0, explicitBad.join(' | '));
+  const explicit = ['go to hell', 'go to hell!', 'go-to-hell', 'go.to.hell', 'you dumbass', 'dumb ass', 'dumb@ss', 'h3ll', 'he11', 'heeellll', 'hellll', 'h e l l', 'h.e.l.l', 'd.u.m.b.a.s.s', 'd u m b a s s', 'dumb-ass', 'h*ll', 'dvmbass', 'd*mbass', 'duuumbass', 'f*ck', 'kys'];
+  const mild = ['you are silly', 'you dummy', 'meanie', 'so stinky', 'silly', 'dummy', 'hello friend', 'please help', 'a pretty seashell', 'dummmmy'];
+  const safe = ['the lamp is pretty', 'the lake', 'the last one', 'the leaf', 'the llama', 'wheel', 'haha he laughed', "Rachel's House", 'Rachel', 'Michelle', 'Chelsea', 'Ethel', 'Mitchell', 'hello', 'help', 'seashell', "he'll", "she'll", 'heel', 'gotohell'];
+  const explicitBad = explicit.filter(t => filterSay(t, 80).ok || cleanMailText(t, roster).ok);
+  const mildBad = mild.filter(t => !filterSay(t, 80).ok || !cleanMailText(t, roster).ok || !filterChat(t, 80).ok);
+  const safeBad = safe.filter(t => !filterSay(t, 80).ok || !cleanMailText(t, roster).ok || !filterChat(t, 80).ok);
+  const storedStill = ['the lamp is pretty', 'I like your wheel', 'Rachel says hi', 'haha he laughed', 'go to hell', 'you dumbass', 'f*ck', 'kys', 'h3ll', 'Ethel', 'Mitchell'];
+  const storedBad = storedStill.filter(t => { const f = filterChat(t, 80); return !f.ok || f.text !== t; });
+  check('explicit words are blocked in new chat and new mail', explicitBad.length === 0, explicitBad.join(' | '));
   check('mild teases stay allowed in chat and mail', mildBad.length === 0, mildBad.join(' | '));
+  check('ordinary phrases and names stay allowed', safeBad.length === 0, safeBad.join(' | '));
+  check('the stored-mail rule is unchanged', storedBad.length === 0, storedBad.join(' | '));
+  const names = ['Rachel', 'Michelle', 'Chelsea', 'Ethel', 'Mitchell'];
+  const nameBad = names.filter(n => cleanFirstName(n) !== n || cleanPetName(n) !== n || cleanHouseName(n) !== n || cleanHouseName(n + "'s House") !== n + "'s House");
+  check('those names work for a kid, a pet, and a house', nameBad.length === 0, nameBad.join(' | '));
+  const four = ['the lamp is pretty', 'I like your wheel', 'Rachel says hi', 'haha he laughed'];
+  const fourLetters = four.map((text, i) => letter({ id: 'mkeep' + i + 'abcd', text, from: 'Rachel', fromPid: 'pkeepkid01' }));
+  const reloadedBox = filterMailbox({ letters: fourLetters });
+  check('a stored mailbox keeps those four letters exactly', JSON.stringify(reloadedBox?.letters) === JSON.stringify(fourLetters));
   check('ordinary letters still go through', allowedBad.length === 0, allowedBad.join(' | '));
   check('Ava Smith is blocked even when Ava is on the roster', cleanMailText('Ava Smith', ['Ava']).ok === false);
   check('five digits are still refused', cleanMailText('call 12345').ok === false);
@@ -350,6 +366,66 @@ async function main() {
   for (const text of shield) await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
   const offFails = fullKid.c.inbox.slice(offAt).filter(m => m.t === 'mailFail');
   check('those letters stay out when freeMail is off', hood.meta!.settings.freeMail === false && offFails.length === shield.length && offFails.every(m => m.reason === 'presetsOnly') && (live().mailbox?.letters.length ?? 0) === offBefore, offFails.map(m => m.reason).join(','));
+
+  await send(grown, { t: 'parent', key: parentKey, op: 'freeChat', on: true });
+  await send(grown, { t: 'parent', key: parentKey, op: 'freeMail', on: true });
+  const sayBlocked = ['go to hell', 'you dumbass', 'f*ck', 'kys', 'h3ll', 'dvmbass'];
+  const wordsBefore = fullKid.c.inbox.filter(m => m.t === 'sayFail' && m.reason === 'words').length;
+  for (const text of sayBlocked) await send(fullKid.c, { t: 'say', b: { kind: 'text', v: text } });
+  const sayWords = fullKid.c.inbox.filter(m => m.t === 'sayFail' && m.reason === 'words').length - wordsBefore;
+  await send(fullKid.c, { t: 'say', b: { kind: 'text', v: 'the lamp is pretty' } });
+  await send(fullKid.c, { t: 'say', b: { kind: 'text', v: 'you dummy' } });
+  check('new bubbles block what new letters block, and mild words still pass the filter', sayWords === sayBlocked.length && fullKid.c.last('sayFail')?.reason === 'nowhere', 'words=' + sayWords + ' last=' + fullKid.c.last('sayFail')?.reason);
+  await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'go to hell', color: 0, sticker: 0 });
+  await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'the lamp is pretty', color: 0, sticker: 0 });
+  check('a new letter blocks hell and keeps the lamp', fullKid.c.inbox.some(m => m.t === 'mailFail' && m.reason === 'mail') && live().mailbox?.letters.some(l => l.text === 'the lamp is pretty') && !live().mailbox?.letters.some(l => l.text === 'go to hell'));
+
+  const keepMem = new Map<string, any>();
+  const keepKv: KV = {
+    get: async k => keepMem.has(k) ? JSON.parse(JSON.stringify(keepMem.get(k))) : undefined,
+    put: async (k, v) => { keepMem.set(k, JSON.parse(JSON.stringify(v))); },
+    delete: async k => { keepMem.delete(k); },
+  };
+  const hid = 'hkeepmail1';
+  const keepHouse = {
+    id: hid, ownerId: 'pkeep1', name: "Rachel's House", locked: false, style: 0, slot: 0,
+    state: { ...initialState(), mailbox: { letters: fourLetters } },
+  };
+  await keepKv.put('meta', { code: 'KEEPMAIL', roster: names, createdAt: Date.now(), parentKeyHash: 'x', settings: { freeChat: true }, players: {}, houseOrder: [hid], nextStyle: 1 });
+  await keepKv.put('house:' + hid, keepHouse);
+  const keepHood = new Neighborhood(keepKv, { flushMs: 5 });
+  await keepHood.load();
+  const keptLetters = keepHood.houses.get(hid)!.state.mailbox!.letters;
+  check('reloading a house keeps those four letters exactly', JSON.stringify(keptLetters) === JSON.stringify(fourLetters));
+
+  const dogMem = new Map<string, any>();
+  const dogKv: KV = {
+    get: async k => dogMem.has(k) ? JSON.parse(JSON.stringify(dogMem.get(k))) : undefined,
+    put: async (k, v) => { dogMem.set(k, JSON.parse(JSON.stringify(v))); },
+    delete: async k => { dogMem.delete(k); },
+  };
+  const dogHood = new Neighborhood(dogKv, { flushMs: 5 });
+  const dogKey = await dogHood.init('ETHELDOG');
+  const dogKid = mk();
+  await dogHood.onConnect(dogKid);
+  const broughtPets = { ...initialState(), cat: { name: 'Mitchell', coat: 1, room: 'living' as const, x: 500 } };
+  await dogHood.onMessage(dogKid, JSON.stringify({ t: 'join', nickname: NICKNAMES[0], look, v: PROTOCOL, pet: 1, mail: 1, dog: { name: 'Ethel', breed: 0 }, house: broughtPets }));
+  const dogPid = dogKid.last('joined').pid as string;
+  const dogWelcome = dogKid.last('welcome');
+  const dogPlayer = (dogWelcome.players as any[]).find(p => p.pid === dogPid);
+  const dogHouse = (dogWelcome.houses as any[]).find(h => h.ownerId === dogPid);
+  check('a pet named Ethel survives the street join', dogPlayer?.dog?.name === 'Ethel' && dogPlayer?.dog?.breed === 0 && dogHouse?.state?.cat?.name === 'Mitchell');
+  await dogHood.onMessage(dogKid, JSON.stringify({ t: 'dog', dog: { name: 'Mitchell', breed: 2 } }));
+  await dogHood.onMessage(dogKid, JSON.stringify({ t: 'dog', dog: { name: 'Ethel', breed: 1 } }));
+  const dogs = dogKid.inbox.filter(m => m.t === 'players').map(m => (m.players as any[]).find(p => p.pid === dogPid)?.dog?.name);
+  check('dog updates for Ethel and Mitchell are accepted', dogs.slice(-2).join(',') === 'Mitchell,Ethel', dogs.join(','));
+  const grownDog = mk();
+  await dogHood.onConnect(grownDog);
+  for (const name of names) await dogHood.onMessage(grownDog, JSON.stringify({ t: 'parent', key: dogKey, op: 'rosterAdd', name }));
+  await dogHood.onMessage(grownDog, JSON.stringify({ t: 'parent', key: dogKey, op: 'rename', houseId: dogHouse.id, name: "Rachel's House" }));
+  const rosterNames = (grownDog.last('parentInfo')?.roster ?? []).map((r: { name: string }) => r.name);
+  const renamed = (grownDog.last('parentInfo')?.houses ?? []).find((h: { id: string }) => h.id === dogHouse.id)?.name;
+  check("Rachel, Michelle, Chelsea, Ethel and Mitchell are real names, and Rachel's House sticks", names.every(n => rosterNames.includes(n)) && renamed === "Rachel's House" && !grownDog.inbox.some(m => m.t === 'parentInfo' && m.note === 'badName'), rosterNames.join(',') + ' house=' + renamed);
 
   console.log(`${pass} passed`);
 }
