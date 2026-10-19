@@ -96,13 +96,19 @@ function fitFrames(): void {
     const scaler = frame.querySelector<HTMLElement>('.scaler');
     if (!world || !scaler) continue;
     const viewW = Number(frame.dataset.viewW);
-    const scale = Math.min(frame.clientWidth / viewW, frame.clientHeight / ROOM_H);
+    const innerW = frame.clientWidth;
+    if (innerW < 20) continue;
+    const scale = innerW / viewW;
+    const innerH = Math.round(ROOM_H * scale);
+    const border = frame.offsetHeight - frame.clientHeight;
+    frame.style.flex = '0 0 auto';
+    frame.style.height = (innerH + border) + 'px';
     world.style.width = viewW + 'px';
     world.style.height = ROOM_H + 'px';
     world.style.transformOrigin = '0 0';
     world.style.transform = 'scale(' + scale + ')';
-    scaler.style.width = (viewW * scale) + 'px';
-    scaler.style.height = (ROOM_H * scale) + 'px';
+    scaler.style.width = innerW + 'px';
+    scaler.style.height = innerH + 'px';
   }
 }
 

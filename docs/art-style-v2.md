@@ -75,9 +75,9 @@ Keep the shadow on the same spot as the old one (near y=97 in a 100-high viewBox
 Draw the thing the kid would name. A gloss line on the old shape is not a refresh.
 
 - Sofa: two seat cushions, piping, tuft buttons, curled arms, a patterned throw pillow.
-- Bed: a headboard with a heart cutout, a quilt pattern, a folded sheet.
-- Fridge: a separate freezer door, rounded chrome-pastel handles, a couple of magnets.
-- Rug: flat on the floor, a fringe, a pattern ring. Not a stack of ovals.
+- Bed: the original side view (headboard on the left, footboard on the right, pillow, duvet), plus a heart cutout, quilt diamonds, and a folded sheet edge.
+- Fridge: a closed freezer over a closed door, both solid pastel blue, with a highlight, handles, and a few magnets. Not glass shelves.
+- Rug: flat on the floor, a pattern ring, and short tassels lying flat at the left and right ends only, in the rug color. Not rays around the oval.
 - Table: a top with thickness, grain, and turned legs.
 - Shelf: books of different heights, a small plant or trophy, grain, a darker side board.
 - Lamp: a pleated shade and a warm pool of light at the opening.
@@ -133,9 +133,9 @@ The wardrobe file on disk is unchanged. The sample is an inline stand-in used on
 
 Rough numbers from `art-sample.html?view=bench` in headless Chrome on this build machine. This is not an iPad 10th gen. The bench builds a room layer, forces layout, then nudges that layer for about 70 frames. 48 items is a busy room. 80 is the room cap.
 
-Measured again after the pieces gained real parts and a side plane. One run in headless Chrome. While the layer was nudged, every case sat on the display refresh: p50 16.7 ms, p95 16.7–16.8 ms, max 16.8 ms, for the current art and the sample, at 48 items and at 80. Building the layer was 3.8 ms (48) and 4.6 ms (80) for the current art, and 5.5 ms (48) and 8.4 ms (80) for the sample. Both are under one frame, including at the room cap. The thing that would miss 60 fps on an iPad is a blur filter on every piece, and the sample does not use one.
+Measured again after the rug tassels, the side-view bed, and the closed fridge. One run in headless Chrome. While the layer was nudged, every case sat on the display refresh: p50 16.7 ms, p95 16.8 ms, max 16.8 ms, for the current art and the sample, at 48 items and at 80. Building the layer was 3.4 ms (48) and 3.8 ms (80) for the current art, and 4.9 ms (48) and 7.5 ms (80) for the sample. Both are under one frame, including at the room cap. The thing that would miss 60 fps on an iPad is a blur filter on every piece, and the sample does not use one.
 
-Markup per sample piece is 1090–2590 bytes (rug smallest, sofa largest).
+Markup per sample piece is 1071–2801 bytes (rug smallest, sofa largest).
 
 ## Pictures
 

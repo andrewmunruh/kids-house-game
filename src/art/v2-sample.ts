@@ -59,35 +59,37 @@ const MARKS: Record<string, V2Mark> = {
 
   bed: { vb: VB, body: pack(`
     ${shadow(50, 40)}
-    <path d="M8 56 V30 Q8 12 26 12 H74 Q92 12 92 30 V56 Z" fill="#f0c49a" ${ink()}/>
-    <path d="M60 18 H86 Q90 18 90 28 V50 H60 Z" fill="#d4925a"/>
-    <path d="M14 22 h16 M18 28 h10" fill="none" stroke="${O}" stroke-width="1.1" stroke-linecap="round" opacity=".22"/>
-    <path d="M50 26 C42 16 30 20 34 30 C36 36 44 40 50 48 C56 40 64 36 66 30 C70 20 58 16 50 26 Z" fill="#fff0f6" ${ink(2.4)}/>
-    <rect x="10" y="60" width="80" height="24" rx="6" fill="#c4b5fd" ${ink()}/>
-    <path d="M62 62 H84 V80 H62 Z" fill="#9a84e6"/>
-    <path d="M22 68 l6 5 -6 5 -6 -5 z M38 68 l6 5 -6 5 -6 -5 z M54 68 l6 5 -6 5 -6 -5 z" fill="#efe8ff" ${ink(1.6)}/>
-    <path d="M30 74 l6 5 -6 5 -6 -5 z M46 74 l6 5 -6 5 -6 -5 z" fill="#b7a6f5" ${ink(1.6)}/>
-    <path d="M10 52 h80 v12 q-10 8 -20 1 q-10 7 -20 -1 q-10 8 -20 0 q-10 7 -20 -1 v-11 z" fill="#fff" ${ink()}/>
-    <path d="M16 60 q10 5 18 0 q10 6 20 -1 q10 6 20 0" fill="none" stroke="#e4cdd6" stroke-width="1.4" stroke-linecap="round"/>
-    <rect x="16" y="44" width="28" height="16" rx="7" fill="#fff7f8" ${ink(2.2)}/>
-    <path d="M22 50 q8 4 14 0" fill="none" stroke="#f0b8c6" stroke-width="1.5" stroke-linecap="round"/>
-    <rect x="10" y="82" width="80" height="8" rx="3" fill="#e2b07a" ${ink(2.2)}/>
-    <rect x="62" y="83" width="24" height="6" rx="2" fill="#c4844c"/>
+    <rect x="4" y="22" width="18" height="72" rx="8" fill="#f0c49a" ${ink()}/>
+    <rect x="14" y="26" width="6" height="64" rx="3" fill="#d4925a"/>
+    <path d="M8 34 v14 M11 54 v12" fill="none" stroke="${O}" stroke-width="1" stroke-linecap="round" opacity=".2"/>
+    <path d="M13 36 C10.5 32 7 34 8.6 38.2 C9.6 40.6 12 43 13 45.2 C14 43 16.4 40.6 17.4 38.2 C19 34 15.5 32 13 36 Z" fill="#fff0f6" ${ink(1.8)}/>
+    <rect x="80" y="44" width="16" height="50" rx="7" fill="#e2b07a" ${ink()}/>
+    <rect x="88" y="48" width="6" height="42" rx="3" fill="#c4844c"/>
+    <rect x="14" y="54" width="76" height="30" rx="10" fill="#fff" ${ink()}/>
+    <rect x="40" y="50" width="54" height="36" rx="12" fill="#c4b5fd" ${ink()}/>
+    <rect x="74" y="54" width="16" height="28" rx="8" fill="#9a84e6"/>
+    <path d="M50 60 l4.5 4 -4.5 4 -4.5 -4 z M64 64 l4.5 4 -4.5 4 -4.5 -4 z M52 72 l4.5 4 -4.5 4 -4.5 -4 z" fill="#efe8ff" ${ink(1.5)}/>
+    <path d="M20 56 q14 8 26 1 q12 7 22 -1" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+    <path d="M22 58 q12 6 22 0 q10 6 18 0" fill="none" stroke="#f0c8d6" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="18" y="42" width="24" height="16" rx="8" fill="#fff7f8" ${ink()}/>
+    <path d="M24 48 q6 3 12 0" fill="none" stroke="#f0b8c6" stroke-width="1.5" stroke-linecap="round"/>
   `) },
 
   fridge: { vb: VB, body: pack(`
     ${shadow(50, 32)}
-    <rect x="16" y="6" width="68" height="86" rx="12" fill="#d7eeff" ${ink()}/>
-    <rect x="22" y="12" width="56" height="26" rx="6" fill="#f4fbff" ${ink(2.4)}/>
-    <rect x="58" y="15" width="16" height="20" rx="4" fill="#9ec8ea"/>
-    <rect x="22" y="44" width="56" height="42" rx="6" fill="#c5e4fb" ${ink(2.4)}/>
-    <rect x="58" y="48" width="16" height="34" rx="4" fill="#7eb4dc"/>
-    <rect x="68" y="18" width="7" height="14" rx="3.5" fill="#f4f1f8" ${ink(2)}/>
-    <rect x="69.4" y="20" width="2" height="8" rx="1" fill="#fff"/>
-    <rect x="68" y="52" width="7" height="20" rx="3.5" fill="#f4f1f8" ${ink(2)}/>
-    <rect x="69.4" y="56" width="2" height="12" rx="1" fill="#fff"/>
-    <path d="M34 56 C28 50 20 54 24 60 C26 64 32 68 34 68 C36 68 42 64 44 60 C48 54 40 50 34 56 Z" fill="#ff8fab" ${ink(2)}/>
-    <path d="M48 66 l2.6 5.2 5.6 .4 -4.2 3.6 1.4 5.4 -5.4 -3.2 -5.4 3.2 1.4 -5.4 -4.2 -3.6 5.6 -.4 z" fill="#ffd166" ${ink(2)}/>
+    <rect x="16" y="6" width="68" height="86" rx="14" fill="#c5e4fb" ${ink()}/>
+    <rect x="64" y="12" width="16" height="74" rx="6" fill="#7eb4dc"/>
+    <path d="M20 40 H80" ${ink()}/>
+    <path d="M24 16 v14" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" opacity=".8"/>
+    <path d="M24 50 v20" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" opacity=".75"/>
+    <rect x="70" y="18" width="6" height="14" rx="3" fill="#f4f1f8" ${ink(2)}/>
+    <rect x="71.2" y="20" width="1.8" height="8" rx="1" fill="#fff"/>
+    <rect x="70" y="52" width="6" height="20" rx="3" fill="#f4f1f8" ${ink(2)}/>
+    <rect x="71.2" y="56" width="1.8" height="12" rx="1" fill="#fff"/>
+    <path d="M34 54 C29 49 22 52 25 58 C27 61 32 65 34 65 C36 65 41 61 43 58 C46 52 39 49 34 54 Z" fill="#ff8fab" ${ink(2)}/>
+    <path d="M48 64 l2.4 4.8 5.2 .4 -4 3.4 1.2 5 -5 -3 -5 3 1.2 -5 -4 -3.4 5.2 -.4 z" fill="#ffd166" ${ink(2)}/>
+    <circle cx="34" cy="74" r="4.2" fill="#ffb3c6" ${ink(2)}/>
+    <circle cx="32.8" cy="72.8" r="1.2" fill="#fff" opacity=".8"/>
   `) },
 
   lamp: { vb: VB, body: pack(`
@@ -133,17 +135,18 @@ const MARKS: Record<string, V2Mark> = {
   `) },
 
   rug: { vb: VB, body: pack(`
-    <path d="M18 70 l-3 -3 M30 66 l-1 -4 M50 64 v-4 M70 66 l1 -4 M82 70 l3 -3 M12 78 l-4 0 M10 88 l-3 2 M22 94 l-2 3 M38 98 v3 M50 99 v3 M62 98 v3 M78 94 l2 3 M90 88 l3 2 M88 78 l4 0" fill="none" stroke="${O}" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M14 78 H6 M14 82 H5 M14 86 H6" fill="none" stroke="#ffb7cc" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M86 78 H94 M86 82 H95 M86 86 H94" fill="none" stroke="#e888a8" stroke-width="2.6" stroke-linecap="round"/>
     <ellipse cx="50" cy="82" rx="38" ry="11" fill="#ffc8dd" ${ink()}/>
-    <path d="M18 86 Q50 96 82 86 Q50 91 18 86 Z" fill="#e888a8"/>
-    <ellipse cx="50" cy="81" rx="30" ry="7" fill="none" stroke="#fff" stroke-width="2.2"/>
-    <ellipse cx="50" cy="81" rx="30" ry="7" fill="none" stroke="#e45d88" stroke-width="2.2" stroke-dasharray="1.2 3.2"/>
-    <ellipse cx="50" cy="81" rx="16" ry="4" fill="#fff6fa" ${ink(2)}/>
-    <circle cx="30" cy="79" r="2.2" fill="#ff8fab" ${ink(1.4)}/>
-    <circle cx="42" cy="84" r="2" fill="#bde0fe" ${ink(1.4)}/>
-    <circle cx="58" cy="76" r="2.1" fill="#ffd166" ${ink(1.4)}/>
-    <circle cx="70" cy="82" r="2" fill="#90e0a8" ${ink(1.4)}/>
-    <path d="M50 78 l1.2 2.4 2.6 .2 -2 1.8 .6 2.6 -2.4 -1.5 -2.4 1.5 .6 -2.6 -2 -1.8 2.6 -.2 z" fill="#ff8fab"/>
+    <path d="M18 86 Q50 95 82 86 Q50 90 18 86 Z" fill="#e888a8"/>
+    <ellipse cx="50" cy="81" rx="28" ry="6.5" fill="none" stroke="#fff" stroke-width="2"/>
+    <ellipse cx="50" cy="81" rx="28" ry="6.5" fill="none" stroke="#e45d88" stroke-width="2" stroke-dasharray="1.4 3.4"/>
+    <ellipse cx="50" cy="81" rx="14" ry="3.4" fill="#fff6fa" ${ink(2)}/>
+    <circle cx="32" cy="80" r="2" fill="#ff8fab"/>
+    <circle cx="44" cy="84" r="1.8" fill="#bde0fe"/>
+    <circle cx="58" cy="77" r="1.9" fill="#ffd166"/>
+    <circle cx="68" cy="82" r="1.8" fill="#90e0a8"/>
+    <path d="M50 79 l1.1 2.2 2.4 .2 -1.8 1.6 .6 2.4 -2.3 -1.4 -2.3 1.4 .6 -2.4 -1.8 -1.6 2.4 -.2 z" fill="#ff8fab"/>
   `) },
 
   plant: { vb: VB, body: pack(`
