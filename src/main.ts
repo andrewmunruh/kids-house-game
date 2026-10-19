@@ -29,7 +29,7 @@ import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
 import { emptyRoomStarters, syncScenery } from './scenery';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { isLightKind } from './sky';
-import { mountSkyToggle } from './sky-toggle';
+import { dockSkyChrome, mountSkyToggle } from './sky-toggle';
 import { DecorateUndo } from './decorate-undo';
 import { mountUndoButton } from './undo-button';
 import './sky.css';
@@ -2856,7 +2856,7 @@ undoRefresh = () => undoUi.refresh();
 decorateUndo.onChange = undoRefresh;
 (window as any).__sky = skyHandle;
 (window as any).__undoDepth = () => decorateUndo.depth;
-renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
+renderAll(); renderDrawer(); fit(); dockSkyChrome(); requestAnimationFrame(fit);
 // ---------- hidden surprises ----------
 const renderSecrets = () => {
   const n = foundSet().size, total = EGGS.length;

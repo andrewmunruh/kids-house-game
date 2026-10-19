@@ -79,7 +79,7 @@ export const clubhouseMiniSVG = `<svg viewBox="0 0 190 156">
   <rect x="78" y="78" width="34" height="30" rx="4" fill="#ff8ec8" ${st(3)}/>
   <path d="M95 86 C90 80 82 82 86 90 C90 96 95 100 95 100 C95 100 100 96 104 90 C108 82 100 80 95 86 Z" fill="#ff4d94" stroke="#fff" stroke-width="1.5"/>
   <rect x="42" y="74" width="22" height="16" rx="3" fill="#66d9e8" ${st(2)}/><rect x="126" y="74" width="22" height="16" rx="3" fill="#d0bfff" ${st(2)}/>
-  ${[36, 52, 68, 84, 100, 116, 132, 148].map((x, i) => `<circle cx="${x}" cy="58" r="3.2" fill="${['#ff7eb3', '#ffd43b', '#66d9e8', '#d0bfff'][i % 4]}" ${st(1.4)}/>`).join('')}
+  ${[36, 52, 68, 84, 100, 116, 132, 148].map((x, i) => `<circle class="clubBulb" cx="${x}" cy="58" r="3.2" fill="${['#ff7eb3', '#ffd43b', '#66d9e8', '#d0bfff'][i % 4]}" ${st(1.4)}/>`).join('')}
   <circle cx="154" cy="48" r="3" fill="#fff" opacity=".9"/><circle cx="40" cy="44" r="2.4" fill="#fff" opacity=".85"/>
 </svg>`;
 

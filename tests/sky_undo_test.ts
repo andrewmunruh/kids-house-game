@@ -14,11 +14,11 @@ const at = (h: number, min = 0) => new Date(2026, 5, 15, h, min, 0);
 const noon = skyLook(at(12), 'auto');
 check('noon is day with no veil', noon.phase === 'day' && noon.opacity === 0 && noon.glow === 0 && noon.stars === 0);
 const night = skyLook(at(3), 'auto');
-check('the middle of the night is cozy night', night.phase === 'night' && night.opacity > 0.25 && night.opacity < 0.4 && night.glow > 0.8 && night.stars > 0.8);
+check('the middle of the night is cozy night', night.phase === 'night' && night.opacity > 0.45 && night.opacity < 0.58 && night.map > night.opacity && night.glow > 0.8 && night.stars > 0.8 && night.glass > 0.9);
 const gold = skyLook(at(18, 10), 'auto');
-check('early evening is golden', gold.phase === 'golden' && gold.glow > 0.4 && gold.opacity > 0 && gold.opacity < 0.3);
+check('early evening is golden', gold.phase === 'golden' && gold.glow > 0.4 && gold.opacity > 0 && gold.opacity < 0.3 && gold.glass > 0.5);
 const dawn = skyLook(at(6, 25), 'auto');
-check('sunrise is dawn', dawn.phase === 'dawn' && dawn.opacity > 0 && dawn.opacity < night.opacity);
+check('sunrise is dawn', dawn.phase === 'dawn' && dawn.opacity > 0 && dawn.opacity < night.opacity && dawn.glass > 0.4);
 
 check('Day forces daylight at midnight', skyLook(at(0), 'day').phase === 'day' && skyLook(at(0), 'day').opacity === 0);
 check('Night forces night at noon', skyLook(at(12), 'night').phase === 'night' && skyLook(at(12), 'night').stars === 1);
@@ -32,8 +32,8 @@ for (let m = 10; m <= 24 * 60; m += 10) {
 }
 check('the clock eases from one part of the day to the next', smooth);
 
-check('lamps, windows, string lights and night-lights glow', isLightKind('lamp') && isLightKind('window') && isLightKind('pack:string-lights') && isLightKind('pack:moon-night-light') && isLightKind('pack:scent-candle', true));
-check('a sofa is not a light', !isLightKind('sofa') && !isLightKind('pack:cloud-rug'));
+check('lamps, windows, string lights, night-lights and the TV glow', isLightKind('lamp') && isLightKind('window') && isLightKind('tv') && isLightKind('pack:string-lights') && isLightKind('pack:moon-night-light') && isLightKind('pack:scent-candle', true));
+check('a sofa is not a light', !isLightKind('sofa') && !isLightKind('pack:cloud-rug') && !isLightKind('pack:tv-stand'));
 
 const stateSrc = readFileSync(new URL('../src/shared/state.ts', import.meta.url), 'utf8');
 const hoodSrc = readFileSync(new URL('../src/shared/hood.ts', import.meta.url), 'utf8');
