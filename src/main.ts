@@ -309,16 +309,9 @@ function placePhoneNudges() {
     }
     const stageBox = stage.getBoundingClientRect();
     const wrapBox = wrap.getBoundingClientRect();
-    // The back door sits on the wall. A centred arrow covers it on a portrait phone,
-    // so the arrows park on the floor, under the wall, where a tap still lands.
-    const wall = stageBox.top + stageBox.height * (390 / 600);
-    const floorMid = (Math.max(wall, stageBox.top) + stageBox.bottom) / 2;
-    let top = floorMid - n.offsetHeight / 2;
-    const minTop = wall + 6;
-    const maxTop = stageBox.bottom - n.offsetHeight - 4;
-    if (minTop <= maxTop) top = Math.min(maxTop, Math.max(minTop, top));
-    n.style.top = (top - wrapBox.top) + 'px';
-    n.style.marginTop = '0px';
+    const mid = (stageBox.top + stageBox.bottom) / 2 - wrapBox.top;
+    n.style.top = mid + 'px';
+    n.style.marginTop = (-n.offsetHeight / 2) + 'px';
     n.style.left = ''; n.style.right = '';
   }
 }
@@ -399,6 +392,12 @@ function phoneShowHouseKid() { frameHouseKid(false); }
 /** Pan so the kid and her name tag sit inside the stage. On a drop, step her inward if the camera is already at the end of the room. */
 function frameHouseKid(nudgeX: boolean) {
   if (view !== 'house') return;
+  // The yard camera is staged. Centring her here pans the starter bench off a phone.
+  if (store.get().currentRoom === 'backyard') {
+    if (Math.abs(camX - YARD_CAM) > 0.5) setCam(YARD_CAM);
+    placeYardHints();
+    return;
+  }
   const kid = document.querySelector<HTMLElement>('#layer .char.avatar.mine') ?? document.querySelector<HTMLElement>('#layer .char');
   if (!kid) return;
   const sc = stageScale() || 1;
@@ -952,7 +951,8 @@ function renderDrawer() {
   $('roomFilter').innerHTML = `<button class="rf ${all ? 'on' : ''}" data-rf="${all ? 'room' : 'all'}">${all ? 'Just ' + rname : 'All rooms'}</button>`;
   const hasSecrets = tabItems('secrets').length > 0;
   // Pack tabs stay on screen in every room (Glossy is all salon pieces, and kids still need to see it).
-  const visible = TABS.filter(t => t.id !== 'secrets' && (t.kind === 'people' || t.kind === 'pack' || tabItems(t.id).length));
+  // Indoors, pack tabs stay up even when this room has none of that pack. In the yard, an empty style tab is hidden.
+  const visible = TABS.filter(t => t.id !== 'secrets' && (t.kind === 'people' || (t.kind === 'pack' && room !== 'backyard') || tabItems(t.id).length));
   if (!(currentTab === 'secrets' && hasSecrets) && !visible.some(t => t.id === currentTab)) currentTab = visible[1]?.id ?? '__people';
   $('cats').innerHTML = visible.map(t => `<button class="cat ${t.kind} ${t.id === currentTab ? 'on' : ''}" data-cat="${t.id}" aria-label="${t.name}" title="${t.name}">${t.kind === 'people' ? PEOPLE_ICON : t.kind === 'pack' ? `<span class="packicon">${svgOf(ITEM_MAP[t.icon])}</span><span class="packname">${t.name}</span>` : svgOf(ITEM_MAP[t.icon])}</button>`).join('')
     + (hasSecrets ? `<button class="cat secretTab ${currentTab === 'secrets' ? 'on' : ''}" data-cat="secrets" aria-label="Secrets" title="Secrets">🎁</button>` : '');
@@ -2265,21 +2265,24 @@ function placeKennelBtn(btn: HTMLButtonElement) {
   };
   shove(kidR);
   shove(sofaR);
-  // The swing's frame is mostly air, so stepping off the first overlap can land the chip on the kid.
-  // Try seats around the dog and keep the one that stays on stage and off the pieces.
+  // Stay next to the dog, on the grass, not covering her body. A spot across the lawn is worse.
+  const body = dog.querySelector<HTMLElement>('.inner')?.getBoundingClientRect();
+  const bodyR = body && body.width > 2 ? body : dogR;
   const catR = layer.querySelector<HTMLElement>('.pet-cat')?.getBoundingClientRect();
   const sandR = layer.querySelector<HTMLElement>('.item[data-kind="sandbox"]')?.getBoundingClientRect();
   const hard = [kidR, sofaR, catR, sandR].filter((b): b is DOMRect => !!b && b.width > 2 && b.height > 2);
-  const soft = [...layer.querySelectorAll<HTMLElement>('.item')]
-    .filter(el => el.dataset.kind !== 'sofa' && el.dataset.kind !== 'sandbox')
-    .map(el => el.getBoundingClientRect())
-    .filter(b => b.width > 2 && b.height > 2);
   const home = new DOMRect(r.left + dx, r.top + dy, r.width, r.height);
-  const fits = (box: DOMRect) => box.left >= bounds.l - 0.5 && box.right <= bounds.r + 0.5 && box.top >= bounds.t - 0.5 && box.bottom <= bounds.b + 0.5 && hard.every(b => !hits(box, b));
-  const softArea = (box: DOMRect) => soft.reduce((n, b) => n + area(box, b), 0);
+  const dcx = bodyR.left + bodyR.width / 2, dcy = bodyR.top + bodyR.height / 2;
+  const near = (box: DOMRect) => Math.hypot(box.left + box.width / 2 - dcx, box.top + box.height / 2 - dcy);
+  const coversBody = (box: DOMRect) => {
+    const iw = Math.min(box.right, bodyR.right) - Math.max(box.left, bodyR.left);
+    const ih = Math.min(box.bottom, bodyR.bottom) - Math.max(box.top, bodyR.top);
+    return iw > 1 && ih > 1;
+  };
+  const fits = (box: DOMRect) => box.left >= bounds.l - 0.5 && box.right <= bounds.r + 0.5 && box.top >= bounds.t - 0.5 && box.bottom <= bounds.b + 0.5 && hard.every(b => !hits(box, b)) && !coversBody(box);
   let choice = home;
-  if (!fits(home) || softArea(home) > 0) {
-    const seats: DOMRect[] = [home];
+  if (!fits(home) || near(home) > 150) {
+    const seats: DOMRect[] = [];
     const park = (x: number, y: number) => {
       let nx = x, ny = y;
       if (nx < bounds.l) nx = bounds.l;
@@ -2288,31 +2291,23 @@ function placeKennelBtn(btn: HTMLButtonElement) {
       if (ny + r.height > bounds.b) ny = Math.max(bounds.t, bounds.b - r.height);
       seats.push(new DOMRect(nx, ny, r.width, r.height));
     };
-    for (const b of [...hard, ...soft]) {
-      park(b.right + 6, home.top);
-      park(b.left - 6 - r.width, home.top);
-      park(home.left, b.top - 6 - r.height);
-      park(home.left, b.bottom + 6);
-      park(b.right + 6, b.top + (b.height - r.height) / 2);
-      park(b.left - 6 - r.width, b.top + (b.height - r.height) / 2);
-      park(b.left + (b.width - r.width) / 2, b.top - 6 - r.height);
-      park(b.left + (b.width - r.width) / 2, b.bottom + 6);
-    }
-    const dcx = dogR.left + dogR.width / 2, dcy = dogR.top + dogR.height / 2;
-    for (const dist of [Math.max(r.width, 72), Math.max(r.width, 72) * 1.6]) {
+    park(bodyR.left + (bodyR.width - r.width) / 2, bodyR.top - r.height - 8);
+    park(bodyR.right - r.width, bodyR.top - r.height - 6);
+    park(bodyR.left, bodyR.top - r.height - 6);
+    park(bounds.r - r.width, bodyR.top - r.height - 6);
+    park(bodyR.right + 8, bodyR.top + (bodyR.height - r.height) / 2);
+    park(bodyR.left - r.width - 8, bodyR.top + (bodyR.height - r.height) / 2);
+    park(home.left, home.top);
+    for (const dist of [r.width * 0.65, r.width * 1.05, 88]) {
       for (let a = 0; a < 8; a++) {
         const ang = (a * Math.PI) / 4;
         park(dcx + Math.cos(ang) * dist - r.width / 2, dcy + Math.sin(ang) * dist - r.height / 2);
       }
     }
     let bestRank = Infinity;
-    const mustMove = !fits(home);
     for (const box of seats) {
-      if (!fits(box)) continue;
-      const d = Math.hypot(box.left - home.left, box.top - home.top);
-      if (!mustMove && d > 220) continue;
-      const v = Math.abs(box.top + box.height / 2 - dcy);
-      const rank = softArea(box) * 8 + d * 0.45 + v * 0.85;
+      if (!fits(box) || near(box) > 170) continue;
+      const rank = near(box);
       if (rank < bestRank) { bestRank = rank; choice = box; }
     }
   }
@@ -3083,18 +3078,20 @@ function goThroughYardDoor(go: 'backyard' | 'living') {
     const p = myPres();
     if (p && p.where === 'house') setMyPres({ ...p, room: go, x: spot.x, y: spot.y, flip: spot.flip });
   }
-  requestAnimationFrame(() => { if (yardOn) frameYardCam(); });
+  requestAnimationFrame(() => frameYardCam());
 }
 function frameYardCam() {
-  if (!yardOn || yardShot() === 'sheet' || yardShot() === 'compare') return;
-  if (store.get().currentRoom === 'backyard') setCam(YARD_CAM);
-  else {
-    const kid = store.get().characters.find(c => c.room === store.get().currentRoom);
-    if (kid) setCam(kid.x - VIEW_W / 2);
+  if (store.get().currentRoom === 'backyard') {
+    setCam(YARD_CAM);
+    placeYardHints();
+    return;
   }
+  if (!yardOn || yardShot() === 'sheet' || yardShot() === 'compare') return;
+  const kid = store.get().characters.find(c => c.room === store.get().currentRoom);
+  if (kid) setCam(kid.x - VIEW_W / 2);
   placeYardHints();
 }
-/** Pan so the whole back door and its label sit on the stage, clear of the pan arrows. */
+/** Slide the door, not the room, so the whole door and its label sit on the stage and clear of the pan arrows. The arrows stay where production puts them. */
 function placeYardHints() {
   const stageBox = stage.getBoundingClientRect();
   if (stageBox.width < 20) return;
@@ -3102,6 +3099,7 @@ function placeYardHints() {
   const doors = [...stage.querySelectorAll<HTMLElement>('.yardDoor')];
   for (const door of doors) {
     door.style.minWidth = '';
+    door.style.transform = '';
     const hint = door.querySelector<HTMLElement>('.yardHintLabel');
     if (!hint) continue;
     hint.style.transform = '';
@@ -3111,43 +3109,50 @@ function placeYardHints() {
   if (!door) return;
   const art = door.querySelector<HTMLElement>('.doorArt');
   const hint = door.querySelector<HTMLElement>('.yardHintLabel');
-  const parts = [door, art, hint].filter((el): el is HTMLElement => !!el);
-  const rects = parts.map(el => el.getBoundingClientRect()).filter(r => r.width > 2 && r.height > 2);
-  if (!rects.length) return;
-  let left = Math.min(...rects.map(r => r.left));
-  let right = Math.max(...rects.map(r => r.right));
-  const top = Math.min(...rects.map(r => r.top));
-  const bottom = Math.max(...rects.map(r => r.bottom));
   const pad = 6;
-  let leftLimit = stageBox.left + pad;
-  let rightLimit = stageBox.right - pad;
-  for (const id of ['nudgeL', 'nudgeR'] as const) {
-    const n = $(id);
-    if (!n || n.classList.contains('off') || n.offsetParent === null) continue;
-    const b = n.getBoundingClientRect();
-    if (b.width < 2 || b.height < 2) continue;
-    if (top >= b.bottom - 1 || bottom <= b.top + 1) continue;
-    if (id === 'nudgeL') leftLimit = Math.max(leftLimit, b.right + 8);
-    else rightLimit = Math.min(rightLimit, b.left - 8);
-  }
+  const limits = () => {
+    const box = stage.getBoundingClientRect();
+    const doorR = door.getBoundingClientRect();
+    const artR = art?.getBoundingClientRect();
+    const hintR = hint?.getBoundingClientRect();
+    const rects = [doorR, artR, hintR].filter((r): r is DOMRect => !!r && r.width > 2 && r.height > 2);
+    const top = Math.min(...rects.map(r => r.top));
+    const bottom = Math.max(...rects.map(r => r.bottom));
+    let leftLimit = box.left + pad;
+    let rightLimit = box.right - pad;
+    for (const id of ['nudgeL', 'nudgeR'] as const) {
+      const n = $(id);
+      if (!n || n.classList.contains('off') || n.offsetParent === null) continue;
+      const b = n.getBoundingClientRect();
+      if (b.width < 2 || b.height < 2) continue;
+      const hitsY = (r: DOMRect) => r.top < b.bottom - 1 && r.bottom > b.top + 1;
+      const blocked = [doorR, artR].some(r => r && r.width > 2 && hitsY(r));
+      if (!blocked && (top >= b.bottom - 1 || bottom <= b.top + 1)) continue;
+      if (id === 'nudgeL' && blocked) leftLimit = Math.max(leftLimit, b.right + 8);
+      else if (id === 'nudgeR' && blocked) rightLimit = Math.min(rightLimit, b.left - 8);
+    }
+    return { leftLimit, rightLimit, doorR, artR, hintR };
+  };
+  let guard = 0;
   let dx = 0;
-  if (left < leftLimit) dx += leftLimit - left;
-  if (right + dx > rightLimit) dx -= right + dx - rightLimit;
-  const artR = art?.getBoundingClientRect();
-  if (artR && artR.width > 2) {
-    if (artR.left + dx < leftLimit) dx += leftLimit - (artR.left + dx);
-    if (artR.right + dx > rightLimit) dx -= artR.right + dx - rightLimit;
+  while (guard++ < 4) {
+    const { leftLimit, rightLimit, doorR, artR } = limits();
+    let step = 0;
+    const left = Math.min(doorR.left, artR && artR.width > 2 ? artR.left : doorR.left);
+    const right = Math.max(doorR.right, artR && artR.width > 2 ? artR.right : doorR.right);
+    if (left < leftLimit) step += leftLimit - left;
+    if (right + step > rightLimit) step -= right + step - rightLimit;
+    if (Math.abs(step) < 0.5) break;
+    dx += step;
+    door.style.transform = `translate(${(dx / sc).toFixed(1)}px, 0)`;
   }
-  if (Math.abs(dx) > 0.5) setCam(camX - dx / sc);
   if (!hint) return;
   const h2 = hint.getBoundingClientRect();
   const stage2 = stage.getBoundingClientRect();
-  const ll = stage2.left + pad;
-  const rl = stage2.right - pad;
   let hx = 0;
-  if (h2.left < ll) hx = ll - h2.left;
-  else if (h2.right > rl) hx = rl - h2.right;
-  if (Math.abs(hx) > 0.5) hint.style.transform = `translateX(calc(-50% + ${hx / sc}px))`;
+  if (h2.left < stage2.left + pad) hx = stage2.left + pad - h2.left;
+  else if (h2.right > stage2.right - pad) hx = stage2.right - pad - h2.right;
+  if (Math.abs(hx) > 0.5) hint.style.transform = `translateX(calc(-50% + ${(hx / sc).toFixed(1)}px))`;
 }
 // ---------- hidden surprises ----------
 const renderSecrets = () => {

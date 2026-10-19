@@ -285,6 +285,7 @@ async def phone_pass(b, w, h, save):
     if not portrait: await stage_fill(pg, tag, w, h)
     if not portrait and (w, h) == (844, 390): await check_secrets_off_sky(pg, tag)
     elif not portrait: await check_secrets(pg, tag, short=False)
+    if (w, h) in ARROW_SIZES: await check_indoor_arrows(pg, tag)
     if (w, h) in ((390, 844), (844, 390)): await check_yard_door(pg, tag)
     if w in (375, 667): await living_room_one_line(pg, tag)
     if save: await shot(pg, f'house-{tag}')
@@ -785,6 +786,28 @@ def yard_door_js():
       };
     }"""
 
+# Indoor pan arrows, measured the way cfc0e4a draws them. iPad: top 230px inside the stage.
+# Phone: centred on the stage. Seven sizes: three iPads and four phones.
+ARROW_SIZES = {(1180, 820), (820, 1180), (1024, 768), (390, 844), (375, 667), (430, 932), (844, 390)}
+
+async def check_indoor_arrows(pg, tag):
+    """Living room arrows stay at the cfc0e4a position. The yard may slide its door; it does not move these."""
+    data = await pg.evaluate("""() => {
+      const stage = document.querySelector('.stage').getBoundingClientRect();
+      const mid = (stage.top + stage.bottom) / 2;
+      const arrows = ['nudgeL', 'nudgeR'].map(id => {
+        const n = document.getElementById(id);
+        const b = n.getBoundingClientRect();
+        return { top: getComputedStyle(n).top, inline: n.style.top, cy: (b.top + b.bottom) / 2 };
+      });
+      return { phone: document.body.classList.contains('phone'), room: __store.get().currentRoom, mid, arrows };
+    }""")
+    if data['phone']:
+        ok = data['room'] != 'backyard' and all(abs(a['cy'] - data['mid']) <= 4 for a in data['arrows'])
+    else:
+        ok = data['room'] != 'backyard' and all(a['top'] == '230px' and a['inline'] == '' for a in data['arrows'])
+    check(f'{tag} indoor pan arrows match production', ok, str(data))
+
 async def check_yard_door(pg, tag):
     """The whole door and its label sit on the stage, clear of the pan arrows."""
     box = await pg.evaluate(yard_door_js())
@@ -938,6 +961,7 @@ async def ipad_pass(b, w, h):
         check('ipad 820x1180 room tabs are at least 14px',
               tabs and all(t['font'] >= 14 and not t['clipped'] for t in tabs) and any(t['label'] == 'Living Room' and 'Living' in t['shown'] for t in tabs),
               str(tabs))
+    if (w, h) in ARROW_SIZES: await check_indoor_arrows(pg, tag)
     if (w, h) in ((820, 1180), (1180, 820)): await check_yard_door(pg, tag)
     if (w, h) == (1024, 768):
         chips = await pg.evaluate("""async () => {
@@ -1009,6 +1033,7 @@ async def yard_door_pass(browser, engine, w, h):
     await pg.goto(URL, wait_until='networkidle')
     await pg.wait_for_selector('#stage .char')
     await dismiss_note(pg)
+    if (w, h) in ARROW_SIZES: await check_indoor_arrows(pg, tag)
     await tap_yard_door(pg, tag)
     await ctx.close()
 
