@@ -240,7 +240,8 @@ async def flow(browser, w, h, tag):
         after = await K.evaluate("__store.get().rooms.living.items[0].x")
         shelf = await K.evaluate("getComputedStyle(document.querySelector('.shelf')).display")
         toggle = await K.evaluate("getComputedStyle(document.getElementById('modeToggle')).display")
-        check('play mode blocks a furniture drag and hides the shelf', before == after and shelf == 'none' and toggle !== 'none' and await K.evaluate("__ui().play") == 'play', f'{before}->{after} shelf={shelf} toggle={toggle}')
+        play = await K.evaluate("__ui().play")
+        check('play mode blocks a furniture drag and hides the shelf', before == after and shelf == 'none' and toggle != 'none' and play == 'play', f'{before}->{after} shelf={shelf} toggle={toggle}')
     await P.context.close()
     await K.context.close()
 
