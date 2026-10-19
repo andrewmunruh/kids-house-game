@@ -89,7 +89,7 @@ async function main() {
   const grab = (file: string) => {
     for (const m of readFileSync(file, 'utf8').matchAll(/name:\s*(?:'([^']*)'|"([^"]*)")/g)) expectNames.add(m[1] ?? m[2]);
   };
-  grab('src/items.ts'); grab('src/nursery.ts');
+  grab('src/items.ts'); grab('src/nursery.ts'); grab('src/yard.ts');
   for (const m of readFileSync('src/eggs.ts', 'utf8').matchAll(/item:\s*\{[^}]*name:\s*(?:'([^']*)'|"([^"]*)")/g)) expectNames.add(m[1] ?? m[2]);
   for (const kid of ['Cada', 'Sloane', 'Chloe', 'Quinn', 'Reagan']) expectNames.delete(kid);
   const missingNames = [...expectNames].filter(n => !named.has(n));
@@ -150,7 +150,7 @@ async function main() {
   const bytes = JSON.stringify(fat).length;
   console.log('worst-case house JSON bytes', bytes);
   check('a full mailbox stays under 400KB', bytes < 400_000, String(bytes));
-  check('play mode does not drag furniture', dragAllowed('play') === false && dragAllowed('decorate') === true && playGesture('bed') === 'sit' && playGesture('kennel') === 'kennel' && playGesture('lamp') === 'lamp' && playGesture('fridge') === 'open' && playGesture('plant') === 'wiggle');
+  check('play mode does not drag furniture', dragAllowed('play') === false && dragAllowed('decorate') === true && playGesture('bed') === 'sit' && playGesture('kennel') === 'kennel' && playGesture('lamp') === 'lamp' && playGesture('fridge') === 'open' && playGesture('plant') === 'wiggle' && playGesture('yard-swing') === 'swing' && playGesture('yard-bench') === 'sit' && playGesture('lemonade-cup') === 'wiggle');
 
   const cat: Cat = { name: 'Mochi', coat: 0, room: 'living', x: 900 };
   const t0 = 1_700_000_000_000;

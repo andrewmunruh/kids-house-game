@@ -26,7 +26,8 @@ import { catalogShows } from './roomfilter';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
-import { emptyRoomStarters, syncScenery } from './scenery';
+import { emptyRoomStarters, setRoomScenery, syncScenery } from './scenery';
+import { DOOR_CAT_X, DOOR_KID, YARD_CAM, YARD_CAT, YARD_KID, YARD_STAGE, registerYardItems, yardBackyardScenery, yardCompareHTML, yardDoorMarkup, yardLookPatch, yardPreviewOn, yardSheetHTML, yardShot } from './yard';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
@@ -58,6 +59,9 @@ const ROOMS: { id: RoomId; name: string; color: string }[] = [
   { id: 'nursery', name: 'Nursery', color: '#9ad7f5' },
 ];
 const roomColor = (r: string) => ROOMS.find(x => x.id === r)?.color ?? '#ccc';
+// ?yard=1 stages the approval shots. The catalog itself is always registered.
+const yardOn = yardPreviewOn();
+registerYardItems(ITEMS, ITEM_MAP);
 
 // ---------- drawer tabs: people, categories, then packs ----------
 type Tab = { id: string; name: string; icon: string; kind: 'people' | 'cat' | 'pack' };
@@ -278,6 +282,7 @@ function fit() {
   stage.style.left = '';
   stage.style.top = '';
   stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
+  stage.style.setProperty('--yard-sc', String(sc || 1));
   if (phone) stage.style.setProperty('--fit', String(stageScale()));
   placePhoneNudges();
   if (camX > maxCam()) setCam(camX);
@@ -290,6 +295,8 @@ function fit() {
   if (phone && view === 'ranch') layoutPaddock();
   placeSecretsPill();
   play.hint();
+  frameYardCam();
+  placeYardHints();
 }
 /** Phone arrows live on the wrap in screen pixels. Centre them on the stage. */
 function placePhoneNudges() {
@@ -311,8 +318,9 @@ function placePhoneNudges() {
 /**
  * Short phone landscape letterboxes the room. The full Surprises pill is wider than
  * that side gutter, so it becomes a 44px stack of the gift and the count. A gutter
- * under 44px cannot hold even that, so the pill joins the top row. iPad never has
- * body.phone, and taller landscape phones keep the centred label.
+ * under 44px cannot hold even that, so the pill joins the top row. 844×390 is wide
+ * enough to miss the 360px rule and still covers the sky, so it uses the same park.
+ * iPad never has body.phone, and taller landscape phones keep the centred label.
  */
 function placeSecretsPill() {
   const el = $('secrets');
@@ -320,7 +328,7 @@ function placeSecretsPill() {
   const tools = document.querySelector('.tools');
   const short = document.body.classList.contains('phone')
     && !document.body.classList.contains('phone-portrait')
-    && window.matchMedia('(orientation: landscape) and (max-height: 360px)').matches;
+    && window.matchMedia('(orientation: landscape) and (max-height: 360px), (orientation: landscape) and (max-height: 400px) and (min-width: 701px)').matches;
   el.classList.remove('compact');
   document.body.classList.remove('secrets-chrome');
   if (el.parentElement !== wrap) wrap.appendChild(el);
@@ -416,12 +424,13 @@ function frameHouseKid(nudgeX: boolean) {
   // Portrait: she starts right of centre, so her name tag crowds ›. Centre her in the gap between the arrows.
   if (document.body.classList.contains('phone-portrait') && minL < Infinity) {
     const delta = (minL + maxR) / 2 - (leftLimit + rightLimit) / 2;
-    if (Math.abs(delta) > 3) { setCam(camX + delta / sc); return; }
+    if (Math.abs(delta) > 3) { setCam(camX + delta / sc); placeYardHints(); return; }
   }
   const curX = kidWorldX(kid);
   const res = resolveFrame({ cam: camX, maxCam: maxCam(), kidX: curX, overflowL, overflowR, scale: sc, nudgeX });
   if (Math.abs(res.cam - camX) > 0.5) setCam(res.cam);
   if (nudgeX && Math.abs(res.kidX - curX) > 0.5) moveKidX(kid, res.kidX);
+  placeYardHints();
 }
 function kidWorldX(kid: HTMLElement): number {
   if (kid.dataset.pid && hood) {
@@ -543,7 +552,7 @@ function renderRoomBg(s: GameState) {
   floor.style.backgroundImage = ft ? `${cssUrl(ft.url)}, linear-gradient(rgba(0,0,0,.06), transparent 50%)` : FLOOR_BOARDS;
   floor.style.backgroundSize = ft ? '180px auto, auto' : 'auto';
   $('mmWall').style.background = room.wallpaper; $('mmFloor').style.background = room.floor;
-  syncScenery($('scenery'), s.currentRoom, room.items);
+  paintScenery(s);
 }
 function renderMinimap(s: GameState) {
   const room = s.rooms[s.currentRoom];
@@ -601,8 +610,21 @@ function renderItems(s: GameState) {
     el.classList.toggle('sel', selected === it.id);
   }
   layer.querySelectorAll<HTMLElement>('.item').forEach(el => { if (!seen.has(el.dataset.id!)) el.remove(); });
-  syncScenery($('scenery'), s.currentRoom, room.items);
+  paintScenery(s);
   renderToolbar(s); renderMinimap(s);
+}
+
+/** Indoor dressing, and the outdoor paint plus the back door when she is home. */
+function paintScenery(s: GameState) {
+  const room = s.rooms[s.currentRoom];
+  syncScenery($('scenery'), s.currentRoom, room.items);
+  const root = $('scenery');
+  root.querySelectorAll('.yardDoor').forEach(n => n.remove());
+  const html = s.currentRoom === 'backyard' ? yardDoorMarkup('yard') : s.currentRoom === 'living' ? yardDoorMarkup('living') : '';
+  if (html) root.insertAdjacentHTML('beforeend', html);
+  stage.classList.toggle('room-yard', s.currentRoom === 'backyard');
+  syncSwingPose();
+  placeYardHints();
 }
 
 const charEls = new Map<string, HTMLElement>();
@@ -637,6 +659,7 @@ function renderChars(s: GameState) {
     el.classList.toggle('flipped', c.flip);
     el.classList.toggle('active', c.id === activeChar);
     stampAvatar(el, c, c.id === activeChar);
+    el.classList.toggle('pose-swing', swingPose?.id === c.id);
     const pts = handsFor(c);
     el.style.setProperty('--hx-l', pts.left.x + '%');
     el.style.setProperty('--hx-r', pts.right.x + '%');
@@ -672,7 +695,9 @@ store.subscribe((s, a) => {
     case 'room/switch': if (hood && inner !== local) moveMeToRoom(a.room); renderAll(); renderDrawer(); break;
     case 'game/reset': renderAll(); break;
     case 'room/wallpaper': case 'room/floor': case 'room/pattern': case 'room/wallTile': case 'room/floorTile': renderRoomBg(s); break;
-    case 'char/update': case 'char/move': renderChars(s); if (view === 'ranch') renderRanchAvatars(); else if (view === 'park') renderParkAvatars(); break;
+    case 'char/update': case 'char/move':
+      if (a.type === 'char/move' && swingPose && !swingLock && a.id === swingPose.id) swingPose = null;
+      renderChars(s); syncSwingPose(); if (view === 'ranch') renderRanchAvatars(); else if (view === 'park') renderParkAvatars(); break;
     case 'char/add': case 'char/delete': case 'char/hold': case 'char/release': renderItems(s); renderChars(s); if (currentTab === '__people') renderDrawer(); break;
     case 'settings/sound': renderSoundBtn(s); break;
     default: renderItems(s);
@@ -858,8 +883,8 @@ function attachShelfDrag(btn: HTMLElement, def: ItemDef) {
         else if (inStage(ev.clientX, ev.clientY)) { const p = toRoom(ev.clientX, ev.clientY); x = p.x; y = snapY(def, p.y + hOf(def) * .2); }
         else return;
         const item: PlacedItem = { id: newId(def.kind.replace(/[^a-z0-9-]/gi, '')), kind: def.kind, x, y, flip: false, z: 0, scale: 1 };
-        if (store.get().rooms[room].items.length === 0) {
-          const starters = emptyRoomStarters(kind => newId(kind));
+        if (room !== 'backyard' && store.get().rooms[room].items.length === 0) {
+          const starters = emptyRoomStarters(kind => newId(kind), room);
           for (let i = 0; i < starters.length; i++) store.dispatch({ type: 'item/add', room, item: starters[i] });
         }
         store.dispatch({ type: 'item/add', room, item });
@@ -2097,6 +2122,34 @@ function onPlayTap(el: HTMLElement, id: string) {
   if (g === 'lamp') { el.classList.toggle('lamp-on'); return; }
   if (g === 'open') { el.classList.toggle('opened'); return; }
   if (g === 'sit') sitAt(it);
+  if (g === 'swing') swingAt(it);
+}
+/** She is rocking on this swing. Local only: house presence does not carry a pose. */
+let swingPose: { id: string; item: string } | null = null;
+let swingLock = false;
+function syncSwingPose() {
+  layer.querySelectorAll<HTMLElement>('.item.swinging').forEach(el => { if (!swingPose || el.dataset.id !== swingPose.item) el.classList.remove('swinging'); });
+  if (swingPose) layer.querySelector<HTMLElement>(`.item[data-id="${swingPose.item}"]`)?.classList.add('swinging');
+}
+function swingAt(it: PlacedItem) {
+  const s = store.get();
+  const c = s.characters.find(ch => ch.id === activeChar && ch.room === s.currentRoom) ?? s.characters.find(ch => ch.room === s.currentRoom);
+  if (!c) return;
+  if (swingPose?.id === c.id && swingPose.item === it.id) {
+    swingPose = null;
+    swingLock = true;
+    store.dispatch({ type: 'char/move', id: c.id, room: s.currentRoom, x: it.x + 70, y: Math.max(it.y, 520) });
+    swingLock = false;
+    syncSwingPose();
+    return;
+  }
+  const def = ITEM_MAP[it.kind];
+  const seatY = it.y - (def ? hOf(def) * it.scale * 0.26 : 40);
+  swingPose = { id: c.id, item: it.id };
+  swingLock = true;
+  store.dispatch({ type: 'char/move', id: c.id, room: s.currentRoom, x: it.x, y: seatY });
+  swingLock = false;
+  syncSwingPose();
 }
 function sitAt(it: PlacedItem) {
   const y = Math.max(FLOOR_Y + 40, it.y - 8);
@@ -2120,6 +2173,96 @@ function syncKennelBtn(el: HTMLElement, key: string, inside: boolean) {
     el.appendChild(b);
   }
   b.textContent = inside ? 'Out' : 'Kennel';
+  placeKennelBtn(b);
+}
+/** Keep the Kennel chip inside the stage, off the kid and off the sofa. The dog stands on either side of her, and a short phone clips a chip that only hangs left. */
+function placeKennelBtn(btn: HTMLButtonElement) {
+  if (view !== 'house') {
+    btn.style.left = btn.style.right = btn.style.top = btn.style.bottom = btn.style.transform = '';
+    return;
+  }
+  const dog = btn.parentElement;
+  if (!dog) return;
+  const sc = stage.getBoundingClientRect().width / stage.offsetWidth || 1;
+  const stageR = stage.getBoundingClientRect();
+  const pad = 4;
+  const bounds = { l: stageR.left + pad, t: stageR.top + pad, r: stageR.right - pad, b: stageR.bottom - pad };
+  const kidR = layer.querySelector<HTMLElement>('.char')?.getBoundingClientRect();
+  const sofaR = layer.querySelector<HTMLElement>('.item[data-kind="sofa"]')?.getBoundingClientRect();
+  const hits = (a: DOMRect, b?: DOMRect) => !!b && a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+  const area = (a: DOMRect, b?: DOMRect) => {
+    if (!hits(a, b)) return 0;
+    return Math.max(0, Math.min(a.right, b!.right) - Math.max(a.left, b!.left)) * Math.max(0, Math.min(a.bottom, b!.bottom) - Math.max(a.top, b!.top));
+  };
+  const penalty = (r: DOMRect) => {
+    let p = 0;
+    if (r.left < bounds.l) p += (bounds.l - r.left) * 8;
+    if (r.right > bounds.r) p += (r.right - bounds.r) * 8;
+    if (r.top < bounds.t) p += (bounds.t - r.top) * 8;
+    if (r.bottom > bounds.b) p += (r.bottom - bounds.b) * 8;
+    p += area(r, kidR) * 4;
+    p += area(r, sofaR) * 4;
+    return p;
+  };
+  const dogR = dog.getBoundingClientRect();
+  const awayLeft = !kidR || (dogR.left + dogR.width / 2) <= (kidR.left + kidR.width / 2);
+  const side = (left: boolean): Partial<CSSStyleDeclaration> => ({
+    left: left ? '0px' : 'auto', right: left ? 'auto' : '0px', top: '46%', bottom: 'auto',
+    transform: left ? 'translate(-108%, -50%)' : 'translate(108%, -50%)',
+  });
+  const options: Partial<CSSStyleDeclaration>[] = [
+    side(awayLeft),
+    side(!awayLeft),
+    { left: '50%', right: 'auto', top: '0px', bottom: 'auto', transform: 'translate(-50%, -115%)' },
+  ];
+  let best = options[0], bestP = Infinity;
+  for (const css of options) {
+    Object.assign(btn.style, css);
+    const p = penalty(btn.getBoundingClientRect());
+    if (p < bestP) { bestP = p; best = css; }
+  }
+  Object.assign(btn.style, best);
+  let r = btn.getBoundingClientRect();
+  let dx = 0, dy = 0;
+  if (r.left < bounds.l) dx += bounds.l - r.left;
+  if (r.right > bounds.r) dx -= r.right - bounds.r;
+  if (r.top < bounds.t) dy += bounds.t - r.top;
+  if (r.bottom > bounds.b) dy -= r.bottom - bounds.b;
+  const shove = (block?: DOMRect) => {
+    if (!block) return;
+    const moved = () => new DOMRect(r.left + dx, r.top + dy, r.width, r.height);
+    if (!hits(moved(), block)) return;
+    const overlapY = Math.min(moved().bottom, block.bottom) - Math.max(moved().top, block.top);
+    const below = block.bottom + 4 - moved().top;
+    const above = block.top - 4 - moved().bottom;
+    const fits = (delta: number) => moved().top + delta >= bounds.t && moved().bottom + delta <= bounds.b;
+    // A thin overlap is the chip grazing the sofa or the kid. Step off vertically so it stays with the dog.
+    if (overlapY < r.height * 0.5 && fits(below)) { dy += below; return; }
+    if (overlapY < r.height * 0.5 && fits(above)) { dy += above; return; }
+    const spaceL = block.left - bounds.l;
+    const spaceR = bounds.r - block.right;
+    const other = block === sofaR ? kidR : sofaR;
+    const landsOn = (edge: number, leftSide: boolean) => {
+      if (!other) return false;
+      const left = leftSide ? edge - r.width : edge;
+      const next = new DOMRect(left, moved().top, r.width, r.height);
+      return hits(next, other);
+    };
+    if (spaceR >= r.width + 4 && !landsOn(block.right + 4, false)) dx += block.right + 4 - moved().left;
+    else if (spaceL >= r.width + 4 && !landsOn(block.left - 4, true)) dx += (block.left - 4) - moved().right;
+    else if (fits(below)) dy += below;
+    else if (fits(above)) dy += above;
+  };
+  shove(kidR);
+  shove(sofaR);
+  const catR = layer.querySelector<HTMLElement>('.pet-cat')?.getBoundingClientRect();
+  if (catR && hits(new DOMRect(r.left + dx, r.top + dy, r.width, r.height), catR)) {
+    const cur = new DOMRect(r.left + dx, r.top + dy, r.width, r.height);
+    const dxR = catR.right + 4 - cur.left;
+    const next = new DOMRect(cur.left + dxR, cur.top, cur.width, cur.height);
+    if (next.right <= bounds.r && !hits(next, kidR) && !hits(next, sofaR)) dx += dxR;
+  }
+  if (dx || dy) btn.style.transform = `${btn.style.transform} translate(${(dx / sc).toFixed(1)}px, ${(dy / sc).toFixed(1)}px)`;
 }
 function petBubble(el: HTMLElement, text: string) {
   el.querySelector('.bubble')?.remove();
@@ -2220,9 +2363,10 @@ function tickCat() {
   layer.querySelectorAll<HTMLElement>('.item.toy-live').forEach(el => el.classList.remove('toy-live'));
   if (tower && mood === 'play' && perch && !leaping) layer.querySelector<HTMLElement>(`.item[data-id="${tower.id}"]`)?.classList.add('toy-live');
   // __pinCat holds her on a character's feet for tests. She stays under characters (5000 + y).
-  const pin = (window as any).__pinCat as { x: number } | null;
+  const pin = (window as any).__pinCat as { x: number; y?: number } | null;
   const pinned = !!(pin && Number.isFinite(pin.x));
-  const foot = !pinned && perch && tower ? towerFootY(tower.y, th, perch as 1 | 2) : !pinned && b.curl && bed ? bed.y - bed.h * (bed.pet ? 0.38 : 0.2) : CAT_Y;
+  const pinY = pinned && Number.isFinite(pin!.y) ? pin!.y! : CAT_Y;
+  const foot = !pinned && perch && tower ? towerFootY(tower.y, th, perch as 1 | 2) : !pinned && b.curl && bed ? bed.y - bed.h * (bed.pet ? 0.38 : 0.2) : pinY;
   placeEl(catEl, pinned ? pin!.x : x, foot, !pinned && perch ? 110 : 150, !pinned && perch ? 92 : 128);
   catEl.style.zIndex = String(4000 + Math.round(foot));
   catSpot = { x: pinned ? pin!.x : x, perch, leap: leaping };
@@ -2819,7 +2963,115 @@ bindGameRoom({
 
 // ---------- start ----------
 installJuice();
-renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
+setRoomScenery(room => (room === 'backyard' ? yardBackyardScenery() : null));
+$('scenery').addEventListener('click', e => {
+  const b = (e.target as HTMLElement).closest<HTMLElement>('[data-yard-go]');
+  if (!b) return;
+  goThroughYardDoor(b.dataset.yardGo === 'backyard' ? 'backyard' : 'living');
+});
+renderAll(); renderDrawer(); fit();
+bootYardPreview();
+fit();
+frameYardCam();
+requestAnimationFrame(() => { fit(); frameYardCam(); });
+
+/** ?yard=1 only. Stages the approval yard in the real renderer and does not run otherwise. */
+function bootYardPreview() {
+  if (!yardOn) return;
+  const shot = yardShot();
+  const kid = store.get().characters[0];
+  if (!kid) return;
+  const door = shot === 'door';
+  store.dispatch({ type: 'char/update', id: kid.id, patch: { ...yardLookPatch(), flip: door ? DOOR_KID.flip : YARD_KID.flip } });
+  store.dispatch({ type: 'cat/set', cat: { name: 'Clover', coat: 3, room: door ? 'living' : 'backyard', x: door ? DOOR_CAT_X : YARD_CAT.x } });
+  store.dispatch({ type: 'dog/set', dog: { name: 'Sunny', breed: 3, owner: kid.id } });
+  if (!store.get().rooms.backyard.items.some(i => i.kind === 'yard-swing')) {
+    for (const p of YARD_STAGE) {
+      store.dispatch({
+        type: 'item/add', room: 'backyard',
+        item: { id: 'yp-' + p.kind, kind: p.kind, x: p.x, y: p.y, flip: false, z: 1, scale: 1 },
+      });
+    }
+  }
+  if (shot !== 'sheet') {
+    const spot = door ? DOOR_KID : YARD_KID;
+    store.dispatch({ type: 'char/move', id: kid.id, room: door ? 'living' : 'backyard', x: spot.x, y: spot.y });
+    store.dispatch({ type: 'room/switch', room: door ? 'living' : 'backyard' });
+  }
+  (window as any).__pinCat = door ? { x: DOOR_CAT_X } : { x: YARD_CAT.x, y: YARD_CAT.y };
+  if (shot === 'play') $('modePlay').click();
+  else if (shot === 'decorate' || shot === 'door') $('modeDecorate').click();
+  if (shot === 'sheet') document.body.insertAdjacentHTML('beforeend', yardSheetHTML());
+  if (shot === 'compare') document.body.insertAdjacentHTML('beforeend', yardCompareHTML());
+  document.body.dataset.yard = 'ready';
+}
+/** The living-room back door, and the matching door on the house wall. Not a map pin. */
+function goThroughYardDoor(go: 'backyard' | 'living') {
+  const s = store.get();
+  const spot = go === 'backyard' ? YARD_KID : DOOR_KID;
+  swingPose = null;
+  const who = s.characters.find(c => c.id === activeChar && c.room === s.currentRoom) ?? s.characters.find(c => c.room === s.currentRoom);
+  if (who) {
+    store.dispatch({ type: 'char/update', id: who.id, patch: { flip: spot.flip } });
+    store.dispatch({ type: 'char/move', id: who.id, room: go, x: spot.x, y: spot.y });
+  }
+  if (yardOn && s.cat) {
+    store.dispatch({ type: 'cat/move', room: go, x: go === 'backyard' ? YARD_CAT.x : DOOR_CAT_X });
+    (window as any).__pinCat = go === 'backyard' ? { x: YARD_CAT.x, y: YARD_CAT.y } : { x: DOOR_CAT_X };
+  }
+  store.dispatch({ type: 'room/switch', room: go });
+  if (hood && inner !== local) {
+    const p = myPres();
+    if (p && p.where === 'house') setMyPres({ ...p, room: go, x: spot.x, y: spot.y, flip: spot.flip });
+  }
+  requestAnimationFrame(() => { if (yardOn) frameYardCam(); });
+}
+function frameYardCam() {
+  if (!yardOn || yardShot() === 'sheet' || yardShot() === 'compare') return;
+  if (store.get().currentRoom === 'backyard') setCam(YARD_CAM);
+  else {
+    const kid = store.get().characters.find(c => c.room === store.get().currentRoom);
+    if (kid) setCam(kid.x - VIEW_W / 2);
+  }
+  placeYardHints();
+}
+/** The Backyard label stays inside the stage when the door sits on the edge of a phone. */
+function placeYardHints() {
+  const stageBox = stage.getBoundingClientRect();
+  if (stageBox.width < 20) return;
+  const sc = parseFloat(stage.style.getPropertyValue('--yard-sc')) || stageScale() || 1;
+  const visibleW = (box: DOMRect) => Math.min(box.right, stageBox.right) - Math.max(box.left, stageBox.left);
+  for (const door of stage.querySelectorAll<HTMLElement>('.yardDoor')) {
+    // A phone frame can leave the door hanging off the stage. Width grows to the
+    // right, and the drawing is centered, so the art needs twice that growth.
+    door.style.minWidth = '';
+    const r = door.getBoundingClientRect();
+    const art = door.querySelector('.doorArt');
+    if (r.width < 2 || !art) continue;
+    const ar = art.getBoundingClientRect();
+    const buttonOn = visibleW(r);
+    const artOn = visibleW(ar);
+    let grow = 0;
+    if (r.left < stageBox.left && buttonOn < 44) grow = Math.max(grow, 44 - buttonOn);
+    if (ar.left < stageBox.left && artOn < 44) grow = Math.max(grow, 2 * (44 - artOn));
+    if (grow > 0.5) door.style.minWidth = ((r.width + grow) / sc) + 'px';
+  }
+  const pad = 4;
+  const leftLimit = Math.max(pad, stageBox.left + pad);
+  const rightLimit = Math.min(window.innerWidth - pad, stageBox.right - pad);
+  if (rightLimit - leftLimit < 48) return;
+  for (const door of stage.querySelectorAll<HTMLElement>('.yardDoor')) {
+    const hint = door.querySelector<HTMLElement>('.yardHintLabel');
+    if (!hint) continue;
+    hint.style.transform = '';
+    const r = hint.getBoundingClientRect();
+    if (r.width < 2) continue;
+    let dx = 0;
+    if (r.left < leftLimit) dx = leftLimit - r.left;
+    else if (r.right > rightLimit) dx = rightLimit - r.right;
+    if (Math.abs(dx) > 0.5) hint.style.transform = `translateX(calc(-50% + ${dx / sc}px))`;
+  }
+}
 // ---------- hidden surprises ----------
 const renderSecrets = () => {
   const n = foundSet().size, total = EGGS.length;

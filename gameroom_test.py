@@ -277,7 +277,9 @@ async def polish_pass(b):
     tag = '844x390'
     ctx, pg = await phone(844, 390)
     pill = await read_secrets(pg)
-    check(f'{tag} Surprises pill stays centred on a taller phone', pill['on'] and pill['centered'], str(pill))
+    check(f'{tag} Surprises pill stays off the sky',
+          pill['on'] and not pill['overlap'] and not pill['coversCenter'] and (pill['chrome'] or pill['side'])
+          and pill['pill']['w'] >= 44 and pill['pill']['h'] >= 44, str(pill))
     await pg.click('#btnMap')
     await pg.wait_for_selector('body.view-map .mapSpot')
     await pg.click('[data-go="ranch"]')

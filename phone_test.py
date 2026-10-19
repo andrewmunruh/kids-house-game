@@ -291,7 +291,9 @@ async def phone_pass(b, w, h, save):
     if portrait: await check_framed(pg, tag, 'house')
     if (w, h) == (375, 667): await check_portrait_kid(pg, tag)
     if not portrait: await stage_fill(pg, tag, w, h)
-    if not portrait: await check_secrets(pg, tag, short=False)
+    if not portrait and (w, h) == (844, 390): await check_secrets_off_sky(pg, tag)
+    elif not portrait: await check_secrets(pg, tag, short=False)
+    if (w, h) in ((390, 844), (844, 390)): await check_yard_door(pg, tag)
     if w in (375, 667): await living_room_one_line(pg, tag)
     if save: await shot(pg, f'house-{tag}')
 
@@ -763,6 +765,41 @@ async def check_zoo_hint(pg, tag):
           hint.get('fs', 0) >= 12 and hint.get('on') and 'Petting zoo' in (hint.get('text') or ''),
           str(hint))
 
+async def check_yard_door(pg, tag):
+    """Hit target stays at least 44px on the stage, and the hint is not clipped."""
+    box = await pg.evaluate("""() => {
+      const b = document.querySelector('.yardDoor');
+      const a = b && b.querySelector('.doorArt');
+      const hint = b && b.querySelector('.yardHintLabel');
+      if (!b || !a || !hint) return null;
+      const r = b.getBoundingClientRect();
+      const ar = a.getBoundingClientRect();
+      const hr = hint.getBoundingClientRect();
+      const stage = document.querySelector('.stage').getBoundingClientRect();
+      const iw = Math.min(r.right, stage.right) - Math.max(r.left, stage.left);
+      const ih = Math.min(r.bottom, stage.bottom) - Math.max(r.top, stage.top);
+      const artOn = Math.min(ar.right, stage.right) - Math.max(ar.left, stage.left);
+      const inside = (box, host) => box.width > 8 && box.left >= host.left - 1 && box.right <= host.right + 1 && box.top >= host.top - 1 && box.bottom <= host.bottom + 1;
+      return {
+        w: Math.round(r.width), h: Math.round(r.height), aw: Math.round(ar.width),
+        onStageW: Math.round(iw), onStageH: Math.round(ih), onArtW: Math.round(artOn),
+        hintIn: inside(hr, stage),
+      };
+    }""")
+    check(f'{tag} back door is at least 44px',
+          box and box['w'] >= 44 and box['h'] >= 44 and box['aw'] >= 44
+          and box['onStageW'] >= 44 and box['onStageH'] >= 44 and box['onArtW'] >= 44 and box['hintIn'],
+          str(box))
+
+async def check_secrets_off_sky(pg, tag):
+    """844×390: a centred pill sits on the sky. It parks in the gutter or the top row."""
+    pill = await read_secrets(pg)
+    check(f'{tag} Surprises pill stays off the sky',
+          pill['on'] and not pill['overlap'] and not pill['coversCenter']
+          and (pill['chrome'] or pill['side'])
+          and pill['pill']['w'] >= 44 and pill['pill']['h'] >= 44,
+          str(pill))
+
 async def check_secrets(pg, tag, short):
     pill = await read_secrets(pg)
     if short:
@@ -881,6 +918,7 @@ async def ipad_pass(b, w, h):
         check('ipad 820x1180 room tabs are at least 14px',
               tabs and all(t['font'] >= 14 and not t['clipped'] for t in tabs) and any(t['label'] == 'Living Room' and 'Living' in t['shown'] for t in tabs),
               str(tabs))
+    if (w, h) in ((820, 1180), (1180, 820)): await check_yard_door(pg, tag)
     if (w, h) == (1024, 768):
         chips = await pg.evaluate("""async () => {
           const row = document.querySelector('.drawerTop');

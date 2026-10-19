@@ -68,6 +68,10 @@ async function main() {
   check('nursery and backyard edits are accepted', !!cleanAction({ type: 'item/add', room: 'nursery', item }) && !!cleanAction({ type: 'item/add', room: 'backyard', item: { ...item, id: 'y1', kind: 'plant' } }) && !!cleanAction({ type: 'room/wallTile', room: 'nursery', tile: 'nursery/cloud-sky' }) && !!cleanAction({ type: 'cat/move', room: 'nursery', x: 400 }) && !!cleanAction({ type: 'char/move', id: 'c1', room: 'backyard', x: 200, y: 500 }));
   check('an unknown room is still rejected', cleanAction({ type: 'item/add', room: 'attic', item }) === null);
   check('presence accepts nursery and rejects attic', !!cleanPresence({ where: 'house', houseId: 'h1', room: 'nursery', x: 10, y: 20, flip: false }, () => true) && !cleanPresence({ where: 'house', houseId: 'h1', room: 'attic', x: 10, y: 20, flip: false }, () => true));
+  check('presence accepts the yard', !!cleanPresence({ where: 'house', houseId: 'h1', room: 'backyard', x: 990, y: 530, flip: false }, () => true));
+  const packed = Array.from({ length: 80 }, (_, i) => ({ id: 'cap-' + i, kind: 'plant', x: 100, y: 400, flip: false, z: 1, scale: 1 }));
+  const capped = reduce({ ...initialState(), rooms: { ...initialState().rooms, backyard: { ...initialState().rooms.backyard, items: packed } } }, { type: 'item/add', room: 'backyard', item: { id: 'too-many', kind: 'yard-swing', x: 1160, y: 548, flip: false, z: 1, scale: 1 } });
+  check('the 80-item cap still rejects the 81st', capped.rooms.backyard.items.length === 80 && !capped.rooms.backyard.items.some(i => i.id === 'too-many'));
 
   const sent = ensureRooms(strip(initialState()));
   sent.rooms.living.items = [...sent.rooms.living.items, { id: 'old-sofa', kind: 'sofa', x: 10, y: 400, flip: false, z: 4, scale: 1 }];
@@ -191,7 +195,15 @@ async function main() {
   const future = migrate({ ...initialState(), currentRoom: 'attic', characters: [futureKid] });
   check('an unknown room opens the living room with the kid', future.currentRoom === 'living' && future.characters[0].room === 'living' && future.version === 3);
   const yardKid = migrate({ ...initialState(), currentRoom: 'backyard', characters: [{ ...initialState().characters[0], room: 'backyard' }] });
-  check('a backyard save opens the living room and brings the kid', yardKid.currentRoom === 'living' && yardKid.characters[0].room === 'living');
+  check('a backyard save stays in the yard with the kid', yardKid.currentRoom === 'backyard' && yardKid.characters[0].room === 'backyard' && yardKid.version === 3);
+  const yardSwing = { id: 'keep-swing', kind: 'yard-swing', x: 1200, y: 548, flip: false, z: 1, scale: 1 };
+  const yardHouse = { ...initialState(), currentRoom: 'living' as const, rooms: { ...initialState().rooms, backyard: { ...initialState().rooms.backyard, items: [yardSwing] } } };
+  const oldYard = oldClientMigrate(JSON.parse(JSON.stringify(yardHouse)));
+  const yardBack = cleanHouseState(oldYard);
+  const yardEdit = reduce(yardHouse, { type: 'room/wallpaper', room: 'living', color: '#abcdef' });
+  check('an old client keeps yard items it does not draw', oldYard.rooms.backyard.items.length === 1 && oldYard.rooms.backyard.items[0].kind === 'yard-swing' && oldYard.rooms.backyard.items[0].id === 'keep-swing');
+  check('bringing that house back still has the swing', yardBack.rooms.backyard.items.length === 1 && yardBack.rooms.backyard.items[0].id === 'keep-swing' && yardBack.version === 3);
+  check('a living-room edit does not delete the yard', yardEdit.rooms.living.wallpaper === '#abcdef' && yardEdit.rooms.backyard.items[0].id === 'keep-swing' && yardEdit.rooms.nursery.items.length === 4);
   const stayed = migrate({ ...initialState(), currentRoom: 'nursery' });
   check('a known room is left alone', stayed.currentRoom === 'nursery' && stayed.characters[0].room === 'living');
 
@@ -221,7 +233,11 @@ async function main() {
     && packItems.find(e => e.name === 'Gaming Chair')?.room === 'bedroom'
     && packItems.find(e => e.slug === 'comfy-armchair')?.room === 'living'
     && packItems.find(e => e.slug === 'cc-light-vanity')?.room === 'salon');
-  const codeNames = [...(readFileSync(new URL('../src/items.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/nursery.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/eggs.ts', import.meta.url), 'utf8')).matchAll(/name:\s*'([^']+)'/g)].map(m => m[1]);
+  const codeNames = [...(readFileSync(new URL('../src/items.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/nursery.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/yard.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/eggs.ts', import.meta.url), 'utf8')).matchAll(/name:\s*'([^']+)'/g)].map(m => m[1]);
+  const mapSrc = readFileSync(new URL('../src/map.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+  check('the yard is not a map place', !/data-go=["']backyard|mapYard|aria-label="Backyard"/.test(mapSrc) && /data-yard-go/.test(mapSrc));
+  const swingArt = readFileSync(new URL('../src/yard.ts', import.meta.url), 'utf8');
+  check('the swing is bigger than the kid and the cup can be held', /kind: 'yard-swing'[\s\S]{0,160}w: 280, h: 215/.test(swingArt) && /kind: 'lemonade-cup'[\s\S]{0,160}holdable: true/.test(swingArt));
   const display = [...packItems.map(e => e.name), ...patterns.map(e => e.name), ...codeNames];
   const seen = new Map<string, number>();
   for (const n of display) seen.set(n, (seen.get(n) ?? 0) + 1);

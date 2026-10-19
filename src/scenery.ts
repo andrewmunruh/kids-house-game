@@ -46,8 +46,9 @@ function startersSVG() {
   </svg></div>`;
 }
 
-/** Real rug, lamp, and plant for the first thing placed in an empty room. Ordinary item/add, so old clients already draw them. */
-export function emptyRoomStarters(makeId: (kind: string) => string): { id: string; kind: string; x: number; y: number; flip: false; z: number; scale: number }[] {
+/** Real rug, lamp, and plant for the first thing placed in an empty indoor room. The yard stays empty: sky and grass are the room. */
+export function emptyRoomStarters(makeId: (kind: string) => string, room?: string): { id: string; kind: string; x: number; y: number; flip: false; z: number; scale: number }[] {
+  if (room === 'backyard') return [];
   return [
     { id: makeId('rug'), kind: 'rug', x: 1152, y: 540, flip: false, z: 0, scale: 1 },
     { id: makeId('lamp'), kind: 'lamp', x: 804, y: 470, flip: false, z: 0, scale: 1 },
@@ -57,7 +58,32 @@ export function emptyRoomStarters(makeId: (kind: string) => string): { id: strin
 
 let sig = '';
 
+/** Preview-only. Return a full scenery string to replace the indoor dressing, or null to keep it. */
+type SceneryCustom = (room: string, items: { kind: string }[]) => string | null;
+let custom: SceneryCustom | null = null;
+export function setRoomScenery(fn: SceneryCustom | null) {
+  custom = fn;
+  sig = '';
+}
+
 export function syncScenery(root: HTMLElement, room: string, items: { kind: string }[]) {
+  const extra = custom?.(room, items);
+  if (extra != null) {
+    const next = 'custom|' + room;
+    if (next === sig && root.childElementCount) return;
+    sig = next;
+    root.innerHTML = extra;
+    root.dataset.room = room;
+    return;
+  }
+  if (room === 'backyard') {
+    const next = 'yard|' + room;
+    if (next === sig && root.childElementCount) return;
+    sig = next;
+    root.innerHTML = '';
+    root.dataset.room = room;
+    return;
+  }
   const empty = items.length === 0;
   const hasWindow = items.some(i => /window|curtain/i.test(i.kind));
   const next = room + (empty ? '|e' : '') + (hasWindow ? '|w' : '');
