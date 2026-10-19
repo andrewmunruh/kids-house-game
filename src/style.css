@@ -845,8 +845,10 @@ body.view-street .stage { visibility: hidden; }
 /* 667×375: five tabs were touching the minimap. A few pixels of gap and padding free the row.
    Lock and chat do not fit on that same row, so on a street they wrap under the tabs. */
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) and (max-width: 700px) {
-  body.phone .tabs { gap: 3px; }
-  body.phone .tab { padding: 0 4px; }
+  /* 14px names on a 667-wide phone. Padding stays inside the 44px target and clear of the minimap. */
+  body.phone .tabs { gap: 2px; }
+  body.phone .tab { padding: 0; }
+  body.phone .minimap { flex-basis: 44px; width: 44px; min-width: 44px; }
   body.phone.mode-hood .top { flex-wrap: wrap; row-gap: 2px; }
   body.phone.mode-hood .tabs { flex: 1 1 auto; }
   body.phone.mode-hood .minimap { flex: 0 0 48px; }
