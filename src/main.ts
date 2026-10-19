@@ -927,6 +927,7 @@ function renderDrawer() {
     + (hasSecrets ? `<button class="cat secretTab ${currentTab === 'secrets' ? 'on' : ''}" data-cat="secrets" aria-label="Secrets" title="Secrets">🎁</button>` : '');
   const shelf = $('shelf'); shelf.innerHTML = '';
   $('packShelves').classList.remove('on'); $('packShelves').innerHTML = '';
+  document.body.classList.remove('pack-shelved');
   if (!canEdit()) { shelf.innerHTML = `<div class="empty locked">🔒 This house is look-only right now</div>`; return; }
   if (currentTab === '__people') {
     const s = store.get();
@@ -950,7 +951,7 @@ function renderDrawer() {
   }
   const list = tabItems(currentTab);
   const shelves: string[] = [];
-  for (const d of list) if (d.shelf && !shelves.includes(d.shelf)) shelves.push(d.shelf);
+  if (currentTab.startsWith('pack:')) for (const d of list) if (d.shelf && !shelves.includes(d.shelf)) shelves.push(d.shelf);
   const shelfOrder = ['Living', 'Bedroom', 'Kitchen', 'Cozy', 'Trim', 'Holiday'];
   shelves.sort((a, b) => (shelfOrder.indexOf(a) < 0 ? 99 : shelfOrder.indexOf(a)) - (shelfOrder.indexOf(b) < 0 ? 99 : shelfOrder.indexOf(b)));
   const host = $('packShelves');
@@ -961,6 +962,7 @@ function renderDrawer() {
       packShelf = shelves.includes(prefer) ? prefer : shelves[0];
     }
     host.classList.add('on');
+    document.body.classList.add('pack-shelved');
     host.innerHTML = shelves.map(n => `<button type="button" class="packShelf${n === packShelf ? ' on' : ''}" data-shelf="${esc(n)}">${esc(n)}</button>`).join('');
   }
   const shown = shelves.length ? list.filter(d => d.shelf === packShelf) : list;
