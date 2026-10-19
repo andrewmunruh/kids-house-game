@@ -232,7 +232,7 @@ export function installMail(opts: {
 
 function showText(text: string): string | null {
   if (!text) return null;
-  // A letter that was accepted stays readable. Reloading the house still uses filterChat.
+  // A letter that was accepted stays readable. Reload uses the same light list as sending.
   const clean = text.normalize('NFKC').replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g, '').replace(/\s+/g, ' ').trim();
   if (!clean || clean.length > MAIL_MAX) return null;
   return clean;

@@ -5,7 +5,7 @@ import { GAMEROOM_W, type TablePub, type TableOp } from './games/index';
 import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, validKennel, ROOM_W, ROOM_H, MAX_CHARS, ROOM_IDS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
 import { sanitizeLook2, type Look2 } from './avatar';
 import { CATALOG_NAMES } from './catalog-names';
-import { MAIL_COLORS, MAIL_MAX, MAIL_STICKERS, keepMailbox, stripUrls, type Mailbox } from './mail';
+import { MAIL_COLORS, MAIL_MAX, MAIL_STICKERS, keepMailbox, type Mailbox } from './mail';
 
 export const MAX_PLAYERS = 12;
 export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L
@@ -145,7 +145,7 @@ function filterLoose(raw: unknown, max: number, blocked: 'words' | 'mail'): Filt
   if (sendSwear(text)) return { ok: false, reason: blocked };
   return { ok: true, text };
 }
-/** A new chat bubble. Light list: swears, slurs, and kys. Stored data stays on filterChat. */
+/** A new chat bubble. Light list: swears, slurs, and kys. */
 export function filterSay(raw: unknown, max = MAX_CHAT): FilterResult {
   return filterLoose(raw, max, 'words');
 }
@@ -501,9 +501,17 @@ export function cleanHouseState(raw: any): GameState {
   return mailbox ? { ...house, mailbox } : house;
 }
 
-/** A new letter. Same light list as a new bubble. Reload still uses filterChat, not this. */
+/** A new letter. Same light list as a new bubble. */
 export function cleanMailText(raw: unknown, _roster: string[] = []): FilterResult {
   return filterLoose(raw, MAIL_MAX, 'mail');
+}
+
+/** A stored letter stays when sending would allow it, or when fbd04db's chat list already allowed it. The text is never rewritten. */
+function storedLetterOk(text: string): boolean {
+  const light = filterLoose(text, MAIL_MAX, 'mail');
+  if (light.ok && light.text === text) return true;
+  const old = filterChat(text, MAIL_MAX);
+  return old.ok && old.text === text;
 }
 
 /** Letters follow this when a street has never set freeMail.
@@ -519,14 +527,11 @@ export function mailIsFree(settings: { freeChat: boolean; freeMail?: boolean }):
   return MAIL_FREE_DEFAULT;
 }
 
-/** Drop letters the chat filter would block. Shape, cap, and the 30-day fade happen in keepMailbox. */
+/** Same light list as sending, plus any letter fbd04db would have kept. Shape, cap, and the 30-day fade happen in keepMailbox. */
 export function filterMailbox(raw: unknown, now = Date.now()): Mailbox | null {
   const box = keepMailbox(raw, now);
   if (!box) return null;
-  const letters = box.letters.filter(l => {
-    const f = filterChat(l.text, MAIL_MAX);
-    return f.ok && stripUrls(f.text) === f.text && f.text === l.text;
-  });
+  const letters = box.letters.filter(l => !l.text || storedLetterOk(l.text));
   return letters.length ? { letters } : null;
 }
 

@@ -97,7 +97,26 @@ async function main() {
   const storedLeak = storedBlock.filter(t => filterChat(t, 80).ok);
   check('mild teases stay allowed in chat and mail', mildBad.length === 0, mildBad.join(' | '));
   check('ordinary phrases and names stay allowed', safeBad.length === 0, safeBad.join(' | '));
-  check('the stored-mail rule is unchanged', storedBad.length === 0 && storedLeak.length === 0, storedBad.concat(storedLeak).join(' | '));
+  check('kid and pet names still use the fbd04db chat list', storedBad.length === 0 && storedLeak.length === 0, storedBad.concat(storedLeak).join(' | '));
+  const survive = [
+    'fat', 'ugly sweater day', 'my cat is fat', 'fat cat', 'ugly duckling', 'the fat pony is cute',
+    "Hell's Kitchen is a show", 'go to hell', 'add me on fortnite', 'loser', 'shut up', 'go away',
+    'I live on Maple St', 'my number is 5', 'Rachel', 'Michelle', 'Ethel', 'the lamp is pretty',
+    'silly', 'dummy', 'meanie', 'stinky', 'you are silly', 'damn', 'see you at school',
+    'my favorite number is seven', 'Come see my Ring Light!', 'roblox user Jane2016', 'Ava Smith', 'call 12345',
+  ];
+  const surviveLetters = survive.map((text, i) => letter({ id: 'msurv' + String(i).padStart(4, '0'), text }));
+  const survived = filterMailbox({ letters: surviveLetters });
+  const surviveMiss = survive.filter((t, i) => JSON.stringify(survived?.letters[i]) !== JSON.stringify(surviveLetters[i]));
+  const grandfather = ['f*ck', 'f u c k', 'sh*t', 'b*tch', 'a**hole', 'dumbass', 'kys', 'k y s', 'the lamp is pretty', 'my cat is fat', "Hell's Kitchen is a show"];
+  const grandLetters = grandfather.map((text, i) => letter({ id: 'moldg' + String(i).padStart(4, '0'), text }));
+  const grandBox = filterMailbox({ letters: grandLetters });
+  const grandMiss = grandfather.filter((t, i) => JSON.stringify(grandBox?.letters[i]) !== JSON.stringify(grandLetters[i]));
+  const banned = ['fuck', 'shit', 'nigger', 'faggot', 'retard'];
+  const bannedLeft = banned.filter(t => filterMailbox({ letters: [letter({ id: 'mbanned01', text: t })] })?.letters.some(l => l.text === t));
+  check('a reload keeps every line a kid can send', survive.length >= 30 && surviveMiss.length === 0, surviveMiss.join(' | '));
+  check('a letter stored before still survives a reload', grandMiss.length === 0, grandMiss.join(' | '));
+  check('a plain swear does not survive a reload', bannedLeft.length === 0, bannedLeft.join(' | '));
   const names = ['Rachel', 'Michelle', 'Chelsea', 'Ethel', 'Mitchell'];
   const nameBad = names.filter(n => cleanFirstName(n) !== n || cleanPetName(n) !== n || cleanHouseName(n) !== n || cleanHouseName(n + "'s House") !== n + "'s House");
   check('those names work for a kid, a pet, and a house', nameBad.length === 0, nameBad.join(' | '));
@@ -398,6 +417,73 @@ async function main() {
   const rosterNames = (grownDog.last('parentInfo')?.roster ?? []).map((r: { name: string }) => r.name);
   const renamed = (grownDog.last('parentInfo')?.houses ?? []).find((h: { id: string }) => h.id === dogHouse.id)?.name;
   check("Rachel, Michelle, Chelsea, Ethel and Mitchell are real names, and Rachel's House sticks", names.every(n => rosterNames.includes(n)) && renamed === "Rachel's House" && !grownDog.inbox.some(m => m.t === 'parentInfo' && m.note === 'badName'), rosterNames.join(',') + ' house=' + renamed);
+
+  const b0: any = await import('/tmp/b0tree/src/shared/hood.ts');
+  const nameCorpus = ['Rachel', 'Michelle', 'Chelsea', 'Ethel', 'Mitchell', "Rachel's House", 'fat', 'loser', 'the lamp is pretty'];
+  const nameDiff: string[] = [];
+  for (const n of nameCorpus) {
+    if (JSON.stringify(b0.cleanPetName(n)) !== JSON.stringify(cleanPetName(n))) nameDiff.push('pet ' + n);
+    if (JSON.stringify(b0.cleanFirstName(n)) !== JSON.stringify(cleanFirstName(n))) nameDiff.push('first ' + n);
+    if (JSON.stringify(b0.cleanHouseName(n)) !== JSON.stringify(cleanHouseName(n))) nameDiff.push('house ' + n);
+  }
+  const oldCorpus = [...survive, ...grandfather, 'fuck', 'nigger', 'come see www.example.com', 'Hello from the street'];
+  const shrunk: string[] = [];
+  for (let i = 0; i < oldCorpus.length; i++) {
+    const item = letter({ id: 'mcmp' + String(i).padStart(4, '0'), text: oldCorpus[i] });
+    const prev = b0.filterMailbox({ letters: [item] });
+    const next = filterMailbox({ letters: [item] });
+    if (prev?.letters?.length && JSON.stringify(next) !== JSON.stringify(prev)) shrunk.push(oldCorpus[i]);
+  }
+  check('fbd04db names and stored letters still match', nameDiff.length === 0 && shrunk.length === 0, nameDiff.concat(shrunk).join(' | '));
+
+  const persistMem = new Map<string, any>();
+  const keepKv2: KV = {
+    get: async k => persistMem.has(k) ? JSON.parse(JSON.stringify(persistMem.get(k))) : undefined,
+    put: async (k, v) => { persistMem.set(k, JSON.parse(JSON.stringify(v))); },
+    delete: async k => { persistMem.delete(k); },
+  };
+  const keepHood2 = new Neighborhood(keepKv2, { flushMs: 5 });
+  await keepHood2.init('KEEP30');
+  let keepNick = 0;
+  const keepSend = (c: C, o: any) => { (c as any).budget = undefined; return keepHood2.onMessage(c, JSON.stringify(o)); };
+  const keepJoin = async () => {
+    const c = mk(); const nick = NICKNAMES[keepNick++];
+    await keepHood2.onConnect(c);
+    await keepHood2.onMessage(c, JSON.stringify({ t: 'join', nickname: nick, look, v: PROTOCOL, mail: 1 }));
+    const pid = c.last('joined').pid as string;
+    const hid = (c.last('welcome').houses as any[]).find(h => h.ownerId === pid).id as string;
+    return { c, pid, hid };
+  };
+  const keepOwner = await keepJoin();
+  const pals = [];
+  for (let i = 0; i < 10; i++) pals.push(await keepJoin());
+  for (let i = 0; i < pals.length; i++) {
+    for (const text of survive.slice(i * 3, i * 3 + 3)) await keepSend(pals[i].c, { t: 'mail', op: 'send', houseId: keepOwner.hid, text, color: 0, sticker: 0 });
+  }
+  await keepSend(pals[0].c, { t: 'mail', op: 'send', houseId: keepOwner.hid, text: 'f*ck', color: 0, sticker: 0 });
+  await keepSend(pals[0].c, { t: 'mail', op: 'send', houseId: keepOwner.hid, text: 'nigger', color: 0, sticker: 0 });
+  await keepHood2.flush();
+  const oldHouse = {
+    id: 'holdmail01', ownerId: 'poldowner01', name: "Rachel's House", locked: false, style: 0, slot: 0,
+    state: { ...initialState(), mailbox: { letters: [
+      letter({ id: 'moldfck01', text: 'f*ck', from: 'Quinn', fromPid: 'poldkid0001' }),
+      letter({ id: 'moldfuck1', text: 'fuck', from: 'Quinn', fromPid: 'poldkid0001' }),
+      letter({ id: 'moldfat001', text: 'my cat is fat', from: 'Rachel', fromPid: 'poldkid0002' }),
+      letter({ id: 'moldhell01', text: "Hell's Kitchen is a show", from: 'Ethel', fromPid: 'poldkid0003' }),
+    ] } },
+  };
+  const meta = persistMem.get('meta');
+  meta.houseOrder.push(oldHouse.id);
+  meta.players.poldowner01 = { pid: 'poldowner01', nickname: 'Rachel', houseId: oldHouse.id, tokenHash: 'x', look, joinedAt: 1 };
+  persistMem.set('meta', meta);
+  persistMem.set('house:' + oldHouse.id, oldHouse);
+  const reloadedHood = new Neighborhood(keepKv2, { flushMs: 5 });
+  await reloadedHood.load();
+  const reloadedTexts = reloadedHood.houses.get(keepOwner.hid)!.state.mailbox?.letters.map(l => l.text) ?? [];
+  const oldTexts = reloadedHood.houses.get(oldHouse.id)!.state.mailbox?.letters.map(l => l.text) ?? [];
+  const missingReload = survive.filter(t => !reloadedTexts.includes(t));
+  check('sent letters are still there after a server reload', missingReload.length === 0 && !reloadedTexts.includes('f*ck') && !reloadedTexts.includes('nigger') && pals[0].c.inbox.filter(m => m.t === 'mailFail' && m.reason === 'mail').length === 2, missingReload.join(' | ') + ' box=' + reloadedTexts.length);
+  check('an older mailbox keeps its letters, including ones the new list refuses', oldTexts.includes('f*ck') && oldTexts.includes('my cat is fat') && oldTexts.includes("Hell's Kitchen is a show") && !oldTexts.includes('fuck'), oldTexts.join('|'));
 
   console.log(`${pass} passed`);
 }
