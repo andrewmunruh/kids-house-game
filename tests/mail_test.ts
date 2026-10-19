@@ -50,12 +50,14 @@ async function main() {
     'see you at school', 'Come to my garden', 'come to my house', 'meet me at the treehouse', 'want to play at the ranch?',
     'I love your bedroom', 'my cat is so cute', 'Hi Reagan!',
     'best way to play', 'cool drive in my house', 'Text me back with a letter', 'Text me back in the game', 'my favorite number is seven',
+    'Come see my Ring Light!',
     'seven', 'one two',
     ...CATALOG_NAMES.filter(n => n.length <= MAIL_MAX),
   ];
   const phraseBlocked = [
     'Text me back', 'cool drive', 'Cool Drive', 'Maple Drive cool drive in my house', 'best way to the park',
     'my favorite number is seven eight nine', 'one two three', 'call me with a letter', 'text me your phone',
+    'Ring Light Smith', 'Emma Ring Light', 'Big Monitor street', 'Gaming Chair Lane 12', 'I live on Gaming Chair Lane',
     'fuck', 'nigger',
   ];
   const rows: { text: string; want: string }[] = [
@@ -334,6 +336,22 @@ async function main() {
   await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'A typed note', color: 0, sticker: 0 });
   await send(fullKid.c, { t: 'say', b: { kind: 'text', v: 'Hello there' } });
   check('typed letters wait and chat still goes out', fullKid.c.last('mailFail')?.reason === 'presetsOnly' && !live().mailbox?.letters.some(l => l.text === 'A typed note') && fullKid.c.last('sayFail')?.reason === 'nowhere');
+
+  const shield = ['Ring Light Smith', 'Emma Ring Light', 'Big Monitor street', 'Gaming Chair Lane 12', 'I live on Gaming Chair Lane'];
+  const keptCute = () => live().mailbox?.letters.some(l => l.text === 'Your house is so cute!') ?? false;
+  await send(grown, { t: 'parent', key: parentKey, op: 'freeMail', on: true });
+  const onAt = fullKid.c.inbox.length;
+  for (const text of shield) await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
+  await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'Come see my Ring Light!', color: 0, sticker: 0 });
+  const onFails = fullKid.c.inbox.slice(onAt).filter(m => m.t === 'mailFail');
+  const onMail = onFails.filter(m => m.reason === 'mail').length;
+  check('item names do not shield a surname or a street when freeMail is on', hood.meta!.settings.freeMail === true && onMail === 4 && onFails.some(m => m.reason === 'personal') && live().mailbox?.letters.some(l => l.text === 'Come see my Ring Light!') && !shield.some(t => live().mailbox?.letters.some(l => l.text === t)) && keptCute(), onFails.map(m => m.reason).join(','));
+  await send(grown, { t: 'parent', key: parentKey, op: 'freeMail', on: false });
+  const offAt = fullKid.c.inbox.length;
+  const offBefore = live().mailbox?.letters.length ?? 0;
+  for (const text of shield) await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
+  const offFails = fullKid.c.inbox.slice(offAt).filter(m => m.t === 'mailFail');
+  check('those letters stay out when freeMail is off', hood.meta!.settings.freeMail === false && offFails.length === shield.length && offFails.every(m => m.reason === 'presetsOnly') && (live().mailbox?.letters.length ?? 0) === offBefore, offFails.map(m => m.reason).join(','));
 
   console.log(`${pass} passed`);
 }

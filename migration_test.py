@@ -336,8 +336,8 @@ async def main():
               __hood().setLook({ skin: L.skin, hair: L.hair, hairStyle: L.hairStyle, shirt: '#80ed99', pants: L.pants, size: L.size, acc: L.acc });
             }""")
             await P.wait_for_timeout(800)
-            dropped = await K2.evaluate("""(pid) => { const L = (__hood().players.get(pid) || {}).look || {}; return { shirt: L.shirt, look2: Object.prototype.hasOwnProperty.call(L, 'look2') ? L.look2 : 'absent' }; }""", pid_p)
-            check('old client edit drops look2 and keeps the new shirt', dropped and dropped.get('shirt') == '#80ed99' and dropped.get('look2') in (None, 'absent') and not old_errs, str(dropped) + ' ' + '; '.join(old_errs[:2]))
+            kept_look = await K2.evaluate("""(pid) => { const L = (__hood().players.get(pid) || {}).look || {}; return { shirt: L.shirt, hair: L.look2 && L.look2.hair }; }""", pid_p)
+            check('old client edit keeps look2 and the new shirt', kept_look and kept_look.get('shirt') == '#80ed99' and kept_look.get('hair') == 'puffs' and not old_errs, str(kept_look) + ' ' + '; '.join(old_errs[:2]))
             await P.click(f'.mapHouse[data-go="house:{k2house}"]'); await P.wait_for_timeout(900)
             await P.evaluate("""() => { const h = __hood(), id = """ + json.dumps(k2house) + """; const kind = Object.keys(__items)[0]; h.dispatch(id, {type:'item/add', room:'living', item:{id:'old-client-edit', kind, x:440, y:520, flip:false}}); }""")
             await P.wait_for_timeout(900)
