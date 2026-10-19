@@ -102,7 +102,10 @@ let state = reduce(initialState(), { type: 'char/update', id: 'c1', patch: { ...
 check('a look2 patch lands on the kid', state.characters[0].look2?.hair === 'puffs' && state.characters[0].hair === '#2b1d16');
 const shirtOnly = cleanLookPatch({ shirt: '#80ed99' });
 state = reduce(state, { type: 'char/update', id: 'c1', patch: shirtOnly! });
-check('a legacy patch drops look2 and keeps the new shirt', state.characters[0].look2 === undefined && state.characters[0].shirt === '#80ed99');
+check('a legacy patch keeps look2 and the new shirt', state.characters[0].look2?.hair === 'puffs' && state.characters[0].shirt === '#80ed99' && !!shirtOnly && !('look2' in shirtOnly));
+const classicPatch = cleanLookPatch({ look2: null, shirt: '#ffffff' });
+const cleared = reduce(state, { type: 'char/update', id: 'c1', patch: classicPatch! });
+check('an explicit look2 clears the chibi look', classicPatch?.look2 === null && cleared.characters[0].look2 === undefined && cleared.characters[0].shirt === '#ffffff');
 state = reduce(initialState(), { type: 'char/update', id: 'c1', patch: { ...patched, size: 'kid' } });
 state = reduce(state, { type: 'char/update', id: 'c1', patch: cleanLookPatch({ flip: true })! });
 check('a flip leaves look2 alone', state.characters[0].flip === true && state.characters[0].look2?.hair === 'puffs');

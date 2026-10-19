@@ -237,7 +237,10 @@ async function main() {
   check('an oversize look2 drops only itself', tooBig.shirt === look.shirt && tooBig.look2 === undefined);
   const legacyPatch = cleanAction({ type: 'char/update', id: 'c1', patch: { shirt: '#80ed99' } });
   styled = legacyPatch ? reduce(styled, legacyPatch) : styled;
-  check('a legacy char update drops look2', styled.characters[0].look2 === undefined && styled.characters[0].shirt === '#80ed99');
+  check('a legacy char update keeps look2', styled.characters[0].look2?.hair === 'puffs' && styled.characters[0].shirt === '#80ed99' && legacyPatch?.type === 'char/update' && !('look2' in legacyPatch.patch));
+  const classicAct = cleanAction({ type: 'char/update', id: 'c1', patch: { look2: null } });
+  const cleared = classicAct ? reduce(styled, classicAct) : styled;
+  check('an explicit look2 clears the chibi look', classicAct?.type === 'char/update' && classicAct.patch.look2 === null && cleared.characters[0].look2 === undefined && cleared.characters[0].shirt === '#80ed99');
   styled = reduce(initialState(), { type: 'char/update', id: 'c1', patch: { ...patchFromLook2(look2), size: 'kid' } });
   styled = reduce(styled, { type: 'room/wallpaper', room: 'living', color: '#ccddee' });
   check('a room edit keeps look2', styled.characters[0].look2?.hair === 'puffs' && styled.rooms.living.wallpaper === '#ccddee');

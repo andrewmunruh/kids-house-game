@@ -2,7 +2,7 @@
 # Needs /tmp/b0tree (worktree at fbd04db), /tmp/b0-dist, and /tmp/new-dist.
 # A mailbox written by B0 must survive the B1 server, and a B0 client on the
 # same street must not see look2, must be able to use the mailbox, and must
-# not wipe look2 or the mailbox when she edits.
+# not wipe look2 or the mailbox when she edits. A legacy char/update keeps look2.
 import asyncio, json, os, shutil, signal, subprocess, sys, time
 from playwright.async_api import async_playwright
 
@@ -273,6 +273,19 @@ async def main():
             }""", b1house)
             disk = disk_letter(DATA, 'old iPad')
             check('an fbd04db edit keeps look2 and the mailbox', kept_mix and kept_mix.get('hair') == 'buns' and kept_mix.get('edit') and any('old iPad' in t for t in kept_mix.get('mail') or []) and disk and not merrs, str(kept_mix) + ' ' + '; '.join(merrs[:3]))
+            # Her house kid already has a chibi look. The cached fbd04db page sends only the legacy colors.
+            await B1.evaluate("""(id) => {
+              const look2 = __avatar.sanitizeLook2({ v:1, hair:'puffs', hairC:'#2b1d16', skin:'#f1c27d', eyes:'round', eyeC:'#5a321c', freckles:false, blush:true, top:'classic', topC:'#ff7aa8', bottom:'pants', bottomC:'#5aa9e6', dress:'', dressC:'#ff7aa8', shoes:'classic', shoesC:'#5a3d5c', acc:['bow'], accC:'#ffd166' });
+              const legacy = __avatar.legacyFromLook2(look2);
+              __hood().dispatch(id, { type:'char/update', id:'c1', patch: Object.assign({ size:'kid' }, legacy, { look2 }) });
+            }""", b1house)
+            await B1.wait_for_function("""(id) => { const c = (__hood().view(id).characters || []).find(x => x.id === 'c1'); return c && c.look2 && c.look2.hair === 'puffs'; }""", arg=b1house, timeout=8000)
+            await B0.evaluate("""(id) => {
+              __hood().dispatch(id, { type:'char/update', id:'c1', patch: { skin:'#f1c27d', hair:'#2b1d16', hairStyle:2, shirt:'#80ed99', pants:'#5aa9e6', size:'kid', acc:1 } });
+            }""", b1house)
+            await B1.wait_for_function("""(id) => { const c = (__hood().view(id).characters || []).find(x => x.id === 'c1'); return c && c.shirt === '#80ed99'; }""", arg=b1house, timeout=8000)
+            kept_kid = await B1.evaluate("""(id) => { const c = (__hood().view(id).characters || []).find(x => x.id === 'c1') || {}; return { hair: c.look2 && c.look2.hair, shirt: c.shirt }; }""", b1house)
+            check('an old client look update keeps her chibi look', kept_kid and kept_kid.get('hair') == 'puffs' and kept_kid.get('shirt') == '#80ed99' and not merrs, str(kept_kid) + ' ' + '; '.join(merrs[:3]))
             await b.close()
     finally:
         for pr in (web_b0, web_b1, hood):

@@ -321,7 +321,6 @@ export function cleanItem(i: any): PlacedItem | null {
   return { id, kind, x: num(i.x, 0, ROOM_W) ?? ROOM_W / 2, y: num(i.y, 0, ROOM_H) ?? 500, flip: i.flip === true, z: Math.round(num(i.z, -1e6, 1e6) ?? 0), scale: num(i.scale, 0.3, 3) ?? 1 };
 }
 export type Look = Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc'> & { look2?: Look2 };
-const LEGACY_LOOK = ['skin', 'hair', 'shirt', 'pants', 'hairStyle', 'acc', 'size'];
 export function cleanLookPatch(p: any): Partial<Look & { flip: boolean; look2: Look2 | null }> | null {
   if (!p || typeof p !== 'object') return null;
   const out: any = {};
@@ -330,8 +329,9 @@ export function cleanLookPatch(p: any): Partial<Look & { flip: boolean; look2: L
   if ('acc' in p) { const v = num(p.acc, 0, 3); if (v === null) return null; out.acc = Math.round(v); }
   if ('size' in p) { if (!SIZES.includes(p.size)) return null; out.size = p.size; }
   if ('flip' in p) { if (typeof p.flip !== 'boolean') return null; out.flip = p.flip; }
+  // Old clients send the legacy colors and omit look2. Leaving the key off keeps her chibi look.
+  // look2 is replaced or cleared only when this patch includes it (a B1 "use classic look" sends null).
   if ('look2' in p) out.look2 = sanitizeLook2(p.look2) ?? null;
-  else if (LEGACY_LOOK.some(k => k in p)) out.look2 = null;
   return Object.keys(out).length ? out : null;
 }
 export function cleanLook(p: any): Look {
