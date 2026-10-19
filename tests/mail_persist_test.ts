@@ -2,15 +2,30 @@
 //   npx tsx tests/mail_persist_test.ts node
 //   npx tsx tests/mail_persist_test.ts worker
 //   npx tsx tests/mail_persist_test.ts b0
+//   PORT=8800 npx tsx tests/mail_persist_test.ts node
+//   npx tsx tests/mail_persist_test.ts worker --port 8801
+// The repo root is the directory above this file, so the script works from any cwd.
 // node and worker use this build. b0 writes a mailbox with the fbd04db server, then this build reloads it.
+// B0_TREE overrides the old checkout (default /tmp/b0tree).
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
 import { NICKNAMES, PROTOCOL } from '../src/shared/hood';
+import { KID_OK, LEAKS } from './filter_lines';
 
 const require = createRequire(import.meta.url);
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const B0 = process.env.B0_TREE || '/tmp/b0tree';
 const mode = process.argv[2];
+function portOf(fallback: number): number {
+  const flag = process.argv.indexOf('--port');
+  const raw = flag >= 0 ? process.argv[flag + 1] : process.env.PORT;
+  if (raw && /^\d+$/.test(raw)) return Number(raw);
+  return fallback;
+}
 const SURVIVE = [
   'fat', 'ugly sweater day', 'my cat is fat', 'fat cat', 'ugly duckling', 'the fat pony is cute',
   "Hell's Kitchen is a show", 'go to hell', 'add me on fortnite', 'loser', 'shut up', 'go away',
@@ -42,6 +57,16 @@ const until = async (sock: Sock, pred: (m: any) => boolean, ms = 8000) => {
     const hit = [...sock.inbox].reverse().find(pred);
     if (hit) return hit;
     await new Promise(r => setTimeout(r, 30));
+  }
+  throw new Error('no message');
+};
+const waitNew = async (sock: Sock, pred: (m: any) => boolean, ms = 8000) => {
+  const from = sock.inbox.length;
+  const start = Date.now();
+  while (Date.now() - start < ms) {
+    const hit = sock.inbox.slice(from).find(pred);
+    if (hit) return hit;
+    await new Promise(r => setTimeout(r, 20));
   }
   throw new Error('no message');
 };
@@ -82,6 +107,47 @@ async function join(port: number, id: string, nickname: string) {
   return { sock, pid: joined.pid as string, token: joined.token as string, hid };
 }
 
+async function gate(port: number, label: string) {
+  const hood = await createHood(port);
+  const owner = await join(port, hood.id, NICKNAMES[0]);
+  const pals = [];
+  const slots = Math.ceil(KID_OK.length / 5);
+  for (let i = 1; i < slots && i < NICKNAMES.length; i++) pals.push(await join(port, hood.id, NICKNAMES[i]));
+  const senders = [owner, ...pals];
+  const bad: string[] = [];
+  const sender = senders[0];
+  for (const text of LEAKS) {
+    sender.sock.send({ t: 'say', b: { kind: 'text', v: text } });
+    const say = await waitNew(sender.sock, m => m.t === 'sayFail');
+    if (say.reason !== 'words') bad.push('say ' + text + ' ' + say.reason);
+    sender.sock.send({ t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
+    const mail = await waitNew(sender.sock, m => m.t === 'mailFail');
+    if (mail.reason !== 'mail') bad.push('mail ' + text + ' ' + mail.reason);
+  }
+  for (let i = 0; i < KID_OK.length; i++) {
+    const text = KID_OK[i];
+    const pal = senders[Math.floor(i / 5)];
+    pal.sock.send({ t: 'say', b: { kind: 'text', v: text } });
+    const say = await waitNew(pal.sock, m => m.t === 'sayFail');
+    if (say.reason !== 'nowhere') bad.push('say ' + text + ' ' + say.reason);
+    pal.sock.send({ t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
+    const sentAt = pal.sock.inbox.length;
+    let box: any;
+    try {
+      box = await waitNew(owner.sock, m => m.t === 'mailbox' && (m.mailbox?.letters ?? []).some((l: { text: string }) => l.text === text));
+    } catch {
+      const fail = pal.sock.inbox.slice(sentAt).find(m => m.t === 'mailFail');
+      bad.push('mail ' + text + ' ' + (fail?.reason ?? 'missing'));
+      continue;
+    }
+    const letter = (box.mailbox.letters as { id: string; text: string }[]).find(l => l.text === text)!;
+    owner.sock.send({ t: 'mail', op: 'drop', houseId: owner.hid, id: letter.id });
+    await waitNew(owner.sock, m => m.t === 'mailbox' && !(m.mailbox?.letters ?? []).some((l: { id: string }) => l.id === letter.id));
+  }
+  check(label + ' blocks every leak and accepts every ordinary line', bad.length === 0 && KID_OK.length >= 40, bad.slice(0, 8).join(' | '));
+  for (const p of [owner, ...pals]) p.sock.ws.close();
+}
+
 async function roundTrip(port: number, label: string) {
   const hood = await createHood(port);
   const owner = await join(port, hood.id, NICKNAMES[0]);
@@ -116,17 +182,18 @@ async function readBack(port: number, id: string, token: string, pid: string, hi
 }
 
 async function nodeMode() {
-  const data = '/tmp/mail-persist-node';
-  const port = 8791;
+  const port = portOf(8791);
+  const data = '/tmp/mail-persist-node-' + port;
   mkdirSync(data, { recursive: true });
   const cmd = ['npx', 'tsx', 'server/node.ts'];
-  let child = start(cmd, '/workspace', { PORT: String(port), HOOD_DATA: data });
+  let child = start(cmd, ROOT, { PORT: String(port), HOOD_DATA: data });
   try {
     await waitHealth(port, 20000);
+    await gate(port, 'node');
     const trip = await roundTrip(port, 'node');
     stop(child); child = null;
     await new Promise(r => setTimeout(r, 400));
-    child = start(cmd, '/workspace', { PORT: String(port), HOOD_DATA: data });
+    child = start(cmd, ROOT, { PORT: String(port), HOOD_DATA: data });
     await waitHealth(port, 20000);
     const texts = await readBack(port, trip.hood.id, trip.owner.token, trip.owner.pid, trip.owner.hid);
     const missing = SURVIVE.filter(t => !texts.includes(t));
@@ -135,17 +202,18 @@ async function nodeMode() {
 }
 
 async function workerMode() {
-  const port = 8792;
-  const persist = '/tmp/mail-persist-worker';
+  const port = portOf(8792);
+  const persist = '/tmp/mail-persist-worker-' + port;
   mkdirSync(persist, { recursive: true });
   const cmd = ['npx', '-y', 'node@22', 'node_modules/wrangler/bin/wrangler.js', 'dev', '--local', '--port', String(port), '--persist-to', persist, '--var', 'ALLOWED_ORIGIN:*'];
-  let child = start(cmd, '/workspace', {});
+  let child = start(cmd, ROOT, {});
   try {
     await waitHealth(port, 90000);
+    await gate(port, 'worker');
     const trip = await roundTrip(port, 'worker');
     stop(child); child = null;
     await new Promise(r => setTimeout(r, 800));
-    child = start(cmd, '/workspace', {});
+    child = start(cmd, ROOT, {});
     await waitHealth(port, 90000);
     const texts = await readBack(port, trip.hood.id, trip.owner.token, trip.owner.pid, trip.owner.hid);
     const missing = SURVIVE.filter(t => !texts.includes(t));
@@ -154,11 +222,11 @@ async function workerMode() {
 }
 
 async function b0Mode() {
-  const data = '/tmp/mail-persist-b0';
-  const port = 8793;
+  const port = portOf(8793);
+  const data = '/tmp/mail-persist-b0-' + port;
   mkdirSync(data, { recursive: true });
   const b0cmd = [require.resolve('tsx/cli'), 'server/node.ts'];
-  let child = start(b0cmd, '/tmp/b0tree', { PORT: String(port), HOOD_DATA: data });
+  let child = start(b0cmd, B0, { PORT: String(port), HOOD_DATA: data });
   const kept = ['Come play in the yard!', 'the lamp is pretty', 'Ethel', 'go to hell'];
   try {
     await waitHealth(port, 20000);
@@ -186,7 +254,7 @@ async function b0Mode() {
     ];
     disk[key].state.mailbox.letters.push(...extra);
     writeFileSync(file, JSON.stringify(disk));
-    child = start(['npx', 'tsx', 'server/node.ts'], '/workspace', { PORT: String(port), HOOD_DATA: data });
+    child = start(['npx', 'tsx', 'server/node.ts'], ROOT, { PORT: String(port), HOOD_DATA: data });
     await waitHealth(port, 20000);
     const texts = await readBack(port, hood.id, owner.token, owner.pid, owner.hid);
     const want = [...kept, 'f*ck', 'my cat is fat', "Hell's Kitchen is a show", 'loser'];

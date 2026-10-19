@@ -7,6 +7,7 @@ import { initialState, type Cat } from '../src/shared/state';
 import { keepMailbox, stripUrls, MAIL_CAP, MAIL_MAX, MAIL_TTL_MS, type Letter } from '../src/shared/mail';
 import { catAt } from '../src/pets';
 import { dragAllowed, playGesture } from '../src/playmode';
+import { KID_OK, LEAKS } from './filter_lines';
 
 const mem = new Map<string, any>();
 const kv: KV = {
@@ -49,6 +50,7 @@ async function main() {
     'seven', 'one two', 'minecraft please', 'Lincoln School', 'my house is on Maple street', 'Emma Ring Light',
     'Big Monitor street', 'Gaming Chair Lane 12', 'I live on Gaming Chair Lane', 'hate you', 'dumb', 'kill',
     'st00pid', 'ugly', 'add me on fortnite SparkleQueen',
+    ...KID_OK,
     ...CATALOG_NAMES.filter(n => n.length <= MAIL_MAX),
   ];
   const sendBlock = [
@@ -57,6 +59,7 @@ async function main() {
     'asshole', 'a**hole', 'a$$hole',
     'dumbass', 'dvmbass', 'd*mbass', 'dumb ass', 'dumb@ss', 'd.u.m.b.a.s.s', 'd u m b a s s', 'duuumbass', 'dumb-ass', 'you dumbass',
     'kys', 'k y s', 'nigger', 'n1gger', 'nigga', 'faggot', 'f4g', 'fag', 'retard',
+    ...LEAKS,
   ];
   console.log('MAIL TABLE');
   console.log('result\texpect\treason\ttext');
@@ -117,6 +120,11 @@ async function main() {
   check('a reload keeps every line a kid can send', survive.length >= 30 && surviveMiss.length === 0, surviveMiss.join(' | '));
   check('a letter stored before still survives a reload', grandMiss.length === 0, grandMiss.join(' | '));
   check('a plain swear does not survive a reload', bannedLeft.length === 0, bannedLeft.join(' | '));
+  const kidMiss = KID_OK.filter(t => {
+    const one = letter({ id: 'mkidok01', text: t });
+    return JSON.stringify(filterMailbox({ letters: [one] })?.letters[0]) !== JSON.stringify(one);
+  });
+  check('ordinary kid lines still survive a reload', KID_OK.length >= 40 && kidMiss.length === 0, kidMiss.join(' | '));
   const names = ['Rachel', 'Michelle', 'Chelsea', 'Ethel', 'Mitchell'];
   const nameBad = names.filter(n => cleanFirstName(n) !== n || cleanPetName(n) !== n || cleanHouseName(n) !== n || cleanHouseName(n + "'s House") !== n + "'s House");
   check('those names work for a kid, a pet, and a house', nameBad.length === 0, nameBad.join(' | '));

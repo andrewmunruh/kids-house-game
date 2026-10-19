@@ -90,7 +90,7 @@ function swearShape(s: string): boolean {
 function swearToken(s: string): boolean {
   if (!/^[a-z]+$/.test(s)) return false;
   const stems = [s];
-  const sufs = ['ing', 'ers', 'er', 'ed', 'es', 'y', 's'];
+  const sufs = ['ing', 'in', 'ers', 'er', 'ed', 'es', 'y', 's'];
   for (let i = 0; i < sufs.length; i++) {
     const suf = sufs[i];
     if (s.endsWith(suf) && s.length > suf.length + 2) stems.push(s.slice(0, -suf.length));
@@ -114,9 +114,44 @@ function starForms(mapped: string): string[] {
   walk(0);
   return out;
 }
-/** Main swears, obvious disguises, severe slurs, and kys. Whole tokens only. */
+/** Stems that are still the swear when letters repeat or other words are glued on. `ass` and `fag` stay whole-token only. */
+const COMPOUND = [
+  /f+u+c+k+/, /f+u+k+/, /f+c+k+/,
+  /s+h+i+t+/, /s+h+t+/,
+  /b+i+t+c+h+/, /b+t+c+h+/,
+  /a+s+h+o+l+e+/,
+  /d+u+m+b+a+s+/,
+  /n+i+g{2,}e+r+/, /n+i+g{2,}a+/,
+  /f+a+g+o+t+/,
+  /r+e+t+a+r+d+/,
+];
+function hasSwear(s: string): boolean {
+  const t = s.replace(/ph(?=u+c+k)/g, 'f').replace(/ph(?=u+k)/g, 'f');
+  if (swearToken(t)) return true;
+  for (let i = 0; i < COMPOUND.length; i++) if (COMPOUND[i].test(t)) return true;
+  return /^w+t+f+$/.test(t) || /^s+t+f+u+$/.test(t);
+}
+/** Leet marks inside a word only. A number by itself, and the first and last character, stay as written. */
+function mapToken(token: string): string {
+  if (!/[a-z]/.test(token) || token.length < 3) return token;
+  let out = token[0];
+  for (let i = 1; i < token.length - 1; i++) out += SEND_LEET[token[i]] ?? token[i];
+  return out + token[token.length - 1];
+}
+function killPhrase(tokens: string[]): boolean {
+  for (let i = 0; i < tokens.length; i++) {
+    if (!/^k+i+l+$/.test(tokens[i])) continue;
+    const a = tokens[i + 1] || '';
+    const b = tokens[i + 2] || '';
+    if (/^y+o+u+r+s+e+l+f+$/.test(a) || /^u+r+s+e+l+f+$/.test(a)) return true;
+    if (/^u+r+$/.test(a) && /^s+e+l+f+$/.test(b)) return true;
+  }
+  return false;
+}
+/** Main swears, compounds, obvious disguises, severe slurs, kys, and "kill yourself". */
 function sendSwear(raw: string): boolean {
-  const parts = raw.toLowerCase().split(/[^a-z0-9@$!+*v]+/).filter(Boolean);
+  const folded = raw.normalize('NFKC').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const parts = folded.split(/[^a-z0-9@$!+*v]+/).map(p => p.replace(/^[!@$+*]+/, '').replace(/[!@$+*]+$/, '')).filter(Boolean);
   const tokens: string[] = [];
   let buf = '';
   const flush = () => { if (buf) { tokens.push(buf); buf = ''; } };
@@ -125,10 +160,11 @@ function sendSwear(raw: string): boolean {
     else { flush(); tokens.push(parts[i]); }
   }
   flush();
-  const norms = tokens.map(t => t.replace(/[013457@$!+v]/g, c => SEND_LEET[c] ?? c));
+  const norms = tokens.map(mapToken);
+  if (killPhrase(norms.map(t => t.replace(/\*/g, '')))) return true;
   for (let i = 0; i < norms.length; i++) {
     const forms = starForms(norms[i]);
-    for (let j = 0; j < forms.length; j++) if (swearToken(forms[j])) return true;
+    for (let j = 0; j < forms.length; j++) if (hasSwear(forms[j])) return true;
   }
   for (let i = 0; i < norms.length - 1; i++) {
     const a = norms[i].replace(/\*/g, '');
