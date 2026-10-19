@@ -298,6 +298,16 @@ async def main():
               h.dispatch(id, {type:'item/add', room:'living', item:{id:'keep-kennel', kind:'kennel', x:1100, y:520, flip:false, z:1, scale:1}});
               h.dispatch(id, {type:'dog/kennel', item:'keep-kennel'}); }""")
             await K2.wait_for_timeout(900)
+            # A new client publishes a full look. Friends see look2 plus the legacy colors an old iPad can draw.
+            pid_p = ids_a[0][0]
+            await P.evaluate("""() => {
+              const look2 = { v: 1, hair: 'puffs', hairC: '#2b1d16', skin: '#f1c27d', eyes: 'sparkle', eyeC: '#3d7ec4', freckles: true, blush: true, top: 'hoodie', topC: '#ff7aa8', bottom: 'skirt', bottomC: '#5aa9e6', dress: '', dressC: '#ff7aa8', shoes: 'sneakers', shoesC: '#ffffff', acc: ['glasses', 'bow'], accC: '#ffd166' };
+              const legacy = __avatar.legacyFromLook2(look2);
+              __hood().setLook(Object.assign({ size: 'kid' }, legacy, { look2: look2 }));
+            }""")
+            await P.wait_for_timeout(800)
+            synced = await K2.evaluate("""(pid) => { const L = (__hood().players.get(pid) || {}).look; return L ? { hair: L.hair, style: L.look2 && L.look2.hair, acc: L.acc } : null; }""", pid_p)
+            check('new look2 syncs to another iPad with a legacy hair color', synced and synced.get('style') == 'puffs' and synced.get('hair') == '#2b1d16' and synced.get('acc') == 2, str(synced))
             await P.evaluate("""(id) => { __hood().sendMail(id, 'Come play in the yard!', 1, 2); }""", k2house)
             await P.wait_for_timeout(900)
             mailed = await K2.evaluate("""(id) => { const L = (__hood().view(id).mailbox || {}).letters; return L && L[0] && L[0].text.indexOf('yard') >= 0 && !!L[0].from; }""", k2house)
@@ -312,7 +322,22 @@ async def main():
                 await P.screenshot(path='/tmp/mig-old-client.png'); raise
             old_tabs = await P.locator('.tab').all_inner_texts()
             check('old client shows four tabs and does not draw the nursery', len(old_tabs) == 4 and not any('Nursery' in t for t in old_tabs), str(old_tabs))
+            face = await P.evaluate("""() => { const svg = document.querySelector('.mapFace.mine svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
+            check('old client draws the new kid without the chibi avatar', face is None and not old_errs, str(face) + ' ' + '; '.join(old_errs[:2]))
+            os.makedirs('/opt/cursor/artifacts', exist_ok=True)
+            await P.click('#mapWorld .mapHouse.mine'); await P.wait_for_timeout(900)
+            body = await P.evaluate("""() => { const svg = document.querySelector('.char.avatar.mine svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
+            check('old client house body has no chibi markup', body is None and not old_errs, str(body))
+            await P.screenshot(path='/opt/cursor/artifacts/old-client-view.png')
+            await P.click('#btnMap'); await P.wait_for_timeout(500)
             check('old client does not show mailboxes', await P.locator('.mapMail').count() == 0)
+            await P.evaluate("""() => {
+              const L = __hood().players.get(__hood().pid).look;
+              __hood().setLook({ skin: L.skin, hair: L.hair, hairStyle: L.hairStyle, shirt: '#80ed99', pants: L.pants, size: L.size, acc: L.acc });
+            }""")
+            await P.wait_for_timeout(800)
+            kept_look = await K2.evaluate("""(pid) => { const L = (__hood().players.get(pid) || {}).look || {}; return { shirt: L.shirt, hair: L.look2 && L.look2.hair }; }""", pid_p)
+            check('old client edit keeps look2 and the new shirt', kept_look and kept_look.get('shirt') == '#80ed99' and kept_look.get('hair') == 'puffs' and not old_errs, str(kept_look) + ' ' + '; '.join(old_errs[:2]))
             await P.click(f'.mapHouse[data-go="house:{k2house}"]'); await P.wait_for_timeout(900)
             await P.evaluate("""() => { const h = __hood(), id = """ + json.dumps(k2house) + """; const kind = Object.keys(__items)[0]; h.dispatch(id, {type:'item/add', room:'living', item:{id:'old-client-edit', kind, x:440, y:520, flip:false}}); }""")
             await P.wait_for_timeout(900)

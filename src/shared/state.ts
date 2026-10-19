@@ -1,4 +1,5 @@
 import { storeKey } from './storekey';
+import { sanitizeLook2, withRandomStarter, type Look2 } from './avatar';
 // All game state is plain serializable JSON. All changes go through `Action`s
 // so a future multiplayer server can validate/relay the same actions.
 import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plot, type RanchOp } from './ranch';
@@ -35,6 +36,7 @@ export interface Character {
   id: string;
   skin: string; hair: string; hairStyle: number; shirt: string; pants: string;
   size: CharSize; acc: number;          // accessory: 0 none, 1 bow, 2 glasses, 3 cap
+  look2?: Look2;                     // chibi maker. Missing means the classic drawing.
   room: RoomId; x: number; y: number; flip: boolean;
   /** Items held in each hand travel with the character (x/y of a held item are ignored). */
   held: { left: PlacedItem | null; right: PlacedItem | null };
@@ -93,7 +95,7 @@ export type Action =
   | { type: 'room/wallTile'; room: RoomId; tile: string | null }
   | { type: 'room/floorTile'; room: RoomId; tile: string | null }
   | { type: 'char/add'; char: Character }
-  | { type: 'char/update'; id: string; patch: Partial<Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc' | 'flip'>> }
+  | { type: 'char/update'; id: string; patch: Partial<Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc' | 'flip'>> & { look2?: Look2 | null } }
   | { type: 'char/move'; id: string; room: RoomId; x: number; y: number }
   | { type: 'char/delete'; id: string }
   | { type: 'char/hold'; id: string; hand: Hand; room: RoomId; itemId: string }
@@ -201,7 +203,12 @@ export function reduce(s: GameState, a: Action): GameState {
     case 'room/wallTile': return mapItems(s, a.room, r => ({ ...r, wallTile: a.tile }));
     case 'room/floorTile': return mapItems(s, a.room, r => ({ ...r, floorTile: a.tile }));
     case 'char/add': return s.characters.length >= MAX_CHARS || s.characters.some(c => c.id === a.char.id) ? s : { ...s, characters: [...s.characters, a.char] };
-    case 'char/update': return mapChar(s, a.id, c => ({ ...c, ...a.patch }));
+    case 'char/update': return mapChar(s, a.id, c => {
+      const { look2, ...rest } = a.patch;
+      const next: Character = { ...c, ...rest };
+      if ('look2' in a.patch) { if (look2) next.look2 = look2; else delete next.look2; }
+      return next;
+    });
     case 'char/move': return s.rooms[a.room] ? mapChar(s, a.id, c => ({ ...c, room: a.room, x: clamp(a.x, 0, ROOM_W), y: clamp(a.y, 60, ROOM_H) })) : s;
     case 'char/delete': {
       const c = s.characters.find(c => c.id === a.id); if (!c) return s;
@@ -266,7 +273,13 @@ export function migrate(raw: any): GameState {
   // Existing rooms win, so a kid's furniture is never replaced by the starter set.
   const base = initialState();
   const characters = (Array.isArray(s.characters) ? s.characters : []).slice(0, MAX_CHARS)
-    .map((c: any, i: number) => newCharacter({ ...c, id: String(c.id ?? 'c' + (i + 1)), held: { left: c.held?.left ?? null, right: c.held?.right ?? null } }));
+    .map((c: any, i: number) => {
+      const rawLook = c?.look2;
+      const ch = newCharacter({ ...c, id: String(c.id ?? 'c' + (i + 1)), held: { left: c.held?.left ?? null, right: c.held?.right ?? null } });
+      delete ch.look2;
+      if (rawLook != null) { const clean = sanitizeLook2(rawLook); if (clean) ch.look2 = clean; }
+      return ch;
+    });
   const next = ensureRooms({ ...base, ...s, rooms: { ...base.rooms, ...s.rooms }, characters });
   const dogKennel = validKennel(next);
   const withKennel = dogKennel === next.dogKennel ? next : { ...next, dogKennel };
@@ -305,6 +318,7 @@ export function createStore() {
   try {
     const raw = localStorage.getItem(KEY) ?? localStorage.getItem(V1_KEY);
     state = raw ? migrate(JSON.parse(raw)) : initialState();
+    if (!raw && typeof navigator !== 'undefined' && !navigator.webdriver) state = withRandomStarter(state);
   } catch { state = initialState(); }
   const listeners: Listener[] = [];
   let t: number | undefined;

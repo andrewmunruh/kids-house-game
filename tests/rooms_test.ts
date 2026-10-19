@@ -2,8 +2,9 @@
 // edits to both rooms are accepted, and an old client's save cannot drop them.
 import { readFileSync } from 'node:fs';
 import { Neighborhood, type KV, type Conn } from '../server/core';
-import { NICKNAMES, PROTOCOL, cleanAction, cleanFx, cleanHouseState, cleanPresence } from '../src/shared/hood';
+import { NICKNAMES, PROTOCOL, cleanAction, cleanFx, cleanHouseState, cleanLook, cleanLookPatch, cleanPresence } from '../src/shared/hood';
 import { ensureRooms, initialState, migrate, reduce, type GameState } from '../src/shared/state';
+import { patchFromLook2, sanitizeLook2 } from '../src/shared/avatar';
 
 const store = new Map<string, any>();
 const puts: string[] = [];
@@ -226,6 +227,30 @@ async function main() {
   for (const n of display) seen.set(n, (seen.get(n) ?? 0) + 1);
   const dup = [...seen.entries()].filter(([, n]) => n > 1).map(([name]) => name);
   check('item, wallpaper and floor names are unique', dup.length === 0 && display.includes('Jewelry Box') && display.includes('Mint Gingham Floor') && display.includes('Mint Checks'), dup.join(', '));
+
+  const look2 = { v: 1 as const, hair: 'puffs' as const, hairC: '#2b1d16', skin: '#f1c27d', eyes: 'round' as const, eyeC: '#5a321c', freckles: false, blush: true, top: 'hoodie' as const, topC: '#c9a0dc', bottom: 'skirt' as const, bottomC: '#5aa9e6', dress: '' as const, dressC: '#ff7aa8', shoes: 'sneakers' as const, shoesC: '#ffffff', acc: ['bow' as const], accC: '#ffd166' };
+  let styled = reduce(initialState(), { type: 'char/update', id: 'c1', patch: { ...patchFromLook2(look2), size: 'kid' } });
+  check('look2 is optional and protocol stays 4', PROTOCOL === 4 && styled.version === 3 && styled.characters[0].look2?.hair === 'puffs' && styled.characters[0].hairStyle === 2);
+  const dropped = sanitizeLook2({ v: 1, hair: 'nope', skin: '#ffe0c4', acc: 'bow' });
+  check('a bad look2 field is dropped by itself', !!dropped && dropped.hair === undefined && dropped.skin === '#ffe0c4' && dropped.acc === undefined);
+  const tooBig = cleanLook({ ...look, look2: { v: 1, hair: 'bob', pad: 'z'.repeat(500) } });
+  check('an oversize look2 drops only itself', tooBig.shirt === look.shirt && tooBig.look2 === undefined);
+  const legacyPatch = cleanAction({ type: 'char/update', id: 'c1', patch: { shirt: '#80ed99' } });
+  styled = legacyPatch ? reduce(styled, legacyPatch) : styled;
+  check('a legacy char update keeps look2', styled.characters[0].look2?.hair === 'puffs' && styled.characters[0].shirt === '#80ed99' && legacyPatch?.type === 'char/update' && !('look2' in legacyPatch.patch));
+  const classicAct = cleanAction({ type: 'char/update', id: 'c1', patch: { look2: null } });
+  const cleared = classicAct ? reduce(styled, classicAct) : styled;
+  check('an explicit look2 clears the chibi look', classicAct?.type === 'char/update' && classicAct.patch.look2 === null && cleared.characters[0].look2 === undefined && cleared.characters[0].shirt === '#80ed99');
+  styled = reduce(initialState(), { type: 'char/update', id: 'c1', patch: { ...patchFromLook2(look2), size: 'kid' } });
+  styled = reduce(styled, { type: 'room/wallpaper', room: 'living', color: '#ccddee' });
+  check('a room edit keeps look2', styled.characters[0].look2?.hair === 'puffs' && styled.rooms.living.wallpaper === '#ccddee');
+  const flip = cleanLookPatch({ flip: true });
+  styled = flip ? reduce(styled, { type: 'char/update', id: 'c1', patch: flip }) : styled;
+  check('a flip keeps look2', styled.characters[0].flip === true && styled.characters[0].look2?.bottom === 'skirt');
+  const saved = JSON.parse(JSON.stringify(styled));
+  check('local and server loads match for look2', JSON.stringify(migrate(saved).characters[0].look2) === JSON.stringify(cleanHouseState(saved).characters[0].look2));
+  const bare = initialState();
+  check('a character without look2 is not rewritten', migrate(bare).characters[0].look2 === undefined && cleanHouseState(bare).characters[0].look2 === undefined);
 
   console.log(`${pass} passed`);
 }

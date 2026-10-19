@@ -4,8 +4,9 @@
 // Letters are kept on the server for up to 30 days: filtered more strictly than chat, first names only.
 // A kid can leave three unread letters in one mailbox. A grown-up can clear them, or limit new letters to preset phrases.
 import { reduce, initialState, ensureRooms, type GameState, type Dog } from '../src/shared/state';
+import { withRandomStarter } from '../src/shared/avatar';
 import {
-  MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, cleanPresence, cleanHouseName,
+  MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, applyLook, cleanPresence, cleanHouseName,
   filterSay, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, fxAllowedAt, PROTOCOL, PROTO_PETS, PROTO_RANCH, PROTO_GAMES, RANCH_FX, normCode, validInvite, MAX_ROSTER, cleanMailText, filterMailbox, mailColor, mailSticker, mailIsFree, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble, type StreetSettings,
 } from '../src/shared/hood';
 import { MAIL_CAP, MAIL_RATE_MAX, MAIL_RATE_WINDOW_MS, keepMailbox, projectMailbox, type Letter, type Mailbox } from '../src/shared/mail';
@@ -358,7 +359,7 @@ export class Neighborhood {
         }
         if (Object.keys(meta.players).length >= MAX_PLAYERS) { this.send(c, { t: 'error', code: 'full' }); return; }
         const token = randomToken(), pid = 'p' + randomToken(5), houseId = 'h' + randomToken(5);
-        const brought = m.house ? cleanHouseState(m.house) : initialState();
+        const brought = m.house ? cleanHouseState(m.house) : withRandomStarter(initialState());
         // Letters are stamped by the server from the connection, never imported from a client save.
         const { mailbox: _brought, ...state } = brought;
         const slot = meta.houseOrder.length;
@@ -461,7 +462,7 @@ export class Neighborhood {
         }
         return;
       }
-      case 'look': { me.look = cleanLook(m.look); this.save('meta'); this.broadcast({ t: 'players', players: this.players() }); return; }
+      case 'look': { me.look = applyLook(me.look, m.look); this.save('meta'); this.broadcast({ t: 'players', players: this.players() }); return; }
       case 'lock': {
         const h = this.houses.get(m.houseId); if (!h || h.ownerId !== me.pid || typeof m.locked !== 'boolean') return;
         h.locked = m.locked; this.save(h.id); this.broadcast({ t: 'houseMeta', meta: this.metaOf(h) }); return;

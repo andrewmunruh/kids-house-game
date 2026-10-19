@@ -3,7 +3,9 @@
 import { RANCH_W, BARN_W, RANCH_Y0, RANCH_Y1, HORSES, ANIMALS, FOODS, type Basket, type Plot, type RanchOp } from './ranch';
 import { GAMEROOM_W, type TablePub, type TableOp } from './games/index';
 import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, validKennel, ROOM_W, ROOM_H, MAX_CHARS, ROOM_IDS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
-import { MAIL_COLORS, MAIL_MAX, MAIL_STICKERS, keepMailbox, stripUrls, type Mailbox } from './mail';
+import { sanitizeLook2, type Look2 } from './avatar';
+import { CATALOG_NAMES } from './catalog-names';
+import { MAIL_COLORS, MAIL_MAX, MAIL_STICKERS, keepMailbox, type Mailbox } from './mail';
 
 export const MAX_PLAYERS = 12;
 export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L
@@ -70,6 +72,7 @@ export function filterChat(raw: unknown, max = MAX_CHAT): FilterResult {
   const squashed = norm.replace(/[^a-z]/g, '').replace(/(.)\1{2,}/g, '$1$1');
   if (toks.some(t => BAD.includes(t) || BAD.includes(t.replace(/(.)\1+/g, '$1'))) || BAD.filter(b => b.length >= 5).some(b => squashed.includes(b)))
     return { ok: false, reason: 'words' };
+  // Names and stored letters re-read through here. Keep this list as it was on fbd04db.
   return { ok: true, text };
 }
 const SEND_LEET: Record<string, string> = {
@@ -400,7 +403,6 @@ function filterLoose(raw: unknown, max: number, blocked: 'words' | 'mail', legac
 export function filterSay(raw: unknown, max = MAX_CHAT): FilterResult {
   return filterLoose(raw, max, 'words');
 }
-
 export const FILTER_MSG: Record<string, string> = {
   long: 'That is a bit long!', link: 'No links, please!', contact: 'Keep numbers and contact info secret!', personal: 'Keep personal info secret!',
   words: "Let's use kind words!", mail: 'Oops, try different words!', empty: '',
@@ -408,7 +410,7 @@ export const FILTER_MSG: Record<string, string> = {
 
 // Old letter rules. New bubbles and new letters use filterLoose instead, so these
 // lists are not on the send path. The kid still only hears "Oops, try different words!"
-const MEAN = new Set<string>([...BAD, 'fat', 'ugly', 'stoopid', 'dummy', 'hateyou', 'hateu', 'shutup']);
+const MEAN = new Set<string>([...BAD, 'fat', 'ugly', 'stoopid', 'hateyou', 'hateu', 'shutup']);
 const MEAN_PHRASE = new Set(['hateyou', 'hateu', 'shutup']);
 const DIGIT_WORDS = ['three', 'seven', 'eight', 'four', 'five', 'nine', 'zero', 'one', 'two', 'six', 'ten', 'oh'];
 const COMMON_WORD = new Set([
@@ -550,6 +552,7 @@ function mailNames(text: string, roster: string[]): boolean {
     if (!/^[A-Z][a-z]+$/.test(a) || !/^[A-Z][a-z]+$/.test(b)) continue;
     const al = a.toLowerCase(), bl = b.toLowerCase();
     if (COMMON_WORD.has(al) || COMMON_WORD.has(bl)) continue;
+    if (al === ITEM_WORD && bl === ITEM_WORD) continue;
     if (known.has(al) && COMMON_WORD.has(bl)) continue;
     return true;
   }
@@ -571,6 +574,44 @@ function mailMeetup(text: string): boolean {
   return false;
 }
 
+function escapeReg(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+const CATALOG_RE = (() => {
+  const phrases = [...new Set(CATALOG_NAMES.map(n => mailForms(n)).filter(n => n.length >= 2))].sort((a, b) => b.length - a.length);
+  return new RegExp(`(^|[^A-Za-z])(?:${phrases.map(escapeReg).join('|')})(?![A-Za-z])`, 'gi');
+})();
+const ITEM_WORD = 'item';
+/** An item name becomes one ordinary word, so it cannot hide the word next to it. */
+function maskCatalog(text: string): string {
+  return text.replace(CATALOG_RE, (m, pre: string) => pre + 'Item');
+}
+/** "cool drive in my house" is the game. A capitalised Name drive plus an address still blocks. */
+function coolDriveOk(text: string): boolean {
+  if (!/\bcool drive in my house\b/i.test(text)) return false;
+  const stripped = text.replace(/\bcool drive\b/ig, ' ');
+  if (!/\b[A-Z][a-z]+\s+drive\b/.test(stripped)) return true;
+  const address = ADDRESS_RE.test(text) || /\b(?:address|apt|apartment)\b/i.test(text) || /\blive\s+(?:on|at)\b/i.test(text) || mailStreet(stripped);
+  return !address;
+}
+function maskSafePhrases(text: string): string {
+  let out = maskCatalog(text);
+  out = out.replace(/\bbest way to play\b/gi, m => ' '.repeat(m.length));
+  if (coolDriveOk(text)) out = out.replace(/\bcool drive in my house\b/gi, m => ' '.repeat(m.length));
+  out = out.replace(/\bmy favorite number is\b/gi, m => ' '.repeat(m.length));
+  return out;
+}
+function textMeBlocked(text: string): boolean {
+  if (/\bcall\s+me\b/i.test(text)) return true;
+  if (!/\btext\s+me\b/i.test(text)) return false;
+  return !/\btext\s+me\b[\s\S]{0,48}?\b(?:with\s+a\s+letter|in\s+the\s+game)\b/i.test(text);
+}
+function phoneNumberBlocked(text: string): boolean {
+  if (/\bkys\b/i.test(text)) return true;
+  const masked = maskSafePhrases(text);
+  return /\bphone\b/i.test(masked) || /\bnumber\b/i.test(masked);
+}
+
 function mailBlocked(raw: string, roster: string[]): boolean {
   if (obfuscatedNumber(raw)) return true;
   const text = mailForms(raw);
@@ -580,15 +621,16 @@ function mailBlocked(raw: string, roster: string[]): boolean {
   if (/\b(?:user|username)\b[\s:._-]*[@#]?[A-Za-z0-9_]{2,}/i.test(text)) return true;
   if (/(^|\s)@[A-Za-z0-9_]{2,}/.test(text)) return true;
   if (mailAgePlace(text)) return true;
-  if (mailStreet(text)) return true;
   if (/\blive\s+(?:on|at)\b/i.test(text) || /\b(?:my\s+)?address\b/i.test(text) || /\blast\s+name\b/i.test(text)) return true;
-  if (/\b(?:call|text)\s+me\b/i.test(text) || /\b(?:phone|number|kys)\b/i.test(text)) return true;
+  if (textMeBlocked(text) || phoneNumberBlocked(text)) return true;
   if (/\bplay\s+for\s+the\b/i.test(text) || /\b(?:soccer|softball|dance)\s+team\b/i.test(text)) return true;
   if (mailSchool(text)) return true;
   if (mailMeetup(text)) return true;
-  if (mailDigits(text)) return true;
+  if (mailDigits(text) || mailDigits(maskCatalog(text))) return true;
   if (mailMean(text)) return true;
-  if (mailNames(text, roster)) return true;
+  const safe = maskSafePhrases(text);
+  if (mailStreet(safe)) return true;
+  if (mailNames(safe, roster)) return true;
   return false;
 }
 
@@ -609,8 +651,8 @@ export function cleanItem(i: any): PlacedItem | null {
   if (!id || !kind) return null;
   return { id, kind, x: num(i.x, 0, ROOM_W) ?? ROOM_W / 2, y: num(i.y, 0, ROOM_H) ?? 500, flip: i.flip === true, z: Math.round(num(i.z, -1e6, 1e6) ?? 0), scale: num(i.scale, 0.3, 3) ?? 1 };
 }
-export type Look = Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc'>;
-export function cleanLookPatch(p: any): Partial<Look & { flip: boolean }> | null {
+export type Look = Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc'> & { look2?: Look2 };
+export function cleanLookPatch(p: any): Partial<Look & { flip: boolean; look2: Look2 | null }> | null {
   if (!p || typeof p !== 'object') return null;
   const out: any = {};
   for (const k of ['skin', 'hair', 'shirt', 'pants'] as const) if (k in p) { const c = str(p[k], COLOR_RE, 9); if (!c) return null; out[k] = c; }
@@ -618,13 +660,24 @@ export function cleanLookPatch(p: any): Partial<Look & { flip: boolean }> | null
   if ('acc' in p) { const v = num(p.acc, 0, 3); if (v === null) return null; out.acc = Math.round(v); }
   if ('size' in p) { if (!SIZES.includes(p.size)) return null; out.size = p.size; }
   if ('flip' in p) { if (typeof p.flip !== 'boolean') return null; out.flip = p.flip; }
+  // Old clients send the legacy colors and omit look2. Leaving the key off keeps her chibi look.
+  // look2 is replaced or cleared only when this patch includes it (a B1 "use classic look" sends null).
+  if ('look2' in p) out.look2 = sanitizeLook2(p.look2) ?? null;
   return Object.keys(out).length ? out : null;
 }
 export function cleanLook(p: any): Look {
   const base = newCharacter({ id: 'x' });
   const c = cleanLookPatch({ skin: p?.skin, hair: p?.hair, hairStyle: p?.hairStyle, shirt: p?.shirt, pants: p?.pants, size: p?.size, acc: p?.acc }) ?? {};
   const pickOr = <K extends keyof Look>(k: K): Look[K] => ((c as any)[k] ?? base[k]);
-  return { skin: pickOr('skin'), hair: pickOr('hair'), hairStyle: pickOr('hairStyle'), shirt: pickOr('shirt'), pants: pickOr('pants'), size: pickOr('size'), acc: pickOr('acc') };
+  const out: Look = { skin: pickOr('skin'), hair: pickOr('hair'), hairStyle: pickOr('hairStyle'), shirt: pickOr('shirt'), pants: pickOr('pants'), size: pickOr('size'), acc: pickOr('acc') };
+  if (p && typeof p === 'object' && 'look2' in p) { const s = sanitizeLook2(p.look2); if (s) out.look2 = s; }
+  return out;
+}
+/** A legacy look update omits look2. Keep the chibi look already stored. An explicit look2 replaces or clears it. */
+export function applyLook(prev: Look | null | undefined, incoming: unknown): Look {
+  const next = cleanLook(incoming);
+  if (prev?.look2 && !(incoming && typeof incoming === 'object' && 'look2' in incoming)) next.look2 = prev.look2;
+  return next;
 }
 function cleanCharacter(c: any): Character | null {
   const id = str(c?.id, ID_RE); if (!id || !isRoom(c?.room)) return null;
@@ -702,17 +755,17 @@ export function cleanHouseState(raw: any): GameState {
   return mailbox ? { ...house, mailbox } : house;
 }
 
-/** A new letter. Same light list as a chat bubble: main swears and severe slurs only. */
+/** A new letter. Same light list as a new bubble. */
 export function cleanMailText(raw: unknown, _roster: string[] = []): FilterResult {
   return filterLoose(raw, MAIL_MAX, 'mail');
 }
 
-/** A stored letter stays when the light list would send it, or when the fbd04db chat list already kept it. The words are never rewritten. */
+/** A stored letter stays when the previous light list would allow it, or when fbd04db's chat list already allowed it. The text is never rewritten. */
 function storedLetterOk(text: string): boolean {
-  const light = filterLoose(text, MAIL_MAX, 'mail');
+  const light = filterLoose(text, MAIL_MAX, 'mail', true);
   if (light.ok && light.text === text) return true;
   const old = filterChat(text, MAIL_MAX);
-  return old.ok && stripUrls(old.text) === old.text && old.text === text;
+  return old.ok && old.text === text;
 }
 
 /** Letters follow this when a street has never set freeMail.
@@ -728,11 +781,11 @@ export function mailIsFree(settings: { freeChat: boolean; freeMail?: boolean }):
   return MAIL_FREE_DEFAULT;
 }
 
-/** Keep every letter the fbd04db chat list kept, and every letter the light list would send. Shape, cap, and the 30-day fade happen in keepMailbox. */
+/** Same light list as sending, plus any letter fbd04db would have kept. Shape, cap, and the 30-day fade happen in keepMailbox. */
 export function filterMailbox(raw: unknown, now = Date.now()): Mailbox | null {
   const box = keepMailbox(raw, now);
   if (!box) return null;
-  const letters = box.letters.filter(l => storedLetterOk(l.text));
+  const letters = box.letters.filter(l => !l.text || storedLetterOk(l.text));
   return letters.length ? { letters } : null;
 }
 

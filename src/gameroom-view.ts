@@ -1,5 +1,6 @@
 // Game Room scene: walk around the clubhouse, sit, and open a table.
 import { characterSVG, SIZE_SCALE } from './character';
+import { stampAvatar } from './avatar/motion';
 import { confetti } from './eggs';
 import { createTableUI, type TableApi } from './games/ui';
 import { GR_H, gameRoomSVG, seatLayout } from './gameroom';
@@ -102,6 +103,7 @@ export function renderGamePeople() {
     el.style.width = wd + 'px'; el.style.height = h + 'px';
     el.style.zIndex = String(100 + Math.round(w.y));
     el.classList.toggle('flipped', w.flip); el.classList.toggle('away', w.away); el.classList.toggle('seated', w.seated);
+    stampAvatar(el, w.look, w.mine);
   }
   box.querySelectorAll<HTMLElement>('.savatar').forEach(el => { if (!keep.has(el.dataset.pid!)) el.remove(); });
   D.refreshNear();
