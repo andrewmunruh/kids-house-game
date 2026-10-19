@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="4 8 116 78"><!-- Winter Cheer: Knit Stocking Row. --><rect x="8" y="12" width="108" height="10" rx="4" fill="#d4a373" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M22 22 H44 V58 Q40 78 26 70 Q18 60 22 52 Z" fill="#e25d6c" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/><rect x="22" y="22" width="22" height="8" fill="#fff6ea"/><path d="M52 22 H74 V58 Q70 78 56 70 Q48 60 52 52 Z" fill="#8ecae6" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/><rect x="52" y="22" width="22" height="8" fill="#fff6ea"/><path d="M82 22 H104 V58 Q100 78 86 70 Q78 60 82 52 Z" fill="#ff8fab" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/><rect x="82" y="22" width="22" height="8" fill="#fff6ea"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 68"><!-- Winter Cheer: Knit Stocking Row. Loops hang on a mantel. No separate rail. -->
+<path d="M22 10 Q28 2 34 10" fill="none" stroke="#5a3d5c" stroke-width="3.5" stroke-linecap="round"/>
+<path d="M20 12 H36 V40 Q32 60 20 54 Q12 46 20 38 Z" fill="#e25d6c" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="20" y="12" width="16" height="8" rx="2" fill="#fff6ea" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/>
+<path d="M52 10 Q58 2 64 10" fill="none" stroke="#5a3d5c" stroke-width="3.5" stroke-linecap="round"/>
+<path d="M50 12 H66 V40 Q62 60 50 54 Q42 46 50 38 Z" fill="#8ecae6" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="50" y="12" width="16" height="8" rx="2" fill="#fff6ea" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/>
+<path d="M82 10 Q88 2 94 10" fill="none" stroke="#5a3d5c" stroke-width="3.5" stroke-linecap="round"/>
+<path d="M80 12 H96 V40 Q92 60 80 54 Q72 46 80 38 Z" fill="#ff8fab" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="80" y="12" width="16" height="8" rx="2" fill="#fff6ea" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/>
+</svg>

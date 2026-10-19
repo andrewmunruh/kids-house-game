@@ -6123,14 +6123,14 @@
     "pack": "winter",
     "shelf": "Holiday",
     "svg": "packs/winter/wc-holiday-tree.svg",
-    "widthUnits": 84,
-    "heightUnits": 96,
+    "widthUnits": 100,
+    "heightUnits": 120,
     "gameW": 180,
     "viewBox": [
-      8,
-      2,
-      84,
-      96
+      0,
+      0,
+      100,
+      120
     ],
     "room": "living"
   },
@@ -6312,14 +6312,14 @@
     "pack": "winter",
     "shelf": "Kitchen",
     "svg": "packs/winter/wc-cocoa-cart.svg",
-    "widthUnits": 100,
-    "heightUnits": 82,
+    "widthUnits": 110,
+    "heightUnits": 104,
     "gameW": 170,
     "viewBox": [
-      6,
-      16,
-      100,
-      82
+      0,
+      0,
+      110,
+      104
     ],
     "room": "kitchen"
   },
@@ -6935,14 +6935,14 @@
     "pack": "winter",
     "shelf": "Holiday",
     "svg": "packs/winter/wc-stocking-row.svg",
-    "widthUnits": 116,
-    "heightUnits": 78,
+    "widthUnits": 120,
+    "heightUnits": 68,
     "gameW": 170,
     "viewBox": [
-      4,
-      8,
-      116,
-      78
+      0,
+      0,
+      120,
+      68
     ],
     "room": "any",
     "wall": true,
