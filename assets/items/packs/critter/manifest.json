@@ -11,7 +11,7 @@
     "svg": "packs/critter/cr-kitten-bed.svg",
     "widthUnits": 100.0,
     "heightUnits": 100.0,
-    "gameW": 250,
+    "gameW": 220,
     "viewBox": [
       0.0,
       0.0,
@@ -32,7 +32,7 @@
     "svg": "packs/critter/cr-koala-wardrobe.svg",
     "widthUnits": 92.0,
     "heightUnits": 96.0,
-    "gameW": 200,
+    "gameW": 150,
     "viewBox": [
       4.0,
       4.0,
@@ -53,7 +53,7 @@
     "svg": "packs/critter/cr-lamb-pouf.svg",
     "widthUnits": 100.0,
     "heightUnits": 100.0,
-    "gameW": 150,
+    "gameW": 90,
     "viewBox": [
       0.0,
       0.0,
@@ -74,7 +74,7 @@
     "svg": "packs/critter/cr-owl-table.svg",
     "widthUnits": 84.0,
     "heightUnits": 92.0,
-    "gameW": 140,
+    "gameW": 70,
     "viewBox": [
       8.0,
       8.0,
@@ -95,7 +95,7 @@
     "svg": "packs/critter/cr-bunny-shelf.svg",
     "widthUnits": 88.0,
     "heightUnits": 98.0,
-    "gameW": 180,
+    "gameW": 150,
     "viewBox": [
       6.0,
       2.0,
@@ -116,7 +116,7 @@
     "svg": "packs/critter/cr-frog-bin.svg",
     "widthUnits": 92.0,
     "heightUnits": 90.0,
-    "gameW": 160,
+    "gameW": 140,
     "viewBox": [
       4.0,
       10.0,
@@ -137,7 +137,7 @@
     "svg": "packs/critter/cr-elephant-tub.svg",
     "widthUnits": 110.0,
     "heightUnits": 100.0,
-    "gameW": 260,
+    "gameW": 230,
     "viewBox": [
       0.0,
       0.0,
@@ -158,7 +158,7 @@
     "svg": "packs/critter/cr-turtle-stool.svg",
     "widthUnits": 92.0,
     "heightUnits": 84.0,
-    "gameW": 150,
+    "gameW": 80,
     "viewBox": [
       4.0,
       16.0,
@@ -179,7 +179,7 @@
     "svg": "packs/critter/cr-honey-shelf.svg",
     "widthUnits": 84.0,
     "heightUnits": 94.0,
-    "gameW": 160,
+    "gameW": 120,
     "viewBox": [
       8.0,
       6.0,
@@ -200,7 +200,7 @@
     "svg": "packs/critter/cr-read-nook.svg",
     "widthUnits": 120.0,
     "heightUnits": 92.0,
-    "gameW": 240,
+    "gameW": 180,
     "viewBox": [
       0.0,
       8.0,
@@ -221,7 +221,7 @@
     "svg": "packs/critter/cr-panda-bunk.svg",
     "widthUnits": 100.0,
     "heightUnits": 110.0,
-    "gameW": 250,
+    "gameW": 270,
     "viewBox": [
       0.0,
       0.0,
@@ -242,7 +242,7 @@
     "svg": "packs/critter/cr-fox-chair.svg",
     "widthUnits": 96.0,
     "heightUnits": 94.0,
-    "gameW": 160,
+    "gameW": 150,
     "viewBox": [
       4.0,
       6.0,
@@ -263,7 +263,7 @@
     "svg": "packs/critter/cr-puppy-dresser.svg",
     "widthUnits": 88.0,
     "heightUnits": 92.0,
-    "gameW": 170,
+    "gameW": 140,
     "viewBox": [
       6.0,
       8.0,
@@ -284,7 +284,7 @@
     "svg": "packs/critter/cr-owl-chest.svg",
     "widthUnits": 92.0,
     "heightUnits": 88.0,
-    "gameW": 180,
+    "gameW": 126,
     "viewBox": [
       4.0,
       12.0,
@@ -305,7 +305,7 @@
     "svg": "packs/critter/cr-lion-bag.svg",
     "widthUnits": 96.0,
     "heightUnits": 90.0,
-    "gameW": 160,
+    "gameW": 113,
     "viewBox": [
       2.0,
       10.0,
@@ -326,7 +326,7 @@
     "svg": "packs/critter/cr-hog-stool.svg",
     "widthUnits": 88.0,
     "heightUnits": 82.0,
-    "gameW": 130,
+    "gameW": 70,
     "viewBox": [
       6.0,
       18.0,
@@ -347,7 +347,7 @@
     "svg": "packs/critter/cr-duck-desk.svg",
     "widthUnits": 110.0,
     "heightUnits": 92.0,
-    "gameW": 230,
+    "gameW": 167,
     "viewBox": [
       0.0,
       8.0,
@@ -368,7 +368,7 @@
     "svg": "packs/critter/cr-hippo-sofa.svg",
     "widthUnits": 120.0,
     "heightUnits": 88.0,
-    "gameW": 260,
+    "gameW": 240,
     "viewBox": [
       0.0,
       12.0,
@@ -389,7 +389,7 @@
     "svg": "packs/critter/cr-bear-rug.svg",
     "widthUnits": 160.0,
     "heightUnits": 80.0,
-    "gameW": 340,
+    "gameW": 230,
     "viewBox": [
       0.0,
       20.0,
@@ -410,7 +410,7 @@
     "svg": "packs/critter/cr-paint-easel.svg",
     "widthUnits": 80.0,
     "heightUnits": 98.0,
-    "gameW": 150,
+    "gameW": 90,
     "viewBox": [
       10.0,
       2.0,
@@ -431,7 +431,7 @@
     "svg": "packs/critter/cr-camp-tent.svg",
     "widthUnits": 110.0,
     "heightUnits": 92.0,
-    "gameW": 220,
+    "gameW": 180,
     "viewBox": [
       0.0,
       8.0,
@@ -452,7 +452,7 @@
     "svg": "packs/critter/cr-mouse-house.svg",
     "widthUnits": 90.0,
     "heightUnits": 96.0,
-    "gameW": 200,
+    "gameW": 110,
     "viewBox": [
       6.0,
       4.0,
@@ -473,7 +473,7 @@
     "svg": "packs/critter/cr-activity-table.svg",
     "widthUnits": 120.0,
     "heightUnits": 84.0,
-    "gameW": 230,
+    "gameW": 170,
     "viewBox": [
       0.0,
       16.0,
@@ -494,7 +494,7 @@
     "svg": "packs/critter/cr-shroom-stools.svg",
     "widthUnits": 120.0,
     "heightUnits": 90.0,
-    "gameW": 180,
+    "gameW": 130,
     "viewBox": [
       0.0,
       10.0,
@@ -515,7 +515,7 @@
     "svg": "packs/critter/cr-antler-rack.svg",
     "widthUnits": 80.0,
     "heightUnits": 98.0,
-    "gameW": 150,
+    "gameW": 80,
     "viewBox": [
       10.0,
       2.0,
@@ -536,7 +536,7 @@
     "svg": "packs/critter/cr-bird-shelf.svg",
     "widthUnits": 120.0,
     "heightUnits": 92.0,
-    "gameW": 190,
+    "gameW": 160,
     "viewBox": [
       0.0,
       8.0,
@@ -557,7 +557,7 @@
     "svg": "packs/critter/cr-leaf-shelf.svg",
     "widthUnits": 100.0,
     "heightUnits": 70.0,
-    "gameW": 170,
+    "gameW": 140,
     "viewBox": [
       4.0,
       16.0,
@@ -580,7 +580,7 @@
     "svg": "packs/critter/cr-toy-kitchen.svg",
     "widthUnits": 110.0,
     "heightUnits": 96.0,
-    "gameW": 230,
+    "gameW": 167,
     "viewBox": [
       0.0,
       4.0,
@@ -605,7 +605,7 @@
     "svg": "packs/critter/cr-train-table.svg",
     "widthUnits": 130.0,
     "heightUnits": 82.0,
-    "gameW": 250,
+    "gameW": 180,
     "viewBox": [
       0.0,
       18.0,
@@ -626,7 +626,7 @@
     "svg": "packs/critter/cr-pegboard.svg",
     "widthUnits": 96.0,
     "heightUnits": 80.0,
-    "gameW": 170,
+    "gameW": 120,
     "viewBox": [
       6.0,
       8.0,
@@ -649,7 +649,7 @@
     "svg": "packs/critter/cr-bear-plush.svg",
     "widthUnits": 84.0,
     "heightUnits": 94.0,
-    "gameW": 100,
+    "gameW": 72,
     "viewBox": [
       8.0,
       6.0,
@@ -670,7 +670,7 @@
     "svg": "packs/critter/cr-fox-plush.svg",
     "widthUnits": 84.0,
     "heightUnits": 96.0,
-    "gameW": 100,
+    "gameW": 68,
     "viewBox": [
       8.0,
       4.0,
@@ -691,7 +691,7 @@
     "svg": "packs/critter/cr-dino-plush.svg",
     "widthUnits": 96.0,
     "heightUnits": 90.0,
-    "gameW": 110,
+    "gameW": 78,
     "viewBox": [
       4.0,
       10.0,
@@ -712,7 +712,7 @@
     "svg": "packs/critter/cr-bunny-xl.svg",
     "widthUnits": 84.0,
     "heightUnits": 100.0,
-    "gameW": 130,
+    "gameW": 100,
     "viewBox": [
       8.0,
       0.0,
@@ -733,7 +733,7 @@
     "svg": "packs/critter/cr-pillow-pile.svg",
     "widthUnits": 120.0,
     "heightUnits": 76.0,
-    "gameW": 200,
+    "gameW": 130,
     "viewBox": [
       0.0,
       24.0,
@@ -755,7 +755,7 @@
     "svg": "packs/critter/cr-puppet-basket.svg",
     "widthUnits": 88.0,
     "heightUnits": 88.0,
-    "gameW": 150,
+    "gameW": 78,
     "viewBox": [
       6.0,
       12.0,
@@ -776,7 +776,7 @@
     "svg": "packs/critter/cr-ball-basket.svg",
     "widthUnits": 92.0,
     "heightUnits": 84.0,
-    "gameW": 160,
+    "gameW": 90,
     "viewBox": [
       4.0,
       16.0,
@@ -797,7 +797,7 @@
     "svg": "packs/critter/cr-puzzle-mat.svg",
     "widthUnits": 150.0,
     "heightUnits": 72.0,
-    "gameW": 300,
+    "gameW": 250,
     "viewBox": [
       0.0,
       28.0,
@@ -819,7 +819,7 @@
     "svg": "packs/critter/cr-ladybug-ride.svg",
     "widthUnits": 100.0,
     "heightUnits": 84.0,
-    "gameW": 180,
+    "gameW": 120,
     "viewBox": [
       4.0,
       16.0,
@@ -864,7 +864,7 @@
     "svg": "packs/critter/cr-xylophone.svg",
     "widthUnits": 100.0,
     "heightUnits": 76.0,
-    "gameW": 150,
+    "gameW": 100,
     "viewBox": [
       4.0,
       20.0,
@@ -885,7 +885,7 @@
     "svg": "packs/critter/cr-stack-cups.svg",
     "widthUnits": 72.0,
     "heightUnits": 92.0,
-    "gameW": 90,
+    "gameW": 56,
     "viewBox": [
       14.0,
       8.0,
@@ -906,7 +906,7 @@
     "svg": "packs/critter/cr-wood-car.svg",
     "widthUnits": 100.0,
     "heightUnits": 68.0,
-    "gameW": 110,
+    "gameW": 66,
     "viewBox": [
       4.0,
       28.0,
@@ -927,7 +927,7 @@
     "svg": "packs/critter/cr-rock-duck.svg",
     "widthUnits": 110.0,
     "heightUnits": 90.0,
-    "gameW": 180,
+    "gameW": 130,
     "viewBox": [
       0.0,
       10.0,
@@ -949,7 +949,7 @@
     "svg": "packs/critter/cr-ukulele.svg",
     "widthUnits": 60.0,
     "heightUnits": 96.0,
-    "gameW": 80,
+    "gameW": 48,
     "viewBox": [
       20.0,
       4.0,
@@ -970,7 +970,7 @@
     "svg": "packs/critter/cr-letter-cubes.svg",
     "widthUnits": 96.0,
     "heightUnits": 74.0,
-    "gameW": 110,
+    "gameW": 80,
     "viewBox": [
       6.0,
       24.0,
@@ -991,7 +991,7 @@
     "svg": "packs/critter/cr-bug-jar.svg",
     "widthUnits": 56.0,
     "heightUnits": 94.0,
-    "gameW": 80,
+    "gameW": 44,
     "viewBox": [
       22.0,
       6.0,
@@ -1012,7 +1012,7 @@
     "svg": "packs/critter/cr-doctor-kit.svg",
     "widthUnits": 88.0,
     "heightUnits": 74.0,
-    "gameW": 120,
+    "gameW": 80,
     "viewBox": [
       8.0,
       22.0,
@@ -1033,7 +1033,7 @@
     "svg": "packs/critter/cr-tea-set.svg",
     "widthUnits": 112.0,
     "heightUnits": 76.0,
-    "gameW": 130,
+    "gameW": 90,
     "viewBox": [
       4.0,
       22.0,
@@ -1054,7 +1054,7 @@
     "svg": "packs/critter/cr-train-loop.svg",
     "widthUnits": 140.0,
     "heightUnits": 80.0,
-    "gameW": 220,
+    "gameW": 160,
     "viewBox": [
       0.0,
       20.0,
@@ -1076,7 +1076,7 @@
     "svg": "packs/critter/cr-toy-drum.svg",
     "widthUnits": 80.0,
     "heightUnits": 84.0,
-    "gameW": 100,
+    "gameW": 70,
     "viewBox": [
       10.0,
       16.0,
@@ -1097,7 +1097,7 @@
     "svg": "packs/critter/cr-abc-poster.svg",
     "widthUnits": 76.0,
     "heightUnits": 90.0,
-    "gameW": 140,
+    "gameW": 88,
     "viewBox": [
       12.0,
       6.0,
@@ -1120,7 +1120,7 @@
     "svg": "packs/critter/cr-count-poster.svg",
     "widthUnits": 76.0,
     "heightUnits": 90.0,
-    "gameW": 140,
+    "gameW": 88,
     "viewBox": [
       12.0,
       6.0,
@@ -1143,7 +1143,7 @@
     "svg": "packs/critter/cr-moon-lantern.svg",
     "widthUnits": 68.0,
     "heightUnits": 96.0,
-    "gameW": 110,
+    "gameW": 70,
     "viewBox": [
       16.0,
       4.0,
@@ -1166,7 +1166,7 @@
     "svg": "packs/critter/cr-bird-mobile.svg",
     "widthUnits": 100.0,
     "heightUnits": 90.0,
-    "gameW": 150,
+    "gameW": 102,
     "viewBox": [
       4.0,
       2.0,
@@ -1189,7 +1189,7 @@
     "svg": "packs/critter/cr-shroom-lamp.svg",
     "widthUnits": 72.0,
     "heightUnits": 94.0,
-    "gameW": 90,
+    "gameW": 64,
     "viewBox": [
       14.0,
       6.0,
@@ -1210,7 +1210,7 @@
     "svg": "packs/critter/cr-book-stack.svg",
     "widthUnits": 76.0,
     "heightUnits": 70.0,
-    "gameW": 100,
+    "gameW": 56,
     "viewBox": [
       12.0,
       28.0,
@@ -1231,7 +1231,7 @@
     "svg": "packs/critter/cr-crayon-cup.svg",
     "widthUnits": 56.0,
     "heightUnits": 92.0,
-    "gameW": 80,
+    "gameW": 40,
     "viewBox": [
       22.0,
       8.0,
@@ -1252,7 +1252,7 @@
     "svg": "packs/critter/cr-sticker-chart.svg",
     "widthUnits": 76.0,
     "heightUnits": 90.0,
-    "gameW": 140,
+    "gameW": 90,
     "viewBox": [
       12.0,
       6.0,
@@ -1275,7 +1275,7 @@
     "svg": "packs/critter/cr-owl-light.svg",
     "widthUnits": 64.0,
     "heightUnits": 92.0,
-    "gameW": 80,
+    "gameW": 50,
     "viewBox": [
       18.0,
       8.0,
@@ -1296,7 +1296,7 @@
     "svg": "packs/critter/cr-butterfly.svg",
     "widthUnits": 92.0,
     "heightUnits": 76.0,
-    "gameW": 140,
+    "gameW": 120,
     "viewBox": [
       8.0,
       12.0,
@@ -1319,7 +1319,7 @@
     "svg": "packs/critter/cr-paw-clock.svg",
     "widthUnits": 80.0,
     "heightUnits": 84.0,
-    "gameW": 100,
+    "gameW": 80,
     "viewBox": [
       10.0,
       8.0,
