@@ -5,6 +5,7 @@ import { KITCHEN } from './kitchen';
 import { SALON } from './salon';
 import { NURSERY } from './nursery';
 import { BACKYARD } from './backyard';
+import { ANY } from './any';
 export const GENERATED: Record<string, V2Mark> = {
   ...LIVING,
   ...BEDROOM,
@@ -12,4 +13,5 @@ export const GENERATED: Record<string, V2Mark> = {
   ...SALON,
   ...NURSERY,
   ...BACKYARD,
+  ...ANY,
 };
