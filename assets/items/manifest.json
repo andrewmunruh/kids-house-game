@@ -2926,13 +2926,13 @@
     "size": "medium",
     "gameW": 126.0,
     "designW": 140,
-    "widthUnits": 126.0,
-    "heightUnits": 106.4,
+    "widthUnits": 140.0,
+    "heightUnits": 112.0,
     "viewBox": [
-      5.0,
-      25.0,
-      90.0,
-      76.0
+      0.0,
+      0.0,
+      140.0,
+      112.0
     ],
     "svg": "packs/welcome-home/fire-pit.svg",
     "png": "packs/welcome-home/fire-pit.png"

@@ -425,7 +425,7 @@ body.mode-hood.view-park #btnChat { display: block !important; }
 .pet.pet-cat.play .inner { animation: catSwat .5s ease-in-out infinite; }
 .pet.pet-cat.leap .inner { animation: towerLeap .7s ease-out; }
 .pet.kenneled.rest .tail { animation: none; }
-.kennelBtn { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); min-width: 44px; min-height: 44px; padding: 4px 10px; font: inherit; font-size: 14px; font-weight: 800; border-radius: 14px; border: 3px solid var(--ink); background: #fff3b0; color: var(--ink); pointer-events: auto; z-index: 2; }
+.kennelBtn { position: absolute; left: 0; top: 46%; bottom: auto; transform: translate(-108%, -50%); min-width: 44px; min-height: 44px; padding: 4px 10px; font: inherit; font-size: 14px; font-weight: 800; border-radius: 14px; border: 3px solid var(--ink); background: #fff3b0; color: var(--ink); pointer-events: auto; z-index: 6; white-space: nowrap; }
 @keyframes sway { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(10deg); } }
 @keyframes wag { from { transform: rotate(-16deg); } to { transform: rotate(18deg); } }
 @keyframes legA { from { transform: rotate(-22deg); } to { transform: rotate(22deg); } }
@@ -855,7 +855,8 @@ body.view-street .stage { visibility: hidden; }
   body.phone.mode-hood .minimap { flex: 0 0 48px; }
   body.phone.mode-hood .tools { flex: 1 0 100%; justify-content: flex-end; }
 }
-@media (pointer: coarse) and (orientation: landscape) and (max-height: 360px) {
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 360px),
+       (pointer: coarse) and (orientation: landscape) and (max-height: 400px) and (min-width: 701px) {
   body.phone .secrets { top: 6px; bottom: auto; left: auto; right: max(4px, env(safe-area-inset-right)); transform: none; }
   body.phone .secrets.compact {
     top: 2px; right: 0; left: auto; bottom: auto; transform: none;
@@ -1099,14 +1100,17 @@ body.view-street .stage { visibility: hidden; }
   body.phone .dropHint { height: 12px; font-size: 12px; }
 }
 
-/* Yard preview (?yard=1). Hidden unless the stage is in that room. */
-.yardDoor { position: absolute; background: none; border: 0; padding: 0; box-shadow: none; pointer-events: auto; z-index: 4; overflow: visible; }
-.yardDoor .doorArt { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; }
+/* The back door. The hit box stays at least 44px after the stage scale; the drawing does not stretch. */
+.yardDoor { position: absolute; background: none; border: 0; padding: 0; box-shadow: none; pointer-events: auto; z-index: 4; overflow: visible; min-width: calc(44px / var(--yard-sc, 1)); min-height: calc(101.2px / var(--yard-sc, 1)); }
+.yardDoor .doorArt { position: absolute; left: 50%; top: 0; width: auto; height: 100%; aspect-ratio: 100 / 230; transform: translateX(-50%); overflow: visible; }
 .yardDoor .yardHintLabel { position: absolute; left: 50%; top: auto; bottom: calc(100% + 6px); transform: translateX(-50%); background: #fff; border: calc(3px / var(--yard-sc, 1)) solid var(--ink); border-radius: calc(14px / var(--yard-sc, 1)); padding: calc(2px / var(--yard-sc, 1)) calc(10px / var(--yard-sc, 1)); font-weight: 900; font-size: calc(16px / var(--yard-sc, 1)); line-height: 1.15; white-space: nowrap; box-shadow: 0 calc(3px / var(--yard-sc, 1)) 0 rgba(90,61,92,.25); color: var(--ink); z-index: 2; }
 .yardDoor .yardHintLabel > span { display: block; animation: hintBob 1.6s ease-in-out infinite; }
 .stage.room-yard .wall, .stage.room-yard .floor, .stage.room-yard .baseboard { visibility: hidden; }
-/* The dog stands on the girl's left. Keep the chip on her back, clear of the kid and the swing. */
-.stage.room-yard .kennelBtn { transform: translateX(calc(-50% - 18px)); }
+/* The chip sits beside the dog, on the grass, clear of the kid and the top of a short phone. */
+.stage.room-yard .kennelBtn { transform: translate(-108%, -50%); }
+.item.swinging .swingSeat { transform-box: fill-box; transform-origin: 50% 0; animation: swingArc 2.4s ease-in-out infinite; }
+.layer .char.pose-swing { animation: swingArc 2.4s ease-in-out infinite; transform-origin: 50% 0; }
+.layer .char.pose-swing .inner { transform: translateY(10%) scale(0.92); transform-origin: 50% 100%; }
 .stage.room-yard .yardWorld { position: absolute; inset: 0; width: 100%; height: 100%; }
 .yardSheet { position: fixed; inset: 0; z-index: 900000; overflow: auto; background: #fff6f1; color: var(--ink); padding: 28px 22px 40px; }
 .yardSheet h1 { margin: 0 0 14px; text-align: center; font-size: 34px; }
@@ -1118,5 +1122,5 @@ body.view-street .stage { visibility: hidden; }
 .ysPair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; max-width: 760px; margin: 0 auto; }
 .ysNote { text-align: center; font-weight: 800; margin: 0 0 16px; }
 @media (prefers-reduced-motion: reduce) {
-  .yardDoor .yardHintLabel > span { animation: none; }
+  .yardDoor .yardHintLabel > span, .item.swinging .swingSeat, .layer .char.pose-swing { animation: none; }
 }

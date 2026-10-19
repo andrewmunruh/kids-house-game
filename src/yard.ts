@@ -1,4 +1,5 @@
-// Backyard preview for approval mockups. On only with ?yard=1.
+// Backyard scene. The catalog, the outdoor paint, and the back door are always on.
+// ?yard=1 only stages a sample set and the approval shots.
 // Drawings follow the approved art-style v2 (cursor/art-refresh 57da467, not merged):
 // top-left light, a hard cel side plane, an edge highlight, a few texture strokes,
 // a two-ellipse plum contact shadow, plum outlines, and no blur. Gradients are
@@ -60,10 +61,11 @@ export const YARD_LOOK: Look2 = {
 export const yardLookPatch = () => patchFromLook2(YARD_LOOK);
 
 /** Play frames 480 world units. The camera stays put so the house stays on the left. */
-export const YARD_CAM = 870;
-/** She faces the swing. The dog stands on her left, so the Kennel chip stays off the frame. */
-export const YARD_KID = { x: 1136, y: 528, flip: false as boolean };
-export const YARD_CAT = { x: 1216, y: 378 };
+export const YARD_CAM = 840;
+/** She faces the swing. The dog stands on her left. */
+export const YARD_KID = { x: 990, y: 530, flip: false as boolean };
+/** Open lawn, left of the swing. Feet on the grass (world y 380–575); the fence bottoms at 372. */
+export const YARD_CAT = { x: 940, y: 552 };
 export const DOOR_KID = { x: 940, y: 540, flip: true as boolean };
 export const DOOR_CAT_X = 1160;
 
@@ -74,10 +76,10 @@ export const YARD_DOOR = { x: 996, y: 372, w: 82, h: 196 };
 
 /** Back-to-front. item/add stamps z from this order. */
 export const YARD_STAGE: { kind: string; x: number; y: number }[] = [
-  { kind: 'lemonade-cart', x: 938, y: 500 },
-  { kind: 'yard-swing', x: 1279, y: 548 },
-  { kind: 'sandbox', x: 944, y: 558 },
-  { kind: 'picnic-blanket', x: 1168, y: 564 },
+  { kind: 'lemonade-cart', x: 920, y: 488 },
+  { kind: 'yard-swing', x: 1160, y: 548 },
+  { kind: 'sandbox', x: 900, y: 570 },
+  { kind: 'picnic-blanket', x: 1010, y: 575 },
 ];
 
 function piece(p: { kind: string; name: string; cat: string; w: number; h: number; vb: string; wall?: boolean; holdable?: boolean; svg: string }): ItemDef {
@@ -85,7 +87,7 @@ function piece(p: { kind: string; name: string; cat: string; w: number; h: numbe
 }
 
 const swing = piece({
-  kind: 'yard-swing', name: 'A-Frame Swing', cat: 'furniture', w: 96, h: 74, vb: '0 0 130 100',
+  kind: 'yard-swing', name: 'A-Frame Swing', cat: 'furniture', w: 280, h: 215, vb: '0 0 130 100',
   svg: `${shadow(65, 54, 96)}
     <path d="M34 18 L50 18 L20 94 H4 Z" fill="#f3d2aa" ${ink()}/>
     <path d="M42 24 L50 18 L18 70 H28 Z" fill="#d4a373"/>
@@ -96,10 +98,12 @@ const swing = piece({
     <rect x="86" y="9" width="18" height="8" rx="1" fill="#d4a373"/>
     <rect x="28" y="16" width="74" height="4" fill="#e7c49a"/>
     ${hi('M28 10 h30')}
-    <rect x="48" y="74" width="34" height="7" rx="1" fill="#f3d2aa" ${ink(2.2)}/>
-    <rect x="72" y="76" width="8" height="4" fill="#d4a373"/>
-    <path d="M54 20 V78 M76 20 V78" fill="none" ${ink(2.2)}/>
-    ${hi('M52 76 h14')}`,
+    <g class="swingSeat">
+      <rect x="48" y="74" width="34" height="7" rx="1" fill="#f3d2aa" ${ink(2.2)}/>
+      <rect x="72" y="76" width="8" height="4" fill="#d4a373"/>
+      <path d="M54 20 V78 M76 20 V78" fill="none" ${ink(2.2)}/>
+      ${hi('M52 76 h14')}
+    </g>`,
 });
 
 const sandbox = piece({
@@ -444,8 +448,10 @@ const bush = piece({
 const hedge = piece({
   kind: 'hedge-row', name: 'Hedge Row', cat: 'plants', w: 190, h: 96, vb: '0 0 180 96',
   svg: `${shadow(90, 78, 90)}
+    <path d="M16 84 C28 70 40 62 52 66 C62 52 78 50 90 62 C102 50 118 52 128 66 C140 58 156 64 164 74 L164 86 L16 86 Z" fill="#2f7d52"/>
     <path d="M10 82 L10 60 C10 50 18 46 26 50 C32 34 46 32 54 48 C60 30 76 28 84 46 C92 28 108 28 116 46 C124 30 140 32 148 48 C156 36 166 42 170 54 L170 82 Z" fill="#74c69d" ${ink()}/>
     <path d="M148 46 C160 38 170 50 170 70 L170 82 L140 82 L146 58 Z" fill="#52b788"/>
+    <path d="M22 64 C40 54 58 58 70 50 C84 60 100 48 116 56 C128 48 146 56 158 64" fill="none" stroke="#95d5b2" stroke-width="6" stroke-linecap="round" opacity=".85"/>
     <path d="M14 68 C48 78 132 76 166 66 L168 82 L12 82 Z" fill="#3d9a68"/>
     ${tex('M28 58 q3 5 0 8 M48 54 q3 6 0 9 M70 52 q3 6 1 9 M94 52 q3 6 0 10 M118 54 q3 6 0 9 M142 56 q3 5 0 8')}
     ${hi('M18 58 q10 -4 16 1')}
@@ -511,9 +517,13 @@ function tree(x: number, scale: number): string {
     <rect x="${x + 4 * scale}" y="${trunkTop + 8 * scale}" width="${8 * scale}" height="${trunkH - 16 * scale}" fill="#c99366"/>
     ${tex(`M${x - 4 * scale} ${trunkTop + 28 * scale} v${36 * scale}`)}
     ${hi(`M${x - 8 * scale} ${trunkTop + 16 * scale} v${22 * scale}`)}
+    <ellipse cx="${x + 8 * scale}" cy="${y + 18 * scale}" rx="${78 * scale}" ry="${46 * scale}" fill="#2f7d52"/>
+    <ellipse cx="${x - 48 * scale}" cy="${y + 10 * scale}" rx="${36 * scale}" ry="${30 * scale}" fill="#245e3e"/>
     <ellipse cx="${x - 34 * scale}" cy="${y + 16 * scale}" rx="${42 * scale}" ry="${34 * scale}" fill="#95d5b2" ${ink(2.2)}/>
     <ellipse cx="${x}" cy="${y}" rx="${68 * scale}" ry="${50 * scale}" fill="#74c69d" ${ink()}/>
     <ellipse cx="${x + 40 * scale}" cy="${y + 8 * scale}" rx="${40 * scale}" ry="${36 * scale}" fill="#3d9a68" ${ink(2.2)}/>
+    <ellipse cx="${x - 8 * scale}" cy="${y - 6 * scale}" rx="${28 * scale}" ry="${20 * scale}" fill="#b7e4c7" opacity=".95"/>
+    ${tex(`M${x - 20 * scale} ${y + 8 * scale} q${8 * scale} ${6 * scale} 0 ${12 * scale} M${x + 10 * scale} ${y - 4 * scale} q${8 * scale} ${6 * scale} 2 ${12 * scale} M${x + 28 * scale} ${y + 12 * scale} q${6 * scale} ${5 * scale} 0 ${10 * scale}`)}
     ${hi(`M${x - 36 * scale} ${y - 18 * scale} q${16 * scale} -8 ${28 * scale} 2`)}
   </g>`;
 }

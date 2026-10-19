@@ -240,6 +240,15 @@ async def run(P, K2, K3, mk, errs, check):
         left, left2 = await nur_view(P), await nur_view(K2)
         await check('unknown room is refused and the nursery stays', 'attic-no' not in left['nur'] and 'nur-sync' in left['nur'] and 'nur-sync' in left2['nur'], str(left))
         await P.evaluate("""() => __store.dispatch({type:'room/switch', room:'living'})""")
+        await P.wait_for_timeout(400)
+        door = await P.evaluate("""() => ({
+          n: document.querySelectorAll('.yardDoor').length,
+          label: (document.querySelector('.yardDoor') || {}).getAttribute ? document.querySelector('.yardDoor').getAttribute('aria-label') : '',
+          map: document.querySelectorAll('[data-go="backyard"], .mapYard').length,
+          tabs: document.querySelectorAll('#tabs .tab').length,
+        })""")
+        await check('the yard is the back door, not a map pin or a sixth tab', door['n'] == 1 and door['label'] == 'Backyard' and door['map'] == 0 and door['tabs'] == 5, str(door))
+        await P.evaluate("""() => __store.dispatch({type:'room/switch', room:'living'})""")
         await K2.evaluate("""() => __store.dispatch({type:'room/switch', room:'living'})""")
         await P.evaluate("""() => {
           const h = __hood(), id = h.myHouseId();

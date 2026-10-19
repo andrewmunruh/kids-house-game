@@ -46,8 +46,9 @@ function startersSVG() {
   </svg></div>`;
 }
 
-/** Real rug, lamp, and plant for the first thing placed in an empty room. Ordinary item/add, so old clients already draw them. */
-export function emptyRoomStarters(makeId: (kind: string) => string): { id: string; kind: string; x: number; y: number; flip: false; z: number; scale: number }[] {
+/** Real rug, lamp, and plant for the first thing placed in an empty indoor room. The yard stays empty: sky and grass are the room. */
+export function emptyRoomStarters(makeId: (kind: string) => string, room?: string): { id: string; kind: string; x: number; y: number; flip: false; z: number; scale: number }[] {
+  if (room === 'backyard') return [];
   return [
     { id: makeId('rug'), kind: 'rug', x: 1152, y: 540, flip: false, z: 0, scale: 1 },
     { id: makeId('lamp'), kind: 'lamp', x: 804, y: 470, flip: false, z: 0, scale: 1 },
@@ -72,6 +73,14 @@ export function syncScenery(root: HTMLElement, room: string, items: { kind: stri
     if (next === sig && root.childElementCount) return;
     sig = next;
     root.innerHTML = extra;
+    root.dataset.room = room;
+    return;
+  }
+  if (room === 'backyard') {
+    const next = 'yard|' + room;
+    if (next === sig && root.childElementCount) return;
+    sig = next;
+    root.innerHTML = '';
     root.dataset.room = room;
     return;
   }

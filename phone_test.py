@@ -260,7 +260,8 @@ async def phone_pass(b, w, h, save):
     if portrait: await check_framed(pg, tag, 'house')
     if (w, h) == (375, 667): await check_portrait_kid(pg, tag)
     if not portrait: await stage_fill(pg, tag, w, h)
-    if not portrait: await check_secrets(pg, tag, short=False)
+    if not portrait and (w, h) == (844, 390): await check_secrets_off_sky(pg, tag)
+    elif not portrait: await check_secrets(pg, tag, short=False)
     if w in (375, 667): await living_room_one_line(pg, tag)
     if save: await shot(pg, f'house-{tag}')
 
@@ -731,6 +732,15 @@ async def check_zoo_hint(pg, tag):
     check(f'{tag} petting zoo label is at least 12px',
           hint.get('fs', 0) >= 12 and hint.get('on') and 'Petting zoo' in (hint.get('text') or ''),
           str(hint))
+
+async def check_secrets_off_sky(pg, tag):
+    """844×390: a centred pill sits on the sky. It parks in the gutter or the top row."""
+    pill = await read_secrets(pg)
+    check(f'{tag} Surprises pill stays off the sky',
+          pill['on'] and not pill['overlap'] and not pill['coversCenter']
+          and (pill['chrome'] or pill['side'])
+          and pill['pill']['w'] >= 44 and pill['pill']['h'] >= 44,
+          str(pill))
 
 async def check_secrets(pg, tag, short):
     pill = await read_secrets(pg)

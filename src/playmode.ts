@@ -15,12 +15,13 @@ export function saveOwnMode(m: HouseMode) {
 /** Decorate is today's dragging. Play never moves, picks up, or deletes furniture. */
 export function dragAllowed(mode: HouseMode): boolean { return mode === 'decorate'; }
 
-export type PlayGesture = 'wiggle' | 'lamp' | 'open' | 'sit' | 'kennel' | 'tower';
+export type PlayGesture = 'wiggle' | 'lamp' | 'open' | 'sit' | 'kennel' | 'tower' | 'swing';
 
 /** Which tap a piece of furniture gets in Play. Kennel and the cat tower keep the interactions they already had. */
 export function playGesture(kind: string): PlayGesture {
   if (kind === 'kennel') return 'kennel';
   if (kind === 'cat-tower') return 'tower';
+  if (kind === 'yard-swing') return 'swing';
   if (kind === 'lamp' || /(^|:)lamp|starlamp|light/.test(kind)) return 'lamp';
   if (kind === 'fridge' || kind === 'stove' || kind === 'vanity' || kind === 'bookshelf' || kind === 'window' || kind === 'mirror' || kind === 'tv'
     || /fridge|stove|cabinet|drawer|vanity/.test(kind)) return 'open';
