@@ -166,6 +166,7 @@ async def main():
             k_house = await K.evaluate('__hood().myHouseId()')
             await P.evaluate("(id) => __hood().sendMail(id, 'Come play in the yard!', 1, 2)", k_house)
             await K.wait_for_function("(id) => { const L = (__hood().view(id).mailbox || {}).letters; return L && L[0] && L[0].text.indexOf('yard') >= 0; }", arg=k_house, timeout=8000)
+            await K.wait_for_timeout(800)
             before = await K.evaluate(SNAP)
             saved = disk_letter(DATA, 'yard')
             check('fbd04db wrote a mailbox into the save', bool(saved) and before and 'yard' in json.dumps(before), '')
@@ -175,15 +176,21 @@ async def main():
             if not wait_port(PORT_HOOD):
                 check('B1 server reopened the B0 save', False, 'port')
                 return
-            web_b1 = serve(WWW_B1, B1_DIST, PORT_B1)
-            if not wait_port(PORT_B1):
-                check('B1 page is up', False)
+            # Same origin, so the iPads keep their sign-in. Swap the files the web server is pointing at.
+            serve_link = WWW_B0 + '/kids-house-game'
+            if os.path.islink(serve_link) or os.path.exists(serve_link):
+                os.unlink(serve_link)
+            os.symlink(B1_DIST, serve_link)
+            await P.goto(url(PORT_B0))
+            await K.goto(url(PORT_B0))
+            try:
+                await K.wait_for_selector('body.view-map .mapHouse', timeout=12000)
+                await P.wait_for_selector('body.view-map .mapHouse', timeout=12000)
+            except Exception:
+                info = await K.evaluate("() => document.body.className + ' ' + (document.body.innerText || '').slice(0, 180)")
+                await K.screenshot(path='/tmp/b0-reload.png')
+                check('fbd04db mailbox save migrates strictly onto B1', False, 'no map ' + info + ' ' + '; '.join(errs[:3]))
                 return
-            # Same iPads, new build, same server data.
-            await P.goto(url(PORT_B1))
-            await K.goto(url(PORT_B1))
-            await K.wait_for_selector('body.view-map .mapHouse', timeout=10000)
-            await P.wait_for_selector('body.view-map .mapHouse', timeout=10000)
             await K.wait_for_timeout(600)
             after = await K.evaluate(SNAP)
             diff = strict(before, after) if before and after else ['nosnap']
@@ -196,7 +203,7 @@ async def main():
             sp = await solo.new_page()
             serrs = []
             sp.on('pageerror', lambda e: serrs.append(str(e)))
-            await sp.goto(f'http://localhost:{PORT_B1}/kids-house-game/')
+            await sp.goto(f'http://localhost:{PORT_B0}/kids-house-game/')
             await sp.wait_for_selector('#stage .char', timeout=8000)
             await sp.evaluate("""() => {
               __store.dispatch({type:'room/wallpaper', room:'living', color:'#ddeeff'});
@@ -209,7 +216,14 @@ async def main():
             check('a B0 save with a mailbox keeps the letter when B1 adds a look', kept['wall'] == '#ddeeff' and kept['mail'] == 'Come play in the yard!' and kept['from'] == 'Reagan' and kept['hair'] == 'puffs' and kept['chibi'] == '1' and not serrs, str(kept) + ' ' + '; '.join(serrs[:2]))
             await solo.close()
 
-            # Mixed street: this B1 build and the fbd04db build, one hood.
+            # Mixed street: this B1 build and the fbd04db build, one hood. Fresh iPads, two origins.
+            if os.path.islink(serve_link) or os.path.exists(serve_link):
+                os.unlink(serve_link)
+            os.symlink(B0_DIST, serve_link)
+            web_b1 = serve(WWW_B1, B1_DIST, PORT_B1)
+            if not wait_port(PORT_B1):
+                check('B1 page is up', False)
+                return
             B1 = await (await ctx()).new_page()
             B0 = await (await ctx()).new_page()
             merrs = []
