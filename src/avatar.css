@@ -55,6 +55,11 @@
 .chibi-bob > .inner { animation: chibiBob 1.8s ease-in-out infinite alternate; }
 @keyframes chibiBob { from { transform: translateY(0); } to { transform: translateY(-4px); } }
 
+/* ?sit=1 only. The walk cycle replaces leg angles, so it stays off while she sits. */
+.char.pose-sit .leg, .char.pose-sit .arm,
+.avatar.pose-sit .leg, .avatar.pose-sit .arm { animation: none; }
+.char.pose-sit > .inner, .avatar.pose-sit > .inner { animation: none; transform: translateY(-20%); }
+
 .char.chibi.hold-target::after { top: 72%; }
 .char.chibi.hold-target[data-hand="left"]::after { left: var(--hx-l); }
 .char.chibi.hold-target[data-hand="right"]::after { left: var(--hx-r); }

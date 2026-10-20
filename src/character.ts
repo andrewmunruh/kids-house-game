@@ -1,6 +1,7 @@
 import type { Character } from './shared/state';
 import type { Look2 } from './shared/avatar';
 import { chibiSVG, handsOf, poseFor } from './avatar/draw';
+import type { Pose } from './avatar/geom';
 import { richAvatars } from './avatar/motion';
 const O = '#5a3d5c';
 const s = `stroke="${O}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"`;
@@ -37,8 +38,8 @@ function hair(style: number, c: string, back: boolean) {
   return `<path d="M21 46 Q18 12 50 12 Q82 12 79 46 Q72 30 58 28 Q50 36 36 30 Q26 34 21 46 Z" fill="${c}" ${s}/>`;
 }
 
-export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants'> & { acc?: number; look2?: Look2 | null }) {
-  if (c.look2) return chibiSVG(c.look2, { rich: richAvatars() });
+export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants'> & { acc?: number; look2?: Look2 | null }, opt?: { pose?: Pose; poseName?: string }) {
+  if (c.look2) return chibiSVG(c.look2, { rich: richAvatars(), pose: opt?.pose, poseName: opt?.poseName });
   return `<svg viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">
   <ellipse class="shadow" cx="50" cy="156" rx="28" ry="4" fill="#000" opacity=".12"/>
   ${hair(c.hairStyle, c.hair, true)}

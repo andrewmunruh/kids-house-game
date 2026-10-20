@@ -184,9 +184,9 @@ function torso(): string {
     + `<path d="M70 168 Q74 160 92 160 H108 Q126 160 130 168 L134 236 Q100 244 66 236 Z" fill="var(--skin)" ${S(3)}/>`;
 }
 
-export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean }): string {
+export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean; pose?: Pose; poseName?: string }): string {
   const L = fillLook2(look);
-  const pose = poseFor(L);
+  const pose = opt?.pose ?? poseFor(L);
   const rich = opt?.rich !== false;
   const u = opt?.uid ?? nextUid();
   const hem = hemOf(pose);
@@ -234,5 +234,6 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean }): s
     wrapHead(accessoryLayer(L), pose),
   ].join('');
   const shownTop = L.dress || L.top;
-  return `<svg data-chibi="1" data-hair="${L.hair}" data-top="${shownTop}" viewBox="0 0 200 320" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg" style="${style}">${defs(u, rich, mask)}${shadow}${layers}</svg>`;
+  const poseAttr = opt?.poseName ? ` data-pose="${opt.poseName}"` : '';
+  return `<svg${poseAttr} data-chibi="1" data-hair="${L.hair}" data-top="${shownTop}" viewBox="0 0 200 320" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg" style="${style}">${defs(u, rich, mask)}${shadow}${layers}</svg>`;
 }
