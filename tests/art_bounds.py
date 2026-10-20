@@ -13,10 +13,7 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else Path(__file__).resolve().parents[1]
 TOL = 0.03
-FADE = int(os.environ.get('ART_FADE', '3'))  # px at 3x; 0 for art made before the plum contour
-# Shipped pilot paintings whose box was measured before transforms counted.
-# Reported, not hidden: these print KNOWN and are queued for a repaint.
-KNOWN = {'plant': 'pilot fit to untransformed leaf boxes (w off ~18%)'}
+FADE = int(os.environ.get('ART_FADE', '0'))  # px at 3x the fit lets alpha>0 run past the SVG box; 0 matches the in-game alpha>0 measure (QA 2026-10-19)
 LIMIT = 60 * 1024
 SCALE = 3
 
@@ -329,9 +326,6 @@ def main():
             dw, dh = abs(rw - sw) / sw, abs(rh - sh) / sh
             worst = max(dw, dh, dax, day)
             flag = 'OK' if worst <= TOL and not notes else 'FAIL'
-            if flag == 'FAIL' and it['kind'] in KNOWN:
-                flag = 'KNOWN'
-                notes.append(KNOWN[it['kind']])
             if flag == 'FAIL':
                 fails += 1
             extra = (' ' + '; '.join(notes)) if notes else ''

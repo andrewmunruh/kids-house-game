@@ -23,10 +23,17 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLUM = np.array([90, 61, 92], float)
 OUTLINE = np.array([91, 61, 92], float)  # #5b3d5c, measured on the shipped living room (8a12495)
 CONTOUR_PX = 9      # canvas px (3 CSS px) of solid plum + ramp, from the outer alpha edge inward
+FADE_OUT = int(os.environ.get('FADE_OUT', '0'))  # px past the SVG box that alpha>0 may reach. 0 = App Builder in-game method (alpha>0 on the box, QA 2026-10-19); was 3
 RAMP = [27, 70, 132, 194, 234, 251]   # alpha at depth 1..6 px (median of the shipped 14)
-GUARD_PX = 6        # px beyond CONTOUR_PX where near-cream paint is shaded below the lint's cream test
+SMOOTH = 2.0        # gaussian sigma (px) of the silhouette the band follows
 BLEND_PX = 2        # px beyond CONTOUR_PX where the plum fades into the paint
 KEY = 40      # colour distance from the card counted as background
+BRIDGE_R = 6         # raw px half-width of the stroke that joins a separate part
+SPECK = 64           # px: alpha>0 islands smaller than this are lossy-alpha specks
+MIN_HOLE = 400        # raw px: smallest hole opened without SEE_THROUGH
+MIN_HOLE_FRAC = 0.004  # ... and at least this share of the object
+HOLE_RIM_DARK = 0.5    # share of the ring around it that is the painter's dark line
+CARD_EXACT = 8   # enclosed pixels this close to the card are background seen through a hole
 LIMIT = 58000
 
 
@@ -49,7 +56,20 @@ def svg_box(it):
     return W, H, (int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1)
 
 
-def key(rgb):
+def deband(rgb, obj, max_px=40):
+    """Peel a painted lavender/plum 'sticker' border off the silhouette (opt-in, env
+    DEBAND=kind): strip boundary rings while most of the ring is mid-dark purple."""
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    purple = (b > g + 15) & (r > g + 10) & (rgb.mean(2) < 175)
+    for _ in range(max_px):
+        ring = obj & ~ndi.binary_erosion(obj)
+        if purple[ring].mean() < 0.6:
+            break
+        obj = obj & ~(ring & purple)
+    return ndi.binary_opening(obj, iterations=1)
+
+
+def key(rgb, see_through=False, band=False):
     edge = np.concatenate([rgb[:8].reshape(-1, 3), rgb[-8:].reshape(-1, 3), rgb[:, :8].reshape(-1, 3), rgb[:, -8:].reshape(-1, 3)])
     bg = np.median(edge, 0)
     dist = np.sqrt(((rgb - bg) ** 2).sum(2))
@@ -62,6 +82,8 @@ def key(rgb):
     outside = np.isin(lab, border[border > 0])
     obj = ~outside
     obj = ndi.binary_opening(obj, iterations=1)
+    if band:
+        obj = deband(rgb, obj)
     lab, n = ndi.label(obj)
     if n > 1:
         sizes = ndi.sum(obj, lab, range(1, n + 1))
@@ -86,14 +108,38 @@ def key(rgb):
                 steps = int(max(abs(y1 - y0), abs(x1 - x0))) + 1
                 for t in np.linspace(0, 1, steps):
                     yy, xx = int(round(y0 + (y1 - y0) * t)), int(round(x0 + (x1 - x0) * t))
-                    obj[max(0, yy - 2):yy + 3, max(0, xx - 2):xx + 3] = True
-                    rgb[max(0, yy - 2):yy + 3, max(0, xx - 2):xx + 3] = OUTLINE
+                    # BRIDGE_R px: thick enough to survive the downscale + SMOOTH silhouette
+                    obj[max(0, yy - BRIDGE_R):yy + BRIDGE_R + 1, max(0, xx - BRIDGE_R):xx + BRIDGE_R + 1] = True
+                    rgb[max(0, yy - BRIDGE_R):yy + BRIDGE_R + 1, max(0, xx - BRIDGE_R):xx + BRIDGE_R + 1] = OUTLINE
                 main = main | (rl == rl[y0, x0]) | obj & ~rest & ~main
                 lab2, _ = ndi.label(obj)
                 main = lab2 == lab2[y1, x1]
-    # enclosed cream: openings stay open, flecks are filled
+    # enclosed cream: openings stay open, flecks are filled. obj above is ~outside, so it
+    # already contains enclosed cream; candidates are the enclosed card-like pixels.
     filled = ndi.binary_fill_holes(obj)
-    gaps = filled & near & ~outside
+    lum = rgb.mean(2)
+    cand = filled & (dist < KEY)
+    cl, cn = ndi.label(cand)
+    gaps = np.zeros_like(obj)
+    area = filled.sum()
+    for i, sl in enumerate(ndi.find_objects(cl), 1):
+        m = cl[sl] == i
+        n = m.sum()
+        if see_through:
+            ok = n >= 150 and np.median(dist[sl][m]) < CARD_EXACT
+        else:
+            # a real hole (handle loop, gap between legs): big, card-exact, and drawn
+            # around with the painter's dark line. Frosting, glass and labels are not.
+            sl2 = tuple(slice(max(0, q.start - 6), q.stop + 6) for q in sl)
+            mm = np.zeros(lum[sl2].shape, bool)
+            mm[sl[0].start - sl2[0].start:sl[0].start - sl2[0].start + m.shape[0],
+               sl[1].start - sl2[1].start:sl[1].start - sl2[1].start + m.shape[1]] = m
+            ring = ndi.binary_dilation(mm, iterations=6) & ~ndi.binary_dilation(mm, iterations=1)
+            dark = (lum[sl2][ring] < 120).mean() if ring.any() else 0
+            ok = (n >= max(MIN_HOLE, area * MIN_HOLE_FRAC) and np.median(dist[sl][m]) < CARD_EXACT
+                  and dark >= HOLE_RIM_DARK)
+        if ok:
+            gaps[sl] |= m
     gl, gn = ndi.label(gaps)
     opening = np.zeros_like(obj)
     if gn:
@@ -163,9 +209,6 @@ def finish(fg, al, ring):
         if m.sum() < 60:
             sub = fg[sl2]; sub[m] = fg[near[0][sl2][m], near[1][sl2][m]]
             al[sl2][m] = 255
-        elif ratio < 0.95:
-            # a real opening: ring it in plum (1px) instead of filling it
-            sub = fg[sl2]; sub[rim] = PLUM; al[sl2][rim] = 255
     return plum_contour(fg, al)
 
 
@@ -173,49 +216,54 @@ def plum_contour(fg, al):
     """Shipped living-room contour: depth d from the nearest transparent pixel
     (outer edge and ringed openings alike). d <= CONTOUR_PX is solid plum, the
     outer len(RAMP) px fade in alpha, and the next BLEND_PX px blend into the paint."""
-    solid = al > 0
-    d = ndi.distance_transform_edt(np.pad(solid, 1))[1:-1, 1:-1]
-    band = solid & (d <= CONTOUR_PX)
-    fg[band] = OUTLINE
-    for i in range(1, BLEND_PX + 1):
-        m = solid & (d > CONTOUR_PX + i - 1) & (d <= CONTOUR_PX + i)
-        t = i / (BLEND_PX + 1)
-        fg[m] = fg[m] * t + OUTLINE * (1 - t)
-    # Cream paint right inside the band would read as a cream fringe to the
-    # bounds lint (the plum band is not a barrier there): shade near-cream within
-    # GUARD_PX of the edge just below the lint's near-cream brightness.
-    near = solid & (d > CONTOUR_PX) & (d <= CONTOUR_PX + GUARD_PX)
-    s = fg[..., :3].sum(2)
-    pale = near & (s > 615) & ((fg.max(2) - fg.min(2)) < 42)
-    fg[pale] = fg[pale] * (615.0 / s[pale])[:, None]
-    # Same reach test as the lint: near-cream reachable from outside through
-    # transparent or plum pixels is shaded just below the near-cream brightness.
-    for _ in range(3):
-        mx, mn = fg.max(2), fg.min(2)
-        r_, g_, b_ = fg[..., 0], fg[..., 1], fg[..., 2]
-        plumm = (np.abs(fg - PLUM).max(2) < 28) & (mx - mn < 45)
-        pink = (r_ > g_ + 40) & (r_ > b_ + 15)
-        warm = (r_ + 8 >= g_) & (g_ + 6 >= b_)
-        s = fg.sum(2)
-        palem = solid & ~plumm & (s > 600) & (mx - mn < 50)  # wider than the lint, to survive WebP
-        struct = solid & ~plumm & ~palem
-        lab, _ = ndi.label(~struct)
-        edge = np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))
-        bad = palem & np.isin(lab, edge[edge > 0])
-        if not bad.any():
-            break
-        fg[bad] = fg[bad] * (590.0 / s[bad])[:, None]
-    for i, a in enumerate(RAMP, 1):
-        m = solid & (d > i - 1) & (d <= i)
-        al[m] = np.minimum(al[m], a)
+    # a smoothed silhouette, so the band follows the shape and not resize ringing
+    solid = ndi.gaussian_filter(al / 255, SMOOTH) > 0.5
+    lab, n = ndi.label(solid)
+    if n > 1:
+        solid = lab == 1 + int(np.argmax(ndi.sum(solid, lab, range(1, n + 1))))
+    al[~solid] = 0
+    al[solid] = np.maximum(al[solid], 255 * (al[solid] > 12))
+    pad = np.pad(solid, 1)
+    d = (ndi.distance_transform_edt(pad) - ndi.distance_transform_edt(~pad))[1:-1, 1:-1]
+    d = ndi.gaussian_filter(d, 1.0)      # signed, smoothed: no staircase on curves
+    t = np.clip((CONTOUR_PX + BLEND_PX + 1.5 - d) / (BLEND_PX + 1), 0, 1)[..., None]
+    fg[:] = fg * (1 - t) + OUTLINE * t
+    ramp = np.interp(d, np.arange(0, len(RAMP) + 2), [0] + RAMP + [255])
+    al[:] = np.where(d > 0, np.minimum(al, ramp), 0)
+    rejoin(fg, al)
     return fg, al
+
+
+def rejoin(fg, al):
+    """A part joined to the body by a neck thinner than the contour fade comes out
+    as its own alpha>0 island. Draw a 3 px plum stroke from it to the nearest body pixel."""
+    for _ in range(8):
+        lab, n = ndi.label(al > 0)
+        if n < 2:
+            return
+        sizes = ndi.sum(al > 0, lab, range(1, n + 1))
+        main = lab == 1 + int(np.argmax(sizes))
+        parts = [i + 1 for i in range(n) if sizes[i] >= SPECK and not main[lab == i + 1].any()]
+        if not parts:
+            return
+        d, (iy, ix) = ndi.distance_transform_edt(~main, return_indices=True)
+        for i in parts:
+            ys, xs = np.where(lab == i)
+            j = int(np.argmin(d[ys, xs]))
+            y0, x0 = ys[j], xs[j]
+            y1, x1 = iy[y0, x0], ix[y0, x0]
+            for t in np.linspace(0, 1, int(max(abs(y1 - y0), abs(x1 - x0))) + 2):
+                yy, xx = int(round(y0 + (y1 - y0) * t)), int(round(x0 + (x1 - x0) * t))
+                fg[max(0, yy - 1):yy + 2, max(0, xx - 1):xx + 2] = OUTLINE
+                al[max(0, yy - 1):yy + 2, max(0, xx - 1):xx + 2] = 255
 
 
 def verify(path):
     a = np.array(Image.open(path).convert('RGBA')).astype(float)
-    solid = a[..., 3] > 12
+    solid = a[..., 3] > 0   # alpha>0, the in-game measure (faint lossy specks count)
     bad = []
-    if ndi.label(solid)[1] != 1:
+    lab, n = ndi.label(solid)
+    if n > 1 and (ndi.sum(solid, lab, range(1, n + 1)) < SPECK).any():
         bad.append('islands')
     pockets = ndi.binary_fill_holes(solid) & ~solid
     pl, pn = ndi.label(pockets)
@@ -231,17 +279,26 @@ def verify(path):
     return bad
 
 
-FADE_OUT = 3        # px: the RAMP depth where alpha crosses 128 (LINT-FIX abc2639)
+FIT_ADJUST = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'art_fit_adjust.json'))) \
+    if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'art_fit_adjust.json')) else {}
 
 
 def build(it, raw, group):
     rgb = np.array(Image.open(raw).convert('RGB')).astype(float)
-    rgb, solid, opening = key(rgb)
+    rgb, solid, opening = key(rgb, it['kind'] in os.environ.get('SEE_THROUGH', '').split(','),
+                              it['kind'] in os.environ.get('DEBAND', '').split(','))
     ys, xs = np.where(solid)
     y0s, y1s, x0s, x1s = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
     W, H, (x0, y0, x1, y1) = svg_box(it)
-    # contour fade straddles the SVG edge: alpha>0 reaches FADE_OUT px past it (abc2639)
+    # the contour's outer fade straddles the SVG edge: alpha>0 reaches FADE_OUT px past
+    # the box and the half-alpha (visible) edge sits on it
     x0, y0, x1, y1 = max(0, x0 - FADE_OUT), max(0, y0 - FADE_OUT), min(W, x1 + FADE_OUT), min(H, y1 + FADE_OUT)
+    # per-kind in-game correction (tests/art_ingame_bounds.py dw/dh %, raster vs SVG):
+    # shrink/grow the fit box so the painted alpha>0 box lands on the SVG's in game
+    adj = FIT_ADJUST.get(it['kind'])
+    if adj:
+        cx, nw, nh = (x0 + x1) / 2, (x1 - x0) / (1 + adj[0] / 100), (y1 - y0) / (1 + adj[1] / 100)
+        x0, x1, y0 = max(0, round(cx - nw / 2)), min(W, round(cx + nw / 2)), max(0, round(y1 - nh))
     bw, bh = x1 - x0, y1 - y0
     scale = bw / (x1s - x0s)
     stretch = (bw / bh) / ((x1s - x0s) / (y1s - y0s))
@@ -276,10 +333,11 @@ def build(it, raw, group):
         arr = np.array(c)
         for m in bad:
             if isinstance(m, str):
-                sol = arr[..., 3] > 12
+                # drop faint specks (lossy alpha) only; real separate parts stay for the lint to judge
+                sol = arr[..., 3] > 0
                 lab, n = ndi.label(sol)
                 sizes = ndi.sum(sol, lab, range(1, n + 1))
-                arr[..., 3][sol & (lab != 1 + int(np.argmax(sizes)))] = 0
+                arr[..., 3][sol & np.isin(lab, 1 + np.where(sizes < SPECK)[0])] = 0
             elif m.sum() >= 60:
                 rim = ndi.binary_dilation(m, structure=np.ones((3, 3))) & ~m
                 arr[rim, :3] = PLUM.astype('uint8'); arr[rim, 3] = 255
