@@ -944,6 +944,17 @@ function shelfNear(card: HTMLElement): boolean {
   const ir = card.getBoundingClientRect();
   return ir.right > sr.left - SHELF_AHEAD && ir.left < sr.right + SHELF_AHEAD && ir.bottom > sr.top - 8 && ir.top < sr.bottom + 8;
 }
+// A painting whose fetch failed (dropped connection, server hiccup) is tried again on a
+// later scan, up to SHELF_TRIES times, instead of leaving the card on its SVG for good.
+const SHELF_TRIES = 3;
+const shelfFails = new Map<string, number>();
+function retryShelf(card: HTMLElement, kind: string): void {
+  const n = (shelfFails.get(kind) || 0) + 1;
+  shelfFails.set(kind, n);
+  delete card.dataset.shelfq;
+  if (n >= SHELF_TRIES) { delete card.dataset.artq; return; }
+  setTimeout(scheduleShelf, 300 * n);
+}
 function releaseShelf(): void {
   shelfActive--;
   if (shelfPumping) return;
@@ -955,19 +966,28 @@ function swapShelfCard(card: HTMLElement, d: ItemDef): void {
   hold.innerHTML = svgOf(d);
   const img = hold.querySelector<HTMLImageElement>('img.artimg');
   if (!img) { delete card.dataset.artq; releaseShelf(); return; }
+  // A retry asks past any cached failure for the same URL.
+  const tries = shelfFails.get(d.kind) || 0;
+  if (tries > 0) { const src = img.getAttribute('src') || ''; img.setAttribute('src', src + (src.indexOf('?') >= 0 ? '&' : '?') + 'retry=' + tries); }
   let done = false;
   const finish = (ok: boolean) => {
     if (done) return;
     done = true;
-    if (card.isConnected && card.dataset.artq === '1') {
-      delete card.dataset.artq;
-      if (ok) {
-        const nodes = Array.prototype.slice.call(hold.childNodes) as Node[];
-        shelfDecoded.set(d.kind, nodes);
+    if (ok) {
+      // Cache by kind as soon as it has loaded, even if this card was re-rendered meanwhile.
+      const nodes = Array.prototype.slice.call(hold.childNodes) as Node[];
+      shelfDecoded.set(d.kind, nodes);
+      shelfFails.delete(d.kind);
+      if (card.isConnected && card.dataset.artq === '1') {
+        delete card.dataset.artq;
         card.innerHTML = '';
         for (let i = 0; i < nodes.length; i++) card.appendChild(nodes[i]);
+      } else {
+        // The shelf was rebuilt while this loaded: give the painting to the current card for this kind.
+        const now = document.querySelector<HTMLElement>(`#shelf button.thing[data-artq="1"][data-kind="${CSS.escape(d.kind)}"]`);
+        if (now) { delete now.dataset.artq; now.innerHTML = ''; for (let i = 0; i < nodes.length; i++) now.appendChild(nodes[i]); }
       }
-    }
+    } else if (card.isConnected && card.dataset.artq === '1') retryShelf(card, d.kind);
     releaseShelf();
   };
   const loaded = () => {
@@ -993,10 +1013,10 @@ function pumpShelf(): void {
     if (rasterUrl(kind)) { swapShelfCard(card, d); continue; }
     void import('./art/load').then(m => m.loadArtKinds([kind])).then(() => {
       if (!card.isConnected || card.dataset.artq !== '1') { releaseShelf(); return; }
-      if (!rasterUrl(kind)) { delete card.dataset.artq; releaseShelf(); return; }
+      if (!rasterUrl(kind)) { retryShelf(card, kind); releaseShelf(); return; }
       if (!shelfNear(card)) { delete card.dataset.shelfq; releaseShelf(); return; }
       swapShelfCard(card, d);
-    }, () => { releaseShelf(); });
+    }, () => { if (card.isConnected && card.dataset.artq === '1') retryShelf(card, kind); releaseShelf(); });
   }
   shelfPumping = false;
 }

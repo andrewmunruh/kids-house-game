@@ -1,7 +1,7 @@
 # Decorate shelf: a thumbnail uses the item's painting whenever one exists.
 # SVG only when there is no painting (yard bench, tulip bed). Both review sizes.
 # usage: python tests/shelf_painted_test.py <base url>
-import asyncio, sys
+import asyncio, os, sys
 from pathlib import Path
 from playwright.async_api import async_playwright
 
@@ -20,9 +20,10 @@ def check(name, ok, extra=''):
     res[name] = bool(ok)
     print(('PASS ' if ok else 'FAIL ') + name, extra, flush=True)
 
-# Scroll each card into the tray and wait until a painting has decoded.
-# Offscreen cards stay on the SVG placeholder until then, same as a finger flick.
-LOAD_SHELF = r"""async () => {
+# Scroll each card into the tray and wait until a painted card really shows its decoded
+# painting. A card that stopped trying (artq cleared but still the SVG) is not ready:
+# counting it as ready hid failed loads and made the cached-switch check flaky.
+LOAD_SHELF = r"""async (painted) => {
   const s = document.getElementById('shelf');
   if (!s) return false;
   const cards = [...s.querySelectorAll('button.thing')];
@@ -31,8 +32,11 @@ LOAD_SHELF = r"""async () => {
     card.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     const t0 = performance.now();
     let ready = false;
-    while (performance.now() - t0 < 5000) {
-      if (card.dataset.artq !== '1') { ready = true; break; }
+    const want = painted.includes(card.dataset.kind || '');
+    while (performance.now() - t0 < 8000) {
+      const im = card.querySelector('img.artimg');
+      const shown = !!(im && im.complete && im.naturalWidth > 0 && !card.querySelector('svg'));
+      if (want ? shown : card.dataset.artq !== '1') { ready = true; break; }
       await new Promise(r => setTimeout(r, 30));
     }
     if (!ready) return false;
@@ -78,7 +82,7 @@ async def dismiss(page):
         await go.click(force=True)
 
 async def settle(page):
-    return await page.evaluate(LOAD_SHELF)
+    return await page.evaluate(LOAD_SHELF, sorted(PAINTED))
 
 async def open_size(browser, w, h):
     phone = min(w, h) < 500
@@ -115,9 +119,22 @@ WATCH = r"""() => {
   requestAnimationFrame(tick);
 }"""
 
+DROP = ('cc-heart-rug', 'cc-record-player', 'cc-star-dresser')
+dropped = set()
 async def slow_art(route):
     # Delayed requests can still be sleeping when the context closes; continuing a
     # route on a closed page raises. Swallow only that, so teardown cannot crash the run.
+    # The first request for a few paintings is dropped, like a flaky connection. The shelf must retry.
+    url = route.request.url
+    for k in DROP:
+        key = k
+        if k in url and key not in dropped:
+            dropped.add(key)
+            try:
+                await route.abort()
+            except Exception:
+                pass
+            return
     await asyncio.sleep(0.7)
     try:
         await route.continue_()
@@ -126,6 +143,7 @@ async def slow_art(route):
 
 async def load_race(browser, w, h):
     """Paintings arrive slowly; the kid scrolls in the first second. Scroll must hold, cards never blank."""
+    dropped.clear()
     tag = f'{w}x{h}'
     ctx, page = await open_size(browser, w, h)
     errors = []
@@ -176,7 +194,9 @@ async def load_race(browser, w, h):
     # Cached paintings: load every card on the tab, switch away and back. The first
     # frame after the switch (the DOM right after the click, before any paint) and the
     # next 10 frames must show each painted card's decoded painting, never the SVG.
-    await settle(page)
+    settled = await settle(page)
+    stuck = await page.evaluate("(painted) => [...document.querySelectorAll('#shelf button.thing')].filter(c => painted.includes(c.dataset.kind) && !c.querySelector('img.artimg')).map(c => c.dataset.kind)", sorted(PAINTED))
+    check(f'{tag} race: every painted card ends on its painting, dropped loads retried', settled and not stuck, f'settled {settled} stuck {stuck[:6]}')
     other = await page.evaluate("""() => [...document.querySelectorAll('#cats button[data-cat]')].map(b => b.dataset.cat).find(id => id && id !== 'pack:cottage' && id !== '__people' && id !== 'secrets')""")
     await page.locator(f'#cats button[data-cat="{other}"]').click()
     await page.wait_for_timeout(200)
@@ -298,8 +318,11 @@ async def main():
     # Yard pieces with no file stay SVG. They are part of the shelf walk above.
     check('bench and tulip bed have no painting file', 'yard-bench' not in PAINTED and 'tulip-bed' not in PAINTED)
     print(f"\n{sum(res.values())}/{len(res)} passed", flush=True)
-    if not all(res.values()):
-        sys.exit(1)
+    return 0 if all(res.values()) else 1
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    # Exit outside the event loop: sys.exit inside asyncio.run could leave Playwright's
+    # driver and still-sleeping route handlers holding the process open after the result.
+    code = asyncio.run(main())
+    sys.stdout.flush()
+    os._exit(code)
