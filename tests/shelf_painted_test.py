@@ -32,10 +32,7 @@ LOAD_SHELF = r"""async () => {
     const t0 = performance.now();
     let ready = false;
     while (performance.now() - t0 < 5000) {
-      const img = card.querySelector('img.artpending');
-      if (!img) { ready = true; break; }
-      const src = img.currentSrc || img.src || '';
-      if (img.complete && img.naturalWidth > 0 && src.indexOf('.webp') >= 0) { ready = true; break; }
+      if (card.dataset.artq !== '1') { ready = true; break; }
       await new Promise(r => setTimeout(r, 30));
     }
     if (!ready) return false;
@@ -89,6 +86,87 @@ async def open_size(browser, w, h):
     await ctx.add_init_script("localStorage.setItem('cozy-whatsnew','999')")
     page = await ctx.new_page()
     return ctx, page
+
+# Every animation frame, every shelf card must show something: an inline SVG, a
+# static (non-WebP) image, or a painting that has fully loaded. Never a blank card.
+WATCH = r"""() => {
+  window.__shelfEmpty = [];
+  window.__shelfFrames = 0;
+  const tick = () => {
+    const s = document.getElementById('shelf');
+    if (s) {
+      window.__shelfFrames++;
+      const cards = s.querySelectorAll('button.thing');
+      for (let i = 0; i < cards.length; i++) {
+        const c = cards[i];
+        if (c.querySelector('svg')) continue;
+        const imgs = [...c.querySelectorAll('img')];
+        const ok = imgs.some(im => {
+          const src = (im.getAttribute('src') || '').toLowerCase();
+          if (!src) return false;
+          if (src.indexOf('.webp') < 0) return true;
+          return im.complete && im.naturalWidth > 0;
+        });
+        if (!ok && window.__shelfEmpty.length < 50) window.__shelfEmpty.push((c.dataset.kind || '?') + ' @' + window.__shelfFrames);
+      }
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}"""
+
+async def slow_art(route):
+    await asyncio.sleep(0.7)
+    await route.continue_()
+
+async def load_race(browser, w, h):
+    """Paintings arrive slowly; the kid scrolls in the first second. Scroll must hold, cards never blank."""
+    tag = f'{w}x{h}'
+    ctx, page = await open_size(browser, w, h)
+    errors = []
+    page.on('pageerror', lambda e: errors.append(str(e)))
+    await ctx.route(lambda u: '/assets/art/' in u or u.split('?')[0].endswith('.webp'), slow_art)
+    await page.add_init_script(f'({WATCH})()')
+    await page.goto(URL, wait_until='domcontentloaded')
+    await page.wait_for_selector('#stage')
+    await dismiss(page)
+    await page.click('#modeDecorate', force=True)
+    await page.evaluate("() => __store.dispatch({type:'room/switch', room:'bedroom'})")
+    await page.locator('#cats button[data-cat="pack:cottage"]').click()
+    await page.wait_for_timeout(60)
+    target = await page.evaluate("""() => {
+      const s = document.getElementById('shelf');
+      const max = s.scrollWidth - s.clientWidth;
+      s.scrollLeft = Math.round(max * 0.6);
+      return { max, left: s.scrollLeft, pending: s.querySelectorAll('[data-artq="1"]').length };
+    }""")
+    check(f'{tag} race: shelf scrolls and has paintings still loading', target['max'] > 50 and target['left'] > 0 and target['pending'] > 0, str(target))
+    lows = []
+    for _ in range(40):
+        await page.wait_for_timeout(100)
+        lows.append(await page.evaluate("() => document.getElementById('shelf').scrollLeft"))
+    # Let the near cards finish, then read again.
+    await page.wait_for_function("""() => {
+      const s = document.getElementById('shelf'); const r = s.getBoundingClientRect();
+      return [...s.querySelectorAll('button.thing[data-artq="1"]')].every(c => { const b = c.getBoundingClientRect(); return b.right < r.left || b.left > r.right; });
+    }""", timeout=15000)
+    final = await page.evaluate("() => document.getElementById('shelf').scrollLeft")
+    check(f'{tag} race: scroll position kept while paintings load', all(abs(v - target['left']) <= 1 for v in lows) and abs(final - target['left']) <= 1, f"want {target['left']} min {min(lows)} final {final}")
+    shown = await page.evaluate("""() => { const s = document.getElementById('shelf'); const r = s.getBoundingClientRect();
+      return [...s.querySelectorAll('button.thing')].filter(c => { const b = c.getBoundingClientRect(); return b.right > r.left && b.left < r.right; })
+        .map(c => { const im = c.querySelector('img.artimg'); return !!(im && im.complete && im.naturalWidth > 0); }); }""")
+    check(f'{tag} race: visible cards swapped to their painting', len(shown) > 0 and any(shown), str(shown))
+    # Flick back and forth while more paintings arrive.
+    for frac in (0.0, 1.0, 0.3, 0.8, 0.0):
+        await page.evaluate("(f) => { const s = document.getElementById('shelf'); s.scrollLeft = Math.round((s.scrollWidth - s.clientWidth) * f); }", frac)
+        await page.wait_for_timeout(250)
+    for tab in ('pack:cottage',):
+        await page.locator(f'#cats button[data-cat="{tab}"]').click()
+        await page.wait_for_timeout(1500)
+    empty = await page.evaluate("() => ({ frames: window.__shelfFrames, empty: window.__shelfEmpty })")
+    check(f'{tag} race: no empty shelf card in any frame', empty['frames'] > 30 and not empty['empty'], str(empty)[:300])
+    check(f'{tag} race: no page errors', not errors, '; '.join(errors[:3]))
+    await ctx.close()
 
 async def main():
     fails_art = []
@@ -158,6 +236,9 @@ async def main():
             check(f'{tag} drag-to-place uses the painting', placed['n'] == 1 and placed['webp'] and not placed['svg'] and placed['nw'] > 0, str(placed))
             check(f'{tag} no page errors', not errors, '; '.join(errors[:3]))
             await ctx.close()
+
+        for w, h in SIZES:
+            await load_race(browser, w, h)
 
         # ?art=v1 keeps the SVG, including a painted item.
         ctx, page = await open_size(browser, 820, 1180)
