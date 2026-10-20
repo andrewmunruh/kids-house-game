@@ -65,12 +65,12 @@ export const yardLookPatch = () => patchFromLook2(YARD_LOOK);
  * room, so the whole play set has to sit in the narrowest window (about 468 world units).
  */
 export const YARD_CAM = 864;
-/** In front of the garden bench, below the door, facing the house. */
-export const YARD_KID = { x: 942, y: 572, flip: true as boolean };
-/** On the right lawn, below the sandbox and clear of the fence, the swing, and the dog. */
-export const YARD_CAT = { x: 1260, y: 503 };
-/** Beside the cat, in front of her, clear of the kid and every piece. */
-export const YARD_DOG = { x: 1262, y: 580 };
+/** Open lawn in the middle of the yard, beside the bench, with the swing, sandbox, and tree in view. */
+export const YARD_KID = { x: 1080, y: 576, flip: true as boolean };
+/** On the right lawn, above the dog and clear of the fence, the swing, and the sandbox. */
+export const YARD_CAT = { x: 1224, y: 488 };
+/** Under the cat, clear of the kid and the Surprises pill at the bottom corner. */
+export const YARD_DOG = { x: 1224, y: 562 };
 export const DOOR_KID = { x: 940, y: 540, flip: true as boolean };
 export const DOOR_CAT_X = 1160;
 
@@ -81,10 +81,10 @@ export const YARD_DOOR = { x: 996, y: 372, w: 82, h: 196 };
 
 /** Back-to-front. item/add stamps z from this order. */
 export const YARD_STAGE: { kind: string; x: number; y: number }[] = [
-  { kind: 'yard-swing', x: 1188, y: 320 },
-  { kind: 'sandbox', x: 1262, y: 382 },
-  { kind: 'lemonade-cart', x: 1116, y: 545 },
-  { kind: 'picnic-blanket', x: 1116, y: 582 },
+  { kind: 'yard-swing', x: 1094, y: 270 },
+  { kind: 'sandbox', x: 1190, y: 360 },
+  { kind: 'lemonade-cart', x: 960, y: 530 },
+  { kind: 'picnic-blanket', x: 930, y: 576 },
 ];
 
 function piece(p: { kind: string; name: string; cat: string; w: number; h: number; vb: string; wall?: boolean; holdable?: boolean; svg: string }): ItemDef {
@@ -649,7 +649,7 @@ function tree(x: number, scale: number): string {
   const y = 150;
   const trunkTop = y + 46 * scale;
   const trunkH = 372 - trunkTop;
-  return `<g>
+  return `<g id="yardTree">
     <rect x="${x - 14 * scale}" y="${trunkTop}" width="${28 * scale}" height="${trunkH}" rx="${6 * scale}" fill="#e7b98a" ${ink()}/>
     <rect x="${x + 4 * scale}" y="${trunkTop + 8 * scale}" width="${8 * scale}" height="${trunkH - 16 * scale}" fill="#c99366"/>
     ${tex(`M${x - 4 * scale} ${trunkTop + 28 * scale} v${36 * scale}`)}
@@ -690,7 +690,7 @@ export function yardBackyardScenery(): string {
     <rect y="520" width="2400" height="80" fill="#9ed67a"/>
     <path d="M1040 470 q30 -12 16 -6 M1200 510 q28 -12 14 -4 M1360 548 q24 -10 12 -4" fill="none" stroke="#3d9a68" stroke-width="1.2" stroke-linecap="round" opacity=".22"/>
     ${pickets(846, 2118, 258, 372, 24)}
-    ${tree(1264, 0.8)}
+    ${tree(1191, 0.8)}
     <path d="M840 120 H1076 L1054 152 H862 Z" fill="#ffb3c6" ${ink()}/>
     <path d="M960 126 H1064 L1046 148 H976 Z" fill="#e45d88"/>
     ${hi('M876 132 h56')}

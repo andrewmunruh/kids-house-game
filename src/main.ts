@@ -299,28 +299,21 @@ function fit() {
   frameYardCam();
   placeYardHints();
 }
-/** Phone arrows live on the wrap in screen pixels. Centre them on the stage.
- *  In the yard they sit in the sky, clear of the swing. Indoor rooms keep the centred arrows. */
+/** Phone arrows live on the wrap in screen pixels. Centre them on the stage, in the yard and indoors. */
 function placePhoneNudges() {
   const wrap = $('stageWrap');
   const on = document.body.classList.contains('phone') && view === 'house';
-  const yard = view === 'house' && store.get().currentRoom === 'backyard';
   for (const n of [$('nudgeL'), $('nudgeR')]) {
     if (!on || n.parentElement !== wrap) {
       n.style.marginTop = ''; n.style.left = ''; n.style.right = '';
-      n.style.top = yard && n.parentElement === stage ? '8px' : '';
+      n.style.top = '';
       continue;
     }
     const stageBox = stage.getBoundingClientRect();
     const wrapBox = wrap.getBoundingClientRect();
-    if (yard) {
-      n.style.top = (stageBox.top - wrapBox.top + 4) + 'px';
-      n.style.marginTop = '0px';
-    } else {
-      const mid = (stageBox.top + stageBox.bottom) / 2 - wrapBox.top;
-      n.style.top = mid + 'px';
-      n.style.marginTop = (-n.offsetHeight / 2) + 'px';
-    }
+    const mid = (stageBox.top + stageBox.bottom) / 2 - wrapBox.top;
+    n.style.top = mid + 'px';
+    n.style.marginTop = (-n.offsetHeight / 2) + 'px';
     n.style.left = ''; n.style.right = '';
   }
 }
@@ -2392,7 +2385,8 @@ function placeKennelBtn(btn: HTMLButtonElement) {
   const doorRects = doorEl ? [doorEl, doorEl.querySelector('.yardHintLabel'), doorEl.querySelector('.doorArt')].map(el => el?.getBoundingClientRect()) : [];
   const secEl = document.getElementById('secrets');
   const secBox = secEl && secEl.offsetParent ? secEl.getBoundingClientRect() : undefined;
-  const secR = secBox && secBox.width > 2 && secBox.left < bounds.r && secBox.right > bounds.l && secBox.top < bounds.b && secBox.bottom > bounds.t ? secBox : undefined;
+  const secNear = secBox && secBox.width > 2 && secBox.left < bounds.r && secBox.right > bounds.l && secBox.top < bounds.b && secBox.bottom > bounds.t ? secBox : undefined;
+  const secR = secNear ? new DOMRect(secNear.left - 8, secNear.top - 8, secNear.width + 16, secNear.height + 16) : undefined;
   const hard = [kidR, sofaR, catR, sandR, benchR, secR, ...yardRects, ...doorRects].filter((b): b is DOMRect => !!b && b.width > 2 && b.height > 2);
   const home = new DOMRect(r.left + dx, r.top + dy, r.width, r.height);
   const dcx = bodyR.left + bodyR.width / 2, dcy = bodyR.top + bodyR.height / 2;
@@ -2446,8 +2440,19 @@ function placeKennelBtn(btn: HTMLButtonElement) {
       }
       return found;
     };
-    const found = pick(170) ?? (!fits(home) ? pick(240) : null);
+    const found = pick(170) ?? pick(360);
     if (found) choice = found;
+    else if (!fits(home)) {
+      let bestBox: DOMRect | null = null;
+      let bestScore = Infinity;
+      for (const box of seats) {
+        if (box.left < bounds.l - 0.5 || box.right > bounds.r + 0.5 || box.top < bounds.t - 0.5 || box.bottom > bounds.b + 0.5) continue;
+        const cover = coversBody(box) ? 10000 : 0;
+        const score = cover + hard.reduce((sum, block) => sum + area(box, block), 0) + near(box);
+        if (score < bestScore) { bestScore = score; bestBox = box; }
+      }
+      if (bestBox) choice = bestBox;
+    }
   }
   dx += choice.left - home.left;
   dy += choice.top - home.top;

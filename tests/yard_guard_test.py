@@ -1,7 +1,8 @@
 # Yard guard. The stage, the starter set, and the staged play scene at every review size.
 # Fails when the yard stage drifts from the living room, a piece leaves the stage,
-# a pet stands on the fence, the swing seat, or the door, an arrow covers something,
-# any text is under 13px, or the door is not the top tap target.
+# the kid spawns on the bench or a landmark (swing, sandbox, tree) is off stage,
+# a pet stands on the fence, the swing seat, or the door, the Kennel chip covers a pet,
+# an arrow covers something, any text is under 13px, or the door is not the top tap target.
 import asyncio, os, sys
 from playwright.async_api import async_playwright
 
@@ -46,6 +47,9 @@ READ = r"""
   for (const p of pets) p.world = worldOf(p.box);
   const seat = box(document.querySelector('#layer .swingSeat'));
   const kid = box(document.querySelector('#layer .char'));
+  const tree = box(document.getElementById('yardTree'));
+  const kennel = box(document.querySelector('.kennelBtn'));
+  const secrets = box(document.getElementById('secrets'));
   const doorEl = document.querySelector('.yardDoor');
   const door = box(doorEl);
   const label = box(document.querySelector('.yardHintLabel'));
@@ -82,7 +86,7 @@ READ = r"""
   return {
     stage: { x: st.left, y: st.top, r: st.right, b: st.bottom, w: st.width, h: st.height },
     viewW, sc, cam, room: document.body.dataset.room || (__store && __store.get().currentRoom),
-    items, pets, seat, kid, door, label, arrows, texts, top,
+    items, pets, seat, kid, tree, kennel, secrets, door, label, arrows, texts, top,
   };
 }
 """
@@ -127,6 +131,34 @@ def judge(tag, data, living, problems):
     for it in data['items']:
         if not inside(it['box'], st):
             problems.append(f"{tag} piece {it['kind']} outside")
+    if not data['kid'] or not inside(data['kid'], st):
+        problems.append(f'{tag} kid spawn outside')
+    if data['tree'] and not inside(data['tree'], st):
+        problems.append(f'{tag} tree outside')
+    elif not data['tree']:
+        problems.append(f'{tag} tree missing')
+    bench = next((i['box'] for i in data['items'] if i['kind'] == 'yard-bench'), None)
+    tulips = next((i['box'] for i in data['items'] if i['kind'] == 'tulip-bed'), None)
+    if data['kid'] and bench and overlaps(data['kid'], bench):
+        problems.append(f'{tag} kid spawn covers the bench')
+    if data['kid'] and tulips and overlaps(data['kid'], tulips):
+        problems.append(f'{tag} kid spawn covers the tulips')
+    swing = next((i['box'] for i in data['items'] if i['kind'] == 'yard-swing'), None)
+    sand = next((i['box'] for i in data['items'] if i['kind'] == 'sandbox'), None)
+    if swing and sand:
+        if overlaps(swing, sand):
+            problems.append(f'{tag} swing overlaps sandbox')
+        elif swing['x'] < sand['r'] and swing['r'] > sand['x']:
+            gap = (sand['y'] - swing['b']) if sand['y'] >= swing['b'] else (swing['y'] - sand['b'])
+            if data['sc'] and gap / data['sc'] < 20:
+                problems.append(f'{tag} swing and sandbox gap {gap / data["sc"]:.0f}')
+    if data['kennel']:
+        for pet in data['pets']:
+            if overlaps(data['kennel'], pet['box']):
+                problems.append(f"{tag} kennel chip covers {pet['kind']}")
+        sec = data['secrets']
+        if sec and overlaps(sec, st) and overlaps(data['kennel'], sec):
+            problems.append(f'{tag} kennel chip covers surprises')
     door_zone = data['door']
     for pet in data['pets']:
         if fence_hit(pet['world']):
@@ -151,6 +183,8 @@ def judge(tag, data, living, problems):
                 problems.append(f"{tag} {arrow['id']} overlaps {it['kind']}")
         if data['kid'] and overlaps(arrow['box'], data['kid']):
             problems.append(f"{tag} {arrow['id']} overlaps kid")
+        if data['tree'] and overlaps(arrow['box'], data['tree']):
+            problems.append(f"{tag} {arrow['id']} overlaps tree")
         if data['door'] and overlaps(arrow['box'], data['door']):
             problems.append(f"{tag} {arrow['id']} overlaps door")
         if data['label'] and overlaps(arrow['box'], data['label']):

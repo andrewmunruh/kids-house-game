@@ -134,8 +134,8 @@ export function initialState(): GameState {
         it('cloud-rug', 480, 545, 0), it('crib', 470, 480, 1), it('crib-mobile', 470, 155, 2), it('rocker', 780, 490, 3)] },
       // A brand-new yard gets a bench and flowers. A stored yard, even with items: [], is never refilled.
       backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [
-        { id: 'yard-bench-1', kind: 'yard-bench', x: 942, y: 482, flip: false, z: 1, scale: 1 },
-        { id: 'tulip-bed-2', kind: 'tulip-bed', x: 1116, y: 418, flip: false, z: 2, scale: 1 },
+        { id: 'yard-bench-1', kind: 'yard-bench', x: 944, y: 478, flip: false, z: 1, scale: 1 },
+        { id: 'tulip-bed-2', kind: 'tulip-bed', x: 1056, y: 366, flip: false, z: 2, scale: 1 },
       ] },
     },
     characters: [
