@@ -9,6 +9,19 @@ def local_page():
     return f'http://localhost:4173/kids-house-game/?hood={hood}'
 SKIP_WN = f"localStorage.getItem('{PFX}cozy-whatsnew') || localStorage.setItem('{PFX}cozy-whatsnew', '999')"  # skip the What's new popup
 def K(k): return PFX + k
+async def tap(pg, sel, **kwargs):
+    """Click a control. Rows that live in the Menu are opened first."""
+    in_menu = await pg.evaluate("""(sel) => {
+      const el = document.querySelector(sel);
+      return !!(el && el.closest('#menuPop'));
+    }""", sel)
+    if in_menu:
+        hidden = await pg.evaluate("() => document.getElementById('menuPop').classList.contains('hidden')")
+        if hidden:
+            await pg.click('#btnMenu')
+            await pg.wait_for_selector('#menuPop:not(.hidden)')
+    await pg.click(sel, **kwargs)
+
 async def to_map(pg):
     if not await pg.evaluate("document.body.classList.contains('view-map')"):
         await pg.click('#btnMap')

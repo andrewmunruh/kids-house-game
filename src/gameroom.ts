@@ -45,8 +45,8 @@ const pouf = (x: number, y: number, c: string) => `<g transform="translate(${x} 
   <path d="M0 -16 V-28" ${st(3)}/><circle cy="-32" r="6" fill="#ffd43b" ${st(2)}/>
 </g>`;
 
-function poster(x: number, y: number, rot: number, bg: string, art: string): string {
-  return `<g transform="translate(${x} ${y}) rotate(${rot})">
+function poster(x: number, y: number, rot: number, bg: string, art: string, cls = ''): string {
+  return `<g class="photoFrame${cls}" transform="translate(${x} ${y}) rotate(${rot})">
     <rect x="-40" y="-52" width="80" height="104" rx="6" fill="#fff" ${st(3.5)}/>
     <rect x="-32" y="-44" width="64" height="72" rx="4" fill="${bg}"/>
     ${art}
@@ -153,13 +153,16 @@ export function gameRoomSVG(): string {
   </g>
 
   <g class="neonSign" transform="translate(560 168)">
+    <g class="neonSignArt">
     <rect x="-228" y="-58" width="456" height="108" rx="28" fill="#2b1430" ${st(5)}/>
     <rect class="neonRing" x="-214" y="-44" width="428" height="80" rx="22" fill="none" stroke="#ff4d94" stroke-width="4"/>
     <path d="M-150 8 C-162 -14 -186 -8 -174 12 C-166 26 -150 36 -150 36 C-150 36 -134 26 -126 12 C-114 -8 -138 -14 -150 8 Z" fill="#ff4d94" stroke="#ffd0ea" stroke-width="2"/>
     <text x="6" y="16" text-anchor="middle" font-size="40" font-weight="900" fill="#ff7eb3" stroke="#fff6fb" stroke-width="2" paint-order="stroke" font-family="Nunito, ui-rounded, system-ui, sans-serif">SLAY CLUB</text>
+    </g>
   </g>
 
-  ${poster(250, 250, -6, '#ffe0f0', `${heart(0, 8, 1.4)}${star(-18, -16, 0.7, '#ffd43b')}${star(18, -10, 0.55, '#66d9e8')}`)}
+  ${poster(500, 340, -6, '#ffe0f0', `${heart(0, 8, 1.4)}${star(-18, -16, 0.7, '#ffd43b')}${star(18, -10, 0.55, '#66d9e8')}`, ' frameAtHead')}
+  ${poster(424, 186, -8, '#ffe0f0', `${heart(0, 8, 1.4)}${star(-18, -16, 0.7, '#ffd43b')}${star(18, -10, 0.55, '#66d9e8')}`, ' framePhone')}
   ${poster(980, 240, 5, '#e7fbff', `<ellipse cx="0" cy="6" rx="16" ry="12" fill="#fff" ${st(2)}/><path d="M-6 6 Q0 -8 6 6" fill="none" stroke="${O}" stroke-width="2"/><path d="M0 18 V28 M-12 24 H12" ${st(2)}/>`)}
   ${poster(1680, 255, -4, '#fff3c4', `${star(0, 2, 1.5, '#ffd43b')}`)}
   ${poster(2360, 245, 6, '#f3e8ff', `${heart(0, 4, 1.3, '#d0bfff')}`)}

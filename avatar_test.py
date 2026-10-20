@@ -2,16 +2,43 @@
 # a held teddy, a chibi rider, and 6 kids animating under 4x CPU throttle.
 # Needs the preview on :4173. The hood comes from the page URL (?hood=) or HOOD.
 # There is no silent default of :8787 for the old client, so a worker run cannot join the node hood.
-# If /tmp/prod-dist exists, an old build is served on a free port so a 1f0aa5c client can see the new kids.
+# The production client (8a12495) is built from that commit and served on a free port,
+# so a baseline iPad can see the new kids. It is not a hardcoded leftover directory.
 import asyncio, os, socket, subprocess, sys, tempfile, time
 from urllib.parse import parse_qs, urlparse
 from playwright.async_api import async_playwright
-from testnav import SKIP_WN, go, local_page
+from testnav import tap, SKIP_WN, go, local_page
 
 URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = os.environ.get('ARTIFACT_DIR') or tempfile.mkdtemp(prefix='avatar-artifacts-')
 KIT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tests', 'fixtures', 'chibi')
-OLD_DIST = '/tmp/prod-dist'
+PROD_CLIENT = '8a1249554979df72f840bc4e9fbc4c63139eda92'
+
+def production_dist() -> str:
+    """The client built from production 8a12495. A stale /tmp/prod-dist is not used."""
+    repo = os.path.dirname(os.path.abspath(__file__))
+    sha = subprocess.check_output(['git', '-C', repo, 'rev-parse', PROD_CLIENT], text=True).strip()
+    dest = os.path.join('/tmp', 'kids-prod-' + sha)
+    index = os.path.join(dest, 'index.html')
+    stamp = os.path.join(dest, '.built-from')
+    if os.path.isfile(index) and os.path.isfile(stamp) and open(stamp).read().strip() == sha:
+        return dest
+    tree = os.path.join('/tmp', 'kids-prod-src-' + sha)
+    if not os.path.exists(os.path.join(tree, 'package.json')):
+        subprocess.check_call(['git', '-C', repo, 'worktree', 'add', '--detach', tree, sha])
+    else:
+        head = subprocess.check_output(['git', '-C', tree, 'rev-parse', 'HEAD'], text=True).strip()
+        if head != sha:
+            subprocess.check_call(['git', '-C', tree, 'checkout', '--detach', sha])
+    modules = os.path.join(tree, 'node_modules')
+    if not os.path.exists(modules):
+        os.symlink(os.path.join(repo, 'node_modules'), modules)
+    subprocess.check_call(['npx', 'vite', 'build', '--outDir', dest, '--emptyOutDir'], cwd=tree)
+    with open(stamp, 'w') as fh:
+        fh.write(sha)
+    if not os.path.isfile(index):
+        raise SystemExit('production client build did not write an index')
+    return dest
 
 def hood_for(page_url: str) -> str:
     got = (parse_qs(urlparse(page_url).query).get('hood') or [''])[0].strip()
@@ -33,13 +60,13 @@ def check(name, ok, extra=''):
     res[name] = bool(ok)
     print(('PASS ' if ok else 'FAIL ') + name, extra, flush=True)
 
-def serve_old():
+def serve_old(dist):
     www = '/tmp/avatar-old-www'
     os.makedirs(www, exist_ok=True)
     link = www + '/kids-house-game'
     if os.path.islink(link) or os.path.exists(link):
         os.remove(link) if not os.path.islink(link) else os.unlink(link)
-    os.symlink(OLD_DIST, link)
+    os.symlink(dist, link)
     port = free_port()
     code = ("import http.server, functools\n"
             "class H(http.server.SimpleHTTPRequestHandler):\n"
@@ -99,7 +126,7 @@ async def adult(pg):
 async def open_look(pg):
     if await pg.locator('#phoneOk').is_visible():
         await pg.click('#phoneOk')
-    await pg.click('#btnDress')
+    await tap(pg, '#btnDress')
     await pg.wait_for_selector('#sheet:not(.hidden) .avLook')
     await pg.wait_for_timeout(450)
 
@@ -339,7 +366,7 @@ async def street(b):
         pg.on('pageerror', lambda e: errs.append(str(e)))
         await pg.goto(URL)
         await pg.wait_for_timeout(400)
-    await P.click('#btnHood')
+    await tap(P, '#btnHood')
     await P.click('[data-m="create"]')
     await adult(P)
     await P.wait_for_selector('#newCode')
@@ -350,7 +377,7 @@ async def street(b):
         await P.click(f'.sugg button:has-text("{n}")')
         await P.wait_for_timeout(150)
     await P.click('.hoodSheet [data-m="close"]')
-    await P.click('#btnHood')
+    await tap(P, '#btnHood')
     await P.click('[data-m="join"]')
     await P.fill('#codeInput', code)
     await P.click('#codeForm button')
@@ -374,7 +401,7 @@ async def street(b):
     await P.wait_for_function("document.getElementById('sheet').classList.contains('hidden')")
     await P.click('#mapWorld .mapHouse.mine')
     await P.wait_for_timeout(700)
-    await K2.click('#btnHood')
+    await tap(K2, '#btnHood')
     await K2.click('[data-m="join"]')
     await K2.fill('#codeInput', code)
     await K2.click('#codeForm button')
@@ -389,36 +416,34 @@ async def street(b):
     await K2.wait_for_timeout(800)
     drawn = await K2.evaluate("""() => { const svg = document.querySelector('.char.avatar.other svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
     check('the friend draws the new kid as a chibi', drawn == '1' and not errs, str(drawn) + ' ' + '; '.join(errs[:2]))
-    if os.path.isdir(OLD_DIST):
-        old, old_port = serve_old()
+    dist = production_dist()
+    old, old_port = serve_old(dist)
+    try:
+        hood = hood_for(URL)
+        ctxo = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
+        await ctxo.add_init_script("localStorage.setItem('cozy-whatsnew', '999')")
+        O = await ctxo.new_page()
+        oerrs = []
+        O.on('pageerror', lambda e: oerrs.append(str(e)))
+        await O.goto(f'http://127.0.0.1:{old_port}/kids-house-game/?hood={hood}')
+        await O.wait_for_timeout(500)
+        await tap(O, '#btnHood')
+        await O.click('[data-m="join"]')
+        await O.fill('#codeInput', code)
+        await O.click('#codeForm button')
+        await O.click('.nicks button:has-text("Chloe")')
+        await O.click('[data-m="fresh"]')
+        await O.wait_for_selector('body.view-map #mapWorld .mapHouse', timeout=8000)
+        await O.wait_for_timeout(600)
+        old_face = await O.evaluate("""(pid) => { const el = document.querySelector('.mapFace[data-pid="' + pid + '"] svg'); return el ? el.getAttribute('data-chibi') : 'missing'; }""", pid)
+        await O.screenshot(path=f'{SHOT}/old-client-view.png')
+        check('baseline client draws the new kid as a chibi', old_face == '1' and not oerrs, str(old_face) + ' ' + '; '.join(oerrs[:2]))
+        await ctxo.close()
+    finally:
         try:
-            hood = hood_for(URL)
-            ctxo = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
-            await ctxo.add_init_script("localStorage.setItem('cozy-whatsnew', '999')")
-            O = await ctxo.new_page()
-            oerrs = []
-            O.on('pageerror', lambda e: oerrs.append(str(e)))
-            await O.goto(f'http://127.0.0.1:{old_port}/kids-house-game/?hood={hood}')
-            await O.wait_for_timeout(500)
-            await O.click('#btnHood')
-            await O.click('[data-m="join"]')
-            await O.fill('#codeInput', code)
-            await O.click('#codeForm button')
-            await O.click('.nicks button:has-text("Chloe")')
-            await O.click('[data-m="fresh"]')
-            await O.wait_for_selector('body.view-map #mapWorld .mapHouse', timeout=8000)
-            await O.wait_for_timeout(600)
-            old_face = await O.evaluate("""(pid) => { const el = document.querySelector('.mapFace[data-pid="' + pid + '"] svg'); return el ? el.getAttribute('data-chibi') : 'missing'; }""", pid)
-            await O.screenshot(path=f'{SHOT}/old-client-view.png')
-            check('old client sees the new kid without chibi markup', old_face is None and not oerrs, str(old_face) + ' ' + '; '.join(oerrs[:2]))
-            await ctxo.close()
-        finally:
-            try:
-                os.killpg(old.pid, 15)
-            except Exception:
-                pass
-    else:
-        check('old client sees the new kid without chibi markup', False, 'missing /tmp/prod-dist')
+            os.killpg(old.pid, 15)
+        except Exception:
+            pass
     await ctxp.close()
     await ctxk.close()
 
@@ -438,7 +463,7 @@ async def letter_shot(b):
         await pg.goto(URL)
         await pg.wait_for_timeout(300)
     P = pages[0]
-    await P.click('#btnHood')
+    await tap(P, '#btnHood')
     await P.click('[data-m="create"]')
     await adult(P)
     await P.wait_for_selector('#newCode')
@@ -450,7 +475,7 @@ async def letter_shot(b):
         await P.wait_for_timeout(120)
     await P.click('.hoodSheet [data-m="close"]')
     async def join(pg, nick):
-        await pg.click('#btnHood')
+        await tap(pg, '#btnHood')
         await pg.click('[data-m="join"]')
         await pg.fill('#codeInput', code)
         await pg.click('#codeForm button')
@@ -481,7 +506,7 @@ async def letter_shot(b):
     await P.screenshot(path=f'{SHOT}/letter-chibi-820.png')
     await P.click('#mailSheet [data-m="close"]')
     await P.wait_for_timeout(200)
-    await P.click('#btnParent')
+    await tap(P, '#btnParent')
     await adult(P)
     await P.wait_for_selector('#parentMail', timeout=5000)
     grown = await P.inner_text('#parentMail')

@@ -3,7 +3,7 @@ import './juice.css';
 import './scenery.css';
 import './mail.css';
 import './avatar.css';
-import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapTreesSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
+import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapPortraitBgSVG, mapTreesSVG, portraitMeadowSVG, mapSkySVG, mapMeadowSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
 import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
 import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterSay, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, cleanPetName, CAT_NAMES, DOG_NAMES, PARK_W, PARK_SPOTS, SLIDE, DOG_AREA, mailIsFree, type Presence, type Bubble, type Look, type Fx } from './shared/hood';
@@ -30,6 +30,9 @@ import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
 import { emptyRoomStarters, setRoomScenery, syncScenery } from './scenery';
 import { DOOR_CAT_X, DOOR_KID, LIVE_DOOR, YARD_CAM, YARD_CAT, YARD_DOG, YARD_DOOR, YARD_KID, YARD_STAGE, registerYardItems, yardBackyardScenery, yardCompareHTML, yardDoorMarkup, yardLookPatch, yardPreviewOn, yardSheetHTML, yardShot } from './yard';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
+import { isLightKind } from './sky';
+import { dockSkyChrome, mountSkyToggle } from './sky-toggle';
+import './sky.css';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
 import { bindGameRoom, renderGameRoom, renderGamePeople, tickGameRoom, mySeat, grScale, tableApi } from './gameroom-view';
@@ -44,7 +47,11 @@ const storeListeners: ((s: GameState, a: Action) => void)[] = [];
 const hooked = new WeakSet<AnyStore>();
 function hookStore(st: AnyStore) { if (hooked.has(st)) return; hooked.add(st); st.subscribe((s, a) => { if (inner === st) storeListeners.forEach(l => l(s, a)); }); }
 hookStore(local);
-const store: AnyStore = { get: () => inner.get(), dispatch: a => inner.dispatch(a), subscribe: l => { storeListeners.push(l); } };
+const store: AnyStore = {
+  get: () => inner.get(),
+  dispatch(a) { inner.dispatch(a); },
+  subscribe: l => { storeListeners.push(l); },
+};
 // World is ROOM_W x ROOM_H; the stage shows a VIEW_W-wide window onto it (fits the iPad).
 const W = ROOM_W, H = ROOM_H, FLOOR_Y = 390;
 let VIEW_W = 1000; // visible window; narrower in portrait so the room can fill the height
@@ -88,6 +95,8 @@ const ICON = {
   trash: `<svg viewBox="0 0 48 48"><rect x="12" y="14" width="24" height="28" rx="5" fill="#ff8fab" stroke="#5a3d5c" stroke-width="3"/><rect x="8" y="9" width="32" height="7" rx="3.5" fill="#ffadad" stroke="#5a3d5c" stroke-width="3"/><path d="M20 21 V35 M28 21 V35" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/></svg>`,
 };
 const PEOPLE_ICON = `<svg viewBox="0 0 48 48"><circle cx="17" cy="18" r="8" fill="#ffd166" stroke="#5a3d5c" stroke-width="3"/><circle cx="32" cy="20" r="7" fill="#ff8fab" stroke="#5a3d5c" stroke-width="3"/><path d="M5 42 Q6 28 17 28 Q28 28 29 42 Z" fill="#8ecae6" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/><path d="M24 42 Q25 30 32 30 Q42 30 43 42 Z" fill="#c9a0dc" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/></svg>`;
+const MENU_ICON = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 15 H37 M11 24 H37 M11 33 H37" fill="none" stroke="#5a3d5c" stroke-width="4" stroke-linecap="round"/></svg>`;
+const MAIL_ICON = `<svg class="mailGlyph" viewBox="0 0 48 48" aria-hidden="true"><g transform="translate(0 2)"><rect x="6" y="14" width="36" height="24" rx="4" fill="#8ecae6" stroke="#5a3d5c" stroke-width="3"/><path d="M6 16 L24 30 L42 16" fill="none" stroke="#5a3d5c" stroke-width="3"/><path d="M34 12 V6" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/><path d="M34 6 H44 L40 10 L44 14 H34 Z" fill="#ff6b6b" stroke="#5a3d5c" stroke-width="2"/></g></svg>`;
 const PLUS = `<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="#fff3b0" stroke="#5a3d5c" stroke-width="3"/><path d="M24 15 V33 M15 24 H33" stroke="#5a3d5c" stroke-width="4" stroke-linecap="round"/></svg>`;
 
 // ---------- DOM skeleton ----------
@@ -98,19 +107,33 @@ app.innerHTML = `
   <div class="minimap" id="minimap" aria-label="Room map"><div class="mmWall" id="mmWall"></div><div class="mmFloor" id="mmFloor"></div><div id="mmDots"></div><div class="mmView" id="mmView"></div></div>
   <div class="streetTitle" id="streetTitle">Our Neighborhood</div>
   <div class="tools">
-    <button class="round ownOnly" id="btnLock" aria-label="Lock house"></button>
-    <button class="round hoodOnly" id="btnChat" aria-label="Talk">${ICONS.chat}</button>
-    <button class="round soloOnly" id="btnHood" aria-label="Friends">${ICONS.street}</button>
+    <button class="round hoodOnly" id="btnChat" aria-label="Talk">${ICONS.chat}<span class="badge" id="chatBadge"></span></button>
+    <button class="round" id="btnMenu" aria-label="Menu" aria-expanded="false">${MENU_ICON}<span class="badge" id="menuBadge"></span></button>
     <button class="round homeBtn" id="btnHome" aria-label="Home">${ICONS.home}</button>
-    <button class="round streetOnly" id="btnParent" aria-label="Grown-ups">${ICONS.shield}</button>
-    <button class="round streetOnly" id="btnSolo" aria-label="Play in my own house">${ICONS.solo}</button>
     <button class="round barnOnly" id="btnLeavePark" aria-label="Go outside">${gateIcon}</button>
     <button class="round rideOnly" id="btnHopOff" aria-label="Hop off the horse">${hopOffIcon}</button>
-    <button class="round" id="btnPets" aria-label="Pets">${pawIcon}</button>
-    <button class="round" id="btnPaint" aria-label="Colors">${ICON.paint}</button>
-    <button class="round" id="btnDress" aria-label="Characters">${ICON.shirt}</button>
-    <button class="round" id="btnSound" aria-label="Sound"></button>
-    <button class="round mapBtn" id="btnMap" aria-label="Map">${mapIcon}</button>
+    <button class="round mapBtn" id="btnMap" aria-label="Map">${mapIcon}<span class="badge" id="mapBadge"></span></button>
+  </div>
+</div>
+<div class="menuPop hidden" id="menuPop">
+  <div class="menuCard" role="dialog" aria-label="Menu">
+    <button type="button" class="close" id="menuClose" aria-label="Close">✕</button>
+    <p class="menuGroup">My stuff</p>
+    <button type="button" class="menuRow" id="btnPets" aria-label="Pets"><span class="mIco">${pawIcon}</span><span class="mLabel">Pets</span></button>
+    <button type="button" class="menuRow" id="btnDress" aria-label="Characters"><span class="mIco">${ICON.shirt}</span><span class="mLabel">Characters</span></button>
+    <button type="button" class="menuRow" id="btnPaint" aria-label="Colors"><span class="mIco">${ICON.paint}</span><span class="mLabel">Wall &amp; floor colors</span></button>
+    <button type="button" class="menuRow" id="secrets" aria-label="Surprises, 0 of 5"><span class="mIco secGift">🎁</span><span class="mLabel"><span class="secWord">Surprises </span><span class="secCount">0/5</span></span></button>
+    <p class="menuGroup houseGroup">House</p>
+    <button type="button" class="menuRow lockRow" id="btnLock" aria-label="Lock house"><span class="mIco" id="lockIco">${ICONS.lockOff}</span><span class="mLabel" id="lockLabel">Lock my house</span></button>
+    <button type="button" class="menuRow mailRow" id="btnMail" aria-label="Mailbox"><span class="mIco">${MAIL_ICON}</span><span class="mLabel">Mailbox</span><span class="menuNew" id="mailNew"></span></button>
+    <!-- Day / Night / Auto. The clock stays on Auto until she taps. -->
+    <div id="menuDaySlot" class="menuSlot" hidden></div>
+    <p class="menuGroup streetGroup">Street</p>
+    <button type="button" class="menuRow grownRow" id="btnParent" aria-label="Grown-ups"><span class="mIco">${ICONS.shield}</span><span class="mLabel">Grown-ups</span></button>
+    <button type="button" class="menuRow soloLeave" id="btnSolo" aria-label="Play in my own house"><span class="mIco">${ICONS.solo}</span><span class="mLabel">Play in my own house</span></button>
+    <button type="button" class="menuRow friendRow" id="btnHood" aria-label="Friends"><span class="mIco">${ICONS.street}</span><span class="mLabel">Friends</span></button>
+    <p class="menuGroup">This iPad</p>
+    <button type="button" class="menuRow" id="btnSound" aria-label="Sound"><span class="mIco" id="soundIco"></span><span class="mLabel">Sound</span></button>
   </div>
 </div>
 <div class="stageWrap" id="stageWrap">
@@ -127,16 +150,17 @@ app.innerHTML = `
     <button class="nudge right" id="nudgeR" aria-label="Look right"><svg viewBox="0 0 40 40"><path d="M16 10 L26 20 L16 30" fill="none" stroke="#5a3d5c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
   <div class="bin" id="bin">${ICON.trash}</div>
-  <div class="houseTag hoodOnly" id="houseTag"></div>
-  <div class="secrets" id="secrets"></div>
+  <div class="houseTag" id="houseTag"></div>
 </div>
 <div class="drawer">
   <div class="drawerBar" id="drawerBar">
-    <div class="drawerTop">
+    <div class="modeDock" id="modeDock">
       <div class="modeToggle" id="modeToggle">
         <button type="button" id="modePlay" data-mode="play" aria-label="Play" aria-pressed="false"><span class="modeIco"></span><span class="modeWord">Play</span></button>
         <button type="button" id="modeDecorate" data-mode="decorate" aria-label="Decorate" aria-pressed="true"><span class="modeIco"></span><span class="modeWord">Decorate</span></button>
       </div>
+    </div>
+    <div class="drawerTop">
       <div class="rooms" id="roomFilter"></div>
       <div class="cats" id="cats"></div>
     </div>
@@ -149,13 +173,14 @@ app.innerHTML = `
 <div class="street park hidden" id="park"><div class="streetScroll" id="parkScroll"><div class="parkWorld" id="parkWorld"></div></div></div>
 <div class="street grRoom hidden" id="gameroom"><div class="streetScroll" id="grScroll"><div class="parkWorld grWorld" id="grWorld"></div></div><div id="grSolo" class="grSolo hidden">Play with friends on your street</div></div>
 <div id="tableOverlay" class="tableOverlay hidden"></div>
-<div class="street mapView hidden" id="street"><button class="mailCue" id="mailCue" type="button">You've got mail!</button><div class="mapWorld" id="mapWorld"></div></div>
+<div class="street mapView hidden" id="street"><div class="mapSky">${mapSkySVG}</div><div class="mapMeadow">${mapMeadowSVG}</div><button class="mailCue" id="mailCue" type="button">You've got mail!</button><div class="mapWorld" id="mapWorld"></div></div>
 <div class="chatTray hidden" id="chatTray"></div>
 <div class="sheet hidden" id="sheet"><div class="card" id="card"></div></div>
 <div class="fx" id="fx"></div>
 <div id="toastLane"></div>
 <div class="phoneNote" id="phoneNote"><div class="card"><h2>Turn sideways</h2><p>Turn your phone sideways for more room to play!</p><button class="phoneOk" id="phoneOk" type="button">OK!</button></div></div>
-<div class="elsewhere hidden" id="elsewhere"><div class="card"><h2>You're playing on another screen</h2><p>This screen can rest. Your house is safe.</p><button class="playHere" id="elsewhereGo" type="button">Tap to play here!</button></div></div>`;
+<div class="elsewhere hidden" id="elsewhere"><div class="card"><h2>You're playing on another screen</h2><p>This screen can rest. Your house is safe.</p><button class="playHere" id="elsewhereGo" type="button">Tap to play here!</button></div></div>
+<div id="skyMount"></div>`;
 
 const $ = (id: string) => document.getElementById(id)!;
 // preview builds (separate URL, separate server, prefixed saves) wear a little ribbon so nobody mixes them up
@@ -178,7 +203,7 @@ let houseStores = new Map<string, ReturnType<typeof houseStore>>();
 let modeFit = false;
 const play = installPlayMode($('modeToggle'), {
   ownHouse: () => !hood || !currentHouseId || currentHouseId === hood.myHouseId(),
-  onChange: () => { if (modeFit) fit(); },
+  onChange: () => { if (modeFit) { if (phoneMQ.matches) fitPhone(); else fit(); } },
 });
 const mailUI = installMail({
   send: (houseId, text, color, sticker) => hood?.sendMail(houseId, text, color, sticker),
@@ -239,6 +264,17 @@ function syncChrome() {
   // iPad: height only, same as before. Phone: the bar's bottom, so fixed scenes start below the notch padding.
   const px = document.body.classList.contains('phone') ? box.bottom : box.height;
   document.documentElement.style.setProperty('--chrome-h', Math.ceil(px) + 'px');
+  placePopups();
+}
+/** Pop-ups sit under the real header, on the phone and the iPad. A fixed 8px top covers the title and Chat. */
+function placePopups() {
+  const top = document.querySelector('.top');
+  if (!top) return;
+  const y = Math.ceil(top.getBoundingClientRect().bottom + 16) + 'px';
+  const cue = document.getElementById('mailCue');
+  if (cue) cue.style.top = y;
+  const lane = document.getElementById('toastLane');
+  if (lane) lane.style.top = y;
 }
 /** Phone landscape only. Size #app from the visual viewport (Safari chrome), not 100vh. */
 function applyPhoneViewport() {
@@ -292,6 +328,7 @@ function fit() {
   if (!phone && view === 'house') frameHouseKid(false);
   syncTabMode();
   if (view === 'ranch') requestAnimationFrame(frameRanchSign);
+  if (view === 'gameroom') requestAnimationFrame(frameClubSign);
   clampPhoneBubbles();
   if (phone && view === 'ranch') layoutPaddock();
   placeSecretsPill();
@@ -324,28 +361,10 @@ function placePhoneNudges() {
  * enough to miss the 360px rule and still covers the sky, so it uses the same park.
  * iPad never has body.phone, and taller landscape phones keep the centred label.
  */
+/** Surprises live in the Menu now. fit() still calls this; it must not park a pill on the stage. */
 function placeSecretsPill() {
-  const el = $('secrets');
-  const wrap = $('stageWrap');
-  const tools = document.querySelector('.tools');
-  const short = document.body.classList.contains('phone')
-    && !document.body.classList.contains('phone-portrait')
-    && window.matchMedia('(orientation: landscape) and (max-height: 360px), (orientation: landscape) and (max-height: 400px) and (min-width: 701px)').matches;
-  el.classList.remove('compact');
   document.body.classList.remove('secrets-chrome');
-  if (el.parentElement !== wrap) wrap.appendChild(el);
-  if (!short || !tools) return;
-  const full = el.getBoundingClientRect().width;
-  const stageBox = stage.getBoundingClientRect();
-  const gutter = window.innerWidth - stageBox.right;
-  if (gutter >= full + 2) return;
-  el.classList.add('compact');
-  const box = el.getBoundingClientRect();
-  const hits = box.left < stageBox.right - 0.5 && box.right > stageBox.left + 0.5
-    && box.top < stageBox.bottom - 0.5 && box.bottom > stageBox.top + 0.5;
-  if (!hits && gutter >= 44) return;
-  document.body.classList.add('secrets-chrome');
-  if (el.parentElement !== tools) tools.appendChild(el);
+  $('secrets')?.classList.remove('compact');
 }
 /**
  * Phone only. After layout, pan so the kid and her name tag are fully inside the
@@ -369,7 +388,15 @@ function phoneShowKids(tries = 0) {
   }
   const moved = nudgeScroll(scroll, [kid, ...kid.querySelectorAll<HTMLElement>('.nametag')]);
   if (moved && tries < 8) requestAnimationFrame(() => phoneShowKids(tries + 1));
-  else if (view === 'ranch' && !inBarn) keepDoorHintOnScreen();
+  else finishPortraitFrame();
+}
+/** After the kid is on screen, pull the clubhouse sign into that same view.
+ *  Ranch signs stay painted on the gate and the barn. Sliding them into the
+ *  portrait camera lifts the barn banner off the barn and shows both at once. */
+function finishPortraitFrame() {
+  if (!portraitPlace()) return;
+  if (view === 'gameroom') framePlaceArts([...document.querySelectorAll<HTMLElement>('.neonSignArt')], document.getElementById('grScroll'));
+  if (view === 'ranch' && !inBarn) { keepDoorHintOnScreen(); settleRanchSigns(); }
 }
 function nudgeScroll(scroll: HTMLElement, nodes: HTMLElement[]) {
   const pad = 8;
@@ -457,18 +484,32 @@ function moveKidX(kid: HTMLElement, x: number) {
   store.dispatch({ type: 'char/move', id, room: store.get().currentRoom, x, y: c.y });
 }
 const TAB_SHORT: Record<string, string> = { living: 'Living', bedroom: 'Bed', kitchen: 'Kitchen', salon: 'Salon', nursery: 'Nursery' };
-const TAB_ICO = `<svg class="tabIco" viewBox="0 0 16 12" aria-hidden="true"><path d="M1 6 L8 1 L15 6 V11 H1 Z" fill="currentColor"/></svg>`;
+/** Minimap shows in Decorate, or whenever the room is wider than the window. Phone portrait Play hides it so the stage can grow. */
+function syncMinimap() {
+  const inHouse = view === 'house';
+  const portrait = document.body.classList.contains('phone-portrait');
+  const decorate = inHouse && !play.isPlay();
+  const wider = inHouse && VIEW_W + 1 < W;
+  const show = inHouse && (portrait ? decorate : (decorate || wider));
+  document.body.classList.toggle('show-minimap', show);
+}
+const TAB_ICO = `<svg class="tabIco" width="14" height="12" viewBox="0 0 16 12" aria-hidden="true"><path d="M1 6 L8 1 L15 6 V11 H1 Z" fill="currentColor"/></svg>`;
 function tabsCompact() {
-  return window.matchMedia('(max-width: 900px) and (min-height: 700px)').matches && !document.body.classList.contains('phone');
+  // Phones narrower than 700px use the short names so five tabs, Menu, and Map share one row at 13px.
+  // iPad keeps the full names: the Menu freed the row, and 12px type is below the floor.
+  if (!document.body.classList.contains('phone')) return false;
+  return window.matchMedia('(max-width: 700px)').matches;
 }
 function syncTabMode() {
   const next = tabsCompact() ? 'c' : 'f';
+  syncMinimap();
   if (next === tabMode) return;
   tabMode = next;
   renderTabs(store.get());
 }
-window.addEventListener('resize', fit);
-phoneMQ.addEventListener('change', fit);
+function fitNow() { if (phoneMQ.matches) fitPhone(); else fit(); }
+window.addEventListener('resize', fitNow);
+phoneMQ.addEventListener('change', fitNow);
 // Phone only. Coming home brings the room tabs back, and the own-house buttons can
 // wrap the tool row, both without a window resize — the room then keeps the old scale
 // and covers Map. iPad sizes never match PHONE_MQ, so this never calls fit() there.
@@ -483,12 +524,55 @@ function phoneFitSnapshot() {
   const vvKey = vv ? Math.round(vv.offsetTop) + 'x' + Math.round(vv.height) + 'x' + Math.round(vv.width) : '';
   return vvKey + ' ' + box(wrap) + ' ' + box(topBar) + ' ' + box(toolRow);
 }
+/** Phone landscape parks Play/Decorate in the top row. Phone portrait keeps them in the
+ *  dock beside the scrolling chips. iPad leads the chip row with them, the way the
+ *  room did before the Menu, so the drawer stays two rows and the stage still fills. */
+function placeModeToggle() {
+  const toggle = $('modeToggle');
+  const tools = document.querySelector('.tools');
+  const dock = document.getElementById('modeDock');
+  const top = document.querySelector('.drawerTop');
+  if (!toggle || !tools || !dock || !top) return false;
+  const phone = document.body.classList.contains('phone');
+  const land = phone && !document.body.classList.contains('phone-portrait');
+  const home = land ? tools : phone ? dock : top;
+  const parked = toggle.parentElement === home;
+  dock.hidden = !phone || land;
+  if (parked) return false;
+  if (land) tools.insertBefore(toggle, tools.firstChild);
+  else if (phone) dock.appendChild(toggle);
+  else top.insertBefore(toggle, top.firstChild);
+  return true;
+}
+/**
+ * Phone Play portrait only. fit() will not zoom past a 480-wide view, which letterboxes a tall phone.
+ * Narrow the view here so the room fills the free box. iPad never reaches this function.
+ */
+function growPhonePlayStage() {
+  if (!document.body.classList.contains('phone-portrait') || !document.body.classList.contains('mode-play') || view !== 'house') return;
+  const wrap = $('stageWrap');
+  const boxW = wrap.clientWidth, boxH = wrap.clientHeight;
+  if (boxW < 20 || boxH < 20 || !(boxH > boxW * 0.85)) return;
+  const next = Math.max(280, Math.min(860, Math.round(H * boxW / boxH)));
+  if (Math.abs(next - VIEW_W) < 2) return;
+  VIEW_W = next;
+  stage.style.width = VIEW_W + 'px';
+  stage.style.height = H + 'px';
+  const sc = Math.min(boxW / VIEW_W, boxH / H);
+  stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
+  stage.style.setProperty('--fit', String(stageScale()));
+  if (camX > maxCam()) setCam(camX);
+  else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
+  placePhoneNudges();
+  syncMinimap();
+}
 function fitPhone() {
   if (phoneFitting || !phoneMQ.matches) return;
-  const key = phoneFitSnapshot();
-  if (key === phoneFitKey) return;
+  const moved = placeModeToggle();
+  const key = phoneFitSnapshot() + (document.body.classList.contains('mode-play') ? 'p' : 'd');
+  if (!moved && key === phoneFitKey) return;
   phoneFitting = true;
-  try { fit(); phoneFitKey = phoneFitSnapshot(); }
+  try { fit(); growPhonePlayStage(); phoneShowKids(); phoneFitKey = phoneFitSnapshot() + (document.body.classList.contains('mode-play') ? 'p' : 'd'); }
   finally { phoneFitting = false; }
 }
 if (typeof ResizeObserver !== 'undefined') {
@@ -612,14 +696,18 @@ function renderItems(s: GameState) {
       el.addEventListener('pointerdown', e => onItemPointer(el!, e));
     }
     el.dataset.kind = it.kind;
+    el.classList.toggle('is-light', isLightKind(it.kind, !!def.light));
     const box = placedBox(def, it.scale);
     placeEl(el, it.x, it.y, box.w, box.h);
-    el.style.zIndex = String(1000 + it.z);
+    const iz = 1000 + it.z;
+    el.style.zIndex = String(iz);
+    el.style.setProperty('--iz', String(iz));
     el.classList.toggle('flipped', it.flip);
     el.classList.toggle('sel', selected === it.id);
   }
   layer.querySelectorAll<HTMLElement>('.item').forEach(el => { if (!seen.has(el.dataset.id!)) el.remove(); });
   paintScenery(s);
+  syncSkyPuddles();
   renderToolbar(s); renderMinimap(s);
 }
 
@@ -721,6 +809,32 @@ function heldHTML(c: Character) {
     return `<div class="held ${it.flip ? 'flipped' : ''}" data-hand="${hand}" style="left:${(hx - iw / 2) / bw * 100}%;top:${(hy - ih * 0.62) / bh * 100}%;width:${iw / bw * 100}%;height:${ih / bh * 100}%"><div class="inner">${svgOf(def)}</div></div>`;
   }).join('');
 }
+/** Warm pools just under each lamp and window, so furniture in the glow is lit and the glass stays on top. */
+function syncSkyPuddles() {
+  let host = layer.querySelector<HTMLElement>('#skyPuddles');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'skyPuddles';
+    host.className = 'skyPuddles';
+  }
+  layer.appendChild(host);
+  const lights = [...layer.querySelectorAll<HTMLElement>('.item.is-light')];
+  while (host.children.length > lights.length) host.lastElementChild!.remove();
+  while (host.children.length < lights.length) host.appendChild(document.createElement('i'));
+  lights.forEach((el, i) => {
+    const puddle = host.children[i] as HTMLElement;
+    const l = parseFloat(el.style.left), t = parseFloat(el.style.top);
+    const w = parseFloat(el.style.width), h = parseFloat(el.style.height);
+    const win = el.dataset.kind === 'window' || el.dataset.kind === 'tv';
+    puddle.style.left = (l - 0.6 * w) + '%';
+    puddle.style.top = (t - (win ? 0.38 : 0.5) * h) + '%';
+    puddle.style.width = (2.2 * w) + '%';
+    puddle.style.height = (2 * h) + '%';
+    // Same band as the furniture. At night and golden the lamp itself steps one above this, so the shade and glass stay clear.
+    puddle.style.zIndex = String(parseInt(el.style.zIndex || '1000', 10));
+  });
+}
+
 function renderChars(s: GameState) {
   const here = s.characters.filter(c => c.room === s.currentRoom);
   for (const [id, el] of charEls) if (!here.some(c => c.id === id)) { el.remove(); charEls.delete(id); }
@@ -758,7 +872,11 @@ function renderToolbar(s: GameState) {
   toolbar.style.left = Math.max(camX + 130, Math.min(camX + VIEW_W - 130, it.x)) / W * 100 + '%';
   toolbar.style.top = Math.max(40, top) / H * 100 + '%';
 }
-function renderSoundBtn(s: GameState) { $('btnSound').innerHTML = s.soundOn ? ICON.soundOn : ICON.soundOff; setSound(s.soundOn); }
+function renderSoundBtn(s: GameState) {
+  const ico = $('soundIco'); if (ico) ico.innerHTML = s.soundOn ? ICON.soundOn : ICON.soundOff;
+  $('btnSound').setAttribute('aria-label', s.soundOn ? 'Sound on' : 'Sound off');
+  setSound(s.soundOn);
+}
 
 function renderAll() {
   const s = store.get();
@@ -1279,7 +1397,9 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorke
 const esc = (t: string) => t.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 function canEdit() { return !hood || inner === local || hood.canEdit(currentHouseId); }
 function lockedNudge(el: Element | null) {
-  sfx.pop(); const tag = $('houseTag'); tag.classList.remove('wiggle'); void tag.offsetWidth; tag.classList.add('wiggle');
+  sfx.pop(); const tag = $('houseTag'); tag.classList.add('show'); tag.classList.remove('wiggle'); void tag.offsetWidth; tag.classList.add('wiggle');
+  window.clearTimeout(houseTagTimer);
+  houseTagTimer = window.setTimeout(() => { if (!(view === 'house' && hood && !document.body.classList.contains('own-house'))) tag.classList.remove('show'); }, 2000);
   if (el) { el.classList.remove('nope'); void (el as HTMLElement).offsetWidth; el.classList.add('nope'); }
   toast('🔒 Look-only house: ask the owner to unlock it!', 1800);
 }
@@ -1398,14 +1518,21 @@ function nearbyCount() {
 }
 function updateNear() {
   const n = nearbyCount(); $('btnChat').classList.toggle('glow', n > 0);
+  paintBadges();
   const st = document.getElementById('chatNear'); if (st) { st.textContent = n ? `${n} friend${n > 1 ? 's' : ''} nearby can hear you` : 'Walk closer to a friend to talk!'; $('chatTray').classList.toggle('nobody', !n); }
 }
 function renderChatTray() {
   const tray = $('chatTray'); if (!hood) return;
+  const phone = document.body.classList.contains('phone');
+  const phrases = `<div class="phrases">${PHRASES.map((p, i) => `<button data-phrase="${i}">${esc(p)}</button>`).join('')}</div>`;
+  const typed = hood.settings.freeChat
+    ? `<form class="typed" id="chatForm"><input id="chatInput" maxlength="${MAX_CHAT}" autocomplete="off" autocorrect="on" enterkeyhint="send" placeholder="Type a message…"/><button type="submit">Send</button></form><div class="chatWarn" id="chatWarn"></div>`
+    : `<div class="presetsOnly">Picking from the bubbles above 💬</div>`;
+  const more = phone ? `<button type="button" class="chatMore" data-chat="more">more</button>` : '';
   tray.innerHTML = `<div class="chatHead"><span id="chatNear"></span><button class="close" data-chat="close">✕</button></div>
     <div class="emotes">${EMOTES.map((e, i) => `<button data-emote="${i}">${e}</button>`).join('')}</div>
-    <div class="phrases">${PHRASES.map((p, i) => `<button data-phrase="${i}">${esc(p)}</button>`).join('')}</div>
-    ${hood.settings.freeChat ? `<form class="typed" id="chatForm"><input id="chatInput" maxlength="${MAX_CHAT}" autocomplete="off" autocorrect="on" enterkeyhint="send" placeholder="Type a message…"/><button type="submit">Send</button></form><div class="chatWarn" id="chatWarn"></div>` : `<div class="presetsOnly">Picking from the bubbles above 💬</div>`}`;
+    ${more}
+    <div class="chatExtra${phone ? ' hidden' : ''}">${phrases}${typed}</div>`;
   updateNear();
   const form = document.getElementById('chatForm') as HTMLFormElement | null;
   form?.addEventListener('submit', e => {
@@ -1419,6 +1546,13 @@ function renderChatTray() {
 $('chatTray').addEventListener('click', e => {
   const t = e.target as HTMLElement; if (!hood) return;
   if (t.closest('[data-chat="close"]')) { $('chatTray').classList.add('hidden'); return; }
+  const more = t.closest<HTMLElement>('[data-chat="more"]');
+  if (more) {
+    const extra = $('chatTray').querySelector('.chatExtra');
+    extra?.classList.toggle('hidden');
+    more.textContent = extra && !extra.classList.contains('hidden') ? 'less' : 'more';
+    return;
+  }
   const em = t.closest<HTMLElement>('[data-emote]'), ph = t.closest<HTMLElement>('[data-phrase]');
   if (!em && !ph) return;
   if (!nearbyCount()) { toast('Walk closer to a friend to talk!'); return; }
@@ -1434,14 +1568,37 @@ function renderHoodChrome() {
   const own = !!h && h.meta.ownerId === hood!.pid;
   b.toggle('mode-hood', !!hood); b.toggle('view-street', view !== 'house'); b.toggle('view-park', view === 'park'); b.toggle('view-ranch', view === 'ranch'); b.toggle('view-map', view === 'street'); b.toggle('view-gameroom', view === 'gameroom'); b.toggle('in-barn', view === 'ranch' && inBarn); b.toggle('mode-play', view === 'house' && play.isPlay()); renderBasketChip(); syncMailCue();
   b.toggle('own-house', own); b.toggle('locked', !!h && !canEdit()); b.toggle('has-hood', !!hoodServerUrl());
+  paintBadges();
   if (h) {
     const owner = hood!.players.get(h.meta.ownerId)?.nickname ?? '';
     $('houseTag').innerHTML = `${h.meta.locked ? '🔒 ' : ''}<b>${esc(h.meta.name)}</b>${own ? ' · yours' : owner ? ' · ' + esc(owner) : ''}`;
-    $('btnLock').innerHTML = h.meta.locked ? ICONS.lockOn : ICONS.lockOff;
+    const ico = $('lockIco'); if (ico) ico.innerHTML = h.meta.locked ? ICONS.lockOn : ICONS.lockOff;
+    const label = h.meta.locked ? 'Unlock my house' : 'Lock my house';
     $('btnLock').setAttribute('aria-label', h.meta.locked ? 'Unlock house' : 'Lock house');
+    const lab = $('lockLabel'); if (lab) lab.textContent = label;
   }
   updateNear();
+  flashHouseTag();
   if (document.body.classList.contains('phone')) syncChrome();
+}
+let houseTagFor = '';
+let houseTagTimer = 0;
+/** Two seconds on entering your house. A visit keeps the name up so you can see whose house it is. */
+function flashHouseTag() {
+  const tag = $('houseTag');
+  const visiting = !!hood && view === 'house' && !document.body.classList.contains('own-house');
+  if (view !== 'house' || !hood) {
+    houseTagFor = '';
+    tag.classList.remove('show');
+    return;
+  }
+  if (visiting) { tag.classList.add('show'); return; }
+  const key = currentHouseId || 'solo';
+  if (houseTagFor === key) return;
+  houseTagFor = key;
+  tag.classList.add('show');
+  window.clearTimeout(houseTagTimer);
+  houseTagTimer = window.setTimeout(() => tag.classList.remove('show'), 2000);
 }
 $('btnLock').addEventListener('click', () => {
   const h = hood?.houses.get(currentHouseId); if (!h || h.meta.ownerId !== hood!.pid) return;
@@ -1453,50 +1610,196 @@ type Place = { kind: 'house'; houseId: string; room?: RoomId } | { kind: 'home' 
 const mapAnchors = new Map<string, { x: number; y: number }>(); // where face markers stand for each place (map units)
 let mapKey = '';
 let fakeHouses = 0; // test hook only: draw a pretend street with this many houses
-function mapScale() { const r = $('street'); return Math.min(r.clientWidth / MAP_W, r.clientHeight / MAP_H); }
+/** iPad and phone landscape keep the 1000×700 street. Phone portrait uses a tall board. */
+let activeMap = { w: MAP_W, h: MAP_H, portrait: false };
+function phonePortraitMap() { return document.body.classList.contains('phone-portrait'); }
+/** Fit the whole street in the window. Sky and grass around the card are scenery, never a crop. */
+function mapScale() {
+  const r = $('street');
+  const w = Math.max(1, r.clientWidth), h = Math.max(1, r.clientHeight);
+  return Math.min(w / activeMap.w, h / activeMap.h);
+}
+/** Center the fitted map. No panning: every house, the Ranch and the Clubhouse stay in view. */
+function placeMap(sc: number) {
+  const r = $('street'), w = $('mapWorld');
+  const mw = activeMap.w * sc, mh = activeMap.h * sc;
+  w.style.marginLeft = Math.max(0, Math.floor((r.clientWidth - mw) / 2)) + 'px';
+  w.style.marginTop = Math.max(0, Math.floor((r.clientHeight - mh) / 2)) + 'px';
+  r.scrollLeft = 0;
+  r.scrollTop = 0;
+  fitMapLabels();
+}
+/** Name plates stay fully readable. Nudge any that would hang off the street. */
+function fitMapLabels() {
+  const street = $('street'), world = $('mapWorld');
+  const pad = 4;
+  const maxR = street.clientWidth - pad, maxB = street.clientHeight - pad;
+  const baseL = world.offsetLeft, baseT = world.offsetTop;
+  world.querySelectorAll<HTMLElement>('.mapSign').forEach(sign => {
+    sign.style.transform = 'translateX(-50%)';
+    const width = sign.offsetWidth, height = sign.offsetHeight;
+    const left = baseL + sign.offsetLeft - width / 2;
+    const top = baseT + sign.offsetTop;
+    let dx = 0, dy = 0;
+    if (left < pad) dx = pad - left;
+    if (left + width + dx > maxR) dx -= left + width + dx - maxR;
+    if (top < pad) dy = pad - top;
+    if (top + height + dy > maxB) dy -= top + height + dy - maxB;
+    separateSignFromMail(sign, dx, dy, baseL, baseT, pad, maxR, maxB);
+  });
+}
+/** A wide name can still sit on a mailbox after it is nudged onto the screen. */
+function separateSignFromMail(sign: HTMLElement, dx: number, dy: number, baseL: number, baseT: number, pad: number, maxR: number, maxB: number) {
+  const mails = [...sign.parentElement!.querySelectorAll<HTMLElement>('.mapMail')];
+  const place = () => {
+    const width = sign.offsetWidth, height = sign.offsetHeight;
+    const left = baseL + sign.offsetLeft - width / 2 + dx;
+    const top = baseT + sign.offsetTop + dy;
+    return { left, top, right: left + width, bottom: top + height, width, height };
+  };
+  for (let pass = 0; pass < 6; pass++) {
+    const box = place();
+    const mail = mails.find(m => {
+      const ml = baseL + m.offsetLeft, mt = baseT + m.offsetTop;
+      const mr = ml + m.offsetWidth, mb = mt + m.offsetHeight;
+      return box.right > ml + 2 && box.left < mr - 2 && box.bottom > mt + 2 && box.top < mb - 2;
+    });
+    if (!mail) break;
+    const ml = baseL + mail.offsetLeft, mt = baseT + mail.offsetTop;
+    const mb = mt + mail.offsetHeight;
+    const boxNow = place();
+    const down = mb + 4 - boxNow.top;
+    const up = boxNow.bottom - (mt - 4);
+    if (boxNow.top + down + boxNow.height <= maxB) dy += down;
+    else if (boxNow.top - up >= pad) dy -= up;
+    else dx -= (Math.min(boxNow.right, ml + mail.offsetWidth) - Math.max(boxNow.left, ml)) + 6;
+  }
+  const box = place();
+  if (box.left < pad) dx += pad - box.left;
+  if (box.right > maxR) dx -= box.right - maxR;
+  if (box.top < pad) dy += pad - box.top;
+  if (box.bottom > maxB) dy -= box.bottom - maxB;
+  sign.style.transform = Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5
+    ? `translate(calc(-50% + ${dx.toFixed(1)}px), ${dy.toFixed(1)}px)`
+    : 'translateX(-50%)';
+}
+document.fonts?.ready.then(() => { if (view === 'street') fitMapLabels(); });
 function mapHouses() { return hood ? [...hood.houses.values()].map(h => h.meta).sort((a, b) => a.slot - b.slot) : []; }
+type MapHouse = { id: string; name: string; style: number; locked: boolean; mine: boolean; lit: boolean } | null;
+/**
+ * Phone portrait board. Two columns of houses under a landmark row, tall enough
+ * that a 390-wide phone draws each house at least 60px. iPad never calls this.
+ */
+function portraitPlan(n: number) {
+  const w = 560, hw = 104, hh = Math.round(hw * 300 / 320);
+  const rows = Math.max(1, Math.ceil(n / (n === 1 ? 1 : 2)));
+  const pitch = 158;
+  const top = 318;
+  const lastY = top + (rows - 1) * pitch;
+  const contentSquare = lastY + hh / 2 + 108;
+  const h = Math.max(1020, contentSquare + 78);
+  const squareY = Math.max(contentSquare, Math.min(h - 88, Math.round(h * 0.74)));
+  const cols = n === 1 ? [280] : [150, 410];
+  const per = n === 1 ? 1 : 2;
+  const houses = Array.from({ length: n }, (_, i) => ({ x: cols[i % per], y: top + Math.floor(i / per) * pitch }));
+  return {
+    w, h, hw, hh, houses, square: { x: 280, y: squareY },
+    park: { x: 96, y: 122 }, club: { x: 280, y: 116 }, ranch: { x: 458, y: 120 },
+  };
+}
 function renderMap(force = false) {
   if (view !== 'street') return;
-  const sc = mapScale(), w = $('mapWorld');
+  const w = $('mapWorld');
   const houses = mapHouses();
-  const key = sc.toFixed(3) + JSON.stringify(houses) + (hood ? houses.map(h => (hood!.players.get(h.ownerId)?.online ? 1 : 0) + (houseUnread(h.id) ? 'u' : '')).join('') + hood.pid : 'solo');
-  if (!force && key === mapKey && w.querySelector('#mapFaces')) { renderMapFaces(); return; }
-  mapKey = key;
-  w.style.width = MAP_W * sc + 'px'; w.style.height = MAP_H * sc + 'px'; w.style.setProperty('--sc', String(sc));
-  w.innerHTML = mapBgSVG();
-  const road = w.querySelector<SVGPathElement>('#mapRoad')!, L = road.getTotalLength();
-  const samples = Array.from({ length: 160 }, (_, i) => road.getPointAtLength(L * i / 159));
-  const onRoad = (x: number, y: number) => samples.some(p => Math.hypot(p.x - x, p.y - y) < 50);
-  const px = (v: number) => v * sc + 'px';
-  const taken = baseTaken();
-  mapAnchors.clear();
-  // houses along the road, alternating sides (whichever side has more room)
-  const list: ({ id: string; name: string; style: number; locked: boolean; mine: boolean; lit: boolean } | null)[] = hood
+  const list: MapHouse[] = hood
     ? houses.map(h => ({ id: h.id, name: h.name, style: h.style, locked: h.locked, mine: h.ownerId === hood!.pid, lit: !!hood!.players.get(h.ownerId)?.online }))
     : fakeHouses ? Array.from({ length: fakeHouses }, (_, i) => ({ id: 'fake' + i, name: ['Reagan', 'Quinn', 'Chloe', 'Sloane', 'Cada', 'Emma', 'Olivia', 'Charlotte', 'Amelia', 'Sophia', 'Isabella', 'Mia'][i % 12] + "'s House", style: i, locked: i === 3, mine: i === 0, lit: i % 3 !== 1 })) : [null];
-  const n = list.length, hw = n > 8 ? 80 : 94, hh = hw * 300 / 320;
-  let html = '';
-  const spotsXY = houseSpots(road, n, taken);
-  list.forEach((h, i) => {
-    const c = spotsXY[i];
-    const go = h ? `house:${h.id}` : 'home', name = h ? h.name : 'My House';
-    mapAnchors.set(h ? 'house:' + h.id : 'home', { x: c.x, y: c.y - hh / 2 - 4 });
-    const flag = !!(h && houseUnread(h.id));
-    // Lower-right of the house, clear of the door's center so a tap on the house still goes inside.
+  const plan = phonePortraitMap() ? portraitPlan(Math.max(1, list.length)) : null;
+  activeMap = plan ? { w: plan.w, h: plan.h, portrait: true } : { w: MAP_W, h: MAP_H, portrait: false };
+  const sc = mapScale();
+  const key = (activeMap.portrait ? 'P' : 'L') + activeMap.w + 'x' + activeMap.h + ':' + sc.toFixed(3) + JSON.stringify(houses) + (hood ? houses.map(h => (hood!.players.get(h.ownerId)?.online ? 1 : 0) + (houseUnread(h.id) ? 'u' : '')).join('') + hood.pid : 'solo');
+  if (!force && key === mapKey && w.querySelector('#mapFaces')) { renderMapFaces(); return; }
+  mapKey = key;
+  w.style.width = activeMap.w * sc + 'px'; w.style.height = activeMap.h * sc + 'px'; w.style.setProperty('--sc', String(sc));
+  // Spots and their hit pads live in a clip so a 48px pad cannot widen the street.
+  // Name plates stay outside it, in the sky and grass letterbox.
+  w.innerHTML = `<div class="mapClip">${plan ? mapPortraitBgSVG(plan.w, plan.h) : mapBgSVG()}</div>`;
+  const clip = w.querySelector('.mapClip')!;
+  const px = (v: number) => v * sc + 'px';
+  mapAnchors.clear();
+  const n = list.length;
+  let spots = '', signs = '';
+  if (plan) {
+    const { hw, hh } = plan;
     const mw = 34, mh = 40;
-    const mx = Math.max(4, Math.min(MAP_W - mw - 4, c.x + hw * 0.28));
-    const my = Math.max(4, Math.min(MAP_H - mh - 4, c.y + hh * 0.28));
-    html += `<button class="mapSpot mapHouse ${h?.mine || !h ? 'mine' : ''}" data-go="${go}" aria-label="${esc(name)}" style="left:${px(c.x - hw / 2)};top:${px(c.y - hh / 2)};width:${px(hw)};height:${px(hh)}">${houseSVG(h ? h.style : 0, { lit: h ? h.lit : true })}${h?.locked ? '<span class="lockBadge">🔒</span>' : ''}${h?.mine || !h ? '<span class="homeBadge">★</span>' : ''}</button>
-      <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>
-      <div class="mapSign ${h?.mine || !h ? 'mine' : ''} ${c.x > MAP_W - 130 ? 'edgeR' : c.x < 130 ? 'edgeL' : ''}" style="left:${px(c.x > MAP_W - 130 ? MAP_W - 8 : c.x < 130 ? 8 : c.x)};top:${px(c.y + hh / 2 - 2)}">${esc(name)}</div>`;
-  });
-  html += `<button class="mapSpot mapPark" data-go="park" aria-label="The park" style="left:${px(PARK.x - 100)};top:${px(PARK.y - 85)};width:${px(200)};height:${px(170)}">${parkMiniSVG}</button><div class="mapSign place" style="left:${px(PARK.x)};top:${px(PARK.y + 70)}">Park</div>`;
-  html += `<button class="mapSpot mapRanch" data-go="ranch" aria-label="Rainbow Ranch" style="left:${px(RANCH.x - 110)};top:${px(RANCH.y - 90)};width:${px(220)};height:${px(180)}">${ranchMiniSVG}</button><div class="mapSign place" style="left:${px(RANCH.x)};top:${px(RANCH.y + 78)}">Rainbow Ranch</div>`;
-  html += `<button class="mapSpot mapClub" data-go="gameroom" aria-label="The clubhouse" style="left:${px(CLUB.x - 95)};top:${px(CLUB.y - 78)};width:${px(190)};height:${px(156)}">${clubhouseMiniSVG}</button><div class="mapSign place" style="left:${px(CLUB.x)};top:${px(CLUB.y + 82)}">Clubhouse</div>`;
-  mapAnchors.set('park', { x: PARK.x, y: PARK.y - 60 }); mapAnchors.set('ranch', { x: RANCH.x - 30, y: RANCH.y - 60 }); mapAnchors.set('barn', { x: RANCH.x + 10, y: RANCH.y + 10 });
-  mapAnchors.set('gameroom', { x: CLUB.x, y: CLUB.y - 52 });
-  w.insertAdjacentHTML('beforeend', mapTreesSVG(taken, onRoad) + html + '<div class="mapFaces" id="mapFaces"></div>');
+    list.forEach((h, i) => {
+      const c = plan.houses[i] ?? plan.houses[0];
+      const go = h ? `house:${h.id}` : 'home', name = h ? h.name : 'My House';
+      mapAnchors.set(h ? 'house:' + h.id : 'home', { x: c.x, y: c.y - hh / 2 - 8 });
+      const flag = !!(h && houseUnread(h.id));
+      const leftCol = c.x < plan.w / 2;
+      const mx = leftCol
+        ? Math.max(4, c.x - hw / 2 - mw - 8)
+        : Math.min(plan.w - mw - 4, c.x + hw / 2 + 8);
+      const my = Math.max(4, Math.min(plan.h - mh - 4, c.y - hh * 0.42));
+      spots += `<button class="mapSpot mapHouse ${h?.mine || !h ? 'mine' : ''}" data-go="${go}" aria-label="${esc(name)}" style="left:${px(c.x - hw / 2)};top:${px(c.y - hh / 2)};width:${px(hw)};height:${px(hh)}">${houseSVG(h ? h.style : 0, { lit: h ? h.lit : true })}${h?.locked ? '<span class="lockBadge">🔒</span>' : ''}${h?.mine || !h ? '<span class="homeBadge">★</span>' : ''}</button>
+        <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>`;
+      signs += `<div class="mapSign ${h?.mine || !h ? 'mine' : ''}" style="left:${px(c.x)};top:${px(c.y + hh / 2 + 2)}">${esc(name)}</div>`;
+    });
+    const place = (cls: string, go: string, label: string, art: string, x: number, y: number, wd: number, ht: number, signDy: number) => {
+      spots += `<button class="mapSpot ${cls}" data-go="${go}" aria-label="${label}" style="left:${px(x - wd / 2)};top:${px(y - ht / 2)};width:${px(wd)};height:${px(ht)}">${art}</button>`;
+      signs += `<div class="mapSign place" style="left:${px(x)};top:${px(y + signDy)}">${label === 'The park' ? 'Park' : label === 'Rainbow Ranch' ? 'Rainbow Ranch' : 'Clubhouse'}</div>`;
+    };
+    place('mapPark', 'park', 'The park', parkMiniSVG, plan.park.x, plan.park.y, 148, 126, 68);
+    place('mapRanch', 'ranch', 'Rainbow Ranch', ranchMiniSVG, plan.ranch.x, plan.ranch.y, 156, 128, 72);
+    place('mapClub', 'gameroom', 'The clubhouse', clubhouseMiniSVG, plan.club.x, plan.club.y, 146, 120, 68);
+    mapAnchors.set('park', { x: plan.park.x, y: plan.park.y - 78 });
+    mapAnchors.set('ranch', { x: plan.ranch.x, y: plan.ranch.y - 80 });
+    mapAnchors.set('barn', { x: plan.ranch.x, y: plan.ranch.y + 8 });
+    mapAnchors.set('gameroom', { x: plan.club.x, y: plan.club.y - 74 });
+    mapAnchors.set('square', plan.square);
+    const taken = [
+      { x: plan.park.x, y: plan.park.y, r: 90 }, { x: plan.ranch.x, y: plan.ranch.y, r: 96 },
+      { x: plan.club.x, y: plan.club.y, r: 88 }, { x: plan.square.x, y: plan.square.y, r: 70 },
+      ...plan.houses.map(c => ({ x: c.x, y: c.y, r: 78 })),
+    ];
+    const mid = plan.w / 2;
+    clip.insertAdjacentHTML('beforeend', mapTreesSVG(taken, (x, y) => Math.abs(x - mid) < 34, plan.w, plan.h) + portraitMeadowSVG(plan.w, plan.h, taken) + spots + '<div class="mapFaces" id="mapFaces"></div>');
+  } else {
+    const road = w.querySelector<SVGPathElement>('#mapRoad')!, L = road.getTotalLength();
+    const samples = Array.from({ length: 160 }, (_, i) => road.getPointAtLength(L * i / 159));
+    const onRoad = (x: number, y: number) => samples.some(p => Math.hypot(p.x - x, p.y - y) < 50);
+    const taken = baseTaken();
+    const hw = n > 8 ? 80 : 94, hh = hw * 300 / 320;
+    const spotsXY = houseSpots(road, n, taken);
+    list.forEach((h, i) => {
+      const c = spotsXY[i];
+      const go = h ? `house:${h.id}` : 'home', name = h ? h.name : 'My House';
+      mapAnchors.set(h ? 'house:' + h.id : 'home', { x: c.x, y: c.y - hh / 2 - 4 });
+      const flag = !!(h && houseUnread(h.id));
+      // Just right of the house, above the name plate, so the picture does not cover
+      // the label and a tap on the door still opens the house.
+      const mw = 34, mh = 40;
+      const slop = 14 / sc;
+      const mx = Math.max(4, Math.min(MAP_W - mw - 4, c.x + hw / 2 + slop));
+      const my = Math.max(4, Math.min(MAP_H - mh - 4, c.y - hh * 0.22));
+      spots += `<button class="mapSpot mapHouse ${h?.mine || !h ? 'mine' : ''}" data-go="${go}" aria-label="${esc(name)}" style="left:${px(c.x - hw / 2)};top:${px(c.y - hh / 2)};width:${px(hw)};height:${px(hh)}">${houseSVG(h ? h.style : 0, { lit: h ? h.lit : true })}${h?.locked ? '<span class="lockBadge">🔒</span>' : ''}${h?.mine || !h ? '<span class="homeBadge">★</span>' : ''}</button>
+        <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>`;
+      signs += `<div class="mapSign ${h?.mine || !h ? 'mine' : ''}" style="left:${px(c.x)};top:${px(c.y + hh / 2 - 2)}">${esc(name)}</div>`;
+    });
+    spots += `<button class="mapSpot mapPark" data-go="park" aria-label="The park" style="left:${px(PARK.x - 100)};top:${px(PARK.y - 85)};width:${px(200)};height:${px(170)}">${parkMiniSVG}</button>`;
+    signs += `<div class="mapSign place" style="left:${px(PARK.x)};top:${px(PARK.y + 70)}">Park</div>`;
+    spots += `<button class="mapSpot mapRanch" data-go="ranch" aria-label="Rainbow Ranch" style="left:${px(RANCH.x - 110)};top:${px(RANCH.y - 90)};width:${px(220)};height:${px(180)}">${ranchMiniSVG}</button>`;
+    signs += `<div class="mapSign place" style="left:${px(RANCH.x)};top:${px(RANCH.y + 78)}">Rainbow Ranch</div>`;
+    spots += `<button class="mapSpot mapClub" data-go="gameroom" aria-label="The clubhouse" style="left:${px(CLUB.x - 95)};top:${px(CLUB.y - 78)};width:${px(190)};height:${px(156)}">${clubhouseMiniSVG}</button>`;
+    signs += `<div class="mapSign place" style="left:${px(CLUB.x)};top:${px(CLUB.y + 82)}">Clubhouse</div>`;
+    mapAnchors.set('park', { x: PARK.x, y: PARK.y - 60 }); mapAnchors.set('ranch', { x: RANCH.x - 30, y: RANCH.y - 60 }); mapAnchors.set('barn', { x: RANCH.x + 10, y: RANCH.y + 10 });
+    mapAnchors.set('gameroom', { x: CLUB.x, y: CLUB.y - 52 });
+    clip.insertAdjacentHTML('beforeend', mapTreesSVG(taken, onRoad) + spots + '<div class="mapFaces" id="mapFaces"></div>');
+  }
+  w.insertAdjacentHTML('beforeend', signs);
   renderMapFaces();
+  placeMap(sc);
 }
 const baseTaken = () => [{ x: PARK.x, y: PARK.y, r: 115 }, { x: RANCH.x, y: RANCH.y, r: 125 }, { x: SQUARE.x, y: SQUARE.y, r: 100 }, { x: CLUB.x, y: CLUB.y, r: 90 }];
 /** Where n houses go: evenly along the road, on whichever side has more room (never on the park, ranch or square). */
@@ -1545,14 +1848,26 @@ function renderMapFaces() {
     g.sort((a, b) => (a.mine ? -1 : b.mine ? 1 : a.name.localeCompare(b.name)));
     g.forEach((x, j) => {
       let fx: number, fy: number;
-      if (k === 'square') { const a = -Math.PI / 2 + j * (Math.PI * 2 / Math.max(5, g.length)); fx = SQUARE.x + Math.cos(a) * 50; fy = SQUARE.y + Math.sin(a) * 50; }
-      else { const an = mapAnchors.get(k) ?? { x: SQUARE.x, y: SQUARE.y }; const per = 4, row = Math.floor(j / per), col = j % per, m = Math.min(per, g.length - row * per); fx = an.x + (col - (m - 1) / 2) * 40; fy = an.y - row * 40; }
+      const home = mapAnchors.get('square') ?? { x: SQUARE.x, y: SQUARE.y };
+      if (k === 'square') {
+        if (activeMap.portrait) {
+          const per = 3, gap = 176, row = Math.floor(j / per), col = j % per, m = Math.min(per, g.length - row * per);
+          fx = home.x + (col - (m - 1) / 2) * gap; fy = home.y + row * 112;
+        } else if (g.length === 1) { fx = SQUARE.x; fy = SQUARE.y; }
+        else { const a = -Math.PI / 2 + j * (Math.PI * 2 / g.length); fx = SQUARE.x + Math.cos(a) * 78; fy = SQUARE.y + Math.sin(a) * 78; }
+      } else {
+        const an = mapAnchors.get(k) ?? home;
+        const per = activeMap.portrait ? 2 : 3, step = activeMap.portrait ? 150 : 64;
+        const row = Math.floor(j / per), col = j % per, m = Math.min(per, g.length - row * per);
+        fx = an.x + (col - (m - 1) / 2) * step; fy = an.y - row * (activeMap.portrait ? 108 : 64);
+      }
+      if (activeMap.portrait) { fx = Math.max(100, Math.min(activeMap.w - 100, fx)); fy = Math.max(48, Math.min(activeMap.h - 84, fy)); }
       keep.add(x.key);
       let el = box.querySelector<HTMLElement>(`.mapFace[data-pid="${x.key}"]`);
       if (!el) { el = document.createElement('button'); el.className = 'mapFace ' + (x.mine ? 'mine' : 'other'); el.dataset.pid = x.key; el.setAttribute('aria-label', x.mine ? 'You' : x.name); box.appendChild(el); }
       const lk = JSON.stringify(x.look) + x.name;
       if (el.dataset.look !== lk) { const b = el.querySelector('.bubble'); el.innerHTML = `<span class="face">${faceSVG(characterSVG(x.look))}</span><span class="fname">${esc(x.mine ? 'You' : x.name)}</span>`; if (b) el.appendChild(b); el.dataset.look = lk; }
-      el.dataset.place = k; const s = 46;
+      el.dataset.place = k; const s = activeMap.portrait ? 62 : 46;
       el.style.left = (fx - s / 2) * sc + 'px'; el.style.top = (fy - s / 2) * sc + 'px'; el.style.width = el.style.height = s * sc + 'px';
     });
   }
@@ -1607,10 +1922,88 @@ function houseUnread(id: string) {
   const h = hood.houses.get(id);
   return !!h && h.meta.ownerId === hood.pid && unreadCount(h.confirmed.mailbox) > 0;
 }
+let mailPopFor = 0;
+/** One pop-up when new mail arrives. It does not stay on the map. */
 function syncMailCue() {
-  const show = !!hood && view === 'street' && houseUnread(hood.myHouseId());
-  mailUI.syncCue(show);
+  placePopups();
+  const cue = document.getElementById('mailCue');
+  const id = hood?.myHouseId() ?? '';
+  const n = hood && id ? unreadCount(hood.houses.get(id)?.confirmed.mailbox) : 0;
+  if (!hood || view !== 'street' || n <= 0) {
+    if (n <= 0) mailPopFor = 0;
+    cue?.classList.remove('show');
+    return;
+  }
+  if (mailPopFor === n) return;
+  mailPopFor = n;
+  cue?.classList.add('show');
+  window.setTimeout(() => { if (mailPopFor === n) cue?.classList.remove('show'); }, 8000);
 }
+/**
+ * Menu dot = unread letters only. Invites are not in the welcome/players/presence
+ * payload, so there is no invite badge (it would always say 0). Map dot = kids in presence.
+ */
+function paintBadges() {
+  const id = hood?.myHouseId() ?? '';
+  const mail = hood && id ? unreadCount(hood.houses.get(id)?.confirmed.mailbox) : 0;
+  const menu = $('menuBadge');
+  menu.textContent = mail > 9 ? '9+' : String(mail);
+  menu.classList.toggle('on', mail > 0);
+  const neu = document.getElementById('mailNew');
+  if (neu) {
+    neu.textContent = mail > 0 ? (mail === 1 ? '1 new' : mail + ' new') : '';
+    neu.classList.toggle('on', mail > 0);
+  }
+  const friends = hood ? hood.presence.size : 0;
+  const map = $('mapBadge');
+  map.textContent = friends > 9 ? '9+' : String(friends);
+  map.classList.toggle('on', friends > 0);
+  $('btnMap').setAttribute('aria-label', friends > 0 ? `Map, ${friends} friends online` : 'Map');
+  const near = nearbyCount();
+  const chat = $('chatBadge');
+  chat.textContent = near > 9 ? '9+' : String(near);
+  chat.classList.toggle('on', near > 0);
+}
+function setMenuOpen(open: boolean) {
+  if (open) document.querySelectorAll('.toast').forEach(el => el.remove());
+  $('menuPop').classList.toggle('hidden', !open);
+  $('btnMenu').setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) paintBadges();
+  placeHouseTag();
+}
+/** The menu card sits over the top of the stage. Slide the house name clear of it. */
+function placeHouseTag() {
+  const tag = $('houseTag');
+  tag.style.top = '';
+  if (!tag.classList.contains('show') || $('menuPop').classList.contains('hidden')) return;
+  const card = document.querySelector('.menuCard');
+  if (!card) return;
+  const wrap = $('stageWrap').getBoundingClientRect();
+  const menu = card.getBoundingClientRect();
+  const box = tag.getBoundingClientRect();
+  const overlaps = box.top < menu.bottom - 2 && box.bottom > menu.top + 2 && box.left < menu.right - 2 && box.right > menu.left + 2;
+  if (!overlaps) return;
+  const below = menu.bottom - wrap.top + 8;
+  if (below + box.height < wrap.height - 8) tag.style.top = below + 'px';
+  else tag.style.top = Math.max(8, wrap.height - box.height - 10) + 'px';
+}
+$('btnMenu').addEventListener('click', () => { setMenuOpen($('menuPop').classList.contains('hidden')); sfx.click(); });
+$('menuPop').addEventListener('click', e => {
+  const t = e.target as HTMLElement;
+  if (t.id === 'menuPop' || t.closest('#menuClose')) { setMenuOpen(false); return; }
+  if (t.closest('.menuRow')) setMenuOpen(false);
+});
+$('btnMail').addEventListener('click', () => {
+  const id = hood?.myHouseId();
+  if (id) openMailbox(id);
+  else toast('Join a street to send letters!');
+});
+$('secrets').addEventListener('click', () => {
+  if (view !== 'house') { toast('Surprises are hiding in your house!'); return; }
+  if (play.isPlay()) $('modeDecorate').click();
+  currentTab = 'secrets'; renderDrawer();
+  toast('Surprises are in your drawer!');
+});
 function openMailbox(id: string) {
   if (!hood || id === 'home' || !hood.houses.has(id)) { toast('Join a street to send letters!'); return; }
   const h = hood.houses.get(id)!;
@@ -1691,7 +2084,7 @@ function enterNeighborhood(client: HoodClient) {
   client.on('fx', (pid: string, fx: Fx) => { if (hood === client) onFx(pid, fx); });
   client.on('bubble', (pid: string, b: Bubble) => { if (hood === client) showBubble(pid, b); });
   client.on('sayFail', (r: string) => toast(r === 'presetsOnly' ? 'Typing is turned off: pick a bubble!' : FILTER_MSG[r] || "Couldn't send that"));
-  client.on('mailbox', () => { if (hood !== client) return; if (view === 'street') renderMap(true); syncMailCue(); mailUI.refresh(); });
+  client.on('mailbox', () => { if (hood !== client) return; if (view === 'street') renderMap(true); syncMailCue(); mailUI.refresh(); paintBadges(); });
   client.on('mailFail', (r: string) => { if (hood === client) mailUI.fail(r); });
   client.on('settings', () => { if (hood !== client) return; if (!$('chatTray').classList.contains('hidden')) renderChatTray(); mailUI.refresh(); });
   client.on('removed', () => { toast('A grown-up took this iPad off the street'); const c = client.cfg; saveHoodConfig({ url: c.url, code: c.code, id: c.id, parentKey: c.parentKey }); goSolo(); });
@@ -2022,13 +2415,15 @@ function goGameRoom() {
   const seat = mySeat();
   const p: Presence = seat
     ? { where: 'gameroom', x: seat.x, y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, seat.y)), flip: false }
-    : { where: 'gameroom', x: 280, y: 560, flip: false };
+    : { where: 'gameroom', x: portraitPlace() ? 520 : 280, y: 560, flip: false };
   if (hood) setMyPres(p); else soloPark = p;
   $('streetTitle').textContent = 'The Clubhouse'; renderHoodChrome(); renderGameRoom();
   requestAnimationFrame(() => {
     const sc = grScale(), scroll = $('grScroll');
-    scroll.scrollLeft = Math.max(0, ((seat?.x ?? 520) * sc) - scroll.clientWidth / 2);
+    const focus = seat?.x ?? (portraitPlace() ? 520 : 280);
+    scroll.scrollLeft = Math.max(0, focus * sc - scroll.clientWidth / 2);
     phoneShowKids();
+    frameClubSign();
   });
   sceneIn($('gameroom')); sfx.sparkle();
 }
@@ -3128,9 +3523,10 @@ function tickRanch(now: number, dt: number) {
 // ---------- her basket (eggs, garden carrots, flowers) ----------
 function renderBasketChip() {
   const chip = document.getElementById('basketChip'); if (!chip) return;
-  const show = view === 'ranch' || (view === 'house' && (!hood || inner === local || currentHouseId === hood.myHouseId()));
+  const home = view === 'house' && (!hood || inner === local || currentHouseId === hood.myHouseId());
   const b = myBasket(), any = b.egg + b.carrot + b.flower > 0;
-  chip.classList.toggle('hidden', !show || (view === 'house' && !any)); chip.classList.toggle('inHouse', view === 'house'); if (!show) return;
+  const show = any && (view === 'ranch' || home);
+  chip.classList.toggle('hidden', !show); chip.classList.toggle('inHouse', view === 'house'); if (!show) return;
   chip.innerHTML = `<span class="bIcon">${basketSVG}</span><span class="bcount" data-kind="egg">${eggSVG}<b>${b.egg}</b></span><span class="bcount" data-kind="carrot">${carrotSVG}<b>${b.carrot}</b></span><span class="bcount" data-kind="flower">${flowerSVG()}<b>${b.flower}</b></span>`;
 }
 $('basketChip').addEventListener('pointerdown', e => {
@@ -3223,11 +3619,15 @@ $('scenery').addEventListener('click', e => {
   if (!b) return;
   goDoor(b.dataset.yardGo === 'backyard' ? 'backyard' : 'living');
 });
+const skyHandle = mountSkyToggle($('skyMount'));
+(window as any).__sky = skyHandle;
 renderAll(); renderDrawer(); fit();
 bootYardPreview();
+
 fit();
 frameYardCam();
-requestAnimationFrame(() => { fit(); frameYardCam(); });
+placeModeToggle(); dockSkyChrome(); if (phoneMQ.matches) fitPhone(); else fit();
+requestAnimationFrame(() => { fit(); frameYardCam(); fitNow(); });
 
 /** ?yard=1 only. Stages the approval yard in the real renderer and does not run otherwise. */
 function bootYardPreview() {
@@ -3376,45 +3776,144 @@ function placeYardHints() {
   else if (h2.right > stage2.right - pad) hx = stage2.right - pad - h2.right;
   if (Math.abs(hx) > 0.5) hint.style.translate = `calc(-50% + ${(hx / sc).toFixed(1)}px) 0`;
   else hint.style.translate = '';
-}
-void refreshArt(store.get().currentRoom);
+}void refreshArt(store.get().currentRoom);
 // ---------- hidden surprises ----------
 const renderSecrets = () => {
   const n = foundSet().size, total = EGGS.length;
   const el = $('secrets');
-  el.innerHTML = `<span class="secGift">🎁</span><span class="secWord"> Surprises: </span><span class="secCount">${n}/${total}</span>`;
+  const count = el.querySelector('.secCount');
+  if (count) count.textContent = `${n}/${total}`;
   el.setAttribute('aria-label', `Surprises, ${n} of ${total}`);
   placeSecretsPill();
 };
 
-/** Keep the petting-zoo label on screen. Scroll a little if the girl still fits, then slide the label. */
+/** Portrait iPad and phone: the scene is taller than it is wide, so a wide sign gets cropped. */
+function portraitPlace() { return window.innerHeight > window.innerWidth + 40; }
+/**
+ * Scale sign art so the group fits the viewport, then scroll just enough to keep it on screen.
+ * Landscape clears the tweak and leaves the camera alone.
+ */
+function framePlaceArts(arts: HTMLElement[], scroll: HTMLElement | null) {
+  for (const a of arts) a.style.transform = '';
+  if (!portraitPlace() || !arts.length) return;
+  const port = scroll && scroll.clientWidth > 20 ? scroll.getBoundingClientRect()
+    : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight, width: window.innerWidth, height: window.innerHeight };
+  if (port.width < 20) return;
+  const pad = 8;
+  const availL = Math.max(port.left, 0) + pad;
+  const availR = Math.min(port.right, window.innerWidth) - pad;
+  const availT = Math.max(port.top, 0) + pad;
+  const availB = Math.min(port.bottom, window.innerHeight) - pad;
+  const availW = Math.max(40, availR - availL);
+  const availH = Math.max(40, availB - availT);
+  const boxes = () => arts.map(a => a.getBoundingClientRect()).filter(b => b.width > 2 && b.height > 2);
+  const list = boxes();
+  if (!list.length) return;
+  const l = Math.min(...list.map(b => b.left)), r = Math.max(...list.map(b => b.right));
+  const t = Math.min(...list.map(b => b.top)), btm = Math.max(...list.map(b => b.bottom));
+  const uw = Math.max(1, r - l), uh = Math.max(1, btm - t);
+  const s = Math.min(1, availW / uw, availH / uh);
+  const fits = s > 0.995 && l >= availL - 1 && r <= availR + 1 && t >= availT - 1 && btm <= availB + 1;
+  if (fits) return;
+  // CSS translate on an SVG group is in user units, then the scene scale turns it into
+  // screen pixels. Divide by that scale or the sign jumps about twice as far as asked.
+  const ctm = (arts[0] as unknown as SVGGraphicsElement).getScreenCTM();
+  const px = ctm ? Math.hypot(ctm.a, ctm.b) || 1 : 1;
+  const cx = (l + r) / 2, cy = (t + btm) / 2;
+  const tw = uw * s, th = uh * s;
+  const destCx = (availL + availR) / 2;
+  const destCy = t >= availT && btm <= availB ? cy : Math.min(Math.max(cy, availT + th / 2), availB - th / 2);
+  for (const a of arts) {
+    const box = a.getBoundingClientRect();
+    const ex = (box.left + box.right) / 2, ey = (box.top + box.bottom) / 2;
+    const nx = destCx + (ex - cx) * s;
+    const ny = destCy + (ey - cy) * s;
+    a.style.transformBox = 'fill-box';
+    a.style.transformOrigin = 'center';
+    a.style.transform = `translate(${((nx - ex) / px).toFixed(2)}px, ${((ny - ey) / px).toFixed(2)}px) scale(${s.toFixed(3)})`;
+  }
+}
+function frameClubSign() {
+  if (view !== 'gameroom') return;
+  const scroll = document.getElementById('grScroll');
+  framePlaceArts([...document.querySelectorAll<HTMLElement>('.neonSignArt')], scroll);
+}
+/** Ranch signs stay painted where they were drawn. The petting-zoo bubble can
+ *  slide onto the screen, but it must not land on the kid or pull the barn
+ *  banner off the barn. */
 function frameRanchSign() {
   if (view !== 'ranch' || inBarn) return;
-  const scroll = $('ranchScroll');
-  const hint = document.querySelector<HTMLElement>('.doorHint');
-  if (!hint || !scroll.clientWidth) return;
-  const sc = ranchScale(), pad = 14, vw = scroll.clientWidth, hw = hint.offsetWidth;
-  const need = Math.max(0, BARN_DOOR_X * sc + hw / 2 + pad - vw);
-  if (scroll.scrollLeft < need) {
-    const me = myParkPres();
-    const maxForGirl = me && me.where === 'ranch' ? Math.max(0, me.x * sc - 60 * sc - pad) : need;
-    scroll.scrollLeft = Math.min(need, maxForGirl);
-  }
+  document.querySelectorAll<HTMLElement>('.ranchSignArt').forEach(a => { a.style.transform = ''; });
   phoneShowKids();
   keepDoorHintOnScreen();
+  settleRanchSigns();
 }
+/** A sliced banner looks like a second sign hanging off the barn. Show a sign only when the whole of it is in view. */
+function settleRanchSigns() {
+  if (view !== 'ranch' || inBarn) return;
+  const scroll = document.getElementById('ranchScroll');
+  if (!scroll) return;
+  const port = scroll.getBoundingClientRect();
+  document.querySelectorAll<HTMLElement>('.ranchSignArt').forEach(a => {
+    const r = a.getBoundingClientRect();
+    const edge = Math.min(port.right, innerWidth);
+    const cut = Math.max(0, port.left - r.left) + Math.max(0, r.right - edge);
+    a.style.visibility = r.width > 20 && cut < 8 ? 'visible' : 'hidden';
+  });
+}
+$('ranchScroll').addEventListener('scroll', () => { if (view === 'ranch' && !inBarn) settleRanchSigns(); }, { passive: true });
 function keepDoorHintOnScreen() {
   const hint = document.querySelector<HTMLElement>('.doorHint');
   const scroll = document.getElementById('ranchScroll');
   if (!hint || !scroll) return;
-  const sc = ranchScale();
-  const doorX = BARN_DOOR_X * sc - scroll.scrollLeft;
-  const hw = hint.offsetWidth, pad = 12;
-  const right = doorX + hw / 2, left = doorX - hw / 2;
+  hint.style.transform = 'translateX(-50%)';
+  const port = scroll.getBoundingClientRect();
+  const pad = 8;
+  const availL = Math.max(port.left, 0) + pad;
+  const availR = Math.min(port.right, innerWidth) - pad;
+  const availT = Math.max(port.top, 0) + pad;
+  const availB = Math.min(port.bottom, innerHeight) - pad;
+  const b = hint.getBoundingClientRect();
   let dx = 0;
-  if (right > innerWidth - pad) dx -= right - (innerWidth - pad);
-  if (left + dx < pad) dx += pad - (left + dx);
-  hint.style.transform = `translateX(calc(-50% + ${dx}px))`;
+  if (b.right > availR) dx -= b.right - availR;
+  if (b.left + dx < availL) dx += availL - (b.left + dx);
+  let dy = 0;
+  const kid = scroll.querySelector<HTMLElement>('.savatar');
+  if (kid) {
+    const kb = kid.getBoundingClientRect();
+    const tag = kid.querySelector<HTMLElement>('.nametag');
+    const tb = tag?.getBoundingClientRect();
+    const hasTag = !!(tb && tb.width > 4 && tb.height > 4);
+    const blockTop = hasTag ? Math.min(kb.top, tb!.top) : kb.top;
+    const blockL = hasTag ? Math.min(kb.left, tb!.left) : kb.left;
+    const blockR = hasTag ? Math.max(kb.right, tb!.right) : kb.right;
+    const left = b.left + dx, right = b.right + dx;
+    const overlaps = right > blockL - 6 && left < blockR + 6 && b.bottom + dy > blockTop - 6 && b.top < kb.top + kb.height * 0.72;
+    if (overlaps) dy += (blockTop - 48) - (b.bottom + dy);
+  }
+  if (b.top + dy < availT) dy += availT - (b.top + dy);
+  // Phone portrait pulls this label left onto the gate, and clearing the nametag
+  // then drops it on the rainbow arch. Sit it above the arch instead.
+  if (document.body.classList.contains('phone-portrait')) {
+    const gate = document.querySelector<HTMLElement>('.ranchSign .ranchSignArt');
+    if (gate) {
+      const g = gate.getBoundingClientRect();
+      const left = b.left + dx, right = b.right + dx, top = b.top + dy, bottom = b.bottom + dy;
+      const onGate = g.width > 20 && g.height > g.width * 0.7
+        && right > g.left + 4 && left < g.right - 4 && bottom > g.top + 4 && top < g.bottom - 4;
+      if (onGate) {
+        let lift = (g.top - 16) - bottom;
+        if (top + lift < availT) lift += availT - (top + lift);
+        const tag = kid?.querySelector<HTMLElement>('.nametag');
+        const tb = tag?.getBoundingClientRect();
+        const liftedBottom = bottom + lift;
+        const clearsTag = !(tb && tb.width > 4 && tb.height > 4
+          && liftedBottom > tb.top - 12 && right > tb.left - 6 && left < tb.right + 6);
+        if (clearsTag && liftedBottom <= availB) dy += lift;
+      }
+    }
+  }
+  if (dx || dy) hint.style.transform = `translate(calc(-50% + ${dx.toFixed(1)}px), ${dy.toFixed(1)}px)`;
 }
 const eggs = initEggs({
   world, roomW: W, roomH: H, currentRoom: () => store.get().currentRoom,

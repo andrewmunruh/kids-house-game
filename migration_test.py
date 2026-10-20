@@ -6,7 +6,7 @@
 #           sign-in token and street membership must be identical.
 #  Phase C  the PREVIEW build (prefixed keys) opened on the same origin must not change a single production key.
 # Usage: migration_test.py
-#   The old build is the cfc0e4a baseline: nursery and backyard already exist (the yard is empty).
+#   The old build is origin/main 29836e6: nursery and backyard already exist (the yard is empty).
 #   Ports and directories are parameters (flags or env), with the historical defaults:
 #     --prod-tree / PROD_TREE       --prod-dist / PROD_DIST
 #     --new-dist / NEW_DIST         --preview-dist / PREVIEW_DIST
@@ -14,7 +14,7 @@
 #     --port-prev / PORT_PREV       --work / MIG_ROOT
 import asyncio, json, os, shutil, subprocess, time, sys, signal
 from playwright.async_api import async_playwright
-from testnav import to_map, go
+from testnav import tap, to_map, go
 def opt(flag, env, default):
     if flag in sys.argv:
         i = sys.argv.index(flag)
@@ -100,7 +100,7 @@ async def adult(pg):
     for d in str(q): await pg.click(f'.adultCard [data-k="{d}"]')
     await pg.click('.adultCard [data-k="OK"]')
 async def join_prod(pg, code, nick, bring):
-    await pg.click('#btnHood'); await pg.click('[data-m="join"]')
+    await tap(pg, '#btnHood'); await pg.click('[data-m="join"]')
     await pg.fill('#codeInput', code.lower()); await pg.click('#codeForm button')
     await pg.click(f'.nicks button:has-text("{nick}")')
     if bring is not None: await pg.click('[data-m="bring"]' if bring else '[data-m="fresh"]')
@@ -199,7 +199,7 @@ async def main():
             check('phase A: rich solo save written', len(solo_a['characters']) >= 3 and solo_a['cat']['name'] == 'Mochi' and solo_a['basket']['egg'] == 2 and sum(len(r['items']) for r in solo_a['rooms'].values()) >= 5)
             # grown-up creates the street with a roster + custom code; 3 kids join (the family iPad brings its house)
             for attempt in range(3):
-                await P.click('#btnHood'); await P.click('[data-m="create"]'); await adult(P)
+                await tap(P, '#btnHood'); await P.click('[data-m="create"]'); await adult(P)
                 try: await P.wait_for_selector('#newCode', timeout=8000); break
                 except Exception:
                     toast = await P.evaluate("[...document.querySelectorAll('.toast')].map(t=>t.textContent).join('|')")
@@ -224,7 +224,7 @@ async def main():
             await K2.evaluate("__hood().ranchOp({op:'egg'}); __hood().ranchOp({op:'plant', i:0, seed:'carrot'}); __hood().ranchOp({op:'water', i:0})"); await K2.wait_for_timeout(500)
             if OLD_HAS_MAP: await to_map(K2)
             else: await K2.click('#btnLeavePark'); await K2.wait_for_timeout(400)
-            await P.click('#btnParent'); await adult(P); await P.wait_for_selector('.pHouse, input[data-hid]')
+            await tap(P, '#btnParent'); await adult(P); await P.wait_for_selector('.pHouse, input[data-hid]')
             k3h = await K3.evaluate('__hood().myHouseId()')
             await P.fill(f'input[data-hid="{k3h}"]', 'Koala Castle'); await P.click(f'[data-p="rename"][data-hid="{k3h}"]'); await P.wait_for_timeout(500)
             roster_a = sorted(await P.locator('.rName').all_inner_texts()) if await P.locator('.rName').count() else None
@@ -266,20 +266,15 @@ async def main():
                 if fields or rooms or towers or set(OLD_ROOMS) - set(shared):
                     rooms_ok = False
                     room_notes.append(f'{hid}: fields={fields} rooms={rooms} towers={towers}')
-            # cfc0e4a already stores the nursery starters and an empty backyard. A saved empty yard stays empty.
-            def yard_items(h):
-                return (h['view']['rooms'].get('backyard') or {}).get('items') or []
-            baseline = all(
+            # 29836e6 already stores a nursery and an empty backyard. Older baselines gain them here.
+            already = all('nursery' in h['view']['rooms'] and 'backyard' in h['view']['rooms'] for h in snap_a['houses'].values())
+            gained = already or all(
                 h['view']['rooms'].get('nursery') and [i['kind'] for i in h['view']['rooms']['nursery']['items']] == STARTER_KINDS
-                and yard_items(h) == []
-                for h in snap_a['houses'].values())
-            kept_yard = all(
-                yard_items(h) == []
-                and [i['kind'] for i in h['view']['rooms']['nursery']['items']] == STARTER_KINDS
+                and h['view']['rooms'].get('backyard', {}).get('items') == []
                 and (h['view'].get('dogKennel') or None) is None
-                for h in snap_b['houses'].values())
+                for h in snap_b['houses'].values()) and all('nursery' not in h['view']['rooms'] and 'backyard' not in h['view']['rooms'] for h in snap_a['houses'].values())
             check('every room is identical (items, positions, flips, paint, characters, cats, pets, kennel, cat tower)',
-                  rooms_ok and baseline and kept_yard, ('; '.join(room_notes) + f' {n_items_a} items').strip())
+                  rooms_ok and gained, ('; '.join(room_notes) + f' {n_items_a} items').strip())
             check('every kid identical (name, look, dog, basket, house)', snap_a['players'] == snap_b['players'])
             check('shared garden identical', snap_a['plots'] == snap_b['plots'])
             check('settings identical', snap_a['settings'] == snap_b['settings'])
@@ -304,22 +299,24 @@ async def main():
             friend_a = {r: [i[1] for i in items_of(snap_a)[k2house] if i[0] == r] for r in OLD_ROOMS}
             check("a friend's decorated house opens from the map, all items there", all(sorted(friend['old'][r]) == sorted(friend_a[r]) for r in OLD_ROOMS) and friend['nursery'] == STARTER_KINDS)
             await P.click('#btnMap'); await P.wait_for_timeout(500)
-            await P.click('#btnParent'); await adult(P); await P.wait_for_timeout(700)
+            await tap(P, '#btnParent'); await adult(P); await P.wait_for_timeout(700)
             roster_b = sorted(await P.locator('.rName').all_inner_texts()) if await P.locator('.rName').count() else None
             check('roster + grown-up key still work (parent screen)', roster_a == roster_b and roster_b is not None, json.dumps(roster_b))
             await P.click('.hoodSheet [data-m="close"]')
             check('production data files were never modified (new server ran on a copy)', all(open(f'{M}/data/{f}').read() == v for f, v in files_a.items()))
-            disk_new = disk_room_names(M + '/data-new')
-            check('a cfc0e4a house already stores the nursery and the yard', all('nursery' in names and 'backyard' in names for names in disk_new.values()) and disk_new == disk_room_names(M + '/data'))
+            disk_old, disk_new = disk_room_names(M + '/data'), disk_room_names(M + '/data-new')
+            had_nursery = any('nursery' in names for names in disk_old.values())
+            check('stored rooms stay as production left them until the first edit',
+                  disk_new == disk_old and (had_nursery or all('nursery' not in names and 'backyard' not in names for names in disk_new.values())))
             # solo save from the old build, opened by the new build (not signed in)
             solo_ctx = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
             await solo_ctx.add_init_script("if (!sessionStorage.getItem('solo-set')) { sessionStorage.setItem('solo-set','1'); localStorage.setItem('cozy-whatsnew','999'); localStorage.setItem('cozy-house', " + json.dumps(json.dumps(solo_a)) + "); }")
             solo = await solo_ctx.new_page(); solo.on('pageerror', lambda e: errs.append('solo ' + str(e)))
             await solo.goto(f'{BASE}/kids-house-game/?hood=http://localhost:{PORT_HOOD}'); await solo.wait_for_selector('#stage .char'); await solo.wait_for_timeout(400)
             solo_now = await solo.evaluate("""() => { const s = __store.get(); return { v: s.version, old: Object.fromEntries(['living','bedroom','kitchen','salon'].map(r => [r, s.rooms[r].items.map(i => i.id)])), nursery: s.rooms.nursery.items.map(i => i.kind), yard: s.rooms.backyard.items.map(i => i.id), tabs: [...document.querySelectorAll('.tab')].map(t => t.textContent.trim()) }; }""")
-            solo_old = {r: [i['id'] for i in solo_a['rooms'][r]['items']] for r in OLD_ROOMS}
+            solo_old = {r: [i['id'] for i in solo_a['rooms'][r]['items']] for r in solo_a['rooms'] if r in solo_now['old']}
             solo_yard = [i['id'] for i in solo_a['rooms'].get('backyard', {}).get('items', [])]
-            check('an old solo save keeps its nursery and its saved yard', solo_now['v'] == 3 and solo_now['nursery'] == STARTER_KINDS and solo_now['yard'] == solo_yard and all(sorted(solo_now['old'][r]) == sorted(solo_old[r]) for r in OLD_ROOMS) and solo_now['tabs'][-1] == 'Nursery')
+            check('an old solo save keeps its nursery and its saved yard', solo_now['v'] == 3 and solo_now['nursery'] == STARTER_KINDS and solo_now['yard'] == solo_yard and all(sorted(solo_now['old'][r]) == sorted(solo_old[r]) for r in solo_old) and solo_now['tabs'][-1] == 'Nursery')
             follow = await solo.evaluate("""() => { const s = __store.get(); const p = __pets(); return { kennel: s.dogKennel || null, name: s.dog && s.dog.name, following: p.dogs.indexOf('solo') >= 0, shown: p.kennel }; }""")
             check('an old save loads with the dog following', not follow['kennel'] and follow['name'] == 'Rocket' and follow['following'] and not follow['shown'], str(follow))
             await solo.evaluate("""() => __store.dispatch({type:'item/add', room:'nursery', item:{id:'solo-round', kind:'bunny-plush', x:420, y:500, flip:false}})""")
@@ -330,9 +327,9 @@ async def main():
             # street: first nursery edit writes the filled room, and the other iPad sees it
             k2house = ids_a[1][1]
             if not await P.evaluate("document.body.classList.contains('view-house') && __ui().currentHouseId === " + json.dumps(k2house)):
-                await P.click('#btnMap'); await P.wait_for_timeout(400); await P.click(f'.mapHouse[data-go="house:{k2house}"]'); await P.wait_for_timeout(800)
+                await to_map(P); await P.click(f'.mapHouse[data-go="house:{k2house}"]'); await P.wait_for_timeout(800)
             if (await K2.evaluate("__ui()")).get('currentHouseId') != k2house:
-                await K2.click('#btnMap'); await K2.wait_for_timeout(400); await K2.click('#mapWorld .mapHouse.mine'); await K2.wait_for_timeout(800)
+                await to_map(K2); await K2.click('#mapWorld .mapHouse.mine'); await K2.wait_for_timeout(800)
             before_items = {r: [i['id'] for i in snap_a['houses'][k2house]['view']['rooms'][r]['items']] for r in OLD_ROOMS}
             await K2.evaluate("""() => { const h = __hood(), id = h.myHouseId(); h.dispatch(id, {type:'item/add', room:'nursery', item:{id:'friend-nur', kind:'night-light', x:300, y:460, flip:false}}); h.dispatch(id, {type:'room/wallTile', room:'nursery', tile:'nursery/cloud-sky'}); }""")
             await K2.wait_for_timeout(800)
@@ -373,7 +370,8 @@ async def main():
               h.dispatch(id, {type:'item/add', room:'backyard', item:{id:'keep-swing', kind:'yard-swing', x:1160, y:548, flip:false, z:1, scale:1}});
             }""")
             await K2.wait_for_timeout(700)
-            # old client (cfc0e4a: nursery tab, empty yard key, no yard door) against this new server
+            # Production baseline (29836e6) against this server. She already draws the nursery,
+            # chibi avatars, and mailboxes, and she has no yard door. An edit must keep the swing.
             serve_build(PROD_DIST)
             old_errs = []
             P.on('pageerror', lambda e: old_errs.append(str(e)))
@@ -382,16 +380,16 @@ async def main():
             except Exception:
                 await P.screenshot(path='/tmp/mig-old-client.png'); raise
             old_tabs = await P.locator('.tab').all_inner_texts()
-            check('old client shows the nursery tab and no yard tab', len(old_tabs) == 5 and any('Nursery' in t for t in old_tabs) and not any('Yard' in t or 'Backyard' in t for t in old_tabs), str(old_tabs))
+            check('baseline client shows the nursery tab and no yard tab', len(old_tabs) == 5 and any('Nursery' in t for t in old_tabs) and not any('Yard' in t or 'Backyard' in t for t in old_tabs), str(old_tabs))
             face = await P.evaluate("""() => { const svg = document.querySelector('.mapFace.mine svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
-            check('old client draws the avatar v2 kid', face == '1' and not old_errs, str(face) + ' ' + '; '.join(old_errs[:2]))
+            check('baseline client draws the new kid as a chibi', face == '1' and not old_errs, str(face) + ' ' + '; '.join(old_errs[:2]))
             os.makedirs('/opt/cursor/artifacts', exist_ok=True)
             await P.click('#mapWorld .mapHouse.mine'); await P.wait_for_timeout(900)
             body = await P.evaluate("""() => { const svg = document.querySelector('.char.avatar.mine svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
-            check('old client house body keeps the chibi markup', body == '1' and not old_errs, str(body))
+            check('baseline client house body is a chibi', body == '1' and not old_errs, str(body))
             await P.screenshot(path='/opt/cursor/artifacts/old-client-view.png')
             await P.click('#btnMap'); await P.wait_for_timeout(500)
-            check('old client shows mailboxes', await P.locator('.mapMail').count() >= 1)
+            check('baseline client shows mailboxes', await P.locator('.mapMail').count() >= 1)
             await P.evaluate("""() => {
               const L = __hood().players.get(__hood().pid).look;
               __hood().setLook({ skin: L.skin, hair: L.hair, hairStyle: L.hairStyle, shirt: '#80ed99', pants: L.pants, size: L.size, acc: L.acc });
@@ -439,7 +437,7 @@ async def main():
             await rpg.evaluate("""() => __store.dispatch({type:'room/wallpaper', room:'living', color:'#ddeeff'})""")
             await rpg.wait_for_timeout(500)
             kept = await rpg.evaluate("""() => { const s = JSON.parse(localStorage.getItem('cozy-house')); const mail = (s.mailbox && s.mailbox.letters || [])[0]; return { tabs: [...document.querySelectorAll('.tab')].length, nursery: (s.rooms.nursery.items || []).map(i => i.id), yard: (s.rooms.backyard.items || []).map(i => i.id), wall: s.rooms.living.wallpaper, kennel: s.dogKennel || null, kennelItem: (s.rooms.living.items || []).some(i => i.id === 'keep-kennel'), mail: mail && mail.text, boxes: document.querySelectorAll('.mapMail').length }; }""")
-            check('old client keeps a nursery that was already in the save', kept['tabs'] == 5 and kept['nursery'] == ['keep-crib'] and kept['yard'] == ['keep-yard'] and kept['wall'] == '#ddeeff' and kept['kennel'] and kept['kennel']['item'] == 'keep-kennel' and kept['kennelItem'] and kept['mail'] == 'Hi from the mailbox' and not any(e.startswith('rollback') for e in old_errs), str(kept))
+            check('baseline client draws the saved nursery and keeps the letter', kept['tabs'] == 5 and kept['nursery'] == ['keep-crib'] and kept['yard'] == ['keep-yard'] and kept['wall'] == '#ddeeff' and kept['kennel'] and kept['kennel']['item'] == 'keep-kennel' and kept['kennelItem'] and kept['mail'] == 'Hi from the mailbox' and kept['boxes'] == 0 and not any(e.startswith('rollback') for e in old_errs), str(kept))
             await rb.close()
             serve_build(NEW_DIST)
             # ================= Phase C: preview build on the same origin =================

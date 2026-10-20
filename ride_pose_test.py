@@ -3,7 +3,7 @@
 # and covers galloping to another horse, dismount, the dog, and the pond.
 import asyncio, sys, math, os
 from playwright.async_api import async_playwright
-from testnav import SKIP_WN, go
+from testnav import tap, SKIP_WN, go
 
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://127.0.0.1:4173/kids-house-game/'
 SHOT = sys.argv[2] if len(sys.argv) > 2 else '/tmp/ride-after/'
@@ -153,7 +153,7 @@ async def main():
         errs = []
         pg.on('pageerror', lambda e: errs.append(str(e)))
         await pg.goto(URL); await pg.wait_for_timeout(500)
-        await pg.click('#btnPets'); await pg.wait_for_selector('.pets .petTabs')
+        await tap(pg, '#btnPets'); await pg.wait_for_selector('.pets .petTabs')
         await pg.click('.petTabs [data-pt="dog"]')
         await pg.click('.nameChips button:has-text("Buddy")')
         await pg.click('#adoptBtn'); await pg.wait_for_timeout(250)

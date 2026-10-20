@@ -273,6 +273,47 @@ async function main() {
   const bare = initialState();
   check('a character without look2 is not rewritten', migrate(bare).characters[0].look2 === undefined && cleanHouseState(bare).characters[0].look2 === undefined);
 
+  const home = initialState();
+  const sofa = home.rooms.living.items.find(i => i.kind === 'sofa')!;
+  const dupAdd = reduce(home, { type: 'item/add', room: 'living', item: { ...sofa, x: sofa.x + 120, kind: 'chair' } });
+  check('adding an id the room already has changes nothing', dupAdd === home && dupAdd.rooms.living.items.filter(i => i.id === sofa.id).length === 1);
+  const otherRoom = reduce(home, { type: 'item/add', room: 'bedroom', item: { ...sofa, x: 400, y: 400, kind: 'chair' } });
+  check('the same id is allowed in a different room', otherRoom !== home && otherRoom.rooms.bedroom.items.some(i => i.id === sofa.id && i.kind === 'chair') && otherRoom.rooms.living.items.filter(i => i.id === sofa.id).length === 1);
+  const freshId = { id: 'brand-new-chair', kind: 'chair', x: 500, y: 480, flip: false, z: 1, scale: 1 };
+  const added = reduce(home, { type: 'item/add', room: 'living', item: freshId });
+  check('a new id still lands in the room', added !== home && added.rooms.living.items.some(i => i.id === 'brand-new-chair' && i.kind === 'chair'));
+
+  const raw = JSON.parse(JSON.stringify(home));
+  raw.rooms.living.items.push({ ...sofa, x: sofa.x + 80, y: sofa.y, kind: 'chair' });
+  raw.rooms.living.items.push({ ...sofa, x: sofa.x + 160, y: sofa.y, kind: 'lamp' });
+  const loaded = migrate(raw);
+  const living = loaded.rooms.living.items;
+  const ids = living.map(i => i.id);
+  check('a save load keeps every copy and gives the repeats a new id', new Set(ids).size === ids.length && living.filter(i => i.id === sofa.id).length === 1 && living.some(i => i.kind === 'chair' && i.x === sofa.x + 80 && i.id !== sofa.id) && living.some(i => i.kind === 'lamp' && i.x === sofa.x + 160 && i.id !== sofa.id));
+  const serverLoaded = cleanHouseState(raw);
+  check('the worker load keeps the same pieces', serverLoaded.rooms.living.items.length === living.length && new Set(serverLoaded.rooms.living.items.map(i => i.id)).size === serverLoaded.rooms.living.items.length && serverLoaded.rooms.living.items.some(i => i.id === sofa.id && i.kind === 'sofa') && serverLoaded.rooms.living.items.some(i => i.kind === 'chair' && i.x === sofa.x + 80) && serverLoaded.rooms.living.items.some(i => i.kind === 'lamp' && i.x === sofa.x + 160));
+  check('a house with no repeated ids is left alone', migrate(home).rooms.living.items.every((it, n) => it === home.rooms.living.items[n]));
+
+  const kv2 = new Map<string, any>();
+  const hoodDup = new Neighborhood({
+    get: async k => kv2.has(k) ? JSON.parse(JSON.stringify(kv2.get(k))) : undefined,
+    put: async (k, v) => { kv2.set(k, JSON.parse(JSON.stringify(v))); },
+    delete: async k => { kv2.delete(k); },
+  }, { flushMs: 5 });
+  await hoodDup.init('DUPTEST');
+  const cd = mk();
+  await hoodDup.onConnect(cd);
+  await hoodDup.onMessage(cd, JSON.stringify({ t: 'join', nickname: NICKNAMES[0], look, v: 4 }));
+  const dtoken = cd.last('joined').token;
+  const dhid = [...hoodDup.houses.keys()][0];
+  const dsofa = hoodDup.houses.get(dhid)!.state.rooms.living.items.find(i => i.kind === 'sofa')!;
+  const before = hoodDup.houses.get(dhid)!.state.rooms.living.items.length;
+  const dmsg = (o: any) => { (cd as any).budget = undefined; return hoodDup.onMessage(cd, JSON.stringify(o)); };
+  await dmsg({ t: 'act', houseId: dhid, cid: 1, action: { type: 'item/add', room: 'living', item: { ...dsofa, x: dsofa.x + 40, kind: 'chair' } } });
+  check('the server nacks an id the room already has', cd.last('nack')?.reason === 'noop' && hoodDup.houses.get(dhid)!.state.rooms.living.items.length === before && hoodDup.houses.get(dhid)!.state.rooms.living.items.filter(i => i.id === dsofa.id).length === 1);
+  await dmsg({ t: 'act', houseId: dhid, cid: 2, action: { type: 'item/add', room: 'living', item: { id: 'server-chair', kind: 'chair', x: 640, y: 500, flip: false, z: 1, scale: 1 } } });
+  check('the server still accepts a new id', hoodDup.houses.get(dhid)!.state.rooms.living.items.some(i => i.id === 'server-chair') && dtoken.length > 0);
+
   console.log(`${pass} passed`);
 }
 main();
