@@ -157,7 +157,39 @@ function mapChar(s: GameState, id: string, f: (c: Character) => Character): Game
 function mapItems(s: GameState, room: RoomId, f: (r: Room) => Room): GameState {
   const cur = s.rooms[room];
   if (!cur) return s;
-  return { ...s, rooms: { ...s.rooms, [room]: f(cur) } };
+  const next = f(cur);
+  if (next === cur) return s;
+  return { ...s, rooms: { ...s.rooms, [room]: next } };
+}
+
+/** A later copy keeps its art and position, and takes a new id. The first copy keeps the id
+ *  so a kennel or mailbox reference still finds it. Ids stay inside the action id pattern. */
+function dedupeItems(items: PlacedItem[]): PlacedItem[] {
+  const used = new Set<string>();
+  let changed = false;
+  const next = items.map(it => {
+    if (!used.has(it.id)) { used.add(it.id); return it; }
+    changed = true;
+    const stem = String(it.id).replace(/-d\d+$/, '').replace(/[^A-Za-z0-9:_/.-]/g, '').slice(0, 72) || 'item';
+    let n = 2;
+    let id = (stem + '-d' + n).slice(0, 80);
+    while (used.has(id)) { n += 1; id = (stem + '-d' + n).slice(0, 80); }
+    used.add(id);
+    return { ...it, id };
+  });
+  return changed ? next : items;
+}
+
+function dedupeHouse<T extends { rooms: GameState['rooms'] }>(s: T): T {
+  let changed = false;
+  const rooms = { ...s.rooms };
+  for (const id of ROOM_IDS) {
+    const room = s.rooms[id];
+    if (!room || !Array.isArray(room.items)) continue;
+    const items = dedupeItems(room.items);
+    if (items !== room.items) { rooms[id] = { ...room, items }; changed = true; }
+  }
+  return changed ? { ...s, rooms } : s;
 }
 
 /**
@@ -173,20 +205,23 @@ export function ensureRooms<T extends { rooms?: GameState['rooms'] | null }>(s: 
     const cur = rooms[id] as Room | undefined;
     if (!cur || typeof cur !== 'object' || !Array.isArray(cur.items)) missing = true;
   }
-  if (!missing) return s;
-  const next = { ...rooms } as GameState['rooms'];
-  for (const id of ROOM_IDS) {
-    const cur = rooms[id] as Room | undefined;
-    if (!cur || typeof cur !== 'object' || !Array.isArray(cur.items)) next[id] = base[id];
-  }
-  return { ...s, rooms: next };
+  const filled: T = missing ? (() => {
+    const next = { ...rooms } as GameState['rooms'];
+    for (const id of ROOM_IDS) {
+      const cur = rooms[id] as Room | undefined;
+      if (!cur || typeof cur !== 'object' || !Array.isArray(cur.items)) next[id] = base[id];
+    }
+    return { ...s, rooms: next } as T;
+  })() : s;
+  return dedupeHouse(filled as T & { rooms: GameState['rooms'] });
 }
 
 /** Pure reducer: (state, action) -> new state. Safe to run on server too. */
 export function reduce(s: GameState, a: Action): GameState {
   switch (a.type) {
     case 'room/switch': return s.rooms[a.room] ? { ...s, currentRoom: a.room } : s;
-    case 'item/add': return mapItems(s, a.room, r => r.items.length >= 80 ? r :
+    case 'item/add': return mapItems(s, a.room, r =>
+      (r.items.length >= 80 || r.items.some(i => i.id === a.item.id)) ? r :
       ({ ...r, items: [...r.items, { ...a.item, z: maxZ(r) + 1 }] }));
     case 'item/move': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, x: clamp(a.x, 0, ROOM_W), y: clamp(a.y, 40, ROOM_H) } : i) }));
     case 'item/flip': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, flip: !i.flip } : i) }));
@@ -238,6 +273,11 @@ export function reduce(s: GameState, a: Action): GameState {
       return { ...s, dogKennel: { item: a.item } };
     }
     case 'ranch/op': {
+      const op = a.op;
+      if (op.op === 'take') {
+        const room = s.rooms[op.room as RoomId];
+        if (room && room.items.some(i => i.id === op.id)) return s;
+      }
       const r = ranchApply(cleanPlots(s.garden), cleanBasket(s.basket), a.op, a.now, s.lastEgg ?? 0);
       if (typeof r === 'string') return s;
       let next: GameState = { ...s, garden: r.plots, basket: r.basket, lastEgg: a.op.op === 'egg' ? a.now : s.lastEgg };

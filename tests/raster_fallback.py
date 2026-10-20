@@ -25,6 +25,7 @@ JS = r'''async () => {
   ok('a floor raster gets a contact shadow', sofa.indexOf('artshade') >= 0 && sofa.indexOf('artimg') >= 0);
   ok('a tray thumbnail has no contact shadow', a.svgOf(a.sofa).indexOf('artshade') < 0 && a.svgOf(a.sofa).indexOf('artimg') >= 0);
   ok('a wall raster does not', a.svgOf(a.window, true).indexOf('artshade') < 0 && a.svgOf(a.window).indexOf('artimg') >= 0);
+  ok('a painted window carries a night plate', a.svgOf(a.window).indexOf('artnight') >= 0 && a.svgOf(a.sofa).indexOf('artnight') < 0);
   const img = new Image();
   img.style.cssText = 'position:absolute;left:0;top:0';
   const src = a.rasterUrl('lamp');
@@ -46,6 +47,7 @@ JS = r'''async () => {
   }
   ok('a painted pixel is a hit', a.artSolid(img, r.left + sx + 0.5, r.top + sy + 0.5) === true);
   ok('art=v1 forces the svg', a.setArtFromSearch('?art=v1') === false && a.svgOf(a.sofa).indexOf('<svg') === 0 && a.svgOf(a.sofa).indexOf('artshade') < 0);
+  ok('art=v1 window keeps the moon and stars', a.svgOf(a.window).indexOf('winNight') >= 0 && a.svgOf(a.window).indexOf('artnight') < 0);
   a.setArtFromSearch('');
   const markup = a.svgOf(a.sofa);
   ok('default can use the webp', markup.indexOf('artimg') >= 0 && markup.indexOf('sofa') >= 0);
@@ -211,6 +213,48 @@ def night_dim_notes(page):
     page.evaluate("() => window.__sky.setChoice('day')")
     return notes
 
+def window_night_notes(page):
+    """The painted bedroom window covers its sunny glass with the night plate."""
+    notes = []
+    def ok(name, cond):
+        notes.append(('PASS ' if cond else 'FAIL ') + name)
+    page.evaluate("""() => {
+      document.querySelector('#tabs button[data-room="bedroom"]')?.click();
+      window.__sky.freeze(null);
+      window.__sky.setChoice('day');
+    }""")
+    page.wait_for_timeout(400)
+    spot = page.evaluate("""() => {
+      const item = document.querySelector('#layer .item[data-kind="window"]');
+      const plate = item && item.querySelector('.artnight');
+      const img = item && item.querySelector('img.artimg');
+      if (!item || !plate || !img) return null;
+      const r = item.getBoundingClientRect();
+      return {
+        glassX: r.left + r.width * 0.40, glassY: r.top + r.height * 0.50,
+        curtainX: r.left + r.width * 0.08, curtainY: r.top + r.height * 0.40,
+        dayOp: getComputedStyle(plate).opacity,
+        vw: window.innerWidth, vh: window.innerHeight, w: r.width, h: r.height,
+        ready: img.complete && img.naturalWidth > 0,
+      };
+    }""")
+    on_screen = bool(spot and spot['ready'] and spot['w'] > 40 and 8 < spot['glassX'] < spot['vw'] - 8 and 8 < spot['glassY'] < spot['vh'] - 8)
+    ok('the bedroom window is on screen', on_screen)
+    if not on_screen:
+        return notes
+    day = _pixel(page.screenshot(), spot['glassX'], spot['glassY'])
+    curtain_day = _pixel(page.screenshot(), spot['curtainX'], spot['curtainY'])
+    page.evaluate("() => window.__sky.setChoice('night')")
+    page.wait_for_timeout(200)
+    night_op = page.evaluate("""() => getComputedStyle(document.querySelector('#layer .item[data-kind="window"] .artnight')).opacity""")
+    night = _pixel(page.screenshot(), spot['glassX'], spot['glassY'])
+    curtain_night = _pixel(page.screenshot(), spot['curtainX'], spot['curtainY'])
+    ok('day hides the night plate and night shows it', spot['dayOp'] == '0' and float(night_op) > 0.9)
+    ok('the painted glass goes from daylight to a night sky', sum(day) > sum(night) + 80 and night[2] > night[0] and night[0] < 90)
+    ok('the curtains stay put at night', max(abs(curtain_day[i] - curtain_night[i]) for i in range(3)) <= 18)
+    page.evaluate("() => window.__sky.setChoice('day')")
+    return notes
+
 def main():
     fails = 0
     notes = []
@@ -233,6 +277,7 @@ def main():
         page.goto(origin, wait_until='domcontentloaded')
         notes.extend(night_dim_notes(page))
         notes.extend(page.evaluate(TRAY))
+        notes.extend(window_night_notes(page))
         def hits(kind):
             return [u for u in art_hits if f'/{kind}.webp' in u.split('?')[0]]
         notes.append(('PASS ' if len(hits('ball')) == 0 else 'FAIL ') + 'a fresh house does not fetch the ball')

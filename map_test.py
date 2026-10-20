@@ -22,6 +22,25 @@ ME = lambda pg: pg.evaluate('__hood().myPresence()')
 async def map_btn_ok(pg):
     b = await pg.locator('#btnMap').bounding_box()
     return b is not None and await pg.locator('#btnMap').is_visible() and b['x'] + b['width'] > 1024 - 70 and b['y'] < 70
+async def wait_map_settled(pg):
+    """The zoom and the map-in animation move the world. Fit checks wait until it is still."""
+    await pg.evaluate("() => { window.__mapFit = null; }")
+    await pg.wait_for_function("""() => {
+      const w = document.getElementById('mapWorld');
+      if (!w) return false;
+      if (w.classList.contains('zoomIn')) return false;
+      const anims = w.getAnimations ? w.getAnimations() : [];
+      if (anims.some(a => a.playState === 'running')) return false;
+      const r = w.getBoundingClientRect();
+      if (r.width < 20 || r.height < 20) return false;
+      const prev = window.__mapFit;
+      const now = { l: r.left, t: r.top, w: r.width, h: r.height };
+      window.__mapFit = now;
+      if (!prev) return false;
+      return Math.abs(prev.l - now.l) < 0.6 && Math.abs(prev.t - now.t) < 0.6
+        && Math.abs(prev.w - now.w) < 0.6 && Math.abs(prev.h - now.h) < 0.6;
+    }""", timeout=5000)
+
 async def place_bar(pg, title):
     """Room tabs stay inside a house. Everywhere else the top bar names the place."""
     data = await pg.evaluate("""(title) => {
@@ -53,6 +72,7 @@ async def main():
         await P.locator('#btnMap').tap(); await P.wait_for_selector('body.view-map #mapWorld .mapSpot'); await P.wait_for_timeout(500)
         check('solo map: her house, the park, Rainbow Ranch and her face', await P.locator('.mapHouse').count() == 1 and await P.locator('[data-go="park"]').count() == 1 and await P.locator('[data-go="ranch"]').count() == 1 and await P.locator('.mapFace.mine').count() == 1 and 'My House' in await P.inner_text('#mapWorld'))
         check('map hides room tabs and shows the place name', await place_bar(P, 'My Map'))
+        await wait_map_settled(P)
         check('map fits the screen (no sideways street scrolling)', await P.evaluate("(() => { const s = document.getElementById('street'), w = document.getElementById('mapWorld').getBoundingClientRect(); return s.scrollWidth <= s.clientWidth + 1 && w.left >= -1 && w.right <= innerWidth + 1 && w.bottom <= innerHeight + 1; })()"))
         await P.screenshot(path=SHOT + '01-solo-map.png')
         await P.locator('[data-go="park"]').tap(); await P.wait_for_timeout(120)
@@ -110,7 +130,7 @@ async def main():
             }""")
         for w, h in ((1024, 768), (820, 1180), (1180, 820), (390, 844), (375, 667)):
             await P.set_viewport_size({'width': w, 'height': h})
-            await P.wait_for_timeout(700)
+            await wait_map_settled(P)
             bad = await pois_in_view(P)
             check(f'map POIs fit inside {w}x{h}', bad == [], json.dumps(bad))
         await P.set_viewport_size({'width': 1024, 'height': 768})

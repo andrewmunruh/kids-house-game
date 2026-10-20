@@ -98,7 +98,8 @@ export const svgOf = (d: ItemDef, shade = false) => {
   const url = rasterOn() ? rasterUrl(d.kind) : undefined;
   if (!url) return svgMarkup(d);
   const shadow = shade && !d.wall ? '<i class="artshade" aria-hidden="true"></i>' : '';
-  return `${shadow}<img class="packimg artimg" data-kind="${esc(d.kind)}" src="${esc(url)}" alt="${esc(d.name)}" draggable="false" />`;
+  const night = d.kind === 'window' ? '<i class="artnight" aria-hidden="true"></i>' : '';
+  return `${shadow}${night}<img class="packimg artimg" data-kind="${esc(d.kind)}" src="${esc(url)}" alt="${esc(d.name)}" draggable="false" />`;
 };
 
 let artFallbackOn = false;
@@ -113,6 +114,7 @@ export function installArtFallback(): void {
     if (!d) return;
     img.dataset.fell = '1';
     img.parentElement?.querySelector('.artshade')?.remove();
+    img.parentElement?.querySelector('.artnight')?.remove();
     const hold = document.createElement('div');
     hold.innerHTML = svgMarkup(d);
     const next = hold.firstElementChild;

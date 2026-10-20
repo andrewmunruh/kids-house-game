@@ -183,6 +183,28 @@ async def pet_targets(pg, tag, save, w, h):
 # and the catalog row has to stay 44px so the room does not shrink.
 TAP_SIZES = {(375, 667), (390, 844), (844, 390), (932, 430)}
 
+async def no_undo_gap(pg, tag):
+    """Undo is gone. Play/Decorate must sit against the next control, with no empty slot."""
+    gap = await pg.evaluate("""() => {
+      const undo = document.querySelector('#undoMount, #decorateUndoSlot, #menuUndoSlot, .undoBtn, .undoSlot, [aria-label="Undo"]');
+      const word = [...document.querySelectorAll('button')].some(b => (b.textContent || '').trim() === 'Undo');
+      const toggle = document.getElementById('modeToggle');
+      const parent = toggle.parentElement;
+      const tr = toggle.getBoundingClientRect();
+      const next = [...parent.children].find(el => el !== toggle && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 1);
+      const hole = next ? Math.round(Math.max(0, next.getBoundingClientRect().left - tr.right)) : 0;
+      const menu = document.getElementById('menuPop');
+      const wasHidden = menu.classList.contains('hidden');
+      menu.classList.remove('hidden');
+      const day = document.getElementById('menuDaySlot');
+      const after = day ? day.nextElementSibling : null;
+      const slot = !!(after && after.classList.contains('menuSlot'));
+      const afterH = after ? Math.round(after.getBoundingClientRect().height) : 0;
+      if (wasHidden) menu.classList.add('hidden');
+      return { undo: !!(undo || word), hole, slot, afterH, afterId: after ? (after.id || after.className) : '', parent: parent.id || parent.className };
+    }""")
+    check(f'{tag} undo is gone and leaves no gap', not gap['undo'] and gap['hole'] <= 12 and not gap['slot'], str(gap))
+
 async def mode_tap(pg, tag):
     box = await pg.evaluate("""() => {
       const t = document.getElementById('modeToggle');
@@ -249,6 +271,7 @@ async def phone_pass(b, w, h, save):
           f"shelf h {info['shelf']['h']:.0f}")
     check(f'{tag} room is not a sliver', info['stage']['h'] >= 140 and info['wrap']['h'] >= 160, f"stage {info['stage']['h']:.0f} wrap {info['wrap']['h']:.0f}")
     if (w, h) in TAP_SIZES: await mode_tap(pg, tag)
+    await no_undo_gap(pg, tag)
     char = await pg.evaluate("""() => {
       const c = document.querySelector('#layer .char').getBoundingClientRect();
       const s = document.querySelector('.stage').getBoundingClientRect();
@@ -839,6 +862,7 @@ async def ipad_pass(b, w, h):
     await pg.wait_for_selector('#stage .char')
     info = await layout(pg)
     check(f'{tag} is not a phone', not info['phone'] and not info['note'] and info['scrollW'] <= info['vw'] + 1)
+    await no_undo_gap(pg, tag)
     await tabs_fit(pg, f'{tag} solo')
     await pg.evaluate("() => { document.body.classList.add('mode-hood','own-house'); }")
     await pg.wait_for_timeout(40)

@@ -85,7 +85,7 @@ const mailCss = readFileSync(new URL('../src/mail.css', import.meta.url), 'utf8'
 const sceneryCss = readFileSync(new URL('../src/scenery.css', import.meta.url), 'utf8');
 const skyCss = readFileSync(new URL('../src/sky.css', import.meta.url), 'utf8');
 const vite = readFileSync(new URL('../vite.config.ts', import.meta.url), 'utf8');
-const jsFresh = ['juice.ts', 'nametags.ts', 'framekid.ts', 'roomfilter.ts', 'scenery.ts', 'sky.ts', 'sky-toggle.ts', 'decorate-undo.ts', 'undo-button.ts'].map(f => readFileSync(new URL('../src/' + f, import.meta.url), 'utf8')).join('\n');
+const jsFresh = ['juice.ts', 'nametags.ts', 'framekid.ts', 'roomfilter.ts', 'scenery.ts', 'sky.ts', 'sky-toggle.ts'].map(f => readFileSync(new URL('../src/' + f, import.meta.url), 'utf8')).join('\n');
 check('the surprise banner keeps the only hop keyframes', (css.match(/@keyframes\s+hop\b/g) || []).length === 1 && (css.match(/animation:\s*hop\b/g) || []).length === 1);
 const wiggleCss = juice + '\n' + mailCss;
 check('item wiggle animation is defined once', (wiggleCss.match(/\.item\.wiggle[^{]*\{/g) || []).length === 1 && (wiggleCss.match(/@keyframes\s+(?:itemWiggle|mailWiggle)\b/g) || []).length === 1);

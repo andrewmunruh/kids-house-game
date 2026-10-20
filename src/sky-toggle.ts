@@ -165,28 +165,14 @@ export function mountSkyToggle(host: HTMLElement): SkyHandle {
 
 /**
  * Day / Night / Auto lives in the Menu slot the declutter branch left open, so
- * the top bar stays Chat, Menu, and Map. Undo sits beside Play / Decorate.
- * A sideways phone hides that dock and the tool row is already full, so Undo
- * rides in the Menu there. Neither button is fixed over the stage.
+ * the top bar stays Chat, Menu, and Map. The button is in flow, not fixed over the stage.
  */
 export function dockSkyChrome() {
   const sky = document.getElementById('skyMount');
-  const undo = document.getElementById('undoMount');
   const day = document.getElementById('menuDaySlot');
-  const undoSlot = document.getElementById('decorateUndoSlot');
-  const menuUndo = document.getElementById('menuUndoSlot');
   if (sky && day && sky.parentElement !== day) day.appendChild(sky);
   if (day) day.hidden = false;
   if (sky) { sky.style.left = ''; sky.style.top = ''; }
-  if (!undo || !undoSlot) return;
-  const land = document.body.classList.contains('phone') && !document.body.classList.contains('phone-portrait');
-  const home = land && menuUndo ? menuUndo : undoSlot;
-  if (undo.parentElement !== home) home.appendChild(undo);
-  undo.style.left = '';
-  undo.style.top = '';
-  const decorate = !document.body.classList.contains('mode-play') && !document.body.classList.contains('view-street');
-  undoSlot.hidden = !decorate || home !== undoSlot;
-  if (menuUndo) menuUndo.hidden = !decorate || home !== menuUndo;
 }
 
 /** Tint, streetlamps, stars, and fireflies live on the map. renderMap replaces its HTML, so put the layers back. */
