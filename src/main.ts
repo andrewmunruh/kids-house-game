@@ -58,6 +58,10 @@ let VIEW_W = 1000; // visible window; narrower in portrait so the room can fill 
 const maxCam = () => Math.max(0, W - VIEW_W);
 const WALL_BOTTOM = 375; // wall items (manifest `wall: true`) snap so they sit on the wall
 const snapY = (def: ItemDef, y: number) => def.wall ? Math.min(y, WALL_BOTTOM) : y;
+// The stage is a 600px border-box with a 6px border, so the bottom 12px of the world is clipped.
+// Floor pieces draw 12px higher. The stored y is left alone, so old saves stay valid.
+const FLOOR_DRAW = 12;
+const drawY = (def: ItemDef, y: number) => def.wall ? y : Math.min(y, H - FLOOR_DRAW);
 const CHAR_W = 120, CHAR_H = 192;
 const ROOMS: { id: RoomId; name: string; color: string }[] = [
   { id: 'living', name: 'Living Room', color: '#ff8fab' },
@@ -650,7 +654,10 @@ function renderRoomBg(s: GameState) {
 }
 function renderMinimap(s: GameState) {
   const room = s.rooms[s.currentRoom];
-  const dots = room.items.filter(i => ITEM_MAP[i.kind]).map(i => `<i style="left:${i.x / W * 100}%;top:${(i.y - hOf(ITEM_MAP[i.kind]) * i.scale / 2) / H * 100}%"></i>`).join('');
+  const dots = room.items.filter(i => ITEM_MAP[i.kind]).map(i => {
+    const def = ITEM_MAP[i.kind];
+    return `<i style="left:${i.x / W * 100}%;top:${(drawY(def, i.y) - hOf(def) * i.scale / 2) / H * 100}%"></i>`;
+  }).join('');
   const me = s.characters.filter(c => c.room === s.currentRoom).map(c => `<b style="left:${c.x / W * 100}%;top:${(c.y - 90) / H * 100}%;background:${c.shirt}"></b>`).join('');
   $('mmDots').innerHTML = dots + me;
 }
@@ -700,7 +707,7 @@ function renderItems(s: GameState) {
     el.dataset.kind = it.kind;
     el.classList.toggle('is-light', isLightKind(it.kind, !!def.light));
     const box = placedBox(def, it.scale);
-    placeEl(el, it.x, it.y, box.w, box.h);
+    placeEl(el, it.x, drawY(def, it.y), box.w, box.h);
     const iz = 1000 + it.z;
     el.style.zIndex = String(iz);
     el.style.setProperty('--iz', String(iz));
@@ -780,20 +787,33 @@ stage.addEventListener('pointerdown', e => {
   window.addEventListener('pointercancel', end, true);
 }, true);
 
-/** Indoor dressing, and the outdoor paint plus the back door when she is home. */
+/** Furniture can stack without limit. The door stays above every piece and under a kid, unless a piece was brought even further forward. */
+function liftDoorOverFurniture(door: HTMLElement) {
+  let maxZ = 0;
+  layer.querySelectorAll<HTMLElement>('.item').forEach(el => {
+    const z = parseInt(el.style.zIndex || '0', 10) || 0;
+    const light = el.classList.contains('is-light') ? 1 : 0;
+    if (z + light > maxZ) maxZ = z + light;
+  });
+  door.style.zIndex = String(Math.max(4900, maxZ + 2));
+}
+/** Indoor dressing, and the outdoor paint plus the back door when she is home.
+    The door lives in the item layer (scenery is a lower stacking context) so a sofa or rug cannot cover it. */
 function paintScenery(s: GameState) {
   const room = s.rooms[s.currentRoom];
   syncScenery($('scenery'), s.currentRoom, room.items);
-  const root = $('scenery');
+  $('scenery').querySelectorAll('.yardDoor').forEach(n => n.remove());
   const go = s.currentRoom === 'living' ? 'backyard' : s.currentRoom === 'backyard' ? 'living' : '';
-  const have = root.querySelector<HTMLElement>('.yardDoor');
-  if (!go) root.querySelectorAll('.yardDoor').forEach(n => n.remove());
+  const have = layer.querySelector<HTMLElement>('.yardDoor');
+  if (!go) layer.querySelectorAll('.yardDoor').forEach(n => n.remove());
   else if (!have || have.dataset.yardGo !== go) {
-    root.querySelectorAll('.yardDoor').forEach(n => n.remove());
-    root.insertAdjacentHTML('beforeend', yardDoorMarkup(go === 'backyard' ? 'living' : 'yard'));
-    const door = root.querySelector<HTMLElement>('.yardDoor');
+    layer.querySelectorAll('.yardDoor').forEach(n => n.remove());
+    layer.insertAdjacentHTML('beforeend', yardDoorMarkup(go === 'backyard' ? 'living' : 'yard'));
+    const door = layer.querySelector<HTMLElement>('.yardDoor');
     if (door) bindYardDoor(door);
   }
+  const door = layer.querySelector<HTMLElement>('.yardDoor');
+  if (door) liftDoorOverFurniture(door);
   stage.classList.toggle('room-yard', s.currentRoom === 'backyard');
   syncSwingPose();
   if (!doorPress) placeYardHints();
