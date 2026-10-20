@@ -2,7 +2,7 @@
 # Each item is placed in a room, everything else is hidden, and the item is
 # screenshotted twice: ?art=v1 (SVG, shadow ellipse hidden) and the raster. The
 # alpha>0 box of each (out to the faintest visible pixel) is compared.
-# usage: python tests/art_ingame_bounds.py <base url> <room> [kind ...]  [TOL=2.0 (%), ALPHA=0]
+# usage: python tests/art_ingame_bounds.py <base url> <room> [kind ...]  [TOL=2.0, WARN_TOL=3.0 (%), ALPHA=0, SKY=day|night]
 #   e.g.  npx vite --port 5191 --strictPort &  python tests/art_ingame_bounds.py http://localhost:5191/kids-house-game/ nursery
 # Prints dw/dh (% raster vs SVG), feet (bottom-edge offset) and cx (centre offset), both in % of item width.
 import asyncio, io, json, os, sys
@@ -20,14 +20,25 @@ HIDE = ("html,body,#app,.stage,#stage,#stage *{background:transparent!important}
         ".item.qa-show,.item.qa-show *{visibility:visible!important} .item.qa-show .artshade{visibility:hidden!important} "
         ".item.qa-show svg ellipse[fill=\"#000\"]{display:none!important} "
         ".item.qa-show .inner{filter:none!important;animation:none!important;transform:none!important}")
-TOL = float(os.environ.get('TOL', '2.0'))
+TOL = float(os.environ.get('TOL', '2.0'))       # pass within ±TOL
+WARN_TOL = float(os.environ.get('WARN_TOL', '3.0'))  # WARN above TOL up to ±WARN_TOL, FAIL beyond
 TH = int(os.environ.get('ALPHA', '0'))
+# The room's sky follows the browser clock (src/sky.ts), and night/golden filters change what
+# is drawn, so the clock and timezone are pinned: SKY=day (default, 12:00) or SKY=night (23:00),
+# both in UTC, whatever the host clock or TZ says.
+SKY = os.environ.get('SKY', 'day')
+SKY_TIME = {'day': '2026-06-15T12:00:00Z', 'night': '2026-06-15T23:00:00Z'}[SKY]
+# At night the hidden neighbours' night-ink filter leaks faint alpha into each clip, so it is
+# switched off for every item and pet; lights (.is-light) glow over their whole clip on both
+# sides, so at night they are listed as not measurable instead of compared.
+NIGHT_HIDE = " .item .inner,.pet .inner{filter:none!important}" if SKY == 'night' else ""
 
 
 async def boxes(b, base, room, layout):
-    ctx = await b.new_context(viewport={'width': 1180, 'height': 820}, device_scale_factor=2)
+    ctx = await b.new_context(viewport={'width': 1180, 'height': 820}, device_scale_factor=2, timezone_id='UTC')
     await ctx.add_init_script("localStorage.setItem('cozy-whatsnew','999');")
     pg = await ctx.new_page()
+    await pg.clock.set_fixed_time(SKY_TIME)
     await pg.goto(base, wait_until='load'); await pg.wait_for_selector('#stage'); await pg.wait_for_timeout(600)
     for sel in ['#phoneOk', '.whatsNew .wnGo']:
         if await pg.locator(sel).count() and await pg.locator(sel).first.is_visible():
@@ -45,16 +56,17 @@ async def boxes(b, base, room, layout):
       const t=await (await fetch(im.src)).text();
       const c=t.replace(/<ellipse[^>]*fill="#000"[^>]*\/?>(<\/ellipse>)?/g,'');
       await new Promise(r=>{im.onload=r;im.onerror=r;im.src=URL.createObjectURL(new Blob([c],{type:'image/svg+xml'}));});}}""")
-    await pg.add_style_tag(content=HIDE)
+    await pg.add_style_tag(content=HIDE + NIGHT_HIDE)
     out = {}
     for k, x, y, z in layout:
         await pg.evaluate(f"__cam.set({x}-500)"); await pg.wait_for_timeout(250)
         el = pg.locator(f'.item[data-id="qa-{k}"]')
         await el.evaluate("e=>e.classList.add('qa-show')"); await pg.wait_for_timeout(100)
+        light = await el.evaluate("e=>e.classList.contains('is-light')")
         bx = await el.bounding_box()
         png = await pg.screenshot(clip={'x': bx['x'] - 20, 'y': bx['y'] - 40, 'width': bx['width'] + 40, 'height': bx['height'] + 60}, omit_background=True)
         bb = Image.open(io.BytesIO(png)).convert('RGBA').split()[3].point(lambda v: 255 if v > TH else 0).getbbox()
-        out[k] = dict(l=bb[0] / 2, r=bb[2] / 2, t=bb[1] / 2, b=bb[3] / 2, w=bx['width'])
+        out[k] = dict(l=bb[0] / 2, r=bb[2] / 2, t=bb[1] / 2, b=bb[3] / 2, w=bx['width'], light=light)
         await el.evaluate("e=>e.classList.remove('qa-show')")
     await ctx.close()
     return out
@@ -73,20 +85,28 @@ async def main():
         svg = await boxes(b, base + '?art=v1', room, layout)
         ai = await boxes(b, base, room, layout)
         await b.close()
-    fails, rows = 0, []
+    fails, warns, rows, skipped = 0, 0, [], []
     for k, *_ in layout:
         s, a = svg[k], ai[k]
+        if SKY == 'night' and (s['light'] or a['light']):
+            skipped.append(k)
+            rows.append(dict(kind=k, status='SKIP', reason='light glow at night'))
+            print(f"SKIP {k:18} light: its glow fills the clip at night (not measurable)", flush=True)
+            continue
         dw = ((a['r'] - a['l']) / (s['r'] - s['l']) - 1) * 100
         dh = ((a['b'] - a['t']) / (s['b'] - s['t']) - 1) * 100
         feet = (a['b'] - s['b']) / s['w'] * 100
         cx = ((a['l'] + a['r']) / 2 - (s['l'] + s['r']) / 2) / s['w'] * 100
-        ok = round(abs(dw), 1) <= TOL and round(abs(dh), 1) <= TOL   # exactly ±TOL passes
-        fails += not ok
-        rows.append(dict(kind=k, dw=round(dw, 1), dh=round(dh, 1), feet=round(feet, 1), cx=round(cx, 1), ok=ok))
-        print(f"{'OK' if ok else 'FAIL'} {k:18} dw={dw:+5.1f}% dh={dh:+5.1f}% feet={feet:+4.1f}% cx={cx:+4.1f}%", flush=True)
+        worst = max(round(abs(dw), 1), round(abs(dh), 1))   # exactly ±TOL passes, exactly ±WARN_TOL warns
+        status = 'OK' if worst <= TOL else 'WARN' if worst <= WARN_TOL else 'FAIL'
+        fails += status == 'FAIL'; warns += status == 'WARN'
+        rows.append(dict(kind=k, dw=round(dw, 1), dh=round(dh, 1), feet=round(feet, 1), cx=round(cx, 1), ok=status == 'OK', status=status))
+        print(f"{status} {k:18} dw={dw:+5.1f}% dh={dh:+5.1f}% feet={feet:+4.1f}% cx={cx:+4.1f}%", flush=True)
     if os.environ.get('JSON'):
         json.dump(rows, open(os.environ['JSON'], 'w'), indent=1)
-    print(f"{len(rows) - fails}/{len(rows)} within ±{TOL}% at alpha>{TH}")
+    n = len(rows) - len(skipped)
+    print(f"pass {n - fails - warns}, warn {warns}, fail {fails} of {n} measured (pass ±{TOL}%, warn ±{WARN_TOL}%) at alpha>{TH} sky={SKY}"
+          + (f"; not measurable at night (lights): {len(skipped)} {' '.join(skipped)}" if skipped else ''))
     return 1 if fails else 0
 
 if __name__ == '__main__':
