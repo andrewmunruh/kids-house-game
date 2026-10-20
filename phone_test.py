@@ -825,10 +825,19 @@ async def tap_yard_door(pg, tag):
           box and box['doorIn'] and box['artIn'] and box['hintIn'] and box['clear'] and box['onDoor'] and box['fs'] >= 13 and box['w'] >= 44,
           str({k: box[k] for k in box if k not in ('cx', 'cy')} if box else None))
     if not box: return
-    await pg.mouse.click(box['cx'], box['cy'])
+    # Touch, not a mouse click. Portrait phones drop the click if the door moves mid-gesture.
+    await pg.locator('.yardHintLabel').tap()
     await pg.wait_for_timeout(350)
     room = await pg.evaluate("() => __store.get().currentRoom")
-    check(f'{tag} a real tap on the back door opens the yard', room == 'backyard', str(room))
+    check(f'{tag} a real touch on the door label opens the yard', room == 'backyard', str(room))
+    await pg.locator('.yardHintLabel').tap()
+    await pg.wait_for_timeout(350)
+    room = await pg.evaluate("() => __store.get().currentRoom")
+    check(f'{tag} a real touch on Back inside returns', room == 'living', str(room))
+    await pg.locator('.yardDoor').tap()
+    await pg.wait_for_timeout(350)
+    room = await pg.evaluate("() => __store.get().currentRoom")
+    check(f'{tag} a real touch on the back door opens the yard', room == 'backyard', str(room))
     back = await pg.evaluate(yard_door_js())
     check(f'{tag} Back inside is fully on stage',
           back and back['label'] == 'Back inside' and back['hintIn'] and back['doorIn'] and back['fs'] >= 13,
