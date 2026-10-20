@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 112" width="126" height="100.8"><!-- Cozy House welcome-home pack: Fire Pit. Stone ring, logs, a gentle flame. -->
+  <ellipse cx="70" cy="106" rx="58" ry="3.4" fill="#5a3d5c" opacity=".08"/>
+  <ellipse cx="70" cy="107.2" rx="36" ry="1.55" fill="#5a3d5c" opacity=".12"/>
+  <ellipse cx="34" cy="68" rx="14" ry="10" fill="#d9cfc3" stroke="#5a3d5c" stroke-width="3.2"/>
+  <ellipse cx="42" cy="69" rx="6" ry="7.5" fill="#a89b8e"/>
+  <ellipse cx="62" cy="60" rx="15" ry="10" fill="#e7ddd2" stroke="#5a3d5c" stroke-width="3.2"/>
+  <ellipse cx="70" cy="61" rx="6.5" ry="7.5" fill="#b7aa9c"/>
+  <ellipse cx="90" cy="60" rx="15" ry="10" fill="#d4c8ba" stroke="#5a3d5c" stroke-width="3.2"/>
+  <ellipse cx="98" cy="61" rx="6.5" ry="7.5" fill="#9a8d80"/>
+  <ellipse cx="114" cy="70" rx="13" ry="10" fill="#c9bdb0" stroke="#5a3d5c" stroke-width="3.2"/>
+  <ellipse cx="120" cy="71" rx="6" ry="7" fill="#8f8378"/>
+  <ellipse cx="70" cy="80" rx="42" ry="16" fill="#4a3f38" stroke="#5a3d5c" stroke-width="3"/>
+  <ellipse cx="66" cy="78" rx="26" ry="9" fill="#2c2622"/>
+  <g transform="rotate(-16 70 82)">
+    <rect x="32" y="74" width="76" height="16" rx="8" fill="#d4925a" stroke="#5a3d5c" stroke-width="3.2"/>
+    <rect x="78" y="74" width="30" height="16" rx="8" fill="#a0643c"/>
+    <ellipse cx="38" cy="82" rx="8" ry="8" fill="#f3d5b0" stroke="#5a3d5c" stroke-width="2.6"/>
+    <circle cx="38" cy="82" r="3" fill="#8a5a32"/>
+    <path d="M50 78 h24" fill="none" stroke="#8a5a32" stroke-width="1.3" stroke-linecap="round" opacity=".35"/>
+  </g>
+  <g transform="rotate(14 72 84)">
+    <rect x="40" y="76" width="64" height="14" rx="7" fill="#e0a36a" stroke="#5a3d5c" stroke-width="3.2"/>
+    <rect x="80" y="76" width="24" height="14" rx="7" fill="#b07d54"/>
+    <ellipse cx="46" cy="83" rx="7" ry="7" fill="#f6e0c4" stroke="#5a3d5c" stroke-width="2.4"/>
+    <circle cx="46" cy="83" r="2.5" fill="#a0643c"/>
+  </g>
+  <path d="M62 84 C56 74 60 66 66 70 C62 76 64 80 68 84 Z" fill="#ffb347" stroke="#5a3d5c" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M70 86 C60 72 62 56 70 46 C78 56 80 72 70 86 Z" fill="#ff9f43" stroke="#5a3d5c" stroke-width="3.2" stroke-linejoin="round"/>
+  <path d="M70 82 C65 72 66 62 70 56 C74 62 75 72 70 82 Z" fill="#ffd166"/>
+  <path d="M70 76 C68 70 68.5 66 70 62 C71.5 66 72 70 70 76 Z" fill="#fff3c4"/>
+  <ellipse cx="18" cy="84" rx="13" ry="11" fill="#d9cfc3" stroke="#5a3d5c" stroke-width="3.2"/>
+  <ellipse cx="26" cy="86" rx="6" ry="8" fill="#a89b8e"/>
+  <ellipse cx="122" cy="84" rx="13" ry="11" fill="#c9bdb0" stroke="#5a3d5c" stroke-width="3.2"/>
+  <ellipse cx="128" cy="86" rx="5.5" ry="8" fill="#8f8378"/>
+  <ellipse cx="40" cy="98" rx="16" ry="11" fill="#e7ddd2" stroke="#5a3d5c" stroke-width="3.2"/>
+  <ellipse cx="50" cy="100" rx="7" ry="8" fill="#b7aa9c"/>
+  <ellipse cx="70" cy="104" rx="17" ry="8" fill="#d4c8ba" stroke="#5a3d5c" stroke-width="3.2"/>
+  <ellipse cx="80" cy="105" rx="7" ry="6" fill="#9a8d80"/>
+  <ellipse cx="102" cy="98" rx="16" ry="11" fill="#cfc4b6" stroke="#5a3d5c" stroke-width="3.2"/>
+  <ellipse cx="112" cy="100" rx="7" ry="8" fill="#8f8378"/>
+  <path d="M24 64 q8 -5 14 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".75"/>
+  <path d="M52 56 q8 -4 14 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+  <path d="M28 94 q8 -4 12 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+  <path d="M58 100 q8 -3 12 1" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".55"/>
+  <path d="M30 70 q2 4 0 8 M96 62 q2 3 0 7 M46 100 q3 2 1 6" fill="none" stroke="#5a3d5c" stroke-width="1.1" stroke-linecap="round" opacity=".22"/>
+</svg>
