@@ -42,3 +42,8 @@
 - 2026-10-20 CDT  Kitchen pack items (cursor/art-rollout-themed): 32 new paintings in assets/art/kitchen/pack~*.webp, all FO/fit within ±2% in game and stretch within 18%. Prompts used the item's own SVG png as a shape reference; items first painted too narrow and widened past 18% (fridge, sink, stool, high-chair, hutch, pantry, pendant, rug) were repainted at true proportions.
   - pet-bowl and chick: both are static, placeable catalog items (plain SVGs in assets/items/manifest.json, kitchen room; nothing in src animates them or treats them as live pets/ranch creatures). Decision: PAINTED under the same rules so the kitchen converts whole. pet-bowl FO=0 x0.975, chick CPX=6 FO=1 x0.975 (in game dw/dh 0.0).
   - Sub-pixel x/y refits (work/shrinkx.py, lossless, pinholes ≤40px filled): kettle x0.975, bananas y0.98, milk-bottle x1.02, pet-bowl x0.975, chick x0.975. Lint WARN (advisory) on bananas, milk-bottle.
+- 2026-10-20 03:xx CDT  App Builder NO-GO fixes on 45a332f (art-full-45a3):
+  - bud-vase: restored from ee655bc (`git checkout ee655bc --`). Byte-identical already (blob db0638d); no commit after ee655bc changed it (only merges b22d2c5/6b44c24/c074ff8 carried it unchanged). In game dw 0.0 / dh -1.4, no refit.
+  - milk-bottle rerolled from SVG (blue cap, blue label band, pink heart), body tinted cool white so the cream key keeps it; CPX=7 (ring 6 px), FO=1, x1.02; stretch 1.09; in game dw 0.0 / dh +1.5.
+  - bananas, chick: CPX 6 -> 7 (ring 5 -> 6 px), same fit refits; in game within ±2%.
+  - Faces: not changed in the branch; decision sheet work/faces/face-decision-sheet.png (variants for toaster, happy-fridge, cocoa-mug in work/faces only).
