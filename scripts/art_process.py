@@ -298,7 +298,7 @@ def build(it, raw, group):
     adj = FIT_ADJUST.get(it['kind'])
     if adj:
         cx, nw, nh = (x0 + x1) / 2, (x1 - x0) / (1 + adj[0] / 100), (y1 - y0) / (1 + adj[1] / 100)
-        x0, x1, y0 = max(0, round(cx - nw / 2)), min(W, round(cx + nw / 2)), max(0, round(y1 - nh))
+        x0 = max(0, round(cx - nw / 2)); x1, y0 = min(W, x0 + round(nw)), max(0, round(y1 - nh))  # odd widths allowed: 1px steps
     bw, bh = x1 - x0, y1 - y0
     scale = bw / (x1s - x0s)
     stretch = (bw / bh) / ((x1s - x0s) / (y1s - y0s))

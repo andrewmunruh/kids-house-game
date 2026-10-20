@@ -1,8 +1,4 @@
 {
- "pack:desk-mic": [
-  -3.6,
-  0.0
- ],
  "pack:dino-plush": [
   2.2,
   0.0
@@ -10,10 +6,6 @@
  "pack:keyboard": [
   0.0,
   -2.2
- ],
- "pack:phone-stand": [
-  -3.6,
-  0.0
  ],
  "pack:unicorn-plush": [
   6.6,
@@ -82,5 +74,21 @@
  "ranch-bouquet": [
   -2.7,
   0.0
+ ],
+ "pack:pothos-plant": [
+  7.1,
+  -1.0
+ ],
+ "pack:desk-mic": [
+  -4.4,
+  0
+ ],
+ "pack:phone-stand": [
+  -4.4,
+  0
+ ],
+ "plant": [
+  18.1,
+  -1.0
  ]
 }
