@@ -3,6 +3,8 @@
 # The WebP is round(3×w) by round(3×h), the item box's own aspect, so object-fit:
 # contain paints the bitmap 1:1. Alpha fractions of the file are the on-screen
 # fractions. Non-square items and viewBoxes that do not start at 0 0 are handled.
+# The SVG box is measured by rendering it (shadow ellipses dropped), so parts
+# drawn through a transform are measured where they land.
 # usage: art_bounds.py <items.json> [root] [kind ...]  (items from dump-art-items.mjs)
 import base64
 import json
@@ -203,30 +205,40 @@ JS = r'''async ({ b64, svg, vb }) => {
       if (area > creamBlob) creamBlob = area;
     }
   }
+  // The SVG's visible art box: render the drawing (contact-shadow ellipses
+  // dropped) onto a canvas the size of the WebP and take its alpha bounds.
+  // Rendering, not getBBox, so transformed parts (translate/scale/rotate,
+  // nested groups) are measured where they are drawn, and offset viewBoxes
+  // map 1:1 onto the bitmap.
   const host = document.createElement('div');
   host.innerHTML = `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
   const el = host.firstElementChild;
-  el.setAttribute('width', '1000');
-  el.setAttribute('height', '1000');
-  document.body.appendChild(el);
-  let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
-  for (const n of el.querySelectorAll('*')) {
+  for (const n of [...el.querySelectorAll('ellipse')]) {
     const fill = (n.getAttribute('fill') || '').toLowerCase();
     const op = parseFloat(n.getAttribute('opacity') || '1');
-    if (n.localName === 'ellipse' && fill === '#000' && op < 0.5) continue;
-    const bb = n.getBBox();
-    if (!(bb.width || bb.height)) continue;
-    const sw = parseFloat(n.getAttribute('stroke-width') || '0');
-    const pad = sw / 2;
-    minX = Math.min(minX, bb.x - pad);
-    minY = Math.min(minY, bb.y - pad);
-    maxX = Math.max(maxX, bb.x + bb.width + pad);
-    maxY = Math.max(maxY, bb.y + bb.height + pad);
+    if (fill === '#000' && op < 0.5) n.remove();
+  }
+  el.setAttribute('width', String(c.width));
+  el.setAttribute('height', String(c.height));
+  el.setAttribute('preserveAspectRatio', 'none');
+  const sImg = new Image();
+  sImg.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(el.outerHTML);
+  await sImg.decode();
+  const sc = document.createElement('canvas');
+  sc.width = c.width; sc.height = c.height;
+  const sctx = sc.getContext('2d');
+  sctx.drawImage(sImg, 0, 0, c.width, c.height);
+  const sd = sctx.getImageData(0, 0, c.width, c.height).data;
+  let sl = c.width, st = c.height, sr = -1, sb = -1;
+  for (let i = 3, p = 0; i < sd.length; i += 4, p++) {
+    if (sd[i] > 12) {
+      const x = p % c.width, y = (p / c.width) | 0;
+      if (x < sl) sl = x; if (x > sr) sr = x; if (y < st) st = y; if (y > sb) sb = y;
+    }
   }
   const box = el.viewBox.baseVal;
-  el.remove();
-  minX = Math.max(box.x, minX) - box.x; minY = Math.max(box.y, minY) - box.y;
-  maxX = Math.min(box.x + box.width, maxX) - box.x; maxY = Math.min(box.y + box.height, maxY) - box.y;
+  const kx = box.width / c.width, ky = box.height / c.height;
+  const minX = sl * kx, minY = st * ky, maxX = (sr + 1) * kx, maxY = (sb + 1) * ky;
   return {
     nw: img.naturalWidth, nh: img.naturalHeight, clear, islands, holes, cream, creamBlob,
     ax: l, ay: t, aw: r - l + 1, ah: b - t + 1,
