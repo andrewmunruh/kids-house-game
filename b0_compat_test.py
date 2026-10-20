@@ -318,7 +318,8 @@ async def main():
               const r = __hood().view(id).rooms;
               const other = {};
               for (const k of ['living','bedroom','kitchen','salon','nursery']) other[k] = JSON.stringify(r[k]);
-              return { other, yard: ((r.backyard || {}).items || []).length };
+              const yard = (r.backyard || {}).items || [];
+              return { other, yardIds: yard.map(i => i.id), yardItems: Object.fromEntries(yard.map(i => [i.id, JSON.stringify(i)])) };
             }""", b1house)
             await B1.evaluate("""(id) => {
               const h = __hood();
@@ -330,12 +331,17 @@ async def main():
               const r = __hood().view(id).rooms;
               const other = {};
               for (const k of ['living','bedroom','kitchen','salon','nursery']) other[k] = JSON.stringify(r[k]);
-              return { ids: (r.backyard.items || []).map(i => i.id), other };
+              const yard = (r.backyard || {}).items || [];
+              return { ids: yard.map(i => i.id), items: Object.fromEntries(yard.map(i => [i.id, JSON.stringify(i)])), other };
             }""", b1house)
+            # The backyard ships with starter pieces (bench, tulip bed). Record them first; only the two new ids may appear.
+            starter = (rooms_before or {}).get('yardIds') or []
+            added = sorted(set(placed['ids']) - set(starter)) if placed else None
+            starter_kept = bool(placed) and all(placed['items'].get(i) == rooms_before['yardItems'][i] for i in starter)
             check('the new client places a swing and a tulip bed without changing the other rooms',
-                  rooms_before and rooms_before.get('yard') == 0 and placed
-                  and sorted(placed['ids']) == ['tulip-1', 'yard-swing-1'] and placed['other'] == rooms_before['other'],
-                  str(None if not placed else placed['ids']))
+                  rooms_before and placed and added == ['tulip-1', 'yard-swing-1']
+                  and len(placed['ids']) == len(starter) + 2 and starter_kept and placed['other'] == rooms_before['other'],
+                  f'starter {starter} added {added} starter_kept {starter_kept}')
             await B0.click(f'#mapWorld .mapHouse[data-go="house:{b1house}"]')
             await B1.click('#mapWorld .mapHouse.mine')
             await B0.wait_for_function("() => !document.body.classList.contains('view-map') && !!document.querySelector('#layer')", timeout=8000)

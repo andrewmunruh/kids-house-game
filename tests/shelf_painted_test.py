@@ -8,7 +8,7 @@ from playwright.async_api import async_playwright
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://127.0.0.1:5173/kids-house-game/'
 ROOT = Path(__file__).resolve().parents[1]
 ROOMS = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard']
-SIZES = [(820, 1180), (390, 844)]
+SIZES = [(820, 1180), (390, 844), (844, 390)]
 PAINTED = set()
 for f in (ROOT / 'assets' / 'art').glob('*/*.webp'):
     kind = f.stem.replace('~', ':')
@@ -116,8 +116,13 @@ WATCH = r"""() => {
 }"""
 
 async def slow_art(route):
+    # Delayed requests can still be sleeping when the context closes; continuing a
+    # route on a closed page raises. Swallow only that, so teardown cannot crash the run.
     await asyncio.sleep(0.7)
-    await route.continue_()
+    try:
+        await route.continue_()
+    except Exception:
+        pass
 
 async def load_race(browser, w, h):
     """Paintings arrive slowly; the kid scrolls in the first second. Scroll must hold, cards never blank."""
@@ -129,9 +134,12 @@ async def load_race(browser, w, h):
     await page.add_init_script(f'({WATCH})()')
     await page.goto(URL, wait_until='domcontentloaded')
     await page.wait_for_selector('#stage')
+    # With slow art the app script can still be starting; wait for the store and the mode button.
+    await page.wait_for_function("() => !!window.__store && !!document.querySelector('#modeDecorate')", timeout=15000)
     await dismiss(page)
     await page.click('#modeDecorate', force=True)
     await page.evaluate("() => __store.dispatch({type:'room/switch', room:'bedroom'})")
+    await page.wait_for_selector('#cats button[data-cat="pack:cottage"]', timeout=15000)
     await page.locator('#cats button[data-cat="pack:cottage"]').click()
     await page.wait_for_timeout(60)
     target = await page.evaluate("""() => {
@@ -186,6 +194,7 @@ async def load_race(browser, w, h):
     bad = [f"f{i}:{r['k']}" for i, fr in enumerate(back) for r in fr if r['svg'] or not r['ok']]
     check(f'{tag} cached: switching back shows paintings on the first frame, no SVG frame', len(back[0]) > 5 and not bad, f"cards {len(back[0])} bad {bad[:6]}")
     check(f'{tag} race: no page errors', not errors, '; '.join(errors[:3]))
+    await ctx.unroute_all(behavior='ignoreErrors')
     await ctx.close()
 
 async def main():
@@ -205,7 +214,8 @@ async def main():
               return img && img.complete && img.naturalWidth > 0;
             }""")
             phone = min(w, h) < 500
-            want = (76, 76, 96) if phone else (96, 96, 112)
+            # Landscape phone (844x390) uses the compact 44px tray cards in a 48px shelf.
+            want = (44, 44, 48) if (phone and w > h) else (76, 76, 96) if phone else (96, 96, 112)
             tag = f'{w}x{h}'
             for room in ROOMS:
                 await page.evaluate("(room) => __store.dispatch({type:'room/switch', room})", room)
