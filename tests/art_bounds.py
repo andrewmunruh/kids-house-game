@@ -6,7 +6,7 @@
 # The SVG box is measured by rendering it (shadow ellipses dropped), so parts
 # drawn through a transform are measured where they land.
 # usage: art_bounds.py <items.json> [root] [kind ...]  (items from dump-art-items.mjs)
-import base64
+import base64, os
 import json
 import sys
 from pathlib import Path
@@ -15,6 +15,7 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else Path(__file__).resolve().parents[1]
 TOL = 0.03
+FADE = int(os.environ.get('ART_FADE', '3'))  # px at 3x; 0 for art made before the plum contour
 LIMIT = 60 * 1024
 SCALE = 3
 
@@ -34,7 +35,7 @@ JS = r'''async ({ b64, svg, vb }) => {
   const structural = new Uint8Array(c.width * c.height);
   for (let i = 0, p = 0; i < data.length; i += 4, p++) {
     const pr = data[i], pg = data[i + 1], pb = data[i + 2], pa = data[i + 3];
-    if (pa > 12) {
+    if (pa > 0) {
       solid[p] = 1;
       const x = p % c.width, y = (p / c.width) | 0;
       if (x < l) l = x;
@@ -49,7 +50,9 @@ JS = r'''async ({ b64, svg, vb }) => {
       const warm = pr + 8 >= pg && pg + 6 >= pb;
       // Near-cream: a light warm fringe, brighter than a wood highlight.
       if (!plum && pr + pg + pb > 630 && ch < 42 && warm && !pink) pale[p] = 1;
-      else if (!plum) structural[p] = 1;
+      // An opaque plum pixel is the full contour band, part of the frame; only the
+      // faint outer fade of the band stays see-through for the cream-edge flood.
+      else if (!plum || pa >= 200) structural[p] = 1;
     } else clear++;
   }
   const seen = new Uint8Array(c.width * c.height);
@@ -285,8 +288,11 @@ def main():
                 notes.append(f'{size}B rug not under 60000')
             sw, sh = m['sw'] / m['vx'], m['sh'] / m['vy']
             sx, sy = m['sx'] / m['vx'], m['sy'] / m['vy']
-            rw, rh = m['aw'] / m['nw'], m['ah'] / m['nh']
-            rx, ry = m['ax'] / m['nw'], m['ay'] / m['nh']
+            # The raster box runs out to alpha > 0. The contour fade straddles the SVG edge
+            # (scripts/art_process.py FADE_OUT): its outer FADE px lie past the SVG box and
+            # its half-alpha line sits on it, so that much is taken off each side.
+            rw, rh = (m['aw'] - 2 * FADE) / m['nw'], (m['ah'] - 2 * FADE) / m['nh']
+            rx, ry = (m['ax'] + FADE) / m['nw'], (m['ay'] + FADE) / m['nh']
             # Feet / base: bottom center of the drawn rect. Wall pieces use that same point.
             dax = abs((rx + rw / 2) - (sx + sw / 2)) / sw
             day = abs((ry + rh) - (sy + sh)) / sh
