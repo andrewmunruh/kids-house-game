@@ -47,3 +47,4 @@
   - milk-bottle rerolled from SVG (blue cap, blue label band, pink heart), body tinted cool white so the cream key keeps it; CPX=7 (ring 6 px), FO=1, x1.02; stretch 1.09; in game dw 0.0 / dh +1.5.
   - bananas, chick: CPX 6 -> 7 (ring 5 -> 6 px), same fit refits; in game within ±2%.
   - Faces: not changed in the branch; decision sheet work/faces/face-decision-sheet.png (variants for toaster, happy-fridge, cocoa-mug in work/faces only).
+- 2026-10-20 04:xx CDT  bud-vase repaint (App Builder sign-off, art-3165): hand-drawn from the SVG geometry (work/budvase/draw.py): two thin green stems in a V, round pink + white blooms with plum rings, wide mint barrel vase with highlight stripe, 6-7 px plum contour (measured rows 70-100: 6-7 px), stem notch filled. Stretch 1.00 (drawn on the SVG grid), 1 island, 0 holes, 5034 B. In game dw 0.0 / dh -1.4.
