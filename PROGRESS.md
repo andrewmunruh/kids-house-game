@@ -1,0 +1,15 @@
+# Art rollout progress
+- 20:13 CDT  Cloned fresh to /workspace/art-rollout at main 8a12495; branch cursor/art-rollout.
+- 20:20 CDT  QA prerequisite fixes committed + pushed: 5e70c51
+  - scripts/dump-art-pairs.mjs: repo root from script location (ART_ROOT override), per-pid worktree, no /workspace paths. Ran: pairs 310, foot 0.
+  - tests/raster_sw_prod.py: serves dist under /kids-house-game/ (VITE_BASE or argv[2] override). Ran against a real build: 7/7 PASS.
+- 20:25 CDT  Inventory: 326 catalog items, 14 painted, 312 remaining -> PLAN.md (batch 1 = 68 items).
+- 20:35 CDT  Batch 1 geometry (SVG visible bbox at 3x, shadow excluded) -> work/b1-geom.json; prompts -> work/b1-desc.json.
+- 20:40 CDT  BLOCKED: GenerateImage reports files saved under /home/box/agent-data/agents/b2691094-.../assets/, and Read can display them, but they do not exist on the box filesystem that Shell sees (dir empty after 60s+). 9 images generated (bed, tub, stars, teddy, cactus, flowers, tree, mirror, pack:comfy-armchair); none can be cut out/processed. Stopped batch 1 here.
+- 20:21 CDT  Blocker solved (attachments store). Decisions recorded: pets in, packs in batch-1 rooms moved to batch 1, 3x, no painted shadows.
+- 20:30 CDT  Style lock committed + pushed on cursor/art-rollout: 7a614db (docs/art-style-lock.md, docs/art-refs/, tooling). STYLE_LOCK_READY written.
+- 20:30+     Batch 1 on cursor/art-rollout-b1. Cutout rewritten (background key, not rembg) after rembg punched holes in glass/enamel; bridge-by-stroke instead of closing (closing filled gaps between cords); openings ringed 1px plum instead of filled.
+- Lint fix: tests/art_bounds.py now measures transformed shapes (getBoundingClientRect) and non-square viewBoxes. Shipped pilot 'plant' is 18% too narrow under that measure -> marked KNOWN (needs repaint decision).
+- Status: 38 batch-1 paintings generated + processed in assets/art/living (all pass lint, 577 KB). Not committed yet (room not whole).
+- Remaining for the living-room commit: themed living packs (cc-*, sunny, welcome-home), living pets, every-room pets/plants/decor packs. Bedroom (~65) not started. Secrets/ranch left to the packs/themed worker (I saw it generating them).
+- 18 items need >18% stretch to hit the SVG box (list in work/process.log) -> regenerate with matching aspect before QA.
