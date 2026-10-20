@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<body></body>
+<script type="module">
+import { ART_RASTER, artRasterOn, setArtFromSearch, setArtRaster } from '/src/art/flag.ts';
+import { rasterUrl, rememberRaster } from '/src/art/cache.ts';
+import { loadAllArt, loadArtKinds } from '/src/art/load.ts';
+import { ITEM_MAP, svgOf, installArtFallback } from '/src/items.ts';
+import { artSolid } from '/src/art/hit.ts';
+
+installArtFallback();
+const ids = await loadArtKinds(['sofa']);
+const w = window;
+w.__art = { ART_RASTER, artRasterOn, setArtFromSearch, setArtRaster, rasterUrl, rememberRaster, svgOf, artSolid, sofa: ITEM_MAP.sofa, window: ITEM_MAP.window, ids, loadArtKinds, loadAllArt, has: (id) => !!ITEM_MAP[id] };
+w.__artReady = true;
+</script>

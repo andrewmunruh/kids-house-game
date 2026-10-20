@@ -34,6 +34,8 @@ check('the clock eases from one part of the day to the next', smooth);
 
 check('lamps, windows, string lights, night-lights and the TV glow', isLightKind('lamp') && isLightKind('window') && isLightKind('tv') && isLightKind('pack:string-lights') && isLightKind('pack:moon-night-light') && isLightKind('pack:scent-candle', true));
 check('a sofa is not a light', !isLightKind('sofa') && !isLightKind('pack:cloud-rug') && !isLightKind('pack:tv-stand'));
+const ink = readFileSync(new URL('../src/sky-toggle.ts', import.meta.url), 'utf8');
+check('night and golden ink wrap the whole item, so a raster painting dims too', /html\[data-sky="night"\] #layer > \.item:not\(\.is-light\) > \.inner/.test(ink) && /html\[data-sky="golden"\] #layer > \.item:not\(\.is-light\) > \.inner/.test(ink) && /filter: url\("#skyNightInk"\)/.test(ink));
 
 const stateSrc = readFileSync(new URL('../src/shared/state.ts', import.meta.url), 'utf8');
 const hoodSrc = readFileSync(new URL('../src/shared/hood.ts', import.meta.url), 'utf8');

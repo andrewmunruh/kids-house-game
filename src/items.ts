@@ -1,6 +1,7 @@
 import { PACK_ITEMS } from './packs';
 import { SECRET_ITEMS } from './eggs';
 import { NURSERY_ITEMS } from './nursery';
+import { rasterOn, rasterUrl } from './art/cache';
 // Original rounded SVG art. Each item: viewBox 0 0 100 100, anchored bottom-center.
 export type Category = string; // built-ins: furniture | decor | plants | food | pets (packs may add more)
 export interface ItemDef { kind: string; name: string; cat: Category; w: number; h?: number; svg: string; wall?: boolean; img?: string; rooms?: string[]; pack?: string; holdable?: boolean; secret?: string; vb?: string; light?: boolean }
@@ -85,6 +86,36 @@ export const ITEM_MAP: Record<string, ItemDef> = Object.fromEntries(ITEMS.map(i 
 const esc = (t: string) => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 /** Height in room units (square unless the art says otherwise). */
 export const hOf = (d: ItemDef) => d.h ?? d.w;
-export const svgOf = (d: ItemDef) => d.img
+/** The drawing shipped before raster art: an inline SVG, or a pack image. */
+export const svgMarkup = (d: ItemDef) => d.img
   ? `<img class="packimg" src="${esc(d.img)}" alt="${esc(d.name)}" draggable="false" />`
   : `<svg viewBox="${d.vb ?? '0 0 100 100'}" xmlns="http://www.w3.org/2000/svg">${d.svg}</svg>`;
+// A 3× WebP replaces the SVG only when this page asked for raster and the file loaded.
+// The footprint stays the item's w/h. A broken image falls back through installArtFallback.
+// A contact shadow is only for a piece standing on the stage. Tray thumbnails, tab
+// icons, and the drag ghost stay the clean painting.
+export const svgOf = (d: ItemDef, shade = false) => {
+  const url = rasterOn() ? rasterUrl(d.kind) : undefined;
+  if (!url) return svgMarkup(d);
+  const shadow = shade && !d.wall ? '<i class="artshade" aria-hidden="true"></i>' : '';
+  return `${shadow}<img class="packimg artimg" data-kind="${esc(d.kind)}" src="${esc(url)}" alt="${esc(d.name)}" draggable="false" />`;
+};
+
+let artFallbackOn = false;
+/** Swap a raster image that failed to load for the current SVG. One listener for the page. */
+export function installArtFallback(): void {
+  if (artFallbackOn || typeof window === 'undefined') return;
+  artFallbackOn = true;
+  window.addEventListener('error', ev => {
+    const img = ev.target;
+    if (!(img instanceof HTMLImageElement) || !img.classList.contains('artimg') || img.dataset.fell === '1') return;
+    const d = ITEM_MAP[img.dataset.kind || ''];
+    if (!d) return;
+    img.dataset.fell = '1';
+    img.parentElement?.querySelector('.artshade')?.remove();
+    const hold = document.createElement('div');
+    hold.innerHTML = svgMarkup(d);
+    const next = hold.firstElementChild;
+    if (next) img.replaceWith(next);
+  }, true);
+}

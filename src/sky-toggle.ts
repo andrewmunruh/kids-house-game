@@ -22,6 +22,8 @@ const ICON: Record<SkyChoice, string> = { day: SUN, night: MOON, auto: AUTO };
 const PHONE_MQ = '(pointer: coarse) and (max-width: 600px), (pointer: coarse) and (orientation: landscape) and (max-height: 500px)';
 
 /** Artwork tint. A colour matrix keeps transparent padding clear, so there is no box around an item.
+ *  The filter is on the item's .inner, which holds either the SVG or a raster painting.
+ *  Lamps, windows, and TVs stay out of it (they are .is-light).
  *  In an external stylesheet url(#id) points at the CSS file, so these rules live in the page. */
 function mountInk() {
   if (document.getElementById('skyInk')) return;
