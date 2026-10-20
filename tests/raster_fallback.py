@@ -82,7 +82,8 @@ TRAY = r'''async () => {
   ok('paintings are on the stage', await waitArt());
   const shaded = [...document.querySelectorAll('#layer .artshade')].map(el => el.closest('.item')?.dataset.kind).sort();
   ok('the tray, category tabs, and room tabs have no contact shadow', n(chrome) === 0);
-  ok('stage shadows sit only on the floor pieces', shaded.join(',') === 'armchair,bookshelf,lamp,plant,rug,sofa');
+  // b1: the default house's cat and tree are living-room floor pieces, now painted too
+  ok('stage shadows sit only on the floor pieces', shaded.join(',') === 'armchair,bookshelf,cat,lamp,plant,rug,sofa,tree');
   ok('the window on the stage has no contact shadow', n('#layer .item[data-kind="window"] .artshade') === 0);
   document.querySelector('#cats button[data-cat="decor"]')?.click();
   ok('decor thumbnails have no contact shadow', n('#shelf .artshade') === 0 && n('#shelf img.artimg') > 0);
