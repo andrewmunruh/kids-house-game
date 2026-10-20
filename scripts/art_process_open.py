@@ -7,8 +7,8 @@ from PIL import Image
 sys.path.insert(0,os.path.dirname(os.path.abspath(__file__)))
 import art_process as ap
 orig=ap.key; cur={}
-def key(rgb):
-    rgb,solid,opening=orig(rgb)
+def key(rgb,*a,**k):
+    rgb,solid,opening=orig(rgb,*a,**k)
     f=cur.get('mask')
     if f and os.path.exists(f):
         m=np.array(Image.open(f))>127
@@ -29,7 +29,17 @@ def finish(fg,al,ring):
                 rim=ndi.binary_dilation(m,iterations=R)&~m
                 fg[rim]=ap.PLUM; al[rim]=255; al[m]=0
             ring=ring|(fg==ap.PLUM).all(2)
-            fg,al=ofin(fg,al,ring)
+            pc=ap.plum_contour
+            if _==0: ap.plum_contour=lambda f,a:(f,a)   # lay the contour once, on the last pass
+            try: fg,al=ofin(fg,al,ring)
+            finally: ap.plum_contour=pc
+        s=al>0; lab,n=ndi.label(ndi.binary_fill_holes(s)&~s)   # seal pinholes left by the pocket rims
+        for i in range(1,n+1):
+            m=lab==i
+            if m.sum()<30: fg[m]=ap.OUTLINE; al[m]=255
+            elif m.sum()<int(os.environ.get('SEAL') or 0):   # SEAL=px: close a narrow sliver with its surroundings
+                _,(iy,ix)=ndi.distance_transform_edt(~(s&~m),return_indices=True)
+                fg[m]=fg[iy[m],ix[m]]; al[m]=255
         return fg,al
     return ofin(fg,al,ring)
 ap.finish=finish
