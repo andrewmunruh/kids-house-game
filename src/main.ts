@@ -18,6 +18,8 @@ import { ITEMS, ITEM_MAP, svgOf, hOf, installArtFallback, type Category, type It
 import { artSolid, topHit } from './art/hit';
 import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
 import { characterSVG, handsFor, SIZE_SCALE } from './character';
+import { handsOf } from './avatar/draw';
+import { SIT_POSE, sitSpikeOn } from './avatar/sit';
 import { lookStamp, look2FromLegacy, legacyFromLook2, randomLook2, patchFromLook2, sanitizeLook2, type Look2 } from './shared/avatar';
 import { stampAvatar, richAvatars } from './avatar/motion';
 import { avatarSheetHTML, avatarAct, avatarIntroPending, markAvatarIntro } from './avatar/sheet';
@@ -172,9 +174,14 @@ let inBarn = false; // inside Rainbow Ranch: the yard, or the barn (petting zoo)
 let currentHouseId = '';
 let houseStores = new Map<string, ReturnType<typeof houseStore>>();
 let modeFit = false;
+/** Dev-only (?sit=1). Which built-in sofa a kid is posed on. Never saved, never sent. */
+const spikeSit = new Map<string, string>();
 const play = installPlayMode($('modeToggle'), {
   ownHouse: () => !hood || !currentHouseId || currentHouseId === hood.myHouseId(),
-  onChange: () => { if (modeFit) fit(); },
+  onChange: () => {
+    if (spikeSit.size) { spikeSit.clear(); renderChars(store.get()); renderAvatars(); }
+    if (modeFit) fit();
+  },
 });
 const mailUI = installMail({
   send: (houseId, text, color, sticker) => hood?.sendMail(houseId, text, color, sticker),
@@ -607,9 +614,9 @@ function renderItems(s: GameState) {
 }
 
 const charEls = new Map<string, HTMLElement>();
-function heldHTML(c: Character) {
+function heldHTML(c: Character, seated = false) {
   const sc = charScale(c), bw = CHAR_W * sc, bh = CHAR_H * sc;
-  const pts = handsFor(c), shrink = c.look2 ? 0.85 : 1;
+  const pts = seated ? handsOf(SIT_POSE) : handsFor(c), shrink = c.look2 ? 0.85 : 1;
   return (['left', 'right'] as Hand[]).map(hand => {
     const it = c.held[hand]; const def = it && ITEM_MAP[it.kind]; if (!it || !def) return '';
     const k = Math.min(0.7, 120 * sc / Math.max(def.w, hOf(def)) / it.scale) * shrink;
@@ -628,17 +635,19 @@ function renderChars(s: GameState) {
       el.innerHTML = `<div class="inner"></div><div class="hands"></div>`;
       layer.appendChild(el); charEls.set(c.id, el); attachCharDrag(el);
     }
-    const look = lookStamp(c);
-    if (el.dataset.look !== look) { el.querySelector('.inner')!.innerHTML = characterSVG(c); el.dataset.look = look; }
-    const heldKey = JSON.stringify([c.held.left?.id, c.held.left?.flip, c.held.right?.id, c.held.right?.flip, c.size]);
-    if (el.dataset.held !== heldKey) { el.querySelector('.hands')!.innerHTML = heldHTML(c); el.dataset.held = heldKey; }
+    const seated = spikePoseOn('doll:' + c.id, s.rooms[s.currentRoom].items) && !!c.look2;
+    const look = lookStamp(c) + (seated ? '|sit' : '');
+    if (el.dataset.look !== look) { el.querySelector('.inner')!.innerHTML = characterSVG(c, seated ? { pose: SIT_POSE, poseName: 'sit' } : undefined); el.dataset.look = look; }
+    const heldKey = JSON.stringify([c.held.left?.id, c.held.left?.flip, c.held.right?.id, c.held.right?.flip, c.size, seated]);
+    if (el.dataset.held !== heldKey) { el.querySelector('.hands')!.innerHTML = heldHTML(c, seated); el.dataset.held = heldKey; }
     const sc = charScale(c);
     placeEl(el, c.x, c.y, CHAR_W * sc, CHAR_H * sc);
     el.style.zIndex = String(5000 + Math.round(c.y));
     el.classList.toggle('flipped', c.flip);
     el.classList.toggle('active', c.id === activeChar);
+    el.classList.toggle('pose-sit', seated);
     stampAvatar(el, c, c.id === activeChar);
-    const pts = handsFor(c);
+    const pts = seated ? handsOf(SIT_POSE) : handsFor(c);
     el.style.setProperty('--hx-l', pts.left.x + '%');
     el.style.setProperty('--hx-r', pts.right.x + '%');
   }
@@ -831,7 +840,7 @@ function attachCharDrag(el: HTMLElement) {
     startDrag(e, {
       onMove(ev) {
         const p = toRoom(ev.clientX, ev.clientY); const nx = p.x + off.x;
-        if (Math.hypot(p.x - p0.x, p.y - p0.y) > 6) moved = true;
+        if (Math.hypot(p.x - p0.x, p.y - p0.y) > 6) { moved = true; spikeSit.delete('doll:' + id); }
         const cur = store.get().characters.find(x => x.id === id); if (!cur) return;
         if (Math.abs(nx - lastX) > 3) { const flip = nx < lastX; if (flip !== cur.flip) store.dispatch({ type: 'char/update', id, patch: { flip } }); lastX = nx; }
         store.dispatch({ type: 'char/move', id, room: s.currentRoom, x: nx, y: Math.max(FLOOR_Y + 40, p.y + off.y) });
@@ -1186,8 +1195,8 @@ function useStore(next: AnyStore) {
 }
 
 // ---------- avatars (other kids, and me) inside a house ----------
-function avatarHTML(look: Look, name: string) {
-  return `<div class="inner">${characterSVG(look)}</div><div class="nametag">${esc(name)}</div>`;
+function avatarHTML(look: Look, name: string, seated = false) {
+  return `<div class="inner">${characterSVG(look, seated ? { pose: SIT_POSE, poseName: 'sit' } : undefined)}</div><div class="nametag">${esc(name)}</div>`;
 }
 function renderAvatars() {
   const keep = new Set<string>();
@@ -1205,12 +1214,15 @@ function renderAvatars() {
         layer.appendChild(el); avatarEls.set(pid, el);
         if (pid === hood.pid) attachMyAvatarDrag(el);
       }
-      const look = pl.look, key = JSON.stringify(look) + pl.nickname;
-      if (el.dataset.look !== key) { const b = el.querySelector('.bubble'); el.innerHTML = avatarHTML(look, pl.nickname); if (b) el.appendChild(b); el.dataset.look = key; }
+      const look = pl.look;
+      const seated = pid === hood.pid && spikePoseOn('avatar:' + pid, store.get().rooms[room].items) && !!look.look2;
+      const key = JSON.stringify(look) + pl.nickname + (seated ? '|sit' : '');
+      if (el.dataset.look !== key) { const b = el.querySelector('.bubble'); el.innerHTML = avatarHTML(look, pl.nickname, seated); if (b) el.appendChild(b); el.dataset.look = key; }
       const sc = SIZE_SCALE[look.size] ?? 1;
       placeEl(el, p.x, p.y, CHAR_W * sc, CHAR_H * sc);
       el.style.zIndex = String(5000 + Math.round(p.y));
       el.classList.toggle('flipped', p.flip);
+      el.classList.toggle('pose-sit', seated);
       stampAvatar(el, look, pid === hood.pid);
     }
   }
@@ -1220,6 +1232,7 @@ function renderAvatars() {
 function attachMyAvatarDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
     e.preventDefault(); e.stopPropagation(); if (twoFinger || !hood) return;
+    const pid = hood.pid;
     const p0 = myPres(); if (!p0 || p0.where !== 'house') return;
     const q0 = toRoom(e.clientX, e.clientY), off = { x: p0.x - q0.x, y: p0.y - q0.y };
     let lastX = p0.x; el.classList.add('lifted'); sfx.pick();
@@ -1227,6 +1240,7 @@ function attachMyAvatarDrag(el: HTMLElement) {
       onMove(ev) {
         const q = toRoom(ev.clientX, ev.clientY), cur = myPres(); if (!cur || cur.where !== 'house') return;
         const x = Math.max(40, Math.min(W - 40, q.x + off.x)), y = Math.max(FLOOR_Y + 40, Math.min(H, q.y + off.y));
+        if (Math.hypot(x - p0.x, y - p0.y) > 6) spikeSit.delete('avatar:' + pid);
         const flip = Math.abs(x - lastX) > 3 ? x < lastX : cur.flip; if (Math.abs(x - lastX) > 3) lastX = x;
         setMyPres({ ...cur, x, y, flip }); renderAvatars(); renderMinimap(store.get());
       },
@@ -2122,7 +2136,27 @@ function onPlayTap(el: HTMLElement, id: string) {
   if (g === 'kennel' || g === 'tower') { onPlaceTap(id); return; }
   if (g === 'lamp') { el.classList.toggle('lamp-on'); return; }
   if (g === 'open') { el.classList.toggle('opened'); return; }
-  if (g === 'sit') sitAt(it);
+  if (g === 'sit') { if (sitSpikeOn() && it.kind === 'sofa') toggleSpikeSit(it); sitAt(it); }
+}
+/** Who the dev sit pose belongs to. A neighborhood kid is her avatar. Solo play uses the active doll. */
+function spikeKey(): string | null {
+  if (hood && inner !== local && view === 'house') return 'avatar:' + hood.pid;
+  const s = store.get();
+  const c = s.characters.find(ch => ch.id === activeChar && ch.room === s.currentRoom) ?? s.characters.find(ch => ch.room === s.currentRoom);
+  return c ? 'doll:' + c.id : null;
+}
+function toggleSpikeSit(it: PlacedItem) {
+  const key = spikeKey(); if (!key) return;
+  if (spikeSit.get(key) === it.id) spikeSit.delete(key); else spikeSit.set(key, it.id);
+}
+/** The built-in sofa this kid is posed on, or null. A missing sofa forgets the pose. */
+function spikePoseOn(key: string, items: PlacedItem[]): boolean {
+  if (!sitSpikeOn()) return false;
+  const id = spikeSit.get(key);
+  if (!id) return false;
+  if (items.some(i => i.id === id && i.kind === 'sofa')) return true;
+  spikeSit.delete(key);
+  return false;
 }
 function sitAt(it: PlacedItem) {
   const y = Math.max(FLOOR_Y + 40, it.y - 8);

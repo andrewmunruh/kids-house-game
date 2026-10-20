@@ -2,6 +2,7 @@
 import { gzipSync } from 'node:zlib';
 import { characterSVG } from '../src/character';
 import { chibiSVG, handsOf, hemOf, poseFor } from '../src/avatar/draw';
+import { SIT_POSE, sitSpikeOn } from '../src/avatar/sit';
 import { chibiRideLeg } from '../src/avatar/ride';
 import {
   sanitizeLook2, fillLook2, legacyFromLook2, look2FromLegacy, patchFromLook2, randomLook2, withRandomStarter,
@@ -250,5 +251,17 @@ for (const hair of HAIR_IDS) {
   }
 }
 check('every hat sits above the brow on every hairstyle', hatFail === '', hatFail + ' (' + HATS.length * HAIR_IDS.length + ' looks)');
+
+check('the sit spike stays off without ?sit=1', sitSpikeOn('') === false && sitSpikeOn('?hood=1') === false && sitSpikeOn('?sit=0') === false && sitSpikeOn('?sit=1') === true);
+const sitLook = fillLook2({ v: 1, hair: 'puffs', acc: ['cap'], top: 'classic', bottom: 'pants' });
+const sitting = chibiSVG(sitLook, { pose: SIT_POSE, poseName: 'sit', rich: false, uid: 'sit' });
+const standing = chibiSVG(sitLook, { rich: false, uid: 'sit' });
+const sitFront = sitting.indexOf('data-layer="hair-front"');
+const sitAcc = sitting.indexOf('data-layer="accessory"');
+check('a sit pose keeps hair, hat, and clothes in the standing order',
+  sitting.includes('data-pose="sit"') && sitting.includes('data-layer="hair-back"') && sitting.includes('data-layer="bottom"')
+  && sitting.includes('data-hat="cap"') && sitFront >= 0 && sitAcc > sitFront && sitting.includes('rotate(-76') && sitting.includes('mask="url(#sithm)"'));
+check('a standing kid does not wear the sit pose', standing.includes('data-pose') === false && standing.includes('rotate(-76') === false);
+check('the sit pose does not change the save', initialState().version === 3 && JSON.stringify(initialState()).includes('"seat"') === false);
 
 console.log(pass + ' passed');
