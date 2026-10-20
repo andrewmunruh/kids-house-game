@@ -4,7 +4,7 @@ import { Neighborhood, type KV, type Conn } from '../server/core';
 import { FILTER_MSG, MAIL_FREE_DEFAULT, NICKNAMES, PROTOCOL, cleanFirstName, cleanHouseName, cleanMailText, cleanPetName, filterChat, filterMailbox, filterSay, mailIsFree } from '../src/shared/hood';
 import { CATALOG_NAMES } from '../src/shared/catalog-names';
 import { initialState, type Cat } from '../src/shared/state';
-import { keepMailbox, stripUrls, MAIL_CAP, MAIL_MAX, MAIL_TTL_MS, type Letter } from '../src/shared/mail';
+import { keepMailbox, stripUrls, MAIL_CAP, MAIL_MAX, MAIL_TTL_MS, MAIL_RATE_WINDOW_MS, type Letter } from '../src/shared/mail';
 import { catAt } from '../src/pets';
 import { dragAllowed, playGesture } from '../src/playmode';
 import { ALLOW_LINES, BLOCK_LINES, KID_EVERYDAY, corpusResult } from './filter_corpus';
@@ -34,6 +34,7 @@ async function main() {
   console.log('CORPUS block ' + corpus.blockPass + '/' + corpus.blockTotal + ' allow ' + corpus.allowPass + '/' + corpus.allowTotal + ' everyday ' + KID_EVERYDAY.length + ' lines ' + (BLOCK_LINES.length + ALLOW_LINES.length));
   check('80 characters is a letter and 81 is too long', cleanMailText('a'.repeat(MAIL_MAX)).ok && cleanMailText('a'.repeat(MAIL_MAX + 1)).ok === false);
   check('a link can be sent', cleanMailText('come see www.example.com').ok && filterSay('come see www.example.com', 80).ok);
+  check('a phone number can be sent', cleanMailText('call me at 555-123-4567').ok && filterSay('call me at 555-123-4567', 80).ok);
   check('an email can be sent', cleanMailText('write me at a@b.com').ok && filterSay('write me at a@b.com', 80).ok);
   check('a mild insult can be sent', cleanMailText('you are stupid').ok && filterSay('you are stupid', 80).ok);
   const roster = ['Ava', 'Chloe', 'Cada'];
@@ -317,6 +318,20 @@ async function main() {
   }
   const gotPass = passBox().map(l => l.text);
   check('ordinary letters are delivered', passTexts.every(t => gotPass.includes(t)), gotPass.join('|'));
+  // Production's letter filter allows phone numbers, links and emails (Andy's call), so an
+  // ordinary letter carrying one is delivered too. sneaky just used her 5 letters a minute,
+  // so the clock steps past the rate window for these sends and is put back after.
+  const realNow = Date.now, skew = MAIL_RATE_WINDOW_MS + 1000;
+  Date.now = () => realNow() + skew;
+  const contactTexts = ['call me at 555-123-4567', 'come see www.example.com', 'write me at a@b.com'];
+  for (const text of contactTexts) {
+    await send(sneaky, { t: 'mail', op: 'send', houseId: fullKid.hid, text, color: 2, sticker: 0 });
+    const id = passBox().slice(-1)[0]?.id;
+    if (id) await send(fullKid.c, { t: 'mail', op: 'read', houseId: fullKid.hid, id });
+  }
+  Date.now = realNow;
+  const gotContact = passBox().map(l => l.text);
+  check('ordinary letters with a phone number, link or email are delivered', contactTexts.every(t => gotContact.includes(t)), gotContact.join('|'));
 
   const capBox = () => hood.houses.get(speedy.hid)!.state.mailbox?.letters ?? [];
   for (let i = 0; i < 3; i++) await send(pal.c, { t: 'mail', op: 'send', houseId: speedy.hid, text: 'Hi!', color: 0, sticker: i % 6 });
