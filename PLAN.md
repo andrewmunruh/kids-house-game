@@ -1,0 +1,55 @@
+# Art rollout plan (raster painterly item art)
+
+Base: main 8a12495. Branch: cursor/art-rollout. Pilot done: armchair, ball, balloon, bookshelf, chair, clock, lamp, picture, plant, rug, sofa, table, tv, window (14). Catalog: 326 items; remaining 312.
+
+Order per QA (App Builder) steering. Within a batch: items kids own/place most first. Street placement counts were NOT read: they live only behind the production Worker, which this run must not call — order inside a batch is base-catalog order (starter items first). 
+
+Gates per batch: art_bounds lint (bounds ≤3% vs SVG visible art, shadow excluded; 1 alpha island; no pinholes; no cream fringe; <60,000 B; 3× footprint), style lock, white+black contact sheets, SVG-vs-raster in-room at 1180x820 and 390x844, no ID/footprint/save change, ?art=v1 + preload-by-save + SW cache tests. Rooms convert whole per release.
+
+## Batch 1 — rest of base living room + bedroom (incl. "any"-room base items) — Release A (68)
+- **any**: cactus (80x80); flowers (90x90); tree (140x140)
+- **bedroom**: bed (300x300); tub (240x240); stars (140x140, wall); teddy (100x100); pack:canopy-bed (294x294); pack:moon-night-light (57.7x70); pack:dino-plush (78.3x91); pack:bunk-bed (294x300); pack:dresser (141x126); pack:nightstand (69.7x60); pack:wardrobe (150.5x179); pack:desk (166.6x167); pack:toy-chest (126x115); pack:play-tent (180x200); pack:egg-chair (126x155); pack:alarm-clock (40.7x51); pack:lava-lamp (33x50); pack:paper-lantern (91.8x99, wall); pack:heart-rug (217.8x77); pack:cloud-rug (258.7x99); pack:cloud-shelf (118.2x61, wall); pack:star-mobile (102.3x105, wall); pack:cork-board (127.4x99, wall); pack:bunny-slippers (54x46); pack:book-stack (47.3x39); pack:piggy-bank (52.8x52); pack:doll-house (109.2x132); pack:toy-robot (60.2x72); pack:unicorn-plush (66.3x90); pack:toy-train (114.4x115); pack:plant-stand (78.1x108); pack:daisy-pot (37.7x57); pack:floor-fan (52.8x78); pack:bedtime-snack (56.4x44)
+- **living**: pack:comfy-armchair (161.7x163); pack:daisy-rug (306x108); pack:monstera-plant (158.2x146); pack:coffee-table (159.8x102); pack:bean-bag (112.8x88); pack:pouf (62.4x52); pack:rocking-chair (137.2x137); pack:cubby-shelf (159.8x126); pack:piano (186.2x175); pack:fireplace (204x180); pack:tv-stand (176.4x90); pack:arc-floor-lamp (135x146); pack:string-lights (262.6x69, wall); pack:tassel-rug (294x101); pack:rainbow-rug (254.8x66); pack:rainbow-wall-art (130.2x67, wall); pack:wall-shelf (156.8x100, wall); pack:globe (49.7x64); pack:tulip-vase (44.8x76); pack:fiddle-leaf-fig (118.8x196); pack:hanging-planter (67x98, wall); pack:snake-plant (68.2x103); pack:succulent-trio (81x66); pack:throw-pillow (53.4x52); pack:blanket-basket (77.4x73); pack:building-blocks (69x63); pack:toy-car (65.8x55); pack:rocking-horse (128.7x127); pack:popcorn (41.8x51); pack:retro-radio (63x70)
+- **salon,bedroom**: mirror (120x120, wall)
+
+## Batch 2 — kitchen + salon (base) — Release B (44)
+- **kitchen**: fridge (150x150); stove (170x170); cake (100x100); apple (60x60); donut (70x70); pizza (80x80); juice (55x55); pack:happy-fridge (132.6x170); pack:toaster (70.4x74); pack:fruit-bowl (75.2x70); pack:kitchen-counter (166.6x146); pack:kitchen-sink (166.6x162); pack:bar-stool (52.8x69); pack:high-chair (88x99); pack:china-hutch (164.5x172); pack:pantry-shelf (137.6x154); pack:microwave (89.3x70); pack:kettle (49.2x56); pack:rice-cooker (55.9x53); pack:stand-mixer (64.5x68); pack:pendant-lamp (78x104, wall); pack:runner-rug (207.2x105); pack:utensil-rail (127.4x94, wall); pack:spice-rack (107.8x57, wall); pack:cookie-jar (43.8x54); pack:teapot (55.5x44); pack:cocoa-mug (33.8x37); pack:cooking-pot (73.5x66); pack:frying-pan (80.4x40); pack:herb-box (110x84); pack:lemon-tree (79.8x120); pack:bananas (44.5x43); pack:watermelon-slice (45x34); pack:pancakes (56.4x47); pack:ice-cream (80x173); pack:milk-bottle (23.2x38); pack:bread-loaf (48.4x44); pack:cupcake (32.9x45); pack:dish-rack (76.5x68)
+- **salon**: vanity (230x230); stool (90x90); perfume (50x50); polish (40x40); hairdryer (90x90)
+
+## Batch 3 — nursery — Release B (24)
+- **nursery**: crib (260x260); bassinet (170x170); rocker (190x190); changing-table (230x230); toy-bin (150x150); baby-shelf (150x150); doll-rose (80x80); doll-honey (80x80); doll-cocoa (80x80); crib-mobile (150x150, wall); night-light (70x70); bunny-plush (90x90); stacking-rings (70x70); rattle (60x60); baby-bottle (55x55); blocks (90x90); rocking-horse (180x180); music-box (80x80); cloud-rug (340x340); play-mat (300x300); moon-art (140x140, wall); nursery-dresser (170x170); nursery-lamp (80x80); nursery-curtains (180x180, wall)
+
+## Batch 4 — themed packs (Cottage, Sunny Vibes, Welcome Home, Glossy) + Secrets + Ranch — Release C (155)
+- **any**: egg:cada-mouse (80x80); egg:sloane-snail (110x110); egg:chloe-starlamp (100x100); egg:quinn-pup (110x110); egg:reagan-frame (120x120, wall); ranch-egg (50x50); ranch-carrot (70x70); ranch-bouquet (80x80)
+- **any / cottage**: pack:cc-heart-clock (84x96, wall); pack:cc-scallop-curtains (196x192, wall); pack:cc-plant-wall (176x172, wall)
+- **any / sunny-vibes**: pack:ring-light (105.4x173); pack:cube-shelf (106.6x122); pack:star-lamp (82x102); pack:flower-lamp (48x78); pack:checker-rug (244.8x86); pack:sv-cloud-rug (224.4x84); pack:sunny-art (77.4x85); pack:pothos-plant (48.6x63); pack:cactus-buddy (33x47); pack:sv-wall-shelf (122.2x57); pack:heart-light (60.2x60); pack:wavy-floor-lamp (45x86); pack:desk-lamp (43.2x52); pack:sticker-board (103.4x77)
+- **any / welcome-home**: pack:wood-bookshelf (124x200); pack:ladder-shelf (87x152); pack:wh-fiddle-leaf-fig (75x158); pack:wh-string-lights (222.2x58); pack:wh-pendant-lamp (54x108); pack:wh-arc-floor-lamp (105x142); pack:bulletin-board (131.6x92); pack:landscape-art (103.2x84); pack:hanging-lantern (39.6x55); pack:round-rug (244.8x86); pack:stripe-runner (235.2x65); pack:wh-snake-plant (50x88); pack:sprout-pot (27.6x45); pack:trailing-plant (94.6x97); pack:wh-book-stack (49.2x44); pack:knit-cushion (46.8x44); pack:leaf-wreath (96x96); pack:wall-clock (60.2x60)
+- **bedroom / cottage**: pack:cc-canopy-daybed (276x282); pack:cc-star-dresser (156x189); pack:cc-heart-bed (236x236); pack:cc-fairy-garland (210x101, wall); pack:cc-cloud-beanbag (156x125); pack:cc-jewel-box (72x85); pack:cc-cloud-lamp (74x109); pack:cc-window-seat (214x219); pack:cc-reading-nook (210x219)
+- **bedroom / sunny-vibes**: pack:phone-stand (27x45); pack:gaming-chair (101.4x130); pack:curvy-desk (180x168); pack:clothes-rail (135x138); pack:big-monitor (103.4x108); pack:keyboard (65.8x32); pack:vlog-camera (51.6x47); pack:desk-mic (27x47); pack:bubble-bath (166.6x156); pack:caterpillar-plush (94x74); pack:frog-plush (44.4x45); pack:checker-bed (196x144); pack:headphones (43x37); pack:game-controller (45.5x36); pack:pastel-wardrobe (132x200)
+- **bedroom / welcome-home**: pack:wood-desk (150.4x138); pack:big-wardrobe (154x220); pack:wooden-bed (235.2x192); pack:wh-nightstand (74x90); pack:wh-dresser (146.2x158)
+- **kitchen / cottage**: pack:cc-pastel-range (172x172); pack:cc-mint-fridge (132x186); pack:cc-cupcake-stand (128x152); pack:cc-teapot-set (150x117); pack:cc-bakery-shelf (156x175); pack:cc-breakfast-table (186x158); pack:cc-macaron-jar (64x105); pack:cc-flower-kettle (78x86)
+- **kitchen / sunny-vibes**: pack:boba-cup (26.4x41); pack:mini-fridge (77x88)
+- **kitchen / welcome-home**: pack:wh-kitchen-counter (166.6x156); pack:wh-teapot (60.2x55); pack:cozy-mug (28.4x37)
+- **living / cottage**: pack:cc-scallop-loveseat (248x212); pack:cc-heart-pouf (124x112); pack:cc-flower-lamp (86x151); pack:cc-petal-table (196x147); pack:cc-heart-rug (250x170); pack:cc-record-player (148x131); pack:cc-macrame-swing (168x196); pack:cc-fairy-shelf (176x134, wall); pack:cc-mushroom-stool (112x118)
+- **living / sunny-vibes**: pack:cloud-sofa (212x168); pack:puffy-stool (46.9x53); pack:sv-bean-bag (114.4x98); pack:cute-speaker (29x45); pack:side-table-round (68.8x64)
+- **living / welcome-home**: pack:lattice-bench (147x135); pack:wood-coffee-table (171x122); pack:glass-cabinet (118.8x180); pack:moving-box (88.2x74); pack:box-stack (128.8x115); pack:brick-fireplace (156.8x150); pack:cream-sofa (234.6x189); pack:wood-armchair (127.4x117); pack:wood-stool (46.2x48); pack:acorn-friend (26.4x36)
+- **salon / cottage**: pack:cc-light-vanity (196x209); pack:cc-bubble-chair (142x156); pack:cc-mani-chair (188x165); pack:cc-ribbon-mirror (112x155, wall); pack:cc-perfume-tray (108x73); pack:cc-dryer-chair (164x179)
+- **salon / glossy**: pack:salon-chair (111.8x127); pack:wash-chair (186.2x175); pack:glow-mirror (103.4x103); pack:pink-vanity (159.8x167); pack:polish-rack (99x103); pack:polish-bottle (80x126); pack:cream-jars (47x31); pack:lotion-trio (49.2x43); pack:hair-dryer (42x40); pack:towel-cart (93.6x113); pack:nail-table (169.2x140); pack:arched-shelf (98.6x170); pack:pink-fountain (126x132); pack:fancy-sofa (234.6x202); pack:lilac-curtain (176.4x173); pack:reception-desk (186.2x163); pack:bubbly-plant (53.1x81); pack:vine-planter (56.7x100); pack:droplet-buddy (32x49); pack:flower-cart (173.4x153); pack:globe-pendants (92.4x84); pack:drop-lamp (32.4x59); pack:gold-floor-mirror (52.2x90); pack:heart-pouf (58.4x62); pack:swivel-stool (46.2x52); pack:spray-bottle (26.4x38); pack:comb-brush (36.2x45); pack:towel-stack (49.2x43); pack:blob-rug (224.4x92); pack:pebble-rug (156.8x58); pack:heart-plant (34.2x54); pack:bud-vase (21.6x40); pack:perfume-bottle (27.6x37); pack:scent-candle (24.8x38); pack:foot-spa (84.6x62); pack:mani-lamp (54x44); pack:tiered-tray (46.8x60); pack:star-wall-sign (76x76); pack:waiting-bench (166.6x109)
+- **salon / sunny-vibes**: pack:arched-mirror (112x160)
+
+## Batch 5 — bathroom + backyard sets (convert before they ship) — Release C (5)
+- **backyard / welcome-home**: pack:apple-tree (187.2x235); pack:mini-greenhouse (156x188); pack:sale-sign (63.8x103); pack:fire-pit (126x106); pack:picnic-basket (60.2x59)
+
+## Needs decision — pets (excluded by pilot tooling: dump-art-pairs skips cat=pets; pets may animate) (16)
+- **any**: cat (110x110); dog (120x120); bunny (90x90); fish (100x100); kennel (210x175); cat-tower (150x225)
+- **bedroom**: pack:cat-bed (112.8x91); pack:hamster-cage (112.8x119); pack:guinea-pig (51.6x42)
+- **bedroom / sunny-vibes**: pack:hamster-pet (39x41)
+- **kitchen**: pack:pet-bowl (49.5x34); pack:chick (37.4x38)
+- **living**: pack:bird-cage (99x112); pack:turtle (67.9x46); pack:aquarium (163.2x134)
+- **living / cottage**: pack:cc-cottage-aquarium (136x146)
+
+## Open notes
+- docs/art-style-v2.md does not exist on main; style lock taken from /workspace/art-pilot/STYLE.md + shipped pilot WebPs.
+- Pilot shipped 3× (process.py in art-pilot says 2×; shipped files and lint are 3×). Following 3×.
+- 'tub' (Bathtub) is tagged bedroom on main, so it converts with the bedroom.
+- Note: 'mirror' is salon+bedroom; it converts in batch 1 (bedroom) and is reused by salon.

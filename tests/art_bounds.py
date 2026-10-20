@@ -1,7 +1,9 @@
 # Drawn (alpha) bounds of each living-room WebP vs the SVG's visible art.
 # The contact-shadow ellipse is not part of that box; the stroke is.
-# The item box is square and the WebP is square at 3×w, so object-fit: contain
-# paints the bitmap 1:1. Alpha fractions of the file are the on-screen fractions.
+# The WebP is round(3×w) by round(3×h), the item box's own aspect, so object-fit:
+# contain paints the bitmap 1:1. Alpha fractions of the file are the on-screen
+# fractions. Non-square items and viewBoxes that do not start at 0 0 are handled.
+# usage: art_bounds.py <items.json> [root] [kind ...]  (items from dump-art-items.mjs)
 import base64
 import json
 import sys
@@ -223,8 +225,8 @@ JS = r'''async ({ b64, svg, vb }) => {
   }
   const box = el.viewBox.baseVal;
   el.remove();
-  minX = Math.max(0, minX); minY = Math.max(0, minY);
-  maxX = Math.min(box.width, maxX); maxY = Math.min(box.height, maxY);
+  minX = Math.max(box.x, minX) - box.x; minY = Math.max(box.y, minY) - box.y;
+  maxX = Math.min(box.x + box.width, maxX) - box.x; maxY = Math.min(box.y + box.height, maxY) - box.y;
   return {
     nw: img.naturalWidth, nh: img.naturalHeight, clear, islands, holes, cream, creamBlob,
     ax: l, ay: t, aw: r - l + 1, ah: b - t + 1,
@@ -236,20 +238,25 @@ JS = r'''async ({ b64, svg, vb }) => {
 
 def main():
     items = json.loads(Path(sys.argv[1]).read_text())
+    only = set(sys.argv[3:])
+    files = {f.stem.replace('~', ':'): f for f in (ROOT / 'assets' / 'art').glob('*/*.webp')}
+    items = [it for it in items if it['kind'] in files and (not only or it['kind'] in only)]
     fails = 0
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
         page.set_content('<!doctype html><meta charset="utf-8"><body></body>')
         for it in items:
-            path = ROOT / 'assets' / 'art' / 'any' / f"{it['kind']}.webp"
+            path = files[it['kind']]
+            it.setdefault('h', it['w'])
+            it.setdefault('vb', '0 0 100 100')
             size = path.stat().st_size
             b64 = base64.b64encode(path.read_bytes()).decode()
             m = page.evaluate(JS, {'b64': b64, 'svg': it['svg'], 'vb': it['vb']})
-            side = it['w'] * SCALE
+            want_w, want_h = round(it['w'] * SCALE), round(it['h'] * SCALE)
             notes = []
-            if m['nw'] != side or m['nh'] != side or it['h'] != it['w']:
-                notes.append(f"size {m['nw']}x{m['nh']} want {side} (h {it['h']})")
+            if m['nw'] != want_w or m['nh'] != want_h:
+                notes.append(f"size {m['nw']}x{m['nh']} want {want_w}x{want_h}")
             if size > LIMIT:
                 notes.append(f'{size}B over 60KB')
             if m['clear'] <= 0:
@@ -278,7 +285,7 @@ def main():
                 fails += 1
             extra = (' ' + '; '.join(notes)) if notes else ''
             print(
-                f"{flag} {it['kind']:10} {size:6}B  "
+                f"{flag} {it['kind']:24} {size:6}B  "
                 f"w={dw:.3f} h={dh:.3f} ax={dax:.3f} ay={day:.3f}{extra}",
                 flush=True,
             )
