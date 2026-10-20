@@ -1,8 +1,10 @@
 # Sit, lie, and the nursery baby
 
-Planning note for Andy. This branch does not ship the features. It records the plan, the mockups, and one sit-pose spike that stays off unless the page is opened with `?sit=1`.
+Planning note. This branch does not ship sit, lie, or the baby. It records the plan, the mockups, and one sit-pose spike that stays off unless the page is opened with `?sit=1`.
 
-Base is `main` at `ccb9124` ("Expect phone numbers, links, and emails to be delivered in the hood test."). The SHA `8a12495` from the request is not in this repo.
+Decisions Andy made, and the defaults he left in place, are locked in [Locked decisions](#locked-decisions). They are not still open.
+
+This branch includes `main` at `8a1249554979df72f840bc4e9fbc4c63139eda92` ("Merge origin/main (ccb9124) into the living-room art pilot."). That commit is the painted living-room set: WebP 2× for the sofa, armchair, chair, and the other living-room pieces, with `?art=v1` keeping the SVG.
 
 Target device is an iPad 10th gen at 820×1180, 60fps. The floor is iPadOS 16 Safari, so the work stays inside what that browser already does: no CSS nesting, no `:has()`, no `color-mix()`. Kids' privacy stays as it is: first names only, no accounts, no analytics.
 
@@ -20,7 +22,7 @@ Characters paint at `z-index: 5000 + y`. Items paint at `1000 + item.z`. A kid a
 
 Avatar v2 is the chibi in `src/avatar/draw.ts` (`look2` on the character; missing `look2` is the classic drawing). Layers, back to front: hair-back, body, shoes, bottom, top, bottom-over, face, hair-front, accessory. Hats sit in the accessory layer. Pants, leggings, shorts, jeans, and joggers live in `.leg` and follow the leg angle. Skirts, tutus, dresses, and overalls hang from the hip (the riding pose already special-cases this). Each leg is one bone from hip to foot. The walk CSS in `src/avatar.css` overrides the SVG angle, so a seated kid has to set `animation: none` on those limbs. `richAvatars()` is on only when `CSS.supports('selector(&)')` is true.
 
-Item art (WebP 2×, `?art=v1` SVG fallback) is on the art branches, not on this main. Anchors belong in the item manifest, not in the bitmap, so both art modes share them.
+The living-room paintings are in the game now (`assets/art/any/*.webp`). `ART_RASTER` is on. `?art=v1` forces the SVG. `?art=v2` forces raster. A missing file falls back to the SVG. The painting is fitted to the same square footprint as the SVG (`object-fit: contain`, bottom-center), so one anchor fraction lands on both drawings. Anchors belong in the item record, not in the bitmap.
 
 ## Mockups
 
@@ -38,8 +40,9 @@ Drawn at the real iPad and phone sizes. They are compositions, not the game. The
 | `docs/mockups/baby-care-390x844.png` | Same, phone |
 | `docs/mockups/nursery-820x1180.png` | Crib, baby, rocker, bottle, no care card |
 | `docs/mockups/nursery-390x844.png` | Same, phone |
+| `docs/mockups/anchors-living.png` | Locked anchors on the SVG and the living-room painting |
 
-`docs/mockups/render.ts` rebuilds the HTML pages (`npx tsx docs/mockups/render.ts`). The HTML under `docs/mockups/html/` is generated and is not part of the review.
+`docs/mockups/render.ts` rebuilds the room mockups (`npx tsx docs/mockups/render.ts`). The HTML under `docs/mockups/html/` is generated and is not part of the review.
 
 iPad chrome in the mockups matches the current shell: room tabs, minimap, Play selected. No new top-bar button.
 
@@ -64,7 +67,7 @@ Stay on save version 3 and PROTOCOL 4. Add a capability `sit: 1` on hello/join, 
 Solo dolls persist the seat so a reload keeps her sitting:
 
 ```ts
-seat?: { item: string; pose: 'sit' | 'lie' }
+seat?: { item: string; pose: 'sit' | 'lie'; n: 0 | 1 }
 ```
 
 Omit `seat` when she is standing. Clear it when that item is deleted, held, or flipped away, and when `char/move` runs on the new client (a walk is her getting up). `newCharacter` already spreads extra fields, so an old `migrate()` keeps `seat` on the object and does not throw. Old `cleanCharacter` / `cleanHouseState` drop it, because they rebuild the character from known fields. That only matters when a brand-new street house is created from a client save. An existing house lives on the Durable Object and is updated by actions, not by a second full upload.
@@ -72,35 +75,61 @@ Omit `seat` when she is standing. Clear it when that item is deleted, held, or f
 In a neighborhood, the kid on screen is her presence, not the doll. Add an optional presence field, only for `where === 'house'`:
 
 ```ts
-seat?: { id: string; pose: 'sit' | 'lie' }
+seat?: { id: string; pose: 'sit' | 'lie'; n: 0 | 1 }
 ```
 
 `cleanPresence` on a new server keeps a seat whose id is a real item in that room and whose pose is `sit` or `lie`. A bad seat is dropped. The presence is not rejected, so `x` and `y` still arrive. An old server rebuilds house presence without the field, which is the fallback: she is standing at the seat point, and nothing throws.
 
 Position keeps using the actions everyone already understands (`char/move` for a doll, presence `x`/`y` for a player). Do not add a `char/seat` action. An old `reduce()` would return `undefined` for an unknown type. The new server's `char/move` deletes `seat` on that doll. The server includes presence `seat` only when the receiving client said `sit: 1`. Everyone else gets the same `x` and `y` and draws her standing.
 
-One sitter per anchor. A taken seat answers with a small message, same idea as `noride`, sent only to `sit: 1` clients. The client toasts "Someone is already there!" and leaves her standing. The server is the authority.
+One sitter per anchor. A sofa has two anchors, so two kids can share it. A chair, armchair, stool, and bed have one. When every anchor on that piece is taken, the server answers with a small message, same idea as `noride`, sent only to `sit: 1` clients. The client toasts "Someone is already there!" and leaves her standing. The server is the authority.
+
+The seat records which anchor, so two kids on one sofa do not collide:
+
+```ts
+seat?: { item: string; pose: 'sit' | 'lie'; n: 0 | 1 }
+```
+
+`n` is `0` on a one-seat piece. On a sofa, `0` is the left anchor and `1` is the right, before a flip. A flip mirrors `dx`, so the anchors swap sides with the drawing. A bad `n` is dropped with the seat. The presence is not rejected.
 
 The client sends `seat` only after the server has echoed that it understands `sit`. An old Worker ignores the unknown hello field, so she still walks to the cushion (today's `sitAt`) and the pose stays on her own screen.
 
 ### Anchors
 
-Art repaints will add anchors per item. Until then, category defaults, measured from the item's center-bottom. A flipped item mirrors `dx`.
+Measured from the item's center-bottom. `x` fraction is `0.5 + dx / w`. `y` fraction from the top is `1 + dy / h`. A flipped item mirrors `dx`. The same numbers are used for the painting and for `?art=v1`, because both fill the same square.
 
-| Category | Pose | Default |
+Checked against the living-room paintings and their SVG drawings (`docs/mockups/anchors-living.png`). The ring sits on the cushion in both modes.
+
+| Item | Pose | Anchors | Where it lands |
+| --- | --- | --- | --- |
+| sofa | sit | two: `dx: ±0.18 * w`, `dy: -0.33 * h` | Both rings on the seat, clear of the arms. SVG and WebP. |
+| armchair | sit | one: `dx: 0`, `dy: -0.32 * h` | On the seat, not the back. SVG and WebP. |
+| chair | sit | one: `dx: 0`, `dy: -0.48 * h` | On the seat, above the legs. SVG and WebP. |
+| bed | lie | one: `dx: -0.08 * w`, `dy: -0.30 * h` | On the blanket, toward the pillow. SVG only. |
+
+The living-room art set has no bed painting. The lie anchor is locked to the current bed SVG. When a bed WebP arrives, recheck this fraction before shipping lie. Do not invent a second bed anchor.
+
+Category fallback, for a piece that has no `seats` entry yet. A painted item above wins over the category.
+
+| Category | Pose | Fallback |
 | --- | --- | --- |
-| sofa, couch, loveseat | sit | `dx: 0`, `dy: -0.28 * h` |
-| chair, armchair, stool, rocker | sit | `dx: 0`, `dy: -0.38 * h` |
+| sofa, couch, loveseat | sit | the sofa pair above |
+| chair | sit | the chair above |
+| armchair | sit | the armchair above |
+| stool, rocker | sit | one seat, `dx: 0`, `dy: -0.38 * h` |
 | bench | sit | two seats, `dx: ±0.22 * w`, `dy: -0.30 * h` |
-| bed (not a pet bed) | lie | `dx: -0.08 * w` toward the pillow, `dy: -0.22 * h` |
+| bed (not a pet bed) | lie | the bed above |
 
-Manifest shape, optional, used by both SVG and WebP:
+Manifest shape, optional, shared by SVG and WebP. `dx` and `dy` are room pixels (`dx` already multiplied by width):
 
 ```json
-"seats": [{ "pose": "sit", "dx": 0, "dy": -70 }]
+"seats": [
+  { "pose": "sit", "dx": -47, "dy": -86 },
+  { "pose": "sit", "dx": 47, "dy": -86 }
+]
 ```
 
-Code defaults apply when `seats` is absent. Crib, bassinet, high chair, cat bed, pet bed, and dog bed are not kid seats in P1. A bunk uses the bottom bunk only.
+Those two numbers are the built-in sofa (`w` 260, `h` 260), rounded: `±0.18 * 260` is 47, and `-0.33 * 260` is -86. Code defaults apply when `seats` is absent. Crib, bassinet, high chair, cat bed, pet bed, and dog bed are not kid seats in P1. A bunk uses the bottom bunk only.
 
 `playGesture` currently returns `sit` for crib and for any kind matching `/chair/`, which includes the high chair. P1 narrows that list to the categories above.
 
@@ -125,7 +154,7 @@ One cached SVG per look+pose, rebuilt when the look or the pose changes, not on 
 - Migration: a version-3 save with no `seat` loads unchanged. A save with `seat` still loads, version stays 3, and a missing item clears the seat. `JSON` of a standing kid has no `seat` key.
 - Old client: fixture of today's `migrate` + `cleanHouseState` on a blob that contains `seat`. No throw. The field is dropped by `cleanHouseState` and kept by `migrate`.
 - Multi-client: two `sit: 1` clients see the pose. A client that did not send `sit: 1` receives the presence without `seat` and draws her standing at that `x`,`y`. An old server strips `seat`. No unknown action is broadcast.
-- Occupied anchor: the second kid gets the toast and stays standing.
+- Occupied anchor: the second kid on a chair gets the toast and stays standing. The second kid on a sofa takes the free anchor. A third kid on that sofa gets the toast.
 - Real touch: pointerdown/click on a chair sits, second tap stands, a drag past 6px stands. Run on the iPad size and on 390×844. Decorate still drags the chair.
 - Pose unit: hair, hat, and clothes order; skirts do not ride inside `.leg`; classic SVG still renders.
 
@@ -135,7 +164,7 @@ About **3–4 cloud-agent runs**, roughly **10–14 hours**. One run for the pos
 
 ## P2 — Baby v1
 
-A baby who belongs to the house, not to a character slot (`MAX_CHARS` stays 8). She starts in the nursery crib. Kids can hold her, and they can feed, burp, change, and rock her. Cute reactions and a gentle happy meter. No neglect, no crying alarm, no failure state. The meter never goes down on its own.
+A baby who belongs to the house, not to a character slot (`MAX_CHARS` stays 8). She starts in the nursery crib. Kids can hold her, and they can feed, burp, change, and rock her. Cute reactions and a gentle happy meter. No neglect, no crying alarm, no failure state. Care only raises the meter. On its own it eases back to Cozy and stops there. It never becomes upset, empty, or negative.
 
 ### Save and protocol
 
@@ -144,14 +173,16 @@ Stay on version 3 and PROTOCOL 4. Add `baby: 1` on hello/join.
 ```ts
 baby?: {
   name: string;
-  mood: 0 | 1 | 2 | 3 | 4;          // starts at 2, "Cozy"
+  mood: 2 | 3 | 4;                  // 2 is Cozy, the floor. P2 never stores 0 or 1.
   spot: 'crib' | 'arms' | 'mat';
   holder?: string;                  // player id while someone is holding her
   at?: { feed?: number; burp?: number; change?: number; rock?: number };
 }
 ```
 
-Omit `baby` until the house has one, so older saves stay byte-identical. Mood only rises, or the same reaction plays again when she is already at 4. It never ticks down. There is no clock and no "she is upset" state.
+Omit `baby` until the house has one, so older saves stay byte-identical. Mood starts at 2, labeled Cozy. A care action raises it by one, or plays the reaction again when she is already at 4. It never lowers her on the tap.
+
+Left alone, mood eases one step toward 2 about every 45 seconds, then stops. 4 becomes 3, 3 becomes 2, 2 stays 2. A new care resets that wait. Solo play uses local time, the way the cat already does. In a neighborhood the server owns the clock, in coarse steps, so both kids see the same blossoms. The label is Cozy at 2 and Happy at 3 or 4. The blossoms are never empty, never red, and there is no sad face and no alarm.
 
 The nickname does not have to be a person's name. Run it through `cleanPetName` (letters, numbers, apostrophe, hyphen, space, 14 characters, at most two digits) and then the existing light `filterChat`. Do not use `cleanFirstName`, which rejects spaces and digits. Offer the pet-name style presets plus a typed nickname. "Bean" and "Sunny Bunny" are both legal. The owner renames. Anyone in the house can do a care action.
 
@@ -179,7 +210,7 @@ One baby SVG, cached by mood and spot. Care plays a CSS class for about a second
 
 ### Tests
 
-- Migration: a save with no `baby` is unchanged. A save with a baby keeps name, mood, and spot through the new `migrate` and the new `cleanHouseState`. Mood never exceeds 4 and never drops from a care action.
+- Migration: a save with no `baby` is unchanged. A save with a baby keeps name, mood, and spot through the new `migrate` and the new `cleanHouseState`. Care never lowers mood and never stores it above 4 or below 2. The ease can lower it only as far as 2.
 - Name: `cleanPetName` accepts "Bean" and "Sunny Bunny", rejects an empty string and a filtered word, and the server stores the original trimmed text only when the filter says ok.
 - Old client: today's `cleanAction` returns null for `baby/care`. A broadcast helper that filters on `baby: 1` does not deliver it. A house blob with `baby` does not throw in old `migrate`.
 - Two clients with `baby: 1` see the same name, mood, and holder. A client without the flag never sees the actions. A second hold is refused.
@@ -194,7 +225,7 @@ About **4–5 cloud-agent runs**, roughly **14–18 hours**, plus a separate art
 
 Do not build this in P1 or P2. The seat anchor from P1 is the hook.
 
-A need is a suggestion, not a failure. Hunger, energy, fun, social, and clean are numbers the UI may show as blossoms or a face. They never lock a piece of furniture, never alarm, and never punish. They do not tick down in P2's baby, and a future tick eases a need toward "fine", not toward a failure.
+A need is a suggestion, not a failure. Hunger, energy, fun, social, and clean are numbers the UI may show as blossoms or a face. They never lock a piece of furniture, never alarm, and never punish. P2's baby eases only as far as Cozy. A future kid tick eases a need toward "fine", not toward a failure.
 
 An interaction hangs off the same anchor record P1 adds:
 
@@ -206,24 +237,26 @@ pose?: 'sit' | 'lie'
 fx?: string
 ```
 
-A routine is a list the player starts ("morning", "bedtime"). It is not a clock that scolds. Solo play advances coarse time on a local timer, the way the cat and the garden already do. Multiplayer uses server time in coarse steps, not per frame. `moodOf(needs)` is one function. The baby meter in P2 is that function with a single input that only goes up. Later, the kid and the baby share it.
+A routine is a list the player starts ("morning", "bedtime"). It is not a clock that scolds. Solo play advances coarse time on a local timer, the way the cat and the garden already do. Multiplayer uses server time in coarse steps, not per frame. `moodOf(needs)` is one function. The baby meter in P2 is that function with a floor at Cozy: care raises it, time eases it back to the floor, and it has no upset side. Later, the kid and the baby share it.
 
 Old clients keep working the P1/P2 way: they see a kid standing or, if they speak `sit`, sitting, and they ignore needs. Needs must not be required to render a room.
 
 A later build of this sketch is about **8–12 cloud-agent runs**. It is not estimated as part of the next update.
 
-## Open decisions
+## Locked decisions
 
-1. One sitter per seat, or two on a sofa? Plan says one per anchor. A bench already has two anchors. A sofa could grow a second anchor later without a protocol change.
-2. Persist the solo doll's seat in the save, or keep it live-only like the park? Plan says persist, omitted when she is standing, so a reload keeps her in the chair.
-3. The crib is the baby's, not a kid seat. Confirm.
-4. High chair: wait for the baby, or let a kid sit there in P1? Plan says wait.
-5. Cat bed, pet bed, and dog bed stay pet-only. Confirm.
-6. Who may care for the baby? Plan says anyone in the house can care, and only the owner can rename.
-7. Happy meter never ticks down. The other idea is that it eases back to "Cozy" and never to upset. Plan says it never ticks down.
-8. Nicknames go through `cleanPetName`, not the roster first-name rules, so "Bean" and names with a space work.
-9. Bunk bed: bottom bunk only in P1.
-10. Protocol stays 4, with `sit: 1` and `baby: 1`, rather than PROTOCOL 5.
-11. The Worker and the client ship together. An old Worker is safe (pose stays local, baby actions are rejected) but friends will not see the new pose until the Worker is updated.
-12. This plan is based on `ccb9124`. `8a12495` is not in the repo.
-13. The spike (`?sit=1`, built-in sofa only) is local and off by default. It is not the P1 pose split, and it does not change the save.
+Andy locked 1 and 7. The rest were the plan's defaults. They are locked the same way. P1 and P2 build these, not a fresh set of choices.
+
+1. Two kids can share a sofa. A sofa has two seat anchors. A chair, armchair, stool, and bed have one. One kid per anchor. The second sofa seat is the other anchor. A full piece toasts "Someone is already there!"
+2. A solo doll's seat is saved, and omitted when she is standing, so a reload keeps her in the chair.
+3. The crib is the baby's. A kid does not sit in it in P1.
+4. The high chair waits for the baby. It is not a kid seat in P1.
+5. Cat bed, pet bed, and dog bed stay pet-only.
+6. Anyone in the house can feed, burp, change, or rock the baby. Only the owner renames her.
+7. The happy meter eases back to Cozy. Care raises it. About every 45 seconds it steps down one, and it stops at 2. It never stores a mood below Cozy, never shows an empty or red meter, and never has an upset or failure state.
+8. Nicknames go through `cleanPetName` and the light chat filter, not the roster first-name rules. "Bean" and a space are allowed.
+9. A bunk bed uses the bottom bunk only in P1.
+10. Protocol stays 4, with `sit: 1` and `baby: 1`. There is no PROTOCOL 5 for this.
+11. The Worker and the client ship together. An old Worker is safe (the pose stays on her own screen, baby actions are rejected) and friends see the new pose once that Worker is the one they are connected to.
+12. The living-room paintings from `8a12495` are the art these anchors were checked against. The bed has no painting in that set, so the lie anchor is the SVG measurement above until a bed WebP exists.
+13. The spike (`?sit=1`, built-in sofa only) stays off by default. It is one local pose, not the two-seat feature, and it does not change the save.
