@@ -9,9 +9,11 @@
 # out. Cream fully enclosed by the drawing (a gap between stems, rungs, strings)
 # stays open and is ringed by the plum contour the bounds lint treats as "between
 # parts"; a tiny enclosed fleck is filled. Specks are dropped, separate big parts
-# are joined with a thin plum bridge. Then the even soft dark contour (#5a3d36)
-# is laid on the outer edge, and the drawn box is fitted onto the SVG's visible
-# art box (shadow ellipse excluded) on a round(3w) x round(3h) canvas.
+# are joined with a thin plum bridge. The drawn box is fitted onto the SVG's visible
+# art box (shadow ellipse excluded) on a round(3w) x round(3h) canvas, and then the
+# shipped living-room contour is laid at final size (plum_contour): a thick, soft
+# plum #5b3d5c band CONTOUR_PX deep from every alpha edge, whose outer RAMP pixels
+# fade in alpha (measured from the 14 shipped WebPs at 8a12495).
 import io, json, os, re, sys
 import numpy as np, cairosvg
 from PIL import Image
@@ -19,7 +21,10 @@ from scipy import ndimage as ndi
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLUM = np.array([90, 61, 92], float)
-OUTLINE = np.array([90, 61, 54], float)  # #5a3d36, art-pilot/STYLE.md
+OUTLINE = np.array([91, 61, 92], float)  # #5b3d5c, measured on the shipped living room (8a12495)
+CONTOUR_PX = 9      # canvas px (3 CSS px) of solid plum + ramp, from the outer alpha edge inward
+RAMP = [27, 70, 132, 194, 234, 251]   # alpha at depth 1..6 px (median of the shipped 14)
+BLEND_PX = 2        # px beyond CONTOUR_PX where the plum fades into the paint
 KEY = 40      # colour distance from the card counted as background
 LIMIT = 58000
 
@@ -99,7 +104,6 @@ def finish(fg, al, ring):
     """At final size: one island, no transparent pocket unless ringed in plum,
     plum only where it rings a real opening, and a closed outer contour."""
     stray = plumlike(fg) & ~ring
-    fg[stray, 2] = np.clip(fg[stray, 2] - 36, 0, 255)   # warm a lavender-grey line to the brown outline
     solid = al > 40
     al[~solid] = 0
     lab, n = ndi.label(solid)
@@ -120,10 +124,24 @@ def finish(fg, al, ring):
         if ratio < 0.8:
             sub = fg[sl2]; sub[m] = fg[near[0][sl2][m], near[1][sl2][m]]
             al[sl2][m] = 255
-    solid = al > 12
-    outside = ~ndi.binary_fill_holes(solid)
-    edge = solid & ndi.binary_dilation(outside, structure=np.ones((3, 3)))
-    fg[edge] = fg[edge] * 0.2 + OUTLINE * 0.8
+    return plum_contour(fg, al)
+
+
+def plum_contour(fg, al):
+    """Shipped living-room contour: depth d from the nearest transparent pixel
+    (outer edge and ringed openings alike). d <= CONTOUR_PX is solid plum, the
+    outer len(RAMP) px fade in alpha, and the next BLEND_PX px blend into the paint."""
+    solid = al > 0
+    d = ndi.distance_transform_edt(np.pad(solid, 1))[1:-1, 1:-1]
+    band = solid & (d <= CONTOUR_PX)
+    fg[band] = OUTLINE
+    for i in range(1, BLEND_PX + 1):
+        m = solid & (d > CONTOUR_PX + i - 1) & (d <= CONTOUR_PX + i)
+        t = i / (BLEND_PX + 1)
+        fg[m] = fg[m] * t + OUTLINE * (1 - t)
+    for i, a in enumerate(RAMP, 1):
+        m = solid & (d > i - 1) & (d <= i)
+        al[m] = np.minimum(al[m], a)
     return fg, al
 
 
@@ -169,7 +187,7 @@ def build(it, raw, group):
     fg2, al2 = finish(fg2, al2, ring2)
     im = Image.fromarray(np.dstack([fg2, al2]).astype('uint8'), 'RGBA')
     c = Image.new('RGBA', (W, H), (0, 0, 0, 0))
-    c.paste(im, (x0, y0), im)
+    c.paste(im, (x0, y0))   # no mask: a masked paste squares alpha and darkens the edge
     name = it['kind'].replace(':', '~')
     out = os.path.join(ROOT, 'assets', 'art', group, name + '.webp')
     os.makedirs(os.path.dirname(out), exist_ok=True)
