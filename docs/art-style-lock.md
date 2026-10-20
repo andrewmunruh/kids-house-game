@@ -20,7 +20,7 @@ Rule: RECOGNIZABLE FIRST, CUTE SECOND. Real silhouette and proportions; keep the
 1. Background key: cream connected to the card border is removed (also removes any painted floor shadow). rembg is not used for alpha: it punched holes in glass, white enamel and pale cushions.
 2. Everything enclosed by the drawing stays solid. Enclosed flat cream ≥150 px (a gap between stems, rungs, strings) stays open and is ringed in plum #5a3d5c so the lint sees it as between parts. Smaller flecks are filled. Thin parts are never gap-closed.
 3. One alpha island: specks under 3% of the main body are dropped; separate big parts get a thin bridge.
-4. Contour (plum_contour, at final canvas size): every pixel within 9 px of a transparent pixel (outer edge and ringed openings) becomes plum #5b3d5c; alpha at depth 1..6 px is capped at 27, 70, 132, 194, 234, 251; the next 2 px blend plum into the paint. Measured from the 14 shipped living-room WebPs, which all show this profile. No cream fringe.
+4. Contour (plum_contour, at final canvas size, on a smoothed silhouette: gaussian sigma 2 mask, then a signed distance blurred with sigma 1 so curves have no staircase): every pixel within 9 px of a transparent pixel (outer edge and ringed openings) becomes plum #5b3d5c; alpha at depth 1..6 px is capped at 27, 70, 132, 194, 234, 251; the next 2 px blend plum into the paint. Measured from the 14 shipped living-room WebPs, which all show this profile. No cream fringe.
 5. Fit by bounding box onto the SVG art box; flag raws whose aspect needs >18% stretch and regenerate.
 6. Encode, decode, re-verify (islands, pinholes); repair and re-encode.
 

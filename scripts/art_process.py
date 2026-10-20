@@ -23,9 +23,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLUM = np.array([90, 61, 92], float)
 OUTLINE = np.array([91, 61, 92], float)  # #5b3d5c, measured on the shipped living room (8a12495)
 CONTOUR_PX = 9      # canvas px (3 CSS px) of solid plum + ramp, from the outer alpha edge inward
+FADE_OUT = 3        # px: the RAMP depth where alpha crosses 128
 RAMP = [27, 70, 132, 194, 234, 251]   # alpha at depth 1..6 px (median of the shipped 14)
+SMOOTH = 2.0        # gaussian sigma (px) of the silhouette the band follows
 BLEND_PX = 2        # px beyond CONTOUR_PX where the plum fades into the paint
 KEY = 40      # colour distance from the card counted as background
+MIN_HOLE = 400        # raw px: smallest hole opened without SEE_THROUGH
+MIN_HOLE_FRAC = 0.004  # ... and at least this share of the object
+HOLE_RIM_DARK = 0.5    # share of the ring around it that is the painter's dark line
+CARD_EXACT = 8   # enclosed pixels this close to the card are background seen through a hole
 LIMIT = 58000
 
 
@@ -41,7 +47,20 @@ def svg_box(it):
     return W, H, (int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1)
 
 
-def key(rgb):
+def deband(rgb, obj, max_px=40):
+    """Peel a painted lavender/plum 'sticker' border off the silhouette (opt-in, env
+    DEBAND=kind): strip boundary rings while most of the ring is mid-dark purple."""
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    purple = (b > g + 15) & (r > g + 10) & (rgb.mean(2) < 175)
+    for _ in range(max_px):
+        ring = obj & ~ndi.binary_erosion(obj)
+        if purple[ring].mean() < 0.6:
+            break
+        obj = obj & ~(ring & purple)
+    return ndi.binary_opening(obj, iterations=1)
+
+
+def key(rgb, see_through=False, band=False):
     edge = np.concatenate([rgb[:8].reshape(-1, 3), rgb[-8:].reshape(-1, 3), rgb[:, :8].reshape(-1, 3), rgb[:, -8:].reshape(-1, 3)])
     bg = np.median(edge, 0)
     dist = np.sqrt(((rgb - bg) ** 2).sum(2))
@@ -51,6 +70,8 @@ def key(rgb):
     outside = np.isin(lab, border[border > 0])
     obj = ~outside
     obj = ndi.binary_opening(obj, iterations=1)
+    if band:
+        obj = deband(rgb, obj)
     lab, n = ndi.label(obj)
     if n > 1:
         sizes = ndi.sum(obj, lab, range(1, n + 1))
@@ -64,9 +85,32 @@ def key(rgb):
             bridge = k & ~obj
             rgb = rgb.copy(); rgb[bridge] = PLUM
             obj = k
-    # enclosed cream: openings stay open, flecks are filled
+    # enclosed cream: openings stay open, flecks are filled. obj above is ~outside, so it
+    # already contains enclosed cream; candidates are the enclosed card-like pixels.
     filled = ndi.binary_fill_holes(obj)
-    gaps = filled & ~obj
+    lum = rgb.mean(2)
+    cand = filled & (dist < KEY)
+    cl, cn = ndi.label(cand)
+    gaps = np.zeros_like(obj)
+    area = filled.sum()
+    for i, sl in enumerate(ndi.find_objects(cl), 1):
+        m = cl[sl] == i
+        n = m.sum()
+        if see_through:
+            ok = n >= 150 and np.median(dist[sl][m]) < CARD_EXACT
+        else:
+            # a real hole (handle loop, gap between legs): big, card-exact, and drawn
+            # around with the painter's dark line. Frosting, glass and labels are not.
+            sl2 = tuple(slice(max(0, q.start - 6), q.stop + 6) for q in sl)
+            mm = np.zeros(lum[sl2].shape, bool)
+            mm[sl[0].start - sl2[0].start:sl[0].start - sl2[0].start + m.shape[0],
+               sl[1].start - sl2[1].start:sl[1].start - sl2[1].start + m.shape[1]] = m
+            ring = ndi.binary_dilation(mm, iterations=6) & ~ndi.binary_dilation(mm, iterations=1)
+            dark = (lum[sl2][ring] < 120).mean() if ring.any() else 0
+            ok = (n >= max(MIN_HOLE, area * MIN_HOLE_FRAC) and np.median(dist[sl][m]) < CARD_EXACT
+                  and dark >= HOLE_RIM_DARK)
+        if ok:
+            gaps[sl] |= m
     gl, gn = ndi.label(gaps)
     opening = np.zeros_like(obj)
     if gn:
@@ -131,17 +175,20 @@ def plum_contour(fg, al):
     """Shipped living-room contour: depth d from the nearest transparent pixel
     (outer edge and ringed openings alike). d <= CONTOUR_PX is solid plum, the
     outer len(RAMP) px fade in alpha, and the next BLEND_PX px blend into the paint."""
-    solid = al > 0
-    d = ndi.distance_transform_edt(np.pad(solid, 1))[1:-1, 1:-1]
-    band = solid & (d <= CONTOUR_PX)
-    fg[band] = OUTLINE
-    for i in range(1, BLEND_PX + 1):
-        m = solid & (d > CONTOUR_PX + i - 1) & (d <= CONTOUR_PX + i)
-        t = i / (BLEND_PX + 1)
-        fg[m] = fg[m] * t + OUTLINE * (1 - t)
-    for i, a in enumerate(RAMP, 1):
-        m = solid & (d > i - 1) & (d <= i)
-        al[m] = np.minimum(al[m], a)
+    # a smoothed silhouette, so the band follows the shape and not resize ringing
+    solid = ndi.gaussian_filter(al / 255, SMOOTH) > 0.5
+    lab, n = ndi.label(solid)
+    if n > 1:
+        solid = lab == 1 + int(np.argmax(ndi.sum(solid, lab, range(1, n + 1))))
+    al[~solid] = 0
+    al[solid] = np.maximum(al[solid], 255 * (al[solid] > 12))
+    pad = np.pad(solid, 1)
+    d = (ndi.distance_transform_edt(pad) - ndi.distance_transform_edt(~pad))[1:-1, 1:-1]
+    d = ndi.gaussian_filter(d, 1.0)      # signed, smoothed: no staircase on curves
+    t = np.clip((CONTOUR_PX + BLEND_PX + 1.5 - d) / (BLEND_PX + 1), 0, 1)[..., None]
+    fg[:] = fg * (1 - t) + OUTLINE * t
+    ramp = np.interp(d, np.arange(0, len(RAMP) + 2), [0] + RAMP + [255])
+    al[:] = np.where(d > 0, np.minimum(al, ramp), 0)
     return fg, al
 
 
@@ -164,10 +211,14 @@ def verify(path):
 
 def build(it, raw, group):
     rgb = np.array(Image.open(raw).convert('RGB')).astype(float)
-    rgb, solid, opening = key(rgb)
+    rgb, solid, opening = key(rgb, it['kind'] in os.environ.get('SEE_THROUGH', '').split(','),
+                              it['kind'] in os.environ.get('DEBAND', '').split(','))
     ys, xs = np.where(solid)
     y0s, y1s, x0s, x1s = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
     W, H, (x0, y0, x1, y1) = svg_box(it)
+    # the contour's outer fade straddles the SVG edge: alpha>0 reaches FADE_OUT px past
+    # the box and the half-alpha (visible) edge sits on it
+    x0, y0, x1, y1 = max(0, x0 - FADE_OUT), max(0, y0 - FADE_OUT), min(W, x1 + FADE_OUT), min(H, y1 + FADE_OUT)
     bw, bh = x1 - x0, y1 - y0
     scale = bw / (x1s - x0s)
     stretch = (bw / bh) / ((x1s - x0s) / (y1s - y0s))
