@@ -58,11 +58,13 @@ This is a paint spike. She still draws in front of the whole sofa. Hips are lift
 
 ## P1 — Sit and lie
 
-Next update after B2. Two ways in, one way out.
+Next update after B2. Two ways in, and only in Play. Decorate does not seat anyone.
 
-Tap is for the player's own avatar. In Play, a tap on a chair, sofa, stool, or bench sits her, and a tap on a bed lies her down. A second tap stands her up. That path does not go away.
+Tap-to-sit stays a tap on the furniture, for the player's own avatar. In Play, a tap on a chair, sofa, stool, or bench sits her, and a tap on a bed lies her down. A second tap on that piece stands her up.
 
-Drag is for every character in the house. That includes the dolls the kids make, family and other NPC kids, and, once she can be put down, the baby. Dropping one on a chair, sofa, stool, or bench snaps her to the nearest free sit anchor and plays the sit pose. Dropping one on a bed snaps her to the lie anchor and plays the lie pose. A sofa has two anchors. If that piece has no free anchor, she drops where the finger let go, standing, beside it. Dragging her off the piece stands her up.
+Drag-to-sit is also Play, and it is a drag of a character, not of the furniture. The player's own avatar and the dolls the kids make (family and other NPC kids in `characters[]`) all use it. Once the baby can be put down, she uses it too. Dropping one on a chair, sofa, stool, or bench snaps her to the nearest free sit anchor and plays the sit pose. Dropping one on a bed snaps her to the lie anchor and plays the lie pose. A sofa has two anchors. If that piece has no free anchor, she drops where the finger let go, standing, beside it. Dragging her off the piece stands her up.
+
+Decorate keeps today's move and place. Dropping a character on a chair there does not sit her. Picking up a piece someone is sitting on stands them up. They are not carried with the furniture.
 
 ### Save and protocol
 
@@ -74,7 +76,7 @@ Every house doll persists her seat, not only the active one. A reload keeps each
 seat?: { item: string; pose: 'sit' | 'lie'; n: 0 | 1 }
 ```
 
-Omit `seat` when she is standing, so a standing kid's JSON matches an old save. Clear it when that item is deleted, held, or flipped away, and when a drag ends off the piece. `newCharacter` already spreads extra fields, so an old `migrate()` keeps `seat` on the object and does not throw. Old `cleanCharacter` / `cleanHouseState` drop it, because they rebuild the character from known fields. That only matters when a brand-new street house is created from a client save. An existing house lives on the Durable Object and is updated by actions, not by a second full upload. New `migrate` and new `cleanHouseState` keep a seat whose item is still in that room, and drop a dangling one. Missing `seat` stays missing.
+Omit `seat` when she is standing, so a standing kid's JSON matches an old save. Clear it when that item is deleted, held, or flipped, when Decorate actually moves that piece, and when a Play drag ends off the piece. `newCharacter` already spreads extra fields, so an old `migrate()` keeps `seat` on the object and does not throw. Old `cleanCharacter` / `cleanHouseState` drop it, because they rebuild the character from known fields. That only matters when a brand-new street house is created from a client save. An existing house lives on the Durable Object and is updated by actions, not by a second full upload. New `migrate` and new `cleanHouseState` keep a seat whose item is still in that room, and drop a dangling one. Missing `seat` stays missing.
 
 In a neighborhood, the kid on screen is her presence, not the doll. Add an optional presence field, only for `where === 'house'`:
 
@@ -84,9 +86,9 @@ seat?: { id: string; pose: 'sit' | 'lie'; n: 0 | 1 }
 
 `cleanPresence` on a new server keeps a seat whose id is a real item in that room and whose pose is `sit` or `lie`. A bad seat is dropped. The presence is not rejected, so `x` and `y` still arrive. An old server rebuilds house presence without the field, which is the fallback: she is standing at the seat point, and nothing throws.
 
-Position keeps using the actions everyone already understands (`char/move` for a doll, presence `x`/`y` for a player). Do not add a `char/seat` action. An old `reduce()` would return `undefined` for an unknown type. `char/move` on the new server takes an optional `seat`. A snap sends the anchor. A drag that ends off the piece, or a full piece, sends `seat: null`, and the doll stands at the release point. Old `reduce` only copies `x` and `y`, so an old client draws her standing there. The server forwards `seat` only to clients that said `sit: 1`. Everyone else gets the same `x` and `y`. Presence `seat` is included only for those clients too.
+Position keeps using the actions everyone already understands (`char/move` for a doll, presence `x`/`y` for a player). Do not add a `char/seat` action. An old `reduce()` would return `undefined` for an unknown type. `char/move` on the new server takes an optional `seat`. A Play snap sends the anchor. A Play drag that ends off the piece, a full piece, or any Decorate drop sends `seat: null`, and the doll stands at the release point. Old `reduce` only copies `x` and `y`, so an old client draws her standing there. The server forwards `seat` only to clients that said `sit: 1`. Everyone else gets the same `x` and `y`. Presence `seat` is included only for those clients too.
 
-One sitter per anchor. A sofa has two anchors, so two kids can share it. A chair, armchair, stool, and bed have one. A tap on a full piece toasts "Someone is already there!" and leaves the avatar standing. A drag onto a full piece does not toast. She finishes the drop beside it, standing. The server is the authority for which anchor is free.
+One sitter per anchor. A sofa has two anchors, so two kids can share it. A chair, armchair, stool, and bed have one. A tap on a full piece toasts "Someone is already there!" and leaves the avatar standing. A Play drag onto a full piece does not toast. She finishes the drop beside it, standing. The server is the authority for which anchor is free.
 
 The seat records which anchor, so two kids on one sofa do not collide:
 
@@ -135,19 +137,35 @@ Manifest shape, optional, shared by SVG and WebP. `dx` and `dy` are room pixels 
 
 Those two numbers are the built-in sofa (`w` 260, `h` 260), rounded: `±0.18 * 260` is 47, and `-0.33 * 260` is -86. Code defaults apply when `seats` is absent. Crib, bassinet, high chair, cat bed, pet bed, and dog bed are not kid seats in P1. A bunk uses the bottom bunk only.
 
-`playGesture` currently returns `sit` for crib and for any kind matching `/chair/`, which includes the high chair. P1 narrows that list to the categories above. The same list is what a character drop will sit or lie on.
+`playGesture` currently returns `sit` for crib and for any kind matching `/chair/`, which includes the high chair. P1 narrows that list to the categories above. In Play, a character drop sits or lies on that same list.
 
 ### Drag onto a seat
 
-Today `attachCharDrag` in `src/main.ts` already drags any house doll, in Play and in Decorate. `canEdit()` is the house lock, not the mode. On pointerup she stays where the finger let go, standing. A room-tab drop still walks her to that room. P1 adds the snap on that same pointerup.
+This snap exists only while the house is in Play (`play.isPlay()`). Decorate never runs it.
 
-The drop point picks the topmost seatable item under the finger. Among that item's free anchors, she takes the nearest. Distance is from the drop to the anchor. A sofa with one kid already sitting offers the other anchor. A sofa with both anchors taken, or a chair that is taken, is a normal drop: her `x` and `y` stay at the release point, on the floor, and `seat` is omitted. She does not shove the kid who is already there.
+Today `attachCharDrag` in `src/main.ts` drags any house doll in both modes, and `attachMyAvatarDrag` drags the player's avatar in a neighborhood house. `canEdit()` is the house lock, not the mode. On pointerup she stays where the finger let go, standing. A room-tab drop still walks her to that room. P1 adds the snap on that same pointerup, and only when the mode is Play.
 
-A move of more than 6px counts as a drag, which is already how a tap is told from a drag. Once that drag leaves the piece, she stands up. Pointerup away from a seatable item leaves her standing at the release point, with no `seat`. Pointerup over a room tab still changes rooms, and it clears `seat`. Decorate still drags the furniture. A drag that never moves stays a tap, so the avatar's tap-to-sit still fires in Play.
+In Play, the drop point picks the topmost seatable item under the finger. Among that item's free anchors, she takes the nearest. Distance is from the drop to the anchor. A sofa with one kid already sitting offers the other anchor. A sofa with both anchors taken, or a chair that is taken, is a normal drop: her `x` and `y` stay at the release point, on the floor, and `seat` is omitted. She does not shove the kid who is already there. Once that drag leaves the piece, she stands up. Pointerup away from a seatable item leaves her standing at the release point, with no `seat`. Pointerup over a room tab still changes rooms, and it clears `seat`.
 
-The street avatar keeps tap-to-sit. She can also be dragged onto a seat. That sit is her presence, because she is not a doll in someone else's house. Dolls the kids created, and any family or NPC kid in `characters[]`, store `seat` on the character in the house save. Friends with `sit: 1` see the pose. Friends without it see her standing at the anchor.
+In Decorate, that same pointerup is today's drop. She stands at the release point even when the finger is over a chair, sofa, stool, bench, or bed. No pose, no toast, no `seat`. A room-tab drop still changes rooms and still clears `seat`. Furniture drag stays Decorate-only (`dragAllowed` is false in Play).
 
-The baby is not a character slot. In P2, once she can be put down, the same drop rules apply. A chair, sofa, stool, or bench sits her. A bed lies her down. Her `seat` is saved on `baby`, and a drag off clears it and puts her back on the mat. Dropping her on the crib returns her to the crib. The crib is still not a seat for a kid.
+The street avatar keeps tap-to-sit, and in Play she can also be dragged onto a seat. That sit is her presence, because she is not a doll in someone else's house. Dolls the kids created, and any family or NPC kid in `characters[]`, store `seat` on the character in the house save. Friends with `sit: 1` see the pose. Friends without it see her standing at the anchor.
+
+The baby is not a character slot. In P2, once she can be put down, the same Play drop rules apply. A chair, sofa, stool, or bench sits her. A bed lies her down. Her `seat` is saved on `baby`, and a Play drag off clears it and puts her back on the mat. Dropping her on the crib returns her to the crib. A Decorate drop does not seat her. The crib is still not a seat for a kid.
+
+### Taps stay taps
+
+The snap listens only to a character drag that has already moved more than 6px, and only in Play. The taps the room already has keep their own pointers.
+
+Tap-to-sit is a tap on the furniture. The pointer goes down on a chair, sofa, stool, bench, or bed and comes up without moving 6px. That sits or lies the player's own avatar and moves her to the anchor, which is today's `sitAt`. A second tap on that same piece stands her up. Play does not drag the furniture. Today `onPlayTap` runs on pointerdown. P1 waits for pointerup, and it sits only when the finger moved less than 6px, so a slip does not sit her and does not become a character drag.
+
+The house has no tap-the-ground walk. That gesture is the ranch. A finger that starts on empty floor still does what it does now: under 6px it deselects, and past 6px it pans the camera. That pointer never sits a character and never starts a character drag. A finger that starts on the avatar or a doll and lifts without moving 6px is a tap on her. It does not sit, stand, or move her. Switching between Play and Decorate does not clear a seat by itself.
+
+### Moving the furniture
+
+Call: she stands up. She is not carried.
+
+Decorate is for placing the room, not for posing kids. A carried sit would follow the piece through a flip, into a hand, into the bin, or into another room. When a seatable item is flipped, deleted, held, or dragged past the same 6px that already counts as a furniture drag, everyone whose `seat` names that item stands at the anchor they had when the grab started, and `seat` is cleared. A tap on the piece, under 6px, leaves them seated. Putting the piece back down does not sit them again. `item/front` and `item/back` do not clear a seat, because the piece did not move.
 
 ### Pose and paint
 
@@ -169,16 +187,18 @@ One cached SVG per look+pose, rebuilt when the look or the pose changes, not on 
 
 - Migration: a version-3 save with no `seat` loads unchanged, and every doll is standing. A save with `seat` on a second doll, not the active one, still loads, version stays 3, and a missing item clears that seat. `JSON` of a standing kid has no `seat` key.
 - Old client: fixture of today's `migrate` + `cleanHouseState` on a blob that contains `seat`. No throw. The field is dropped by `cleanHouseState` and kept by `migrate`. An old `char/move` still only copies `x` and `y`.
-- Drag snap, pure rules before the paint: drop a non-active doll on a chair and she stores `seat` with pose `sit` at that anchor. Drop her on a bed and the pose is `lie`. Drop her on a sofa that already has one sitter and she takes the other anchor. Drop her on a full sofa or a taken chair and she keeps the release `x`,`y` with no `seat` key. Drag her off and the key is gone. A room-tab drop changes her room and clears `seat`.
-- Multi-client: two `sit: 1` clients see a dragged doll sitting after the house action. A client that did not send `sit: 1` receives `char/move` without `seat` and draws her standing at that `x`,`y`. An old server strips `seat`. No unknown action is broadcast. Reload the house and the doll is still seated.
-- Occupied anchor: a tap on a full chair toasts and the avatar stays standing. A drag onto that chair does not toast. The doll lands beside it, standing. The second drag onto a sofa takes the free anchor. A third drag onto that sofa lands beside it.
+- Drag snap, pure rules before the paint, and only in Play: drop a non-active doll on a chair and she stores `seat` with pose `sit` at that anchor. Drop her on a bed and the pose is `lie`. Drop her on a sofa that already has one sitter and she takes the other anchor. Drop her on a full sofa or a taken chair and she keeps the release `x`,`y` with no `seat` key. Drag her off and the key is gone. A room-tab drop changes her room and clears `seat`.
+- Decorate does not sit: the same drop of that doll onto a chair, with the mode set to decorate, leaves no `seat` key and leaves her at the release `x`,`y`. Dragging the occupied chair past 6px, flipping it, deleting it, or holding it clears `seat` and leaves her standing at the anchor she had when the grab started. She is not carried. A tap on that chair under 6px leaves her seated. `item/front` leaves her seated.
+- Taps stay taps: a pointer that starts on a chair and lifts without moving 6px sits the player's own avatar and does not drag her. A pointer that starts on that chair and moves past 6px does not sit anyone and does not move the chair, because Play does not drag furniture. A pointer that starts on empty floor still deselects under 6px and pans past 6px, and it never writes `seat`. A pointer that starts on a doll and lifts without moving 6px does not move her and does not write `seat`.
+- Multi-client: two `sit: 1` clients see a doll dragged in Play sitting after the house action. A client that did not send `sit: 1` receives `char/move` without `seat` and draws her standing at that `x`,`y`. An old server strips `seat`. No unknown action is broadcast. Reload the house and the doll is still seated. A Decorate drop is seen as standing.
+- Occupied anchor: a tap on a full chair toasts and the avatar stays standing. A Play drag onto that chair does not toast. The doll lands beside it, standing. The second Play drag onto a sofa takes the free anchor. A third Play drag onto that sofa lands beside it.
 - Tap still sits the player's own avatar, in Play, without a drag. A second tap stands her up. Her neighborhood sit is presence. A doll's sit is the house save.
-- Real touch: pointer-drag a created kid onto the painted chair and onto the same chair with `?art=v1`, then onto the sofa's second seat, then onto a bed, then off the bed. Run on the iPad size and on 390×844. Decorate still drags the chair. A drop on a room tab still changes rooms.
+- Real touch, in Play: pointer-drag a created kid onto the painted chair and onto the same chair with `?art=v1`, then onto the sofa's second seat, then onto a bed, then off the bed. Then switch to Decorate and drop her on the chair: she stays standing. Drag that chair: she stands at the old anchor. Run on the iPad size and on 390×844. A drop on a room tab still changes rooms. A floor pan still pans.
 - Pose unit: hair, hat, and clothes order; skirts do not ride inside `.leg`; classic SVG still renders. A classic doll with no `look2` still snaps and gets the simpler bent-leg sit.
 
 ### Estimate
 
-About **4 cloud-agent runs**, roughly **12–14 hours**. One run for the pose and the outfit drape, one for anchors and the paint split, one for drag-snap, the saved seat on every doll, and the old-client gate, one for the iPad and phone pass. The Worker ships in the same release as the client. The what's-new card (v9) is part of that release, not this plan.
+About **4 cloud-agent runs**, roughly **12–14 hours**. One run for the pose and the outfit drape, one for anchors and the paint split, one for the Play-only drag-snap, the Decorate stand-up, the saved seat on every doll, and the old-client gate, one for the iPad and phone pass. The Worker ships in the same release as the client. The what's-new card (v9) is part of that release, not this plan.
 
 ## P2 — Baby v1
 
@@ -233,7 +253,7 @@ One baby SVG, cached by mood and spot. Care plays a CSS class for about a second
 - Old client: today's `cleanAction` returns null for `baby/care`. A broadcast helper that filters on `baby: 1` does not deliver it. A house blob with `baby` does not throw in old `migrate`.
 - Two clients with `baby: 1` see the same name, mood, and holder. A client without the flag never sees the actions. A second hold is refused.
 - Real touch: each care button is 44px, works with a finger, and does not cover the phone drawer. Owner rename works. A visitor can care and cannot rename.
-- Drop the baby on a chair and she stores a sit seat. Drop her on a bed and she stores a lie seat. Drag her off and `seat` is gone, `spot` is `mat`. Drop her on the crib and `spot` is `crib`. A taken chair drops her beside it, standing, with no seat.
+- In Play, drop the baby on a chair and she stores a sit seat. Drop her on a bed and she stores a lie seat. Drag her off and `seat` is gone, `spot` is `mat`. Drop her on the crib and `spot` is `crib`. A taken chair drops her beside it, standing, with no seat. In Decorate, the same chair drop leaves her standing with no seat. Moving that chair stands her at the old anchor.
 - Deleting the crib sets `spot` to `mat` and leaves `name`. A seat on some other piece is left alone.
 
 ### Estimate
@@ -264,9 +284,9 @@ A later build of this sketch is about **8–12 cloud-agent runs**. It is not est
 
 ## Locked decisions
 
-Andy locked 1 and 7. The rest were the plan's defaults. They are locked the same way. P1 and P2 build these, not a fresh set of choices.
+Andy locked 1 and 7, and he locked the Play-only drag in 14 and 16. Standing a seated kid when the furniture moves (15) is the call he left open: they stand, they are not carried. The rest were the plan's defaults. They are locked the same way. P1 and P2 build these, not a fresh set of choices.
 
-1. Two kids can share a sofa. A sofa has two seat anchors. A chair, armchair, stool, and bed have one. One kid per anchor. The second sofa seat is the other anchor. A tap on a full piece toasts "Someone is already there!" A drag onto a full piece drops beside it, standing, with no toast.
+1. Two kids can share a sofa. A sofa has two seat anchors. A chair, armchair, stool, and bed have one. One kid per anchor. The second sofa seat is the other anchor. A tap on a full piece toasts "Someone is already there!" A Play drag onto a full piece drops beside it, standing, with no toast.
 2. Every house doll's seat is saved on that character, and omitted when she is standing. An old save has no `seat` and loads standing. A reload keeps each seated doll where she was, including dolls that are not the active kid.
 3. The crib is the baby's. A kid does not sit in it in P1.
 4. The high chair waits for the baby. It is not a kid seat in P1.
@@ -279,4 +299,6 @@ Andy locked 1 and 7. The rest were the plan's defaults. They are locked the same
 11. The Worker and the client ship together. An old Worker is safe (the pose stays on her own screen, baby actions are rejected) and friends see the new pose once that Worker is the one they are connected to.
 12. The living-room paintings from `8a12495` are the art these anchors were checked against. The bed has no painting in that set, so the lie anchor is the SVG measurement above until a bed WebP exists.
 13. The spike (`?sit=1`, built-in sofa only) stays off by default. It is one local pose, not the two-seat feature, and it does not change the save.
-14. Drag any house character onto a seat. A chair, sofa, stool, or bench snaps her to the nearest free sit anchor. A bed snaps her to lie. A sofa allows two. No free anchor means a normal standing drop beside the piece. Dragging her off stands her up. Tap-to-sit stays for the player's own avatar. The doll's seat is in the house save and syncs to `sit: 1` clients. The baby uses the same drop once she can be put down.
+14. Drag-to-sit and drag-to-lie are Play only. In Play, dragging the player's own avatar or a kid-created character onto a chair, sofa, stool, or bench snaps her to the nearest free sit anchor. A bed snaps her to lie. A sofa allows two. No free anchor means a standing drop beside the piece. Dragging her off stands her up. The doll's seat is in the house save and syncs to `sit: 1` clients. The baby uses the same Play drop once she can be put down.
+15. Decorate does not seat. Dropping a character there is an ordinary place, even on a chair or a bed. Moving, flipping, deleting, or holding a piece someone is sitting on stands them at the anchor they had when the grab started and clears `seat`. They are not carried. A tap under 6px on that piece leaves them seated. Switching mode does not clear a seat.
+16. Play drags do not take the other taps. Tap-to-sit is a furniture tap under 6px and still sits the player's own avatar. A finger on empty floor still deselects or pans, and it never sits anyone. The house does not gain a tap-the-ground walk. A finger on a character that lifts without moving 6px does not sit or move her.
