@@ -27,6 +27,7 @@ RAMP = [27, 70, 132, 194, 234, 251]   # alpha at depth 1..6 px (median of the sh
 SMOOTH = 2.0        # gaussian sigma (px) of the silhouette the band follows
 BLEND_PX = 2        # px beyond CONTOUR_PX where the plum fades into the paint
 KEY = 40      # colour distance from the card counted as background
+CARD_EXACT = 8   # enclosed pixels this close to the card are background seen through a hole
 LIMIT = 58000
 
 
@@ -42,7 +43,7 @@ def svg_box(it):
     return W, H, (int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1)
 
 
-def key(rgb):
+def key(rgb, see_through=False):
     edge = np.concatenate([rgb[:8].reshape(-1, 3), rgb[-8:].reshape(-1, 3), rgb[:, :8].reshape(-1, 3), rgb[:, -8:].reshape(-1, 3)])
     bg = np.median(edge, 0)
     dist = np.sqrt(((rgb - bg) ** 2).sum(2))
@@ -67,7 +68,10 @@ def key(rgb):
             obj = k
     # enclosed cream: openings stay open, flecks are filled
     filled = ndi.binary_fill_holes(obj)
+    # card-flat cream enclosed by the drawing (obj is ~outside, so it already contains it)
     gaps = filled & ~obj
+    if see_through:   # opt-in (env SEE_THROUGH=kind,kind): a real hole such as a donut's
+        gaps |= ndi.binary_opening(filled & (dist < CARD_EXACT), iterations=3)
     gl, gn = ndi.label(gaps)
     opening = np.zeros_like(obj)
     if gn:
@@ -168,7 +172,7 @@ def verify(path):
 
 def build(it, raw, group):
     rgb = np.array(Image.open(raw).convert('RGB')).astype(float)
-    rgb, solid, opening = key(rgb)
+    rgb, solid, opening = key(rgb, it['kind'] in os.environ.get('SEE_THROUGH', '').split(','))
     ys, xs = np.where(solid)
     y0s, y1s, x0s, x1s = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
     W, H, (x0, y0, x1, y1) = svg_box(it)
