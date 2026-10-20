@@ -400,7 +400,11 @@ async def main():
             await P.click(f'.mapHouse[data-go="house:{k2house}"]'); await P.wait_for_timeout(900)
             old_tabs_house = await P.locator('#tabs .tab').count()
             old_door = await P.locator('.yardDoor, .backDoor').count()
-            check('old client shows five tabs and no door after a friend fills the yard', old_tabs_house == 5 and old_door == 0 and not old_errs, f'tabs={old_tabs_house} door={old_door} ' + '; '.join(old_errs[:2]))
+            # 29836e6 has no door; a baseline that ships the back door (f0affc0) shows exactly its one .yardDoor, never a second
+            prod_has_door = 'yardDoor' in OLD_MAIN
+            want_door = 1 if prod_has_door else 0
+            old_yard_door = await P.locator('.yardDoor').count()
+            check('old client shows five tabs and only its own baseline door after a friend fills the yard', old_tabs_house == 5 and old_door == want_door and old_yard_door == want_door and not old_errs, f'tabs={old_tabs_house} door={old_door} want={want_door} ' + '; '.join(old_errs[:2]))
             await P.evaluate("""() => { const h = __hood(), id = """ + json.dumps(k2house) + """; const kind = Object.keys(__items)[0]; h.dispatch(id, {type:'item/add', room:'living', item:{id:'old-client-edit', kind, x:440, y:520, flip:false}}); }""")
             await P.wait_for_timeout(900)
             k2_sees = await K2.evaluate("""() => { const s = __hood().view(""" + json.dumps(k2house) + """); return { edit: s.rooms.living.items.some(i => i.id === 'old-client-edit'), nursery: s.rooms.nursery.items.map(i => i.id) }; }""")
