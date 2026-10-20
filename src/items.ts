@@ -104,6 +104,16 @@ export const svgOf = (d: ItemDef, shade = false) => {
   return `${shadow}${night}<img class="packimg artimg" data-kind="${esc(d.kind)}" src="${esc(url)}" alt="${esc(d.name)}" draggable="false" />`;
 };
 
+/**
+ * Shelf card markup: always the SVG first. When a painting exists, the shelf loads it
+ * in a detached image and swaps it in only after it has loaded, so a card is never
+ * empty, even on a re-render while the file is still coming in.
+ */
+export const shelfThumb = (d: ItemDef, painted: boolean) => {
+  void painted;
+  return svgMarkup(d);
+};
+
 let artFallbackOn = false;
 /** Swap a raster image that failed to load for the current SVG. One listener for the page. */
 export function installArtFallback(): void {

@@ -2,7 +2,7 @@
 // A colon in an id is written as ~ (pack:slug → pack~slug.webp).
 // The file's folder does not decide who may use it. A lamp in the bedroom uses
 // the same painting as a lamp in the living room.
-// Only kinds that are already in the save, or that the player just placed, are
+// Kinds already in the save, just placed, or scrolled onto the shelf are
 // fetched. The service worker serves /assets/art/ from its own cache, so the
 // page does not fetch a painting a second time. A missing file, a failed fetch,
 // or ?art=v1 leaves the item on its SVG.
@@ -17,6 +17,17 @@ function kindOf(path: string): string | null {
   const kind = decodeURIComponent(file.slice(0, -5)).replace(/~/g, ':');
   if (!kind || kind.startsWith('_')) return null;
   return kind;
+}
+
+const known = new Set<string>();
+for (const path in loaders) {
+  const kind = kindOf(path);
+  if (kind) known.add(kind);
+}
+
+/** True when a painting file exists. Does not fetch the file. */
+export function hasArt(kind: string): boolean {
+  return known.has(kind);
 }
 
 const started = new Map<string, Promise<string | null>>();

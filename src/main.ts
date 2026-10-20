@@ -14,7 +14,8 @@ import { unreadCount } from './shared/mail';
 import { parkSceneSVG, swingSVG, ballSVG, treeIcon, pawIcon, gateIcon, streetGateSVG, PARK_H, SWING_BAR } from './park';
 import { houseSVG, ICONS, toast, adultCheck } from './hood-ui';
 import { initEggs, foundSet, EGGS } from './eggs';
-import { ITEMS, ITEM_MAP, svgOf, hOf, installArtFallback, type Category, type ItemDef } from './items';
+import { ITEMS, ITEM_MAP, svgOf, shelfThumb, hOf, installArtFallback, type Category, type ItemDef } from './items';
+import { rasterOn, rasterUrl } from './art/cache';
 import { artSolid, topHit } from './art/hit';
 import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
 import { characterSVG, handsFor, SIZE_SCALE } from './character';
@@ -918,6 +919,129 @@ function renderAll() {
   if (document.body.classList.contains('phone') && view === 'house') requestAnimationFrame(() => phoneShowHouseKid());
 }
 
+// Shelf paintings load when a card is near the tray. Two at a time, so a long
+// pack does not decode every WebP during the fling (iPad 10th gen, 60fps).
+// A card keeps its SVG until its painting has loaded in a detached <img>; then the
+// card's contents swap in one step. The shelf is never rebuilt for this, so its
+// scroll position and the card's drag handler stay as they are.
+const SHELF_AHEAD = 200;
+const SHELF_LOADS = 2;
+const shelfWaiters: HTMLElement[] = [];
+let shelfActive = 0;
+let shelfPumping = false;
+let shelfFrame = 0;
+// Paintings that have loaded and decoded on the shelf, keyed by item kind. A tab
+// switch reuses these nodes directly (they are already decoded), so a cached
+// painting is on screen on the very first frame with no SVG flash. One card per kind
+// is on the shelf at a time; renderDrawer empties the shelf before reusing a node.
+const shelfDecoded = new Map<string, Node[]>();
+
+function shelfNear(card: HTMLElement): boolean {
+  const shelf = document.getElementById('shelf');
+  if (!shelf) return false;
+  const sr = shelf.getBoundingClientRect();
+  if (sr.width < 2 || sr.height < 2) return false;
+  const ir = card.getBoundingClientRect();
+  return ir.right > sr.left - SHELF_AHEAD && ir.left < sr.right + SHELF_AHEAD && ir.bottom > sr.top - 8 && ir.top < sr.bottom + 8;
+}
+function releaseShelf(): void {
+  shelfActive--;
+  if (shelfPumping) return;
+  pumpShelf();
+}
+/** Load the painting detached; swap it into the card only once it has loaded. */
+function swapShelfCard(card: HTMLElement, d: ItemDef): void {
+  const hold = document.createElement('div');
+  hold.innerHTML = svgOf(d);
+  const img = hold.querySelector<HTMLImageElement>('img.artimg');
+  if (!img) { delete card.dataset.artq; releaseShelf(); return; }
+  let done = false;
+  const finish = (ok: boolean) => {
+    if (done) return;
+    done = true;
+    if (card.isConnected && card.dataset.artq === '1') {
+      delete card.dataset.artq;
+      if (ok) {
+        const nodes = Array.prototype.slice.call(hold.childNodes) as Node[];
+        shelfDecoded.set(d.kind, nodes);
+        card.innerHTML = '';
+        for (let i = 0; i < nodes.length; i++) card.appendChild(nodes[i]);
+      }
+    }
+    releaseShelf();
+  };
+  const loaded = () => {
+    // decode() keeps the first painted frame from being blank on Safari; older engines skip it.
+    if (typeof img.decode === 'function') img.decode().then(() => finish(true), () => finish(true));
+    else finish(true);
+  };
+  img.onload = loaded;
+  img.onerror = () => finish(false);
+  if (img.complete && img.naturalWidth > 0) loaded();
+}
+function pumpShelf(): void {
+  if (shelfPumping) return;
+  shelfPumping = true;
+  while (shelfActive < SHELF_LOADS && shelfWaiters.length) {
+    const card = shelfWaiters.shift();
+    if (!card || !card.isConnected || card.dataset.artq !== '1') continue;
+    if (!shelfNear(card)) { delete card.dataset.shelfq; continue; }
+    const kind = card.dataset.kind || '';
+    const d = ITEM_MAP[kind];
+    if (!d) { delete card.dataset.artq; continue; }
+    shelfActive++;
+    if (rasterUrl(kind)) { swapShelfCard(card, d); continue; }
+    void import('./art/load').then(m => m.loadArtKinds([kind])).then(() => {
+      if (!card.isConnected || card.dataset.artq !== '1') { releaseShelf(); return; }
+      if (!rasterUrl(kind)) { delete card.dataset.artq; releaseShelf(); return; }
+      if (!shelfNear(card)) { delete card.dataset.shelfq; releaseShelf(); return; }
+      swapShelfCard(card, d);
+    }, () => { releaseShelf(); });
+  }
+  shelfPumping = false;
+}
+function scanShelf(): void {
+  const shelf = document.getElementById('shelf');
+  if (!shelf || !rasterOn()) return;
+  const cards = shelf.querySelectorAll<HTMLElement>('button.thing[data-artq="1"]');
+  for (let i = 0; i < cards.length; i++) {
+    const card = cards[i];
+    if (card.dataset.shelfq === '1') continue;
+    if (!shelfNear(card)) continue;
+    card.dataset.shelfq = '1';
+    shelfWaiters.push(card);
+  }
+  pumpShelf();
+}
+function scheduleShelf(): void {
+  if (shelfFrame) return;
+  shelfFrame = requestAnimationFrame(() => { shelfFrame = 0; scanShelf(); });
+}
+function bindShelfScroll(): void {
+  const shelf = document.getElementById('shelf');
+  if (!shelf || shelf.dataset.artscroll === '1') return;
+  shelf.dataset.artscroll = '1';
+  shelf.addEventListener('scroll', scheduleShelf, { passive: true });
+}
+/** Mark cards that have a painting not shown yet, without rebuilding the shelf. */
+function markShelfArt(): void {
+  const shelf = document.getElementById('shelf');
+  if (!shelf || !rasterOn()) return;
+  const cards = shelf.querySelectorAll<HTMLElement>('button.thing[data-kind]');
+  for (let i = 0; i < cards.length; i++) {
+    const card = cards[i];
+    const kind = card.dataset.kind || '';
+    if (card.querySelector('img.artimg') || !(artHas(kind) || rasterUrl(kind))) continue;
+    card.dataset.artq = '1';
+  }
+  scheduleShelf();
+}
+/** Paintings finished loading: update the shelf in place (scroll stays). */
+function refreshShelfArt(): void {
+  if (currentTab === '__people') { renderDrawer(); return; }
+  markShelfArt();
+}
+
 store.subscribe((s, a) => {
   switch (a.type) {
     case 'room/switch': {
@@ -1209,7 +1333,7 @@ function renderDrawer() {
   if (!(currentTab === 'secrets' && hasSecrets) && !visible.some(t => t.id === currentTab)) currentTab = visible[1]?.id ?? '__people';
   $('cats').innerHTML = visible.map(t => `<button class="cat ${t.kind} ${t.id === currentTab ? 'on' : ''}" data-cat="${t.id}" aria-label="${t.name}" title="${t.name}">${t.kind === 'people' ? PEOPLE_ICON : t.kind === 'pack' ? `<span class="packicon">${svgOf(ITEM_MAP[t.icon])}</span><span class="packname">${t.name}</span>` : svgOf(ITEM_MAP[t.icon])}</button>`).join('')
     + (hasSecrets ? `<button class="cat secretTab ${currentTab === 'secrets' ? 'on' : ''}" data-cat="secrets" aria-label="Secrets" title="Secrets">🎁</button>` : '');
-  const shelf = $('shelf'); shelf.innerHTML = '';
+  const shelf = $('shelf'); shelfWaiters.length = 0; shelf.innerHTML = '';
   if (!canEdit()) { shelf.innerHTML = `<div class="empty locked">🔒 This house is look-only right now</div>`; return; }
   if (currentTab === '__people') {
     const s = store.get();
@@ -1234,11 +1358,16 @@ function renderDrawer() {
   const list = tabItems(currentTab);
   if (!list.length) shelf.innerHTML = `<div class="empty">Nothing here yet!</div>`;
   for (const d of list) {
-    const b = document.createElement('button'); b.className = 'thing'; b.setAttribute('aria-label', d.name);
-    b.innerHTML = svgOf(d); shelf.appendChild(b); attachShelfDrag(b, d);
+    const b = document.createElement('button'); b.className = 'thing'; b.setAttribute('aria-label', d.name); b.dataset.kind = d.kind;
+    const ready = rasterOn() && rasterUrl(d.kind) ? shelfDecoded.get(d.kind) : undefined;
+    if (ready) for (let i = 0; i < ready.length; i++) b.appendChild(ready[i]);
+    else b.innerHTML = shelfThumb(d, artHas(d.kind));
+    shelf.appendChild(b); attachShelfDrag(b, d);
   }
   shelf.scrollLeft = 0;
   updateChipCue();
+  bindShelfScroll();
+  markShelfArt();
 }
 function updateChipCue() {
   const row = document.querySelector<HTMLElement>('.drawerTop');
@@ -3600,8 +3729,8 @@ bindGameRoom({
 });
 
 // Paintings for items already in the save (any room, or in a hand) load once,
-// after the SVG is already on screen. A catalog piece that is not in the save
-// stays unloaded until the player places it. ?art=v1 never asks for the files.
+// after the SVG is already on screen. Shelf cards load the same painting when
+// they scroll near the tray, two at a time. ?art=v1 never asks for the files.
 function artKinds(s: GameState): string[] {
   const kinds = new Set<string>();
   for (const room of Object.values(s.rooms)) for (const item of room.items) kinds.add(item.kind);
@@ -3612,10 +3741,15 @@ function artKinds(s: GameState): string[] {
   return [...kinds];
 }
 let artBoot: Promise<void> | null = null;
+let artHas: (kind: string) => boolean = () => false;
 function refreshArt(_room?: string): Promise<void> {
   if (artBoot) return artBoot;
-  artBoot = import('./art/load').then(m => m.boot(location.search, artKinds(store.get()))).then(ids => {
-    for (let i = 0; i < ids.length; i++) if (ITEM_MAP[ids[i]]) { renderAll(); renderDrawer(); return; }
+  artBoot = import('./art/load').then(m => {
+    artHas = m.hasArt;
+    return m.boot(location.search, artKinds(store.get()));
+  }).then(ids => {
+    for (let i = 0; i < ids.length; i++) if (ITEM_MAP[ids[i]]) { renderAll(); break; }
+    refreshShelfArt();
   });
   return artBoot;
 }
@@ -3634,7 +3768,7 @@ function paintLoaded(ids: string[]): void {
   if (!changed) return;
   charEls.forEach(el => { delete el.dataset.held; });
   renderChars(s);
-  renderDrawer();
+  refreshShelfArt();
 }
 function loadNewArt(): Promise<void> {
   return import('./art/load').then(m => m.boot(location.search, artKinds(store.get()))).then(ids => {
