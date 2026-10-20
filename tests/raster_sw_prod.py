@@ -13,6 +13,10 @@ from playwright.sync_api import sync_playwright
 
 mimetypes.add_type('image/webp', '.webp')
 OUT = os.path.abspath(sys.argv[1])
+# The build is made with vite base /kids-house-game/ unless VITE_BASE overrides it.
+# Serve the dist under that prefix so the SW scope and asset URLs match production.
+BASE = '/' + (sys.argv[2] if len(sys.argv) > 2 else os.environ.get('VITE_BASE', '/kids-house-game/')).strip('/') + '/'
+BASE = '/' if BASE == '//' else BASE
 counts = {}
 lock = threading.Lock()
 
@@ -21,8 +25,15 @@ class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=OUT, **kwargs)
 
+    def translate_path(self, path):
+        if BASE != '/' and path.startswith(BASE):
+            path = '/' + path[len(BASE):]
+        return super().translate_path(path)
+
     def do_GET(self):
         path = self.path.split('?', 1)[0]
+        if BASE != '/' and path.startswith(BASE):
+            path = '/' + path[len(BASE):]
         with lock:
             counts[path] = counts.get(path, 0) + 1
         super().do_GET()
@@ -60,7 +71,7 @@ def main():
             seen = set()
             page.on('request', lambda r: seen.add(r.url.split('?', 1)[0]))
             page.set_default_timeout(15000)
-            page.goto(origin + '/', wait_until='domcontentloaded')
+            page.goto(origin + BASE, wait_until='domcontentloaded')
             page.wait_for_function('() => window.__store')
             controlled = page.evaluate('''async () => {
               if (!navigator.serviceWorker) return false;
@@ -76,11 +87,12 @@ def main():
               return !!navigator.serviceWorker.controller;
             }''')
             ok('the production service worker controls the page', controlled is True)
-            fresh = [n for n in webps if f'{origin}/assets/{n}' not in seen]
+            fresh = [n for n in webps if f'{origin}{BASE}assets/{n}' not in seen]
             ok('a built painting was not already fetched', len(fresh) > 0, str(len(fresh)))
             if fresh and controlled:
                 name = next((n for n in fresh if n.startswith('ball-')), fresh[0])
                 path = f'/assets/{name}'
+                url = BASE.rstrip('/') + path
                 ok('the built painting is not under /assets/art/', '/assets/art/' not in path and path.endswith('.webp'))
                 with lock:
                     before = counts.get(path, 0)
@@ -92,16 +104,17 @@ def main():
                     a: a.status, b: b.status, bytes: buf.byteLength,
                     head: Array.from(new Uint8Array(buf.slice(0, 4))),
                   };
-                }''', path)
+                }''', url)
                 with lock:
                     hits = counts.get(path, 0) - before
                 ok('a built painting is cache-first', hits == 1 and result['a'] == 200 and result['b'] == 200 and result['bytes'] > 1000, json.dumps({'hits': hits, **{k: result[k] for k in ('a', 'b', 'bytes')}}))
                 ok('the cached painting is a webp', result['head'] == [82, 73, 70, 70])
             if scripts and controlled:
                 script = f'/assets/{scripts[0]}'
+                surl = BASE.rstrip('/') + script
                 with lock:
                     before = counts.get(script, 0)
-                page.evaluate('''async (url) => { await fetch(url); await fetch(url); }''', script)
+                page.evaluate('''async (url) => { await fetch(url); await fetch(url); }''', surl)
                 with lock:
                     hits = counts.get(script, 0) - before
                 ok('a built script stays network-first', hits == 2, f'hits {hits}')

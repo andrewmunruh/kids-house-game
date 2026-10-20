@@ -1,10 +1,14 @@
 // Fresh SVG ink pairs: the drawings at fbd04db, and the drawings this branch ships.
 import { createServer } from 'vite';
 import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
 const REV = 'fbd04db';
-const WT = '/tmp/art-fbd';
+// Repo root = parent of scripts/, so this works from any clone (override with ART_ROOT).
+const ROOT = process.env.ART_ROOT || resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const WT = '/tmp/art-fbd-' + process.pid;
 const PETS = new Set(['cat', 'dog', 'bunny', 'fish', 'kennel', 'cat-tower']);
 
 function svgParts(raw) {
@@ -35,13 +39,13 @@ async function loadItems(root) {
 }
 
 rmSync(WT, { recursive: true, force: true });
-execSync(`git worktree add --detach ${WT} ${REV}`, { stdio: 'inherit' });
-execSync(`ln -sfn /workspace/node_modules ${WT}/node_modules`);
+execSync(`git -C ${ROOT} worktree add --detach ${WT} ${REV}`, { stdio: 'inherit' });
+execSync(`ln -sfn ${ROOT}/node_modules ${WT}/node_modules`);
 
 let now;
 let old;
 try {
-  now = await loadItems('/workspace');
+  now = await loadItems(ROOT);
   old = await loadItems(WT);
   const oldBy = Object.fromEntries(old.items.map(i => [i.kind, i]));
   const pairs = [];
@@ -63,7 +67,7 @@ try {
     if (item.kind.startsWith('pack:')) {
       const slug = item.kind.slice(5);
       const a = packSvg(WT, slug);
-      const b = packSvg('/workspace', slug);
+      const b = packSvg(ROOT, slug);
       if (!a || !b) continue;
       vb1 = a.vb; v1 = a.body; vb2 = b.vb; v2 = b.body;
     } else if (!item.svg || !base.svg) {
@@ -84,5 +88,5 @@ try {
 } finally {
   if (now) await now.vite.close();
   if (old) await old.vite.close();
-  execSync(`git worktree remove --force ${WT}`, { stdio: 'inherit' });
+  execSync(`git -C ${ROOT} worktree remove --force ${WT}`, { stdio: 'inherit' });
 }
