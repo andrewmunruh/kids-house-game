@@ -28,7 +28,7 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .baseboard { position: absolute; left: 0; right: 0; top: 380px; height: 16px; background: #fff; border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); }
 .layer { position: absolute; inset: 0; }
 .item, .char { position: absolute; touch-action: none; cursor: grab; }
-.item .inner, .char .inner { width: 100%; height: 100%; transform-origin: 50% 100%; transition: transform .18s, filter .18s; }
+.item .inner, .char .inner { position: relative; width: 100%; height: 100%; transform-origin: 50% 100%; transition: transform .18s, filter .18s; }
 .item.flipped .inner svg, .char.flipped > .inner svg { transform: scaleX(-1); }
 .item.sel .inner { filter: drop-shadow(0 0 0 #fff) drop-shadow(0 0 6px #fff) drop-shadow(0 0 3px #ffd166); }
 .lifted .inner { transform: scale(1.1) translateY(-6px); filter: drop-shadow(0 14px 8px rgba(0,0,0,.18)); }
@@ -120,6 +120,8 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .rf { border-radius: 16px; background: #fff; font-weight: 800; font-size: 15px; box-shadow: 0 3px 0 #e6c9d8; border: 3px solid transparent; min-height: 52px; min-width: 52px; padding: 0 14px; }
 .rf.on { background: #fff3b0; border-color: var(--ink); }
 .packimg { display: block; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; pointer-events: none; -webkit-user-drag: none; }
+/* Soft contact shadow under a raster floor piece. The SVG shadow stays in the drawing for ?art=v1. */
+.item .artshade { position: absolute; left: 12%; width: 76%; bottom: 0; height: 8%; border-radius: 50%; background: rgba(70, 44, 62, .20); filter: blur(2px); pointer-events: none; }
 .item.flipped .inner .packimg, .ghost.flipped .packimg { transform: scaleX(-1); }
 .ghost .packimg, .thing .packimg { object-position: 50% 50%; }
 .empty { align-self: center; margin: auto; font-weight: 800; opacity: .5; font-size: 18px; }

@@ -14,7 +14,8 @@ import { unreadCount } from './shared/mail';
 import { parkSceneSVG, swingSVG, ballSVG, treeIcon, pawIcon, gateIcon, streetGateSVG, PARK_H, SWING_BAR } from './park';
 import { houseSVG, ICONS, toast, adultCheck } from './hood-ui';
 import { initEggs, foundSet, EGGS } from './eggs';
-import { ITEMS, ITEM_MAP, svgOf, hOf, type Category, type ItemDef } from './items';
+import { ITEMS, ITEM_MAP, svgOf, hOf, installArtFallback, type Category, type ItemDef } from './items';
+import { artSolid, topHit } from './art/hit';
 import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
 import { characterSVG, handsFor, SIZE_SCALE } from './character';
 import { handsOf } from './avatar/draw';
@@ -596,9 +597,9 @@ function renderItems(s: GameState) {
     if (!el) {
       el = document.createElement('div');
       el.className = 'item'; el.dataset.id = it.id;
-      el.innerHTML = `<div class="inner">${svgOf(def)}</div>`;
+      el.innerHTML = `<div class="inner">${svgOf(def, true)}</div>`;
       layer.appendChild(el);
-      el.addEventListener('pointerdown', e => beginItemDrag(el!, e));
+      el.addEventListener('pointerdown', e => onItemPointer(el!, e));
     }
     el.dataset.kind = it.kind;
     const box = placedBox(def, it.scale);
@@ -678,7 +679,8 @@ function renderAll() {
 
 store.subscribe((s, a) => {
   switch (a.type) {
-    case 'room/switch': if (hood && inner !== local) moveMeToRoom(a.room); renderAll(); renderDrawer(); break;
+    case 'room/switch': if (hood && inner !== local) moveMeToRoom(a.room); renderAll(); renderDrawer(); void refreshArt(a.room); break;
+    case 'item/add': renderItems(s); void loadNewArt(); break;
     case 'game/reset': renderAll(); break;
     case 'room/wallpaper': case 'room/floor': case 'room/pattern': case 'room/wallTile': case 'room/floorTile': renderRoomBg(s); break;
     case 'char/update': case 'char/move': renderChars(s); if (view === 'ranch') renderRanchAvatars(); else if (view === 'park') renderParkAvatars(); break;
@@ -753,6 +755,28 @@ function startDrag(e: PointerEvent, ctx: DragCtx) {
   window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
 }
 
+function forwardPointer(e: PointerEvent): PointerEvent {
+  return new PointerEvent('pointerdown', {
+    bubbles: true, cancelable: true, clientX: e.clientX, clientY: e.clientY,
+    pointerId: e.pointerId, pointerType: e.pointerType, button: e.button, buttons: e.buttons, isPrimary: e.isPrimary,
+  });
+}
+
+/** A clear part of a painting does not grab. The tap lands on the item or kid behind it, or pans the room. */
+function onItemPointer(el: HTMLElement, e: PointerEvent) {
+  const t = e.target as Element | null;
+  const img = t && t.closest ? t.closest('img.artimg') as HTMLImageElement | null : null;
+  if (img && !artSolid(img, e.clientX, e.clientY)) {
+    const next = topHit(e.clientX, e.clientY);
+    const item = next?.closest('.item') as HTMLElement | null;
+    const ch = next?.closest('.char') as HTMLElement | null;
+    if (item && item !== el) { e.stopPropagation(); beginItemDrag(item, e); }
+    else if (ch) { e.stopPropagation(); ch.dispatchEvent(forwardPointer(e)); }
+    return;
+  }
+  beginItemDrag(el, e);
+}
+
 function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
   e.preventDefault(); e.stopPropagation();
   if (twoFinger) return;
@@ -801,7 +825,9 @@ function beginHeldDrag(charEl: HTMLElement, heldEl: HTMLElement, e: PointerEvent
 function attachCharDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
     const heldEl = (e.target as HTMLElement).closest<HTMLElement>('.held');
-    if (heldEl) { if (play.isPlay()) { e.preventDefault(); e.stopPropagation(); return; } if (!canEdit()) { e.stopPropagation(); lockedNudge(el); return; } return beginHeldDrag(el, heldEl, e); }
+    const heldImg = heldEl?.querySelector('img.artimg') as HTMLImageElement | null;
+    const heldClear = !!heldImg && !artSolid(heldImg, e.clientX, e.clientY);
+    if (heldEl && !heldClear) { if (play.isPlay()) { e.preventDefault(); e.stopPropagation(); return; } if (!canEdit()) { e.stopPropagation(); lockedNudge(el); return; } return beginHeldDrag(el, heldEl, e); }
     e.preventDefault(); e.stopPropagation();
     if (twoFinger) return;
     if (!canEdit()) { lockedNudge(el); return; }
@@ -2851,9 +2877,54 @@ bindGameRoom({
   soloLook: () => { const s = local.get(); return { look: cleanLook(s.characters[0] ?? {}), dog: s.dog ?? null }; },
 });
 
+// Paintings for items already in the save (any room, or in a hand) load once,
+// after the SVG is already on screen. A catalog piece that is not in the save
+// stays unloaded until the player places it. ?art=v1 never asks for the files.
+function artKinds(s: GameState): string[] {
+  const kinds = new Set<string>();
+  for (const room of Object.values(s.rooms)) for (const item of room.items) kinds.add(item.kind);
+  for (const c of s.characters) {
+    if (c.held.left) kinds.add(c.held.left.kind);
+    if (c.held.right) kinds.add(c.held.right.kind);
+  }
+  return [...kinds];
+}
+let artBoot: Promise<void> | null = null;
+function refreshArt(_room?: string): Promise<void> {
+  if (artBoot) return artBoot;
+  artBoot = import('./art/load').then(m => m.boot(location.search, artKinds(store.get()))).then(ids => {
+    for (let i = 0; i < ids.length; i++) if (ITEM_MAP[ids[i]]) { renderAll(); renderDrawer(); return; }
+  });
+  return artBoot;
+}
+function paintLoaded(ids: string[]): void {
+  const want = new Set(ids);
+  const s = store.get();
+  let changed = false;
+  for (const it of s.rooms[s.currentRoom].items) {
+    const def = ITEM_MAP[it.kind];
+    if (!want.has(it.kind) || !def) continue;
+    const inner = layer.querySelector<HTMLElement>(`.item[data-id="${it.id}"] .inner`);
+    if (!inner || inner.querySelector('img.artimg')) continue;
+    inner.innerHTML = svgOf(def, true);
+    changed = true;
+  }
+  if (!changed) return;
+  charEls.forEach(el => { delete el.dataset.held; });
+  renderChars(s);
+  renderDrawer();
+}
+function loadNewArt(): Promise<void> {
+  return import('./art/load').then(m => m.boot(location.search, artKinds(store.get()))).then(ids => {
+    paintLoaded(ids.filter(id => !!ITEM_MAP[id]));
+  });
+}
+
 // ---------- start ----------
+installArtFallback();
 installJuice();
 renderAll(); renderDrawer(); fit(); requestAnimationFrame(fit);
+void refreshArt(store.get().currentRoom);
 // ---------- hidden surprises ----------
 const renderSecrets = () => {
   const n = foundSet().size, total = EGGS.length;
