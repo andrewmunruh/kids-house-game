@@ -2,7 +2,7 @@
 # Each item is placed in a room, everything else is hidden, and the item is
 # screenshotted twice: ?art=v1 (SVG, shadow ellipse hidden) and the raster. The
 # alpha>0 box of each (out to the faintest visible pixel) is compared.
-# usage: python tests/art_ingame_bounds.py <base url> <room> [kind ...]  [TOL=2.0 (%), ALPHA=0]
+# usage: python tests/art_ingame_bounds.py <base url> <room> [kind ...]  [TOL=2.0 (%), ALPHA=0, SKY=day|night]
 #   e.g.  npx vite --port 5191 --strictPort &  python tests/art_ingame_bounds.py http://localhost:5191/kids-house-game/ nursery
 # Prints dw/dh (% raster vs SVG), feet (bottom-edge offset) and cx (centre offset), both in % of item width.
 import asyncio, io, json, os, sys
@@ -22,12 +22,18 @@ HIDE = ("html,body,#app,.stage,#stage,#stage *{background:transparent!important}
         ".item.qa-show .inner{filter:none!important;animation:none!important;transform:none!important}")
 TOL = float(os.environ.get('TOL', '2.0'))
 TH = int(os.environ.get('ALPHA', '0'))
+# The room's sky follows the browser clock (src/sky.ts), and night/golden filters change what
+# is drawn, so the clock and timezone are pinned: SKY=day (default, 12:00) or SKY=night (23:00),
+# both in UTC, whatever the host clock or TZ says.
+SKY = os.environ.get('SKY', 'day')
+SKY_TIME = {'day': '2026-06-15T12:00:00Z', 'night': '2026-06-15T23:00:00Z'}[SKY]
 
 
 async def boxes(b, base, room, layout):
-    ctx = await b.new_context(viewport={'width': 1180, 'height': 820}, device_scale_factor=2)
+    ctx = await b.new_context(viewport={'width': 1180, 'height': 820}, device_scale_factor=2, timezone_id='UTC')
     await ctx.add_init_script("localStorage.setItem('cozy-whatsnew','999');")
     pg = await ctx.new_page()
+    await pg.clock.set_fixed_time(SKY_TIME)
     await pg.goto(base, wait_until='load'); await pg.wait_for_selector('#stage'); await pg.wait_for_timeout(600)
     for sel in ['#phoneOk', '.whatsNew .wnGo']:
         if await pg.locator(sel).count() and await pg.locator(sel).first.is_visible():
@@ -86,7 +92,7 @@ async def main():
         print(f"{'OK' if ok else 'FAIL'} {k:18} dw={dw:+5.1f}% dh={dh:+5.1f}% feet={feet:+4.1f}% cx={cx:+4.1f}%", flush=True)
     if os.environ.get('JSON'):
         json.dump(rows, open(os.environ['JSON'], 'w'), indent=1)
-    print(f"{len(rows) - fails}/{len(rows)} within ±{TOL}% at alpha>{TH}")
+    print(f"{len(rows) - fails}/{len(rows)} within ±{TOL}% at alpha>{TH} sky={SKY}")
     return 1 if fails else 0
 
 if __name__ == '__main__':
