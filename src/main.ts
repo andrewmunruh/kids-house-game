@@ -27,7 +27,7 @@ import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
 import { emptyRoomStarters, setRoomScenery, syncScenery } from './scenery';
-import { DOOR_CAT_X, DOOR_KID, LIVE_DOOR, YARD_CAM, YARD_CAT, YARD_DOOR, YARD_KID, YARD_STAGE, registerYardItems, yardBackyardScenery, yardCompareHTML, yardDoorMarkup, yardLookPatch, yardPreviewOn, yardSheetHTML, yardShot } from './yard';
+import { DOOR_CAT_X, DOOR_KID, LIVE_DOOR, YARD_CAM, YARD_CAT, YARD_DOG, YARD_DOOR, YARD_KID, YARD_STAGE, registerYardItems, yardBackyardScenery, yardCompareHTML, yardDoorMarkup, yardLookPatch, yardPreviewOn, yardSheetHTML, yardShot } from './yard';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
@@ -276,11 +276,6 @@ function fit() {
     const aspect = boxW / Math.max(1, boxH);
     VIEW_W = Math.round(Math.max(480, Math.min(W, H * aspect)));
   } else VIEW_W = 1000;
-  // The yard portrait window opens wide enough for the whole swing, and stops before the door art shrinks under 44px.
-  if (store.get().currentRoom === 'backyard' && portrait) {
-    const maxW = Math.floor(82 * boxW / 46);
-    VIEW_W = Math.min(maxW, Math.max(VIEW_W, 630));
-  }
   stage.style.width = VIEW_W + 'px';
   stage.style.height = H + 'px';
   const sc = Math.min(boxW / VIEW_W, boxH / H);
@@ -303,20 +298,28 @@ function fit() {
   frameYardCam();
   placeYardHints();
 }
-/** Phone arrows live on the wrap in screen pixels. Centre them on the stage. */
+/** Phone arrows live on the wrap in screen pixels. Centre them on the stage.
+ *  In the yard they sit in the sky, clear of the swing. Indoor rooms keep the centred arrows. */
 function placePhoneNudges() {
   const wrap = $('stageWrap');
   const on = document.body.classList.contains('phone') && view === 'house';
+  const yard = view === 'house' && store.get().currentRoom === 'backyard';
   for (const n of [$('nudgeL'), $('nudgeR')]) {
     if (!on || n.parentElement !== wrap) {
-      n.style.top = ''; n.style.marginTop = ''; n.style.left = ''; n.style.right = '';
+      n.style.marginTop = ''; n.style.left = ''; n.style.right = '';
+      n.style.top = yard && n.parentElement === stage ? '8px' : '';
       continue;
     }
     const stageBox = stage.getBoundingClientRect();
     const wrapBox = wrap.getBoundingClientRect();
-    const mid = (stageBox.top + stageBox.bottom) / 2 - wrapBox.top;
-    n.style.top = mid + 'px';
-    n.style.marginTop = (-n.offsetHeight / 2) + 'px';
+    if (yard) {
+      n.style.top = (stageBox.top - wrapBox.top + 4) + 'px';
+      n.style.marginTop = '0px';
+    } else {
+      const mid = (stageBox.top + stageBox.bottom) / 2 - wrapBox.top;
+      n.style.top = mid + 'px';
+      n.style.marginTop = (-n.offsetHeight / 2) + 'px';
+    }
     n.style.left = ''; n.style.right = '';
   }
 }
@@ -2074,11 +2077,12 @@ function tickDogs(now: number, dt: number) {
     seen.add(o.key);
     let r = dogRuns.get(o.key);
     const side = o.flip ? 1 : -1;
+    const yardDog = !o.riding && view === 'house' && store.get().currentRoom === 'backyard';
     const behind = o.riding ? 200 : 78;
-    let homeX = o.x + side * behind;
+    let homeX = yardDog ? YARD_DOG.x : o.x + side * behind;
     if (o.riding) homeX = Math.max(50, Math.min(RANCH_W - 50, homeX));
-    else if (view === 'house') homeX = clearDoorX(homeX, 46);
-    const homeY = Math.min(595, o.y + (o.riding ? 28 : 6));
+    else if (view === 'house' && !yardDog) homeX = clearDoorX(homeX, 46);
+    const homeY = yardDog ? YARD_DOG.y : Math.min(595, o.y + (o.riding ? 28 : 6));
     if (!r || r.box !== o.box || !r.el.isConnected) {
       r?.el.remove();
       const el = document.createElement('div'); el.className = 'pet pet-dog'; el.dataset.dog = o.key; o.box.appendChild(el); attachDogTap(el, o.key);
@@ -2528,9 +2532,11 @@ function tickCat() {
   const yardCat = s.currentRoom === 'backyard' && !perch;
   const catH = !pinned && perch ? 92 : yardCat ? 115 : 128;
   const catW = !pinned && perch ? 110 : yardCat ? 135 : 150;
-  const placeX = pinned ? pin!.x : clearDoorX(x, catW / 2);
-  placeEl(catEl, placeX, foot, catW, catH);
-  catEl.style.zIndex = String(4000 + Math.round(foot));
+  // A pin may stand her on the door for the tap test. An unpinned yard cat stays on her lawn spot, off the fence and the swing.
+  const placeX = pinned ? pin!.x : s.currentRoom === 'backyard' ? YARD_CAT.x : clearDoorX(x, catW / 2);
+  const placeY = !pinned && s.currentRoom === 'backyard' && !perch ? YARD_CAT.y : foot;
+  placeEl(catEl, placeX, placeY, catW, catH);
+  catEl.style.zIndex = String(4000 + Math.round(placeY));
   catSpot = { x: placeX, perch, leap: leaping };
 }
 /** Push a pet's idle spot out of the doorway so she does not stand on the back door. A test pin is left alone. */

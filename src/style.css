@@ -659,7 +659,9 @@ body.is-preview .shelf { width: auto; margin-right: 96px; }
   /* 820×1180 with lock + chat: five full names, a usable minimap, and seven 44px tools. */
   body:not(.phone) .top { padding: 4px 4px 2px; gap: 4px; }
   body:not(.phone) .tabs { gap: 2px; flex: 0 0 auto; min-width: 0; }
-  body:not(.phone) .tab { padding: 4px 5px; font-size: 12px; min-height: 44px; }
+  body:not(.phone) .tab { padding: 4px 5px; font-size: 13px; min-height: 44px; }
+  /* The yard hides empty style tabs, so this row would collapse and the stage would grow. */
+  body:not(.phone) .drawerTop { min-height: 110px; }
   body:not(.phone) .minimap { width: 112px; min-width: 100px; flex: 0 0 112px; height: 44px; }
   body:not(.phone) .tools { gap: 2px; flex: 0 0 auto; }
   body:not(.phone) .round { width: 44px; height: 44px; padding: 6px; }
@@ -1102,7 +1104,7 @@ body.view-street .stage { visibility: hidden; }
 
 /* The back door. The hit box stays at least 44px after the stage scale; the drawing does not stretch. */
 .yardDoor { position: absolute; background: none; border: 0; padding: 0; box-shadow: none; pointer-events: auto; z-index: 4900; overflow: visible; min-width: calc(44px / var(--yard-sc, 1)); min-height: calc(101.2px / var(--yard-sc, 1)); }
-.yardDoor .doorArt { position: absolute; left: 50%; top: 0; width: auto; height: 100%; aspect-ratio: 100 / 230; transform: translateX(-50%); overflow: visible; }
+.yardDoor .doorArt { position: absolute; left: 50%; top: auto; bottom: 0; width: auto; height: auto; aspect-ratio: 100 / 230; transform: translateX(-50%); overflow: visible; }
 .yardDoor .yardHintLabel { position: absolute; left: 50%; top: auto; bottom: calc(100% + 6px); translate: -50% 0; background: #fff; border: calc(3px / var(--yard-sc, 1)) solid var(--ink); border-radius: calc(14px / var(--yard-sc, 1)); box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; padding: calc(5px / var(--yard-sc, 1)) calc(14px / var(--yard-sc, 1)); height: calc(34px / var(--yard-sc, 1)); min-height: 0; font-weight: 900; font-size: max(13px, calc(16px / var(--yard-sc, 1))); line-height: 1; white-space: nowrap; overflow: hidden; box-shadow: 0 calc(3px / var(--yard-sc, 1)) 0 rgba(90,61,92,.25); color: var(--ink); z-index: 2; animation: hintBob 1.6s ease-in-out infinite; }
 .yardDoor .yardHintLabel > span { display: block; }
 .stage.room-yard .wall, .stage.room-yard .floor, .stage.room-yard .baseboard { visibility: hidden; }

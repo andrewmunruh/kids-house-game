@@ -61,14 +61,16 @@ export const YARD_LOOK: Look2 = {
 export const yardLookPatch = () => patchFromLook2(YARD_LOOK);
 
 /**
- * Portrait phones show about 620 world units once the yard is open.
- * 870 leaves the door clear of the left arrow and keeps the whole swing in frame.
+ * Same camera at every size, framed on the house wall. The portrait stage matches the living
+ * room, so the whole play set has to sit in the narrowest window (about 468 world units).
  */
-export const YARD_CAM = 870;
-/** On the grass between the bench and the swing, clear of both. She faces the house; the dog stands on her right. */
-export const YARD_KID = { x: 1102, y: 584, flip: true as boolean };
-/** On the right lawn, above the lemonade cart and clear of the door. */
-export const YARD_CAT = { x: 1740, y: 310 };
+export const YARD_CAM = 864;
+/** In front of the garden bench, below the door, facing the house. */
+export const YARD_KID = { x: 942, y: 572, flip: true as boolean };
+/** On the right lawn, below the sandbox and clear of the fence, the swing, and the dog. */
+export const YARD_CAT = { x: 1260, y: 503 };
+/** Beside the cat, in front of her, clear of the kid and every piece. */
+export const YARD_DOG = { x: 1262, y: 580 };
 export const DOOR_KID = { x: 940, y: 540, flip: true as boolean };
 export const DOOR_CAT_X = 1160;
 
@@ -79,10 +81,10 @@ export const YARD_DOOR = { x: 996, y: 372, w: 82, h: 196 };
 
 /** Back-to-front. item/add stamps z from this order. */
 export const YARD_STAGE: { kind: string; x: number; y: number }[] = [
-  { kind: 'lemonade-cart', x: 1740, y: 470 },
-  { kind: 'sandbox', x: 1580, y: 580 },
-  { kind: 'yard-swing', x: 1314, y: 380 },
-  { kind: 'picnic-blanket', x: 960, y: 560 },
+  { kind: 'yard-swing', x: 1188, y: 320 },
+  { kind: 'sandbox', x: 1262, y: 382 },
+  { kind: 'lemonade-cart', x: 1116, y: 545 },
+  { kind: 'picnic-blanket', x: 1116, y: 582 },
 ];
 
 function piece(p: { kind: string; name: string; cat: string; w: number; h: number; vb: string; wall?: boolean; holdable?: boolean; svg: string }): ItemDef {
@@ -704,13 +706,14 @@ export function yardBackyardScenery(): string {
 
 function doorBox(x: number, y: number, w: number, h: number): string {
   const left = (x - w / 2) / 2400 * 100;
-  const top = (y - h) / 600 * 100;
-  return `left:${left.toFixed(3)}%;top:${top.toFixed(3)}%;width:${(w / 2400 * 100).toFixed(3)}%;height:${(h / 600 * 100).toFixed(3)}%`;
+  // Anchored to the floor line. A short screen's minimum tap height grows upward, into the sky, so it does not cover the kid.
+  const bottom = (600 - y) / 600 * 100;
+  return `left:${left.toFixed(3)}%;bottom:${bottom.toFixed(3)}%;width:${(w / 2400 * 100).toFixed(3)}%;height:${(h / 600 * 100).toFixed(3)}%`;
 }
 
 /** Straight-on panel door. The same drawing is the living-room door and the yard door. */
-function panelDoor(): string {
-  return `<svg class="doorArt" viewBox="0 0 100 230">
+function panelDoor(h: number): string {
+  return `<svg class="doorArt" style="height:${h}px" viewBox="0 0 100 230">
     <rect x="4" y="2" width="92" height="226" rx="3" fill="#f3d2aa" ${ink()}/>
     <rect x="76" y="6" width="16" height="218" fill="#d4a373"/>
     <rect x="14" y="12" width="72" height="206" rx="2" fill="#f6e9ff" ${ink(2.2)}/>
@@ -734,7 +737,7 @@ export function yardDoorMarkup(where: 'living' | 'yard'): string {
   const box = where === 'living' ? LIVE_DOOR : YARD_DOOR;
   const go = where === 'living' ? 'backyard' : 'living';
   const label = where === 'living' ? 'Backyard' : 'Back inside';
-  return `<button type="button" class="yardDoor" data-yard-go="${go}" aria-label="${label}" style="${doorBox(box.x, box.y, box.w, box.h)}">${panelDoor()}<span class="yardHintLabel"><span>${label}</span></span></button>`;
+  return `<button type="button" class="yardDoor" data-yard-go="${go}" aria-label="${label}" style="${doorBox(box.x, box.y, box.w, box.h)}">${panelDoor(box.h)}<span class="yardHintLabel"><span>${label}</span></span></button>`;
 }
 
 function sheetCard(name: string, art: string): string {
