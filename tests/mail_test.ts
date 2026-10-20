@@ -366,6 +366,11 @@ async function main() {
   await send(grown, { t: 'parent', key: parentKey, op: 'freeChat', on: true });
   await send(grown, { t: 'parent', key: parentKey, op: 'freeMail', on: false });
   check('freeMail can force preset letters while chat stays free', hood.meta!.settings.freeChat === true && hood.meta!.settings.freeMail === false && mailIsFree(hood.meta!.settings) === false && JSON.parse(JSON.stringify(hood.meta!.settings)).freeMail === false);
+  // Andy's rule: chat bubbles allow phone numbers, addresses, emails and links. The client
+  // (filterSay in main.ts) and the Worker (cleanBubble) both use filterSay; check both paths.
+  const chatContact = ['call me at 555-123-4567', 'I live on Maple St', 'my house is 12 Oak Street', 'write me at a@b.com', 'come see www.example.com', 'see http://x.com now'];
+  const chatBlocked = chatContact.filter(t => { const f = filterSay(t); const b = (hood as any).cleanBubble({ kind: 'text', v: t }); return !f.ok || f.text !== t || typeof b === 'string' || b.v !== t; });
+  check('chat bubbles allow phone numbers, addresses, emails and links', chatBlocked.length === 0, chatBlocked.join(' | '));
   await send(fullKid.c, { t: 'mail', op: 'send', houseId: owner.hid, text: 'A typed note', color: 0, sticker: 0 });
   await send(fullKid.c, { t: 'say', b: { kind: 'text', v: 'Hello there' } });
   check('typed letters wait and chat still goes out', fullKid.c.last('mailFail')?.reason === 'presetsOnly' && !live().mailbox?.letters.some(l => l.text === 'A typed note') && fullKid.c.last('sayFail')?.reason === 'nowhere');
