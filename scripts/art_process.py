@@ -23,7 +23,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLUM = np.array([90, 61, 92], float)
 OUTLINE = np.array([91, 61, 92], float)  # #5b3d5c, measured on the shipped living room (8a12495)
 CONTOUR_PX = 9      # canvas px (3 CSS px) of solid plum + ramp, from the outer alpha edge inward
-FADE_OUT = 3        # px: the RAMP depth where alpha crosses 128
+FADE_OUT = int(os.environ.get('FADE_OUT', '3'))  # px: the RAMP depth where alpha crosses 128
 RAMP = [27, 70, 132, 194, 234, 251]   # alpha at depth 1..6 px (median of the shipped 14)
 SMOOTH = 2.0        # gaussian sigma (px) of the silhouette the band follows
 BLEND_PX = 2        # px beyond CONTOUR_PX where the plum fades into the paint
@@ -218,7 +218,8 @@ def build(it, raw, group):
     W, H, (x0, y0, x1, y1) = svg_box(it)
     # the contour's outer fade straddles the SVG edge: alpha>0 reaches FADE_OUT px past
     # the box and the half-alpha (visible) edge sits on it
-    x0, y0, x1, y1 = max(0, x0 - FADE_OUT), max(0, y0 - FADE_OUT), min(W, x1 + FADE_OUT), min(H, y1 + FADE_OUT)
+    f = FADE_OUT
+    x0, y0, x1, y1 = max(0, x0 - f), max(0, y0 - f), min(W, x1 + f), min(H, y1 + f)
     bw, bh = x1 - x0, y1 - y0
     scale = bw / (x1s - x0s)
     stretch = (bw / bh) / ((x1s - x0s) / (y1s - y0s))
