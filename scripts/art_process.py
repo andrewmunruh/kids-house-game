@@ -24,6 +24,7 @@ PLUM = np.array([90, 61, 92], float)
 OUTLINE = np.array([91, 61, 92], float)  # #5b3d5c, measured on the shipped living room (8a12495)
 CONTOUR_PX = 9      # canvas px (3 CSS px) of solid plum + ramp, from the outer alpha edge inward
 RAMP = [27, 70, 132, 194, 234, 251]   # alpha at depth 1..6 px (median of the shipped 14)
+SMOOTH = 2.0        # gaussian sigma (px) of the silhouette the band follows
 BLEND_PX = 2        # px beyond CONTOUR_PX where the plum fades into the paint
 KEY = 40      # colour distance from the card counted as background
 LIMIT = 58000
@@ -131,17 +132,20 @@ def plum_contour(fg, al):
     """Shipped living-room contour: depth d from the nearest transparent pixel
     (outer edge and ringed openings alike). d <= CONTOUR_PX is solid plum, the
     outer len(RAMP) px fade in alpha, and the next BLEND_PX px blend into the paint."""
-    solid = al > 0
-    d = ndi.distance_transform_edt(np.pad(solid, 1))[1:-1, 1:-1]
-    band = solid & (d <= CONTOUR_PX)
-    fg[band] = OUTLINE
-    for i in range(1, BLEND_PX + 1):
-        m = solid & (d > CONTOUR_PX + i - 1) & (d <= CONTOUR_PX + i)
-        t = i / (BLEND_PX + 1)
-        fg[m] = fg[m] * t + OUTLINE * (1 - t)
-    for i, a in enumerate(RAMP, 1):
-        m = solid & (d > i - 1) & (d <= i)
-        al[m] = np.minimum(al[m], a)
+    # a smoothed silhouette, so the band follows the shape and not resize ringing
+    solid = ndi.gaussian_filter(al / 255, SMOOTH) > 0.5
+    lab, n = ndi.label(solid)
+    if n > 1:
+        solid = lab == 1 + int(np.argmax(ndi.sum(solid, lab, range(1, n + 1))))
+    al[~solid] = 0
+    al[solid] = np.maximum(al[solid], 255 * (al[solid] > 12))
+    pad = np.pad(solid, 1)
+    d = (ndi.distance_transform_edt(pad) - ndi.distance_transform_edt(~pad))[1:-1, 1:-1]
+    d = ndi.gaussian_filter(d, 1.0)      # signed, smoothed: no staircase on curves
+    t = np.clip((CONTOUR_PX + BLEND_PX + 1.5 - d) / (BLEND_PX + 1), 0, 1)[..., None]
+    fg[:] = fg * (1 - t) + OUTLINE * t
+    ramp = np.interp(d, np.arange(0, len(RAMP) + 2), [0] + RAMP + [255])
+    al[:] = np.where(d > 0, np.minimum(al, ramp), 0)
     return fg, al
 
 
