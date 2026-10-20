@@ -1,8 +1,10 @@
-# Yard guard. The stage, the starter set, and the staged play scene at every review size.
-# Fails when the yard stage drifts from the living room, a piece leaves the stage,
-# the kid spawns on the bench or a landmark (swing, sandbox, tree) is off stage,
-# a pet stands on the fence, the swing seat, or the door, the Kennel chip covers a pet,
-# an arrow covers something, any text is under 13px, or the door is not the top tap target.
+# Yard guard. Every review size, fresh and staged, Play and Decorate.
+# Fails when the yard stage drifts from the living room (phone Play may keep the wider
+# yard view so the door and the set stay together), a piece leaves the stage,
+# a piece overlaps the door, its label, or another piece, the Back inside pill
+# is not 38px on screen, the kid spawns on the bench, a pet stands on the fence,
+# the swing seat, or the door, the Kennel chip covers a pet, an arrow covers something,
+# any text is under 13px, or the door is not the top tap target.
 import asyncio, os, sys
 from playwright.async_api import async_playwright
 
@@ -52,7 +54,9 @@ READ = r"""
   const secrets = box(document.getElementById('secrets'));
   const doorEl = document.querySelector('.yardDoor');
   const door = box(doorEl);
-  const label = box(document.querySelector('.yardHintLabel'));
+  const labelEl = document.querySelector('.yardHintLabel');
+  const label = box(labelEl);
+  const labelText = labelEl ? (labelEl.textContent || '').replace(/\s+/g, ' ').trim() : '';
   const arrows = ['nudgeL', 'nudgeR'].map(id => {
     const n = document.getElementById(id);
     const b = box(n);
@@ -86,7 +90,7 @@ READ = r"""
   return {
     stage: { x: st.left, y: st.top, r: st.right, b: st.bottom, w: st.width, h: st.height },
     viewW, sc, cam, room: document.body.dataset.room || (__store && __store.get().currentRoom),
-    items, pets, seat, kid, tree, kennel, secrets, door, label, arrows, texts, top,
+    items, pets, seat, kid, tree, kennel, secrets, door, label, labelText, arrows, texts, top,
   };
 }
 """
@@ -124,10 +128,17 @@ async def open_size(p, w, h):
 
 def judge(tag, data, living, problems):
     st, lv = data['stage'], living['stage']
-    for key in ('x', 'y', 'w', 'h'):
-        if not almost(st[key], lv[key]):
-            problems.append(f'{tag} stage {key} yard {st[key]:.1f} living {lv[key]:.1f}')
-            break
+    # Phone Play zooms the house in. The yard stays on the 480-wide view so the
+    # door and the play set share the frame. The stage stays the same width.
+    phone_play_yard = data.get('viewW', 0) >= 470 and living.get('viewW', 0) + 8 < data.get('viewW', 0)
+    if phone_play_yard:
+        if not almost(st['w'], lv['w'], 3):
+            problems.append(f'{tag} stage w yard {st["w"]:.1f} living {lv["w"]:.1f}')
+    else:
+        for key in ('x', 'y', 'w', 'h'):
+            if not almost(st[key], lv[key]):
+                problems.append(f'{tag} stage {key} yard {st[key]:.1f} living {lv[key]:.1f}')
+                break
     for it in data['items']:
         if not inside(it['box'], st):
             problems.append(f"{tag} piece {it['kind']} outside")
@@ -193,6 +204,39 @@ def judge(tag, data, living, problems):
         problems.append(f"{tag} text {t['px']}px '{t['text']}'")
     if not data['top'] or not data['top']['door']:
         problems.append(f"{tag} door not top target {data['top']}")
+    if data['label']:
+        if abs(data['label']['h'] - 38) > 1.25:
+            problems.append(f"{tag} pill height {data['label']['h']:.1f}")
+    else:
+        problems.append(f'{tag} pill missing')
+    if data.get('room') == 'backyard' and data.get('labelText') not in ('Back inside', 'Backyard'):
+        problems.append(f"{tag} label {data.get('labelText')!r}")
+    door = data['door']
+    label = data['label']
+    for it in data['items']:
+        if door and overlaps(it['box'], door, 0.5):
+            problems.append(f"{tag} {it['kind']} overlaps door")
+        if label and overlaps(it['box'], label, 0.5):
+            problems.append(f"{tag} {it['kind']} overlaps label")
+    for i, a in enumerate(data['items']):
+        for b in data['items'][i + 1:]:
+            if overlaps(a['box'], b['box'], 0.5):
+                problems.append(f"{tag} {a['kind']} overlaps {b['kind']}")
+
+async def set_mode(pg, mode):
+    await dismiss(pg)
+    sel = '#modePlay' if mode == 'play' else '#modeDecorate'
+    await pg.locator(sel).click(force=True)
+    await pg.wait_for_timeout(450)
+
+async def living_of(pg, room_back='backyard'):
+    """Stage of the living room in the current Play/Decorate mode, then return to the yard."""
+    await pg.evaluate("() => __store.dispatch({type:'room/switch', room:'living'})")
+    await pg.wait_for_timeout(400)
+    living = await read(pg)
+    await pg.evaluate("(room) => __store.dispatch({type:'room/switch', room})", room_back)
+    await pg.wait_for_timeout(450)
+    return living
 
 async def main():
     problems = []
@@ -202,15 +246,23 @@ async def main():
             ctx, pg = await open_size(browser, w, h)
             await pg.goto(URL, wait_until='networkidle')
             await dismiss(pg)
-            living = await read(pg)
-            door = pg.locator('.yardDoor')
-            await door.click(force=True)
-            await pg.wait_for_timeout(400)
-            fresh = await read(pg)
-            kinds = sorted(i['kind'] for i in fresh['items'])
+            await set_mode(pg, 'deco')
+            living_deco = await read(pg)
+            await pg.locator('.yardDoor').click(force=True)
+            await pg.wait_for_timeout(450)
+            fresh_deco = await read(pg)
+            kinds = sorted(i['kind'] for i in fresh_deco['items'])
             if kinds != ['tulip-bed', 'yard-bench']:
                 problems.append(f'{w}x{h} fresh pieces {kinds}')
-            judge(f'{w}x{h} fresh', fresh, living, problems)
+            if fresh_deco.get('labelText') != 'Back inside':
+                problems.append(f"{w}x{h} fresh deco label {fresh_deco.get('labelText')!r}")
+            judge(f'{w}x{h} fresh deco', fresh_deco, living_deco, problems)
+            await set_mode(pg, 'play')
+            living_play = await living_of(pg)
+            fresh_play = await read(pg)
+            if fresh_play.get('labelText') != 'Back inside':
+                problems.append(f"{w}x{h} fresh play label {fresh_play.get('labelText')!r}")
+            judge(f'{w}x{h} fresh play', fresh_play, living_play, problems)
             await ctx.close()
 
             ctx, pg = await open_size(browser, w, h)
@@ -218,21 +270,24 @@ async def main():
             await dismiss(pg)
             await pg.wait_for_selector('body[data-yard="ready"]')
             await pg.wait_for_timeout(500)
-            staged = await read(pg)
             want = {'lemonade-cart', 'picnic-blanket', 'sandbox', 'tulip-bed', 'yard-bench', 'yard-swing'}
+            staged = await read(pg)
             got = {i['kind'] for i in staged['items']}
             if not want <= got:
                 problems.append(f'{w}x{h} staged missing {sorted(want - got)}')
             if len(staged['pets']) < 2:
                 problems.append(f"{w}x{h} staged pets {len(staged['pets'])}")
-            # Play mode hides the shelf in every room. Compare the yard to the living room in that same mode.
-            await pg.evaluate("() => __store.dispatch({type:'room/switch', room:'living'})")
-            await pg.wait_for_timeout(300)
-            play_living = await read(pg)
-            await pg.evaluate("() => __store.dispatch({type:'room/switch', room:'backyard'})")
-            await pg.wait_for_timeout(400)
+            living_play = await living_of(pg)
             staged = await read(pg)
-            judge(f'{w}x{h} staged', staged, play_living, problems)
+            if staged.get('labelText') != 'Back inside':
+                problems.append(f"{w}x{h} staged play label {staged.get('labelText')!r}")
+            judge(f'{w}x{h} staged play', staged, living_play, problems)
+            await set_mode(pg, 'deco')
+            living_deco = await living_of(pg)
+            staged = await read(pg)
+            if staged.get('labelText') != 'Back inside':
+                problems.append(f"{w}x{h} staged deco label {staged.get('labelText')!r}")
+            judge(f'{w}x{h} staged deco', staged, living_deco, problems)
             await ctx.close()
             print(f'{w}x{h} checked', flush=True)
         await browser.close()
@@ -241,7 +296,7 @@ async def main():
         for line in problems:
             print(' -', line)
         sys.exit(1)
-    print(f'PASS yard guard {len(SIZES)} sizes, fresh and staged')
+    print(f'PASS yard guard {len(SIZES)} sizes, fresh and staged, Play and Decorate')
 
 if __name__ == '__main__':
     asyncio.run(main())

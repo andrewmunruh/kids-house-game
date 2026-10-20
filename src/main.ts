@@ -549,6 +549,8 @@ function placeModeToggle() {
  * Narrow the view here so the room fills the free box. iPad never reaches this function.
  */
 function growPhonePlayStage() {
+  // The yard keeps fit()'s 480-wide view. Zooming in further crops the door and the play set together.
+  if (store.get().currentRoom === 'backyard') return;
   if (!document.body.classList.contains('phone-portrait') || !document.body.classList.contains('mode-play') || view !== 'house') return;
   const wrap = $('stageWrap');
   const boxW = wrap.clientWidth, boxH = wrap.clientHeight;
@@ -3643,7 +3645,7 @@ function bootYardPreview() {
     for (const p of YARD_STAGE) {
       store.dispatch({
         type: 'item/add', room: 'backyard',
-        item: { id: 'yp-' + p.kind, kind: p.kind, x: p.x, y: p.y, flip: false, z: 1, scale: 1 },
+        item: { id: 'yp-' + p.kind, kind: p.kind, x: p.x, y: p.y, flip: false, z: 1, scale: p.scale ?? 1 },
       });
     }
   }
@@ -3696,7 +3698,8 @@ function placeYardHints() {
   if (doorPress) return;
   const stageBox = stage.getBoundingClientRect();
   if (stageBox.width < 20) return;
-  const sc = parseFloat(stage.style.getPropertyValue('--yard-sc')) || stageScale() || 1;
+  const sc = stageScale() || parseFloat(stage.style.getPropertyValue('--yard-sc')) || 1;
+  stage.style.setProperty('--yard-sc', String(sc));
   const doors = [...stage.querySelectorAll<HTMLElement>('.yardDoor')];
   for (const door of doors) {
     door.style.minWidth = '';
@@ -3710,7 +3713,7 @@ function placeYardHints() {
     const fontLocal = Math.max(13, 16 / sc);
     hint.style.fontSize = fontLocal + 'px';
     hint.style.lineHeight = '1';
-    const pill = 34 / sc;
+    const pill = 38 / sc;
     hint.style.height = pill + 'px';
     const border = 3 / sc;
     const padY = Math.max(0, (pill - border * 2 - fontLocal) / 2);
@@ -3772,8 +3775,13 @@ function placeYardHints() {
   const h2 = hint.getBoundingClientRect();
   const stage2 = stage.getBoundingClientRect();
   let hx = 0;
-  if (h2.left < stage2.left + pad) hx = stage2.left + pad - h2.left;
-  else if (h2.right > stage2.right - pad) hx = stage2.right - pad - h2.right;
+  // The yard door grows into the house. Keep the label centered on the drawing, then on the stage.
+  if (store.get().currentRoom === 'backyard' && art) {
+    const artR = art.getBoundingClientRect();
+    if (artR.width > 2) hx += (artR.left + artR.right) / 2 - (h2.left + h2.right) / 2;
+  }
+  if (h2.left + hx < stage2.left + pad) hx += stage2.left + pad - (h2.left + hx);
+  else if (h2.right + hx > stage2.right - pad) hx -= h2.right + hx - (stage2.right - pad);
   if (Math.abs(hx) > 0.5) hint.style.translate = `calc(-50% + ${(hx / sc).toFixed(1)}px) 0`;
   else hint.style.translate = '';
 }void refreshArt(store.get().currentRoom);

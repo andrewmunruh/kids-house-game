@@ -65,12 +65,12 @@ export const yardLookPatch = () => patchFromLook2(YARD_LOOK);
  * room, so the whole play set has to sit in the narrowest window (about 468 world units).
  */
 export const YARD_CAM = 864;
-/** Open lawn in the middle of the yard, beside the bench, with the swing, sandbox, and tree in view. */
-export const YARD_KID = { x: 1080, y: 576, flip: true as boolean };
-/** On the right lawn, above the dog and clear of the fence, the swing, and the sandbox. */
-export const YARD_CAT = { x: 1224, y: 488 };
-/** Under the cat, clear of the kid and the Surprises pill at the bottom corner. */
-export const YARD_DOG = { x: 1224, y: 562 };
+/** Middle of the lawn, in front of the bench and clear of the flowers. */
+export const YARD_KID = { x: 1084, y: 578, flip: true as boolean };
+/** In the tree canopy, above the fence, clear of the door label. */
+export const YARD_CAT = { x: 1184, y: 255 };
+/** On the right of the kid, in front of the swing. */
+export const YARD_DOG = { x: 1146, y: 578 };
 export const DOOR_KID = { x: 940, y: 540, flip: true as boolean };
 export const DOOR_CAT_X = 1160;
 
@@ -79,12 +79,16 @@ export const LIVE_DOOR = { x: 824, y: 398, w: 96, h: 230 };
 /** Same door from the yard, bottom flush with the house wall and the grass. */
 export const YARD_DOOR = { x: 996, y: 372, w: 82, h: 196 };
 
-/** Back-to-front. item/add stamps z from this order. */
-export const YARD_STAGE: { kind: string; x: number; y: number }[] = [
-  { kind: 'yard-swing', x: 1094, y: 270 },
-  { kind: 'sandbox', x: 1190, y: 360 },
-  { kind: 'lemonade-cart', x: 960, y: 530 },
-  { kind: 'picnic-blanket', x: 930, y: 576 },
+/**
+ * Back-to-front. item/add stamps z from this order.
+ * The swing is drawn a little smaller (scale) so the whole play set fits beside the door
+ * in the narrowest yard window. The catalog piece stays the full drawing.
+ */
+export const YARD_STAGE: { kind: string; x: number; y: number; scale?: number }[] = [
+  { kind: 'yard-swing', x: 1266, y: 580, scale: 132 / 280 },
+  { kind: 'lemonade-cart', x: 1254, y: 471 },
+  { kind: 'sandbox', x: 940, y: 482 },
+  { kind: 'picnic-blanket', x: 939, y: 420 },
 ];
 
 function piece(p: { kind: string; name: string; cat: string; w: number; h: number; vb: string; wall?: boolean; holdable?: boolean; svg: string }): ItemDef {
@@ -690,7 +694,7 @@ export function yardBackyardScenery(): string {
     <rect y="520" width="2400" height="80" fill="#9ed67a"/>
     <path d="M1040 470 q30 -12 16 -6 M1200 510 q28 -12 14 -4 M1360 548 q24 -10 12 -4" fill="none" stroke="#3d9a68" stroke-width="1.2" stroke-linecap="round" opacity=".22"/>
     ${pickets(846, 2118, 258, 372, 24)}
-    ${tree(1191, 0.8)}
+    ${tree(1184, 0.8)}
     <path d="M840 120 H1076 L1054 152 H862 Z" fill="#ffb3c6" ${ink()}/>
     <path d="M960 126 H1064 L1046 148 H976 Z" fill="#e45d88"/>
     ${hi('M876 132 h56')}
@@ -704,11 +708,18 @@ export function yardBackyardScenery(): string {
   </svg>`;
 }
 
-function doorBox(x: number, y: number, w: number, h: number): string {
-  const left = (x - w / 2) / 2400 * 100;
-  // Anchored to the floor line. A short screen's minimum tap height grows upward, into the sky, so it does not cover the kid.
+function doorBox(x: number, y: number, w: number, h: number, anchor: 'left' | 'right'): string {
+  // Anchored to the floor line. A short screen's minimum tap height grows upward, into the sky.
+  // The yard copy is anchored on the right, so a minimum tap width grows into the house wall, not out over the lawn.
   const bottom = (600 - y) / 600 * 100;
-  return `left:${left.toFixed(3)}%;bottom:${bottom.toFixed(3)}%;width:${(w / 2400 * 100).toFixed(3)}%;height:${(h / 600 * 100).toFixed(3)}%`;
+  const width = (w / 2400 * 100).toFixed(3);
+  const height = (h / 600 * 100).toFixed(3);
+  if (anchor === 'right') {
+    const right = (2400 - (x + w / 2)) / 2400 * 100;
+    return `right:${right.toFixed(3)}%;bottom:${bottom.toFixed(3)}%;width:${width}%;height:${height}%`;
+  }
+  const left = (x - w / 2) / 2400 * 100;
+  return `left:${left.toFixed(3)}%;bottom:${bottom.toFixed(3)}%;width:${width}%;height:${height}%`;
 }
 
 /** Straight-on panel door. The same drawing is the living-room door and the yard door. */
@@ -737,7 +748,8 @@ export function yardDoorMarkup(where: 'living' | 'yard'): string {
   const box = where === 'living' ? LIVE_DOOR : YARD_DOOR;
   const go = where === 'living' ? 'backyard' : 'living';
   const label = where === 'living' ? 'Backyard' : 'Back inside';
-  return `<button type="button" class="yardDoor" data-yard-go="${go}" aria-label="${label}" style="${doorBox(box.x, box.y, box.w, box.h)}">${panelDoor()}<span class="yardHintLabel"><span>${label}</span></span></button>`;
+  const anchor = where === 'yard' ? 'right' : 'left';
+  return `<button type="button" class="yardDoor" data-yard-go="${go}" aria-label="${label}" style="${doorBox(box.x, box.y, box.w, box.h, anchor)}">${panelDoor()}<span class="yardHintLabel"><span>${label}</span></span></button>`;
 }
 
 function sheetCard(name: string, art: string): string {
