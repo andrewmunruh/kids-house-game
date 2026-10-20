@@ -38,3 +38,7 @@
   - pack:string-lights: removed the two loose plum ticks. The wire is now a solid plum line, and the two bulbs that had come loose hang from it on plum drops (1 alpha piece). In game: dw +0.0 / dh +1.7.
   - ranch-egg: repainted without the nest (plain egg per SVG), stretch 1.12. In game: dw +0.0 / dh -1.5.
   - Rule: never repaint a shipped, approved item without App Builder sign-off; refit only.
+
+- 2026-10-20 CDT  Kitchen pack items (cursor/art-rollout-themed): 32 new paintings in assets/art/kitchen/pack~*.webp, all FO/fit within ±2% in game and stretch within 18%. Prompts used the item's own SVG png as a shape reference; items first painted too narrow and widened past 18% (fridge, sink, stool, high-chair, hutch, pantry, pendant, rug) were repainted at true proportions.
+  - pet-bowl and chick: both are static, placeable catalog items (plain SVGs in assets/items/manifest.json, kitchen room; nothing in src animates them or treats them as live pets/ranch creatures). Decision: PAINTED under the same rules so the kitchen converts whole. pet-bowl FO=0 x0.975, chick CPX=6 FO=1 x0.975 (in game dw/dh 0.0).
+  - Sub-pixel x/y refits (work/shrinkx.py, lossless, pinholes ≤40px filled): kettle x0.975, bananas y0.98, milk-bottle x1.02, pet-bowl x0.975, chick x0.975. Lint WARN (advisory) on bananas, milk-bottle.
