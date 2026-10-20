@@ -26,15 +26,15 @@ The living-room paintings are in the game now (`assets/art/any/*.webp`). `ART_RA
 
 ## Mockups
 
-Drawn at the real iPad and phone sizes. They are compositions, not the game. The sofa and chair kids use the spike sit pose (legs out, body upright) with real chibi layers. The bed kid is a standing chibi turned onto the mattress, with sleepy eyes and a Zzz. The baby is an original nursery drawing. Nickname on the kid is the preset "Sunny Bunny". The baby's nickname is "Bean". The meter is four of five blossoms and the word "Cozy".
+Drawn at the real iPad and phone sizes. They are compositions, not the game. The sofa and chair use the painted living-room art. Two kids sit on the sofa, hips on the cushion, thighs forward, lower legs hanging in front of the seat, feet near the floor. The chair is the same pose on the painted chair. The bed kid lies on the blanket, head toward the pillow. The baby is an original nursery drawing. Nicknames are the presets "Sunny Bunny" and "Sparkle Kitty". The baby's nickname is "Bean". The meter is four of five blossoms and the word "Cozy".
 
 | File | What |
 | --- | --- |
-| `docs/mockups/sit-sofa-820x1180.png` | Puffs, bow, leggings, seated on the pink sofa |
+| `docs/mockups/sit-sofa-820x1180.png` | Two kids side by side on the painted sofa |
 | `docs/mockups/sit-sofa-390x844.png` | Same, phone |
-| `docs/mockups/sit-chair-820x1180.png` | Long hair, sunhat, sundress, seated on the green chair |
+| `docs/mockups/sit-chair-820x1180.png` | Sundress and sunhat, seated on the painted chair |
 | `docs/mockups/sit-chair-390x844.png` | Same, phone |
-| `docs/mockups/lie-bed-820x1180.png` | Braids and nightgown, lying on the bed |
+| `docs/mockups/lie-bed-820x1180.png` | Braids and nightgown, lying on the blanket |
 | `docs/mockups/lie-bed-390x844.png` | Same, phone |
 | `docs/mockups/baby-care-820x1180.png` | Nursery care card: blossoms, Cozy, Bottle, Burp, Diaper, Rock |
 | `docs/mockups/baby-care-390x844.png` | Same, phone |
@@ -42,7 +42,7 @@ Drawn at the real iPad and phone sizes. They are compositions, not the game. The
 | `docs/mockups/nursery-390x844.png` | Same, phone |
 | `docs/mockups/anchors-living.png` | Locked anchors on the SVG and the living-room painting |
 
-`docs/mockups/render.ts` rebuilds the room mockups (`npx tsx docs/mockups/render.ts`). The HTML under `docs/mockups/html/` is generated and is not part of the review.
+`docs/mockups/render.ts` rebuilds the room mockups (`npx tsx docs/mockups/render.ts`). `tests/mockup_pose_test.py` screenshots them and checks that each sitting or lying avatar covers her seat anchor, and that no drawn part falls outside her avatar box. The HTML under `docs/mockups/html/` is generated and is not part of the review.
 
 iPad chrome in the mockups matches the current shell: room tabs, minimap, Play selected. No new top-bar button.
 
@@ -212,6 +212,7 @@ One cached SVG per look+pose, rebuilt when the look or the pose changes, not on 
 - Tap still sits the player's own avatar, in Play, without a drag. A second tap stands her up. Her neighborhood sit is presence. A doll's sit is the house save.
 - Real touch, in Play: pointer-drag a created kid onto the painted chair and onto the same chair with `?art=v1`, then onto the sofa's second seat, then onto a bed, then off the bed. Then switch to Decorate and drop her on the chair: she stays standing. Drag that chair: she stands at the old anchor. Run on the iPad size and on 390×844. A drop on a room tab still changes rooms. A floor pan still pans.
 - Pose unit: hair, hat, and clothes order; skirts do not ride inside `.leg`; classic SVG still renders. A classic doll with no `look2` still snaps and gets the simpler bent-leg sit.
+- Mockup check (`tests/mockup_pose_test.py`): on the sofa, chair, and bed, at 820×1180 and 390×844, the avatar box covers the seat anchor. No drawn part falls outside that box. The sofa shot has two kids on `sofa.webp`. The chair shot uses `chair.webp`.
 
 ### Estimate
 

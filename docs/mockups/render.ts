@@ -1,9 +1,8 @@
 // Builds the planning mockups. Not part of the game.
 // Run: npx tsx docs/mockups/render.ts
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { chibiSVG } from '../../src/avatar/draw';
-import { SIT_POSE } from '../../src/avatar/sit';
-import { fillLook2, type Look2 } from '../../src/shared/avatar';
+import type { Look2 } from '../../src/shared/avatar';
+import { artImg, lyingSVG, seatedSVG, SIT_HIP, SIT_VB, LIE_VB } from './pose';
 
 const OUT = new URL('./html/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
@@ -22,9 +21,15 @@ const bedLook: Look2 = {
   dress: 'nightgown', dressC: '#c9a0dc', shoes: 'slippers', shoesC: '#ff8fab', acc: ['flower'], accC: '#ff8fab',
 };
 
-const kidSit = chibiSVG(fillLook2(kidLook), { pose: SIT_POSE, poseName: 'sit', rich: true, uid: 'sofa' });
-const chairSit = chibiSVG(fillLook2(chairLook), { pose: SIT_POSE, poseName: 'sit', rich: true, uid: 'chair' });
-const kidLie = chibiSVG(fillLook2(bedLook), { rich: true, uid: 'bed' });
+const sofaLeft = seatedSVG(kidLook, 'sofaL');
+const sofaRight: Look2 = {
+  v: 1, hair: 'buns', hairC: '#2b1d16', skin: '#8d5524', eyes: 'sparkle', eyeC: '#5a321c', blush: true,
+  top: 'classic', topC: '#7eb6ff', bottom: 'shorts', bottomC: '#ffd166', shoes: 'sneakers', shoesC: '#ffffff',
+  acc: ['bow'], accC: '#ff8fab',
+};
+const sofaRightSvg = seatedSVG(sofaRight, 'sofaR');
+const chairSit = seatedSVG(chairLook, 'chair');
+const kidLie = lyingSVG(bedLook, 'bed');
 
 const O = '#5a3d5c';
 const s = `stroke="${O}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"`;
@@ -116,9 +121,11 @@ function page(w: number, h: number, room: keyof typeof ROOMS, stage: string, car
     .floor { position: absolute; left: 0; right: 0; top: 62%; bottom: 0; background: ${r.floor}; }
     .base { position: absolute; left: 0; right: 0; top: 60%; height: 12px; background: #fff; border-top: 4px solid #5a3d5c; border-bottom: 4px solid #5a3d5c; }
     .thing { position: absolute; }
-    .thing svg, .kid svg { width: 100%; height: 100%; display: block; overflow: visible; }
-    .kid { position: absolute; z-index: 3; }
-    .kid .tag { position: absolute; left: 50%; top: -8px; transform: translate(-50%, -100%); background: #fff; border: 3px solid #5a3d5c;
+    .thing svg, .avatar svg { width: 100%; height: 100%; display: block; overflow: hidden; }
+    .thing img.art { width: 100%; height: 100%; display: block; object-fit: contain; object-position: 50% 100%; }
+    .avatar { position: absolute; z-index: 4; }
+    .avatar svg { position: absolute; overflow: hidden; }
+    .avatar .tag { position: absolute; left: 50%; top: 0; transform: translate(-50%, -100%); background: #fff; border: 3px solid #5a3d5c;
       border-radius: 14px; padding: 2px 8px; font-weight: 800; font-size: ${phone ? 12 : 14}px; white-space: nowrap; }
     .zzz { position: absolute; z-index: 4; font-weight: 900; color: #b388d6; }
     .zzz b { font-size: ${phone ? 22 : 28}px; } .zzz i { font-style: normal; font-size: ${phone ? 14 : 16}px; margin-left: 2px; }
@@ -165,8 +172,28 @@ function carePanel(_phone: boolean): string {
 function piece(svg: string, x: number, y: number, w: number, h: number, z = 1): string {
   return `<div class="thing" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;z-index:${z}">${svg}</div>`;
 }
-function kidBox(svg: string, x: number, y: number, w: number, h: number, extra = '', tag = 'Sunny Bunny'): string {
-  return `<div class="kid" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"><div class="tag">${tag}</div><div style="width:100%;height:100%;${extra}">${svg}</div></div>`;
+function avatarBox(svg: string, x: number, y: number, w: number, h: number, anchor: number, tag = ''): string {
+  const name = tag ? `<div class="tag">${tag}</div>` : '';
+  return `<div class="avatar" data-anchor="${anchor}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px">${name}${svg}</div>`;
+}
+/** The outer div is the axis-aligned box of a rotated standing kid. The drawing spins inside it. */
+function lieBox(svg: string, cx: number, cy: number, kw: number, kh: number, deg: number, anchor: number, tag: string): string {
+  const rad = Math.abs(deg) * Math.PI / 180;
+  const c = Math.abs(Math.cos(rad)), s = Math.abs(Math.sin(rad));
+  const bw = kw * c + kh * s, bh = kw * s + kh * c;
+  const place = `position:absolute;left:${(bw - kw) / 2}px;top:${(bh - kh) / 2}px;width:${kw}px;height:${kh}px;transform:rotate(${deg}deg);transform-origin:50% 50%;`;
+  const spun = svg.replace('style="', `style="${place}`);
+  return `<div class="avatar" data-anchor="${anchor}" style="left:${cx - bw / 2}px;top:${cy - bh / 2}px;width:${bw}px;height:${bh}px">`
+    + `<div class="tag">${tag}</div>${spun}</div>`;
+}
+function anchorMark(x: number, y: number, n: number): string {
+  return `<i class="anchor" data-anchor="${n}" style="position:absolute;left:${x}px;top:${y}px;width:1px;height:1px;z-index:5"></i>`;
+}
+function sitOn(svg: string, ax: number, ay: number, kw: number, n: number, tag: string): string {
+  const kh = kw * (SIT_VB.h / SIT_VB.w);
+  const x = ax - (SIT_HIP.x / SIT_VB.w) * kw;
+  const y = ay - (SIT_HIP.y / SIT_VB.h) * kh;
+  return anchorMark(ax, ay, n) + avatarBox(svg, x, y, kw, kh, n, tag);
 }
 
 interface Box { w: number; h: number }
@@ -187,35 +214,38 @@ function add(name: string, w: number, h: number, room: keyof typeof ROOMS, inner
 
 for (const [w, h] of [[820, 1180], [390, 844]] as const) {
   add('sit-sofa', w, h, 'living', b => {
-    const sw = b.w * 0.62, sh = sw;
-    const sx = (b.w - sw) / 2, sy = b.h * 0.40;
-    const kh = sh * 0.72, kw = kh * (200 / 320);
-    const kx = sx + sw / 2 - kw / 2, ky = sy + sh * 0.34;
-    return piece(rug, sx - 20, sy + sh * 0.72, sw + 40, sh * 0.28, 0)
-      + piece(lamp, sx - sw * 0.28, sy + sh * 0.15, sw * 0.28, sw * 0.28, 1)
-      + piece(plant, sx + sw * 0.92, sy + sh * 0.2, sw * 0.26, sw * 0.26, 1)
-      + piece(sofa, sx, sy, sw, sh, 2)
-      + kidBox(kidSit, kx, ky, kw, kh);
+    const sw = b.w * 0.78, sh = sw;
+    const sx = (b.w - sw) / 2, sy = b.h * 0.86 - sh;
+    const kw = sw * 0.40;
+    const spot = (fx: number) => ({ x: sx + fx * sw, y: sy + 0.67 * sh });
+    const left = spot(0.32), right = spot(0.68);
+    return piece(artImg('rug'), sx - 10, sy + sh * 0.78, sw + 20, sh * 0.22, 0)
+      + piece(artImg('lamp'), sx - sw * 0.16, sy + sh * 0.28, sw * 0.18, sw * 0.18, 1)
+      + piece(artImg('plant'), sx + sw * 0.96, sy + sh * 0.34, sw * 0.16, sw * 0.16, 1)
+      + piece(artImg('sofa'), sx, sy, sw, sh, 2)
+      + sitOn(sofaLeft, left.x, left.y, kw, 0, 'Sunny Bunny')
+      + sitOn(sofaRightSvg, right.x, right.y, kw, 1, 'Sparkle Kitty');
   });
   add('sit-chair', w, h, 'living', b => {
-    const cw = b.w * 0.34, ch = cw;
-    const cx = (b.w - cw) / 2, cy = b.h * 0.46;
-    const kh = ch * 1.55, kw = kh * (200 / 320);
-    const kx = cx + cw / 2 - kw / 2 - kw * 0.02, ky = cy - kh * 0.42;
-    return piece(rug, cx - 40, cy + ch * 0.55, cw + 80, ch * 0.4, 0)
-      + piece(chair, cx, cy, cw, ch, 2)
-      + kidBox(chairSit, kx, ky, kw, kh);
+    const cw = b.w * 0.42, ch = cw;
+    const cx = (b.w - cw) / 2, cy = b.h * 0.84 - ch;
+    const kw = cw * 0.62;
+    const ax = cx + 0.50 * cw, ay = cy + 0.52 * ch;
+    return piece(artImg('rug'), cx - cw * 0.2, cy + ch * 0.72, cw * 1.4, ch * 0.28, 0)
+      + piece(artImg('chair'), cx, cy, cw, ch, 2)
+      + sitOn(chairSit, ax, ay, kw, 0, 'Sunny Bunny');
   });
   add('lie-bed', w, h, 'bedroom', b => {
-    const bw = b.w * 0.78, bh = bw * 0.72;
-    const bx = (b.w - bw) / 2, by = b.h * 0.36;
-    const kh = bw * 0.5, kw = kh * (200 / 320);
-    const kx = bx + bw * 0.28, ky = by + bh * 0.28;
-    return piece(rug, bx, by + bh * 0.78, bw, bh * 0.22, 0)
-      + piece(teddy, bx + bw * 0.78, by + bh * 0.55, bw * 0.22, bw * 0.22, 2)
+    const bw = b.w * 0.84, bh = bw;
+    const bx = (b.w - bw) / 2, by = b.h * 0.88 - bh;
+    const kw = bw * 0.34, kh = kw * (LIE_VB.h / LIE_VB.w);
+    const ax = bx + 0.42 * bw, ay = by + 0.70 * bh;
+    return piece(rug, bx, by + bh * 0.78, bw, bh * 0.18, 0)
+      + piece(teddy, bx + bw * 0.72, by + bh * 0.62, bw * 0.16, bw * 0.16, 2)
       + piece(bed, bx, by, bw, bh, 2)
-      + kidBox(kidLie, kx, ky, kw, kh, `transform:rotate(-82deg);transform-origin:50% 46%;`, 'Sunny Bunny')
-      + `<div class="zzz" style="left:${bx + bw * 0.62}px;top:${by + bh * 0.08}px"><b>Zzz</b><i>z</i></div>`;
+      + lieBox(kidLie, ax, ay, kw, kh, -78, 0, 'Sunny Bunny')
+      + anchorMark(ax, ay, 0)
+      + `<div class="zzz" style="left:${bx + bw * 0.22}px;top:${by + bh * 0.42}px"><b>Zzz</b><i>z</i></div>`;
   });
   add('baby-care', w, h, 'nursery', b => nurseryScene(b, true), true);
   add('nursery', w, h, 'nursery', b => nurseryScene(b, false), false);
