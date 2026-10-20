@@ -42,7 +42,30 @@ def finish(fg,al,ring):
                 fg[m]=fg[iy[m],ix[m]]; al[m]=255
         return fg,al
     return ofin(fg,al,ring)
+def seal_faint(fg,al):
+    """Faint pockets (alpha<200) that hold no fully clear pixel are pinholes or
+    bubbles inside the outline, not see-through openings: make them solid plum."""
+    lab,n=ndi.label(al<200)
+    if n:
+        clear=ndi.sum(al==0,lab,index=np.arange(1,n+1))
+        bad=np.isin(lab,1+np.where(clear==0)[0])
+        fg[bad]=ap.OUTLINE; al[bad]=255
+    return fg,al
+_f=finish
+finish=lambda fg,al,ring: seal_faint(*_f(fg,al,ring))
 ap.finish=finish
+# SHRINK="kind:fx:fy,..." scales the fitted box about its bottom centre (feet stay put),
+# for refitting to the in-game alpha>0 size measured by tests/art_ingame_bounds.py.
+SHRINK={t.split(':')[0]:(float(t.split(':')[1]),float(t.split(':')[2])) for t in (os.environ.get('SHRINK') or '').split(',') if t}
+osb=ap.svg_box
+def svg_box(it):
+    W,H,(x0,y0,x1,y1)=osb(it)
+    fx,fy=SHRINK.get(it['kind'],(1,1))
+    if (fx,fy)!=(1,1):
+        cx=(x0+x1)/2; w=(x1-x0)*fx; h=(y1-y0)*fy
+        x0=round(cx-w/2); x1=x0+round(w); y0=round(y1-h)
+    return W,H,(x0,y0,x1,y1)
+ap.svg_box=svg_box
 import json
 items={i['kind']:i for i in json.load(open(sys.argv[1]))}
 rawdir,group=sys.argv[2],sys.argv[3]
