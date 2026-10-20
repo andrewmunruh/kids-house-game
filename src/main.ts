@@ -904,6 +904,11 @@ const shelfWaiters: HTMLElement[] = [];
 let shelfActive = 0;
 let shelfPumping = false;
 let shelfFrame = 0;
+// Paintings that have loaded and decoded on the shelf, keyed by item kind. A tab
+// switch reuses these nodes directly (they are already decoded), so a cached
+// painting is on screen on the very first frame with no SVG flash. One card per kind
+// is on the shelf at a time; renderDrawer empties the shelf before reusing a node.
+const shelfDecoded = new Map<string, Node[]>();
 
 function shelfNear(card: HTMLElement): boolean {
   const shelf = document.getElementById('shelf');
@@ -931,10 +936,10 @@ function swapShelfCard(card: HTMLElement, d: ItemDef): void {
     if (card.isConnected && card.dataset.artq === '1') {
       delete card.dataset.artq;
       if (ok) {
-        const frag = document.createDocumentFragment();
-        while (hold.firstChild) frag.appendChild(hold.firstChild);
+        const nodes = Array.prototype.slice.call(hold.childNodes) as Node[];
+        shelfDecoded.set(d.kind, nodes);
         card.innerHTML = '';
-        card.appendChild(frag);
+        for (let i = 0; i < nodes.length; i++) card.appendChild(nodes[i]);
       }
     }
     releaseShelf();
@@ -1328,7 +1333,10 @@ function renderDrawer() {
   if (!list.length) shelf.innerHTML = `<div class="empty">Nothing here yet!</div>`;
   for (const d of list) {
     const b = document.createElement('button'); b.className = 'thing'; b.setAttribute('aria-label', d.name); b.dataset.kind = d.kind;
-    b.innerHTML = shelfThumb(d, artHas(d.kind)); shelf.appendChild(b); attachShelfDrag(b, d);
+    const ready = rasterOn() && rasterUrl(d.kind) ? shelfDecoded.get(d.kind) : undefined;
+    if (ready) for (let i = 0; i < ready.length; i++) b.appendChild(ready[i]);
+    else b.innerHTML = shelfThumb(d, artHas(d.kind));
+    shelf.appendChild(b); attachShelfDrag(b, d);
   }
   shelf.scrollLeft = 0;
   updateChipCue();

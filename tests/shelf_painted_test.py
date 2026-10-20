@@ -165,6 +165,26 @@ async def load_race(browser, w, h):
         await page.wait_for_timeout(1500)
     empty = await page.evaluate("() => ({ frames: window.__shelfFrames, empty: window.__shelfEmpty })")
     check(f'{tag} race: no empty shelf card in any frame', empty['frames'] > 30 and not empty['empty'], str(empty)[:300])
+    # Cached paintings: load every card on the tab, switch away and back. The first
+    # frame after the switch (the DOM right after the click, before any paint) and the
+    # next 10 frames must show each painted card's decoded painting, never the SVG.
+    await settle(page)
+    other = await page.evaluate("""() => [...document.querySelectorAll('#cats button[data-cat]')].map(b => b.dataset.cat).find(id => id && id !== 'pack:cottage' && id !== '__people' && id !== 'secrets')""")
+    await page.locator(f'#cats button[data-cat="{other}"]').click()
+    await page.wait_for_timeout(200)
+    back = await page.evaluate("""(painted) => new Promise(done => {
+      const look = () => [...document.querySelectorAll('#shelf button.thing')].filter(c => painted.includes(c.dataset.kind)).map(c => {
+        const im = c.querySelector('img.artimg');
+        return { k: c.dataset.kind, svg: !!c.querySelector('svg') || !!c.querySelector('img:not(.artimg)'), ok: !!(im && im.complete && im.naturalWidth > 0) };
+      });
+      document.querySelector('#cats button[data-cat="pack:cottage"]').click();
+      const frames = [look()];
+      let n = 0;
+      const tick = () => { frames.push(look()); if (++n < 10) requestAnimationFrame(tick); else done(frames); };
+      requestAnimationFrame(tick);
+    })""", sorted(PAINTED))
+    bad = [f"f{i}:{r['k']}" for i, fr in enumerate(back) for r in fr if r['svg'] or not r['ok']]
+    check(f'{tag} cached: switching back shows paintings on the first frame, no SVG frame', len(back[0]) > 5 and not bad, f"cards {len(back[0])} bad {bad[:6]}")
     check(f'{tag} race: no page errors', not errors, '; '.join(errors[:3]))
     await ctx.close()
 
