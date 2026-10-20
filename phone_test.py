@@ -842,6 +842,28 @@ async def tap_yard_door(pg, tag):
     check(f'{tag} Back inside is fully on stage',
           back and back['label'] == 'Back inside' and back['hintIn'] and back['doorIn'] and back['fs'] >= 13,
           str({k: back[k] for k in ('label', 'hintIn', 'doorIn', 'fs', 'w')} if back else None))
+    # A cat posed on the door must not eat the tap. She is pinned across the label and the door.
+    await pg.evaluate("""() => {
+      __store.dispatch({ type: 'cat/set', cat: { name: 'Clover', coat: 0, room: 'backyard', x: 996 } });
+      window.__pinCat = { x: 996, y: 220 };
+    }""")
+    await pg.wait_for_timeout(250)
+    cover = await pg.evaluate("""() => {
+      const cat = document.querySelector('.pet-cat');
+      const hint = document.querySelector('.yardHintLabel');
+      const door = document.querySelector('.yardDoor');
+      if (!cat || !hint || !door) return null;
+      const hit = (a, b) => a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+      const cr = cat.getBoundingClientRect();
+      return { hint: hit(cr, hint.getBoundingClientRect()), door: hit(cr, door.getBoundingClientRect()),
+        top: (document.elementFromPoint((hint.getBoundingClientRect().left + hint.getBoundingClientRect().right) / 2, (hint.getBoundingClientRect().top + hint.getBoundingClientRect().bottom) / 2) || {}).className || '' };
+    }""")
+    check(f'{tag} a pet sits on the back door', cover and cover['hint'] and cover['door'], str(cover))
+    await pg.locator('.yardHintLabel').tap()
+    await pg.wait_for_timeout(350)
+    room = await pg.evaluate("() => __store.get().currentRoom")
+    check(f'{tag} a real touch on Back inside still works with a pet on the door', room == 'living', str(room))
+    await pg.evaluate("() => { window.__pinCat = null; }")
 
 async def check_secrets_off_sky(pg, tag):
     """844×390: a centred pill sits on the sky. It parks in the gutter or the top row."""

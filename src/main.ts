@@ -27,7 +27,7 @@ import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
 import { emptyRoomStarters, setRoomScenery, syncScenery } from './scenery';
-import { DOOR_CAT_X, DOOR_KID, YARD_CAM, YARD_CAT, YARD_KID, YARD_STAGE, registerYardItems, yardBackyardScenery, yardCompareHTML, yardDoorMarkup, yardLookPatch, yardPreviewOn, yardSheetHTML, yardShot } from './yard';
+import { DOOR_CAT_X, DOOR_KID, LIVE_DOOR, YARD_CAM, YARD_CAT, YARD_DOOR, YARD_KID, YARD_STAGE, registerYardItems, yardBackyardScenery, yardCompareHTML, yardDoorMarkup, yardLookPatch, yardPreviewOn, yardSheetHTML, yardShot } from './yard';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
@@ -276,6 +276,11 @@ function fit() {
     const aspect = boxW / Math.max(1, boxH);
     VIEW_W = Math.round(Math.max(480, Math.min(W, H * aspect)));
   } else VIEW_W = 1000;
+  // The yard portrait window opens wide enough for the whole swing, and stops before the door art shrinks under 44px.
+  if (store.get().currentRoom === 'backyard' && portrait) {
+    const maxW = Math.floor(82 * boxW / 46);
+    VIEW_W = Math.min(maxW, Math.max(VIEW_W, 630));
+  }
   stage.style.width = VIEW_W + 'px';
   stage.style.height = H + 'px';
   const sc = Math.min(boxW / VIEW_W, boxH / H);
@@ -629,6 +634,17 @@ function goDoor(go: 'backyard' | 'living') {
   doorWent = performance.now();
   goThroughYardDoor(go);
 }
+/** The door and its label win a tap even when a pet or a piece is painted across them. */
+function doorAtPoint(x: number, y: number): HTMLElement | null {
+  const door = stage.querySelector<HTMLElement>('.yardDoor');
+  if (!door) return null;
+  const hit = (el: Element | null) => {
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 2 && r.height > 2 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  };
+  return hit(door.querySelector('.yardHintLabel')) || hit(door.querySelector('.doorArt')) || hit(door) ? door : null;
+}
 /** A touch tap never relies on click: portrait framing can move the door before click fires. */
 function bindYardDoor(btn: HTMLElement) {
   btn.addEventListener('pointerdown', e => {
@@ -652,6 +668,30 @@ function bindYardDoor(btn: HTMLElement) {
     window.addEventListener('pointercancel', end, true);
   });
 }
+stage.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  const door = doorAtPoint(e.clientX, e.clientY);
+  if (!door) return;
+  if (e.target instanceof Node && door.contains(e.target)) return;
+  e.stopPropagation();
+  e.preventDefault();
+  const go: 'backyard' | 'living' = door.dataset.yardGo === 'backyard' ? 'backyard' : 'living';
+  const x0 = e.clientX, y0 = e.clientY, id = e.pointerId;
+  doorPress = true;
+  const end = (ev: PointerEvent) => {
+    if (ev.pointerId !== id) return;
+    window.removeEventListener('pointerup', end, true);
+    window.removeEventListener('pointercancel', end, true);
+    doorPress = false;
+    if (ev.type === 'pointercancel') return;
+    if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 14) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    goDoor(go);
+  };
+  window.addEventListener('pointerup', end, true);
+  window.addEventListener('pointercancel', end, true);
+}, true);
 
 /** Indoor dressing, and the outdoor paint plus the back door when she is home. */
 function paintScenery(s: GameState) {
@@ -737,7 +777,13 @@ function renderAll() {
 
 store.subscribe((s, a) => {
   switch (a.type) {
-    case 'room/switch': if (hood && inner !== local) moveMeToRoom(a.room); renderAll(); renderDrawer(); break;
+    case 'room/switch': {
+      const wasYard = stage.classList.contains('room-yard');
+      if (hood && inner !== local) moveMeToRoom(a.room);
+      renderAll(); renderDrawer();
+      if (a.room === 'backyard' || wasYard) fit();
+      break;
+    }
     case 'game/reset': renderAll(); break;
     case 'room/wallpaper': case 'room/floor': case 'room/pattern': case 'room/wallTile': case 'room/floorTile': renderRoomBg(s); break;
     case 'char/update': case 'char/move':
@@ -2031,6 +2077,7 @@ function tickDogs(now: number, dt: number) {
     const behind = o.riding ? 200 : 78;
     let homeX = o.x + side * behind;
     if (o.riding) homeX = Math.max(50, Math.min(RANCH_W - 50, homeX));
+    else if (view === 'house') homeX = clearDoorX(homeX, 46);
     const homeY = Math.min(595, o.y + (o.riding ? 28 : 6));
     if (!r || r.box !== o.box || !r.el.isConnected) {
       r?.el.remove();
@@ -2309,10 +2356,13 @@ function placeKennelBtn(btn: HTMLButtonElement) {
   const catR = layer.querySelector<HTMLElement>('.pet-cat')?.getBoundingClientRect();
   const sandR = layer.querySelector<HTMLElement>('.item[data-kind="sandbox"]')?.getBoundingClientRect();
   const benchR = layer.querySelector<HTMLElement>('.item[data-kind="yard-bench"]')?.getBoundingClientRect();
+  const yardRects = [...layer.querySelectorAll<HTMLElement>('.item[data-kind="yard-swing"], .item[data-kind="picnic-blanket"], .item[data-kind="lemonade-cart"], .item[data-kind="tulip-bed"]')].map(el => el.getBoundingClientRect());
+  const doorEl = stage.querySelector<HTMLElement>('.yardDoor');
+  const doorRects = doorEl ? [doorEl, doorEl.querySelector('.yardHintLabel'), doorEl.querySelector('.doorArt')].map(el => el?.getBoundingClientRect()) : [];
   const secEl = document.getElementById('secrets');
   const secBox = secEl && secEl.offsetParent ? secEl.getBoundingClientRect() : undefined;
   const secR = secBox && secBox.width > 2 && secBox.left < bounds.r && secBox.right > bounds.l && secBox.top < bounds.b && secBox.bottom > bounds.t ? secBox : undefined;
-  const hard = [kidR, sofaR, catR, sandR, benchR, secR].filter((b): b is DOMRect => !!b && b.width > 2 && b.height > 2);
+  const hard = [kidR, sofaR, catR, sandR, benchR, secR, ...yardRects, ...doorRects].filter((b): b is DOMRect => !!b && b.width > 2 && b.height > 2);
   const home = new DOMRect(r.left + dx, r.top + dy, r.width, r.height);
   const dcx = bodyR.left + bodyR.width / 2, dcy = bodyR.top + bodyR.height / 2;
   const near = (box: DOMRect) => Math.hypot(box.left + box.width / 2 - dcx, box.top + box.height / 2 - dcy);
@@ -2478,9 +2528,20 @@ function tickCat() {
   const yardCat = s.currentRoom === 'backyard' && !perch;
   const catH = !pinned && perch ? 92 : yardCat ? 115 : 128;
   const catW = !pinned && perch ? 110 : yardCat ? 135 : 150;
-  placeEl(catEl, pinned ? pin!.x : x, foot, catW, catH);
+  const placeX = pinned ? pin!.x : clearDoorX(x, catW / 2);
+  placeEl(catEl, placeX, foot, catW, catH);
   catEl.style.zIndex = String(4000 + Math.round(foot));
-  catSpot = { x: pinned ? pin!.x : x, perch, leap: leaping };
+  catSpot = { x: placeX, perch, leap: leaping };
+}
+/** Push a pet's idle spot out of the doorway so she does not stand on the back door. A test pin is left alone. */
+function clearDoorX(x: number, half: number): number {
+  const room = store.get().currentRoom;
+  const door = room === 'backyard' ? YARD_DOOR : room === 'living' ? LIVE_DOOR : null;
+  if (!door) return x;
+  const left = door.x - door.w / 2 - half - 16;
+  const right = door.x + door.w / 2 + half + 16;
+  if (x <= left || x >= right) return x;
+  return x < door.x ? left : right;
 }
 function purr() {
   if (!catEl) return; sfx.purr(); setTimeout(() => sfx.meow(), 250);
@@ -3162,7 +3223,16 @@ function placeYardHints() {
     if (!hint) continue;
     hint.style.transform = '';
     hint.style.translate = '';
-    hint.style.fontSize = (16 / sc) + 'px';
+    const span = hint.querySelector<HTMLElement>('span');
+    if (span) span.style.transform = '';
+    const fontLocal = Math.max(13, 16 / sc);
+    hint.style.fontSize = fontLocal + 'px';
+    hint.style.lineHeight = '1';
+    const pill = 34 / sc;
+    hint.style.height = pill + 'px';
+    const border = 3 / sc;
+    const padY = Math.max(0, (pill - border * 2 - fontLocal) / 2);
+    hint.style.padding = `${padY.toFixed(2)}px ${(14 / sc).toFixed(2)}px`;
   }
   const door = doors[0];
   if (!door) return;
@@ -3206,12 +3276,24 @@ function placeYardHints() {
     door.style.transform = `translate(${(dx / sc).toFixed(1)}px, 0)`;
   }
   if (!hint) return;
+  const span = hint.querySelector('span');
+  if (span) {
+    const range = document.createRange();
+    range.selectNodeContents(span);
+    const ink = range.getBoundingClientRect();
+    const box = hint.getBoundingClientRect();
+    const dy = ((box.top + box.bottom) - (ink.top + ink.bottom)) / 2;
+    const el = span as HTMLElement;
+    if (ink.height > 2 && Math.abs(dy) >= 0.1) el.style.transform = `translateY(${(dy / sc).toFixed(2)}px)`;
+    else el.style.transform = '';
+  }
   const h2 = hint.getBoundingClientRect();
   const stage2 = stage.getBoundingClientRect();
   let hx = 0;
   if (h2.left < stage2.left + pad) hx = stage2.left + pad - h2.left;
   else if (h2.right > stage2.right - pad) hx = stage2.right - pad - h2.right;
   if (Math.abs(hx) > 0.5) hint.style.translate = `calc(-50% + ${(hx / sc).toFixed(1)}px) 0`;
+  else hint.style.translate = '';
 }
 // ---------- hidden surprises ----------
 const renderSecrets = () => {

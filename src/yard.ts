@@ -61,15 +61,14 @@ export const YARD_LOOK: Look2 = {
 export const yardLookPatch = () => patchFromLook2(YARD_LOOK);
 
 /**
- * Portrait shows about 480 world units, and the stage border takes a few of those.
- * 780 keeps the house wall and the door on screen, the swing seat inside the phone
- * window, and the bench fully on the stage.
+ * Portrait phones show about 620 world units once the yard is open.
+ * 870 leaves the door clear of the left arrow and keeps the whole swing in frame.
  */
-export const YARD_CAM = 780;
-/** Left of the back door, on the grass, clear of the swing. She faces left; the dog stands on her right. */
-export const YARD_KID = { x: 860, y: 555, flip: true as boolean };
-/** On the back of the lawn, clear of the cart and the tulips. */
-export const YARD_CAT = { x: 1000, y: 372 };
+export const YARD_CAM = 870;
+/** On the grass between the bench and the swing, clear of both. She faces the house; the dog stands on her right. */
+export const YARD_KID = { x: 1102, y: 584, flip: true as boolean };
+/** On the right lawn, above the lemonade cart and clear of the door. */
+export const YARD_CAT = { x: 1740, y: 310 };
 export const DOOR_KID = { x: 940, y: 540, flip: true as boolean };
 export const DOOR_CAT_X = 1160;
 
@@ -80,10 +79,10 @@ export const YARD_DOOR = { x: 996, y: 372, w: 82, h: 196 };
 
 /** Back-to-front. item/add stamps z from this order. */
 export const YARD_STAGE: { kind: string; x: number; y: number }[] = [
-  { kind: 'lemonade-cart', x: 1020, y: 505 },
-  { kind: 'sandbox', x: 900, y: 588 },
-  { kind: 'yard-swing', x: 1190, y: 555 },
-  { kind: 'picnic-blanket', x: 1700, y: 575 },
+  { kind: 'lemonade-cart', x: 1740, y: 470 },
+  { kind: 'sandbox', x: 1580, y: 580 },
+  { kind: 'yard-swing', x: 1314, y: 380 },
+  { kind: 'picnic-blanket', x: 960, y: 560 },
 ];
 
 function piece(p: { kind: string; name: string; cat: string; w: number; h: number; vb: string; wall?: boolean; holdable?: boolean; svg: string }): ItemDef {
