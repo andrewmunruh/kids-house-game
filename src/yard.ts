@@ -712,8 +712,8 @@ function doorBox(x: number, y: number, w: number, h: number): string {
 }
 
 /** Straight-on panel door. The same drawing is the living-room door and the yard door. */
-function panelDoor(h: number): string {
-  return `<svg class="doorArt" style="height:${h}px" viewBox="0 0 100 230">
+function panelDoor(): string {
+  return `<svg class="doorArt" viewBox="0 0 100 230">
     <rect x="4" y="2" width="92" height="226" rx="3" fill="#f3d2aa" ${ink()}/>
     <rect x="76" y="6" width="16" height="218" fill="#d4a373"/>
     <rect x="14" y="12" width="72" height="206" rx="2" fill="#f6e9ff" ${ink(2.2)}/>
@@ -737,7 +737,7 @@ export function yardDoorMarkup(where: 'living' | 'yard'): string {
   const box = where === 'living' ? LIVE_DOOR : YARD_DOOR;
   const go = where === 'living' ? 'backyard' : 'living';
   const label = where === 'living' ? 'Backyard' : 'Back inside';
-  return `<button type="button" class="yardDoor" data-yard-go="${go}" aria-label="${label}" style="${doorBox(box.x, box.y, box.w, box.h)}">${panelDoor(box.h)}<span class="yardHintLabel"><span>${label}</span></span></button>`;
+  return `<button type="button" class="yardDoor" data-yard-go="${go}" aria-label="${label}" style="${doorBox(box.x, box.y, box.w, box.h)}">${panelDoor()}<span class="yardHintLabel"><span>${label}</span></span></button>`;
 }
 
 function sheetCard(name: string, art: string): string {
