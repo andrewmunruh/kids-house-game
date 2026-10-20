@@ -33,3 +33,8 @@
   - Pilot clock (+1.5%) and lamp (+1.1%) already pass in game; no refit was needed.
   - The approved plant repaint (any/plant) measured +18.1% wide in game. Cause: the offline box reads the SVG's rotated leaf ellipses too wide. Repainted on 3:4 (stretch 0.90 against the corrected box).
 - tests/art_bounds.py geometry is now advisory: off-size prints WARN and exits 0; ART_BOUNDS_STRICT=1 makes it fail again. File checks (size, bytes, islands, holes, cream edge) still fail. It WARNs on 11 items the in-game standard passes.
+- 00:40 CDT  App Builder NO-GO fixes (report art-b1-3996):
+  - plant: restored the shipped 8a12495 painting (monstera) and refit it 3.6% wider, no repaint. The 26 px leaf-split gap is kept open as shipped. In game: dw +0.0 / dh +0.5. Don't run art_process on plant (its raw isn't the shipped art).
+  - pack:string-lights: removed the two loose plum ticks. The wire is now a solid plum line, and the two bulbs that had come loose hang from it on plum drops (1 alpha piece). In game: dw +0.0 / dh +1.7.
+  - ranch-egg: repainted without the nest (plain egg per SVG), stretch 1.12. In game: dw +0.0 / dh -1.5.
+  - Rule: never repaint a shipped, approved item without App Builder sign-off; refit only.
