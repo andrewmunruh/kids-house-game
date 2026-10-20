@@ -1,9 +1,10 @@
+from testnav import tap
 # Release B0 (fbd04db) saves and a mixed street against avatar B1.
 # Needs /tmp/b0tree (worktree at fbd04db), /tmp/b0-dist, and /tmp/new-dist.
 # A mailbox written by B0 must survive the B1 server, and a B0 client on the
 # same street must not see look2, must be able to use the mailbox, and must
 # not wipe look2 or the mailbox when she edits. A legacy char/update keeps look2.
-import asyncio, json, os, shutil, signal, subprocess, sys, time
+import argparse, asyncio, json, os, shutil, signal, subprocess, sys, time
 from playwright.async_api import async_playwright
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -16,6 +17,17 @@ PORT_HOOD = 8799
 B0_TREE = '/tmp/b0tree'
 B0_DIST = '/tmp/b0-dist'
 B1_DIST = '/tmp/new-dist'
+
+def apply_cli(argv=None):
+    """Ports and the B1 dist stay overridable. Defaults match the old hardcoded run."""
+    global PORT_B0, PORT_B1, PORT_HOOD, B1_DIST
+    p = argparse.ArgumentParser(description='Release B0 saves and a mixed street against avatar B1')
+    p.add_argument('--port-b0', type=int, default=PORT_B0, help='static server for the B0 dist (default 4195)')
+    p.add_argument('--port-b1', type=int, default=PORT_B1, help='static server for the B1 dist (default 4196)')
+    p.add_argument('--port-hood', type=int, default=PORT_HOOD, help='hood server port (default 8799)')
+    p.add_argument('--dist', default=B1_DIST, help='B1 dist directory (default /tmp/new-dist)')
+    a = p.parse_args(argv)
+    PORT_B0, PORT_B1, PORT_HOOD, B1_DIST = a.port_b0, a.port_b1, a.port_hood, a.dist
 DATA = M + '/data'
 res = {}
 
@@ -114,7 +126,7 @@ async def adult(pg):
     await pg.click('.adultCard [data-k="OK"]')
 
 async def join(pg, code, nick, bring):
-    await pg.click('#btnHood')
+    await tap(pg, '#btnHood')
     await pg.click('[data-m="join"]')
     await pg.fill('#codeInput', code)
     await pg.click('#codeForm button')
@@ -123,6 +135,7 @@ async def join(pg, code, nick, bring):
     await pg.wait_for_selector('body.view-map .mapHouse', timeout=8000)
 
 async def main():
+    apply_cli()
     for path, label in ((B0_TREE, 'b0 tree'), (B0_DIST, 'b0 dist'), (B1_DIST, 'b1 dist')):
         if not os.path.isdir(path):
             print('missing', label, path)
@@ -150,7 +163,7 @@ async def main():
             await P.goto(url(PORT_B0))
             await K.goto(url(PORT_B0))
             await P.wait_for_timeout(400)
-            await P.click('#btnHood')
+            await tap(P, '#btnHood')
             await P.click('[data-m="create"]')
             await adult(P)
             await P.wait_for_selector('#newCode')
@@ -196,6 +209,18 @@ async def main():
             diff = strict(before, after) if before and after else ['nosnap']
             letters = (((after or {}).get('houses') or {}).get(k_house) or {}).get('view', {}).get('mailbox', {}).get('letters') or []
             check('fbd04db mailbox save migrates strictly onto B1', not diff and any('yard' in (L.get('text') or '') for L in letters) and not errs, str(diff) + ' ' + '; '.join(errs[:2]))
+            k_before = (((before or {}).get('houses') or {}).get(k_house) or {}).get('view') or {}
+            k_after = (((after or {}).get('houses') or {}).get(k_house) or {}).get('view') or {}
+            yb = (k_before.get('rooms') or {}).get('backyard') or {}
+            ya = (k_after.get('rooms') or {}).get('backyard') or {}
+            check('an fbd04db empty yard stays empty, and nursery, kennel, mailbox, and look2 match',
+                  (yb.get('items') or []) == [] and (ya.get('items') or []) == []
+                  and ya.get('wallpaper') == yb.get('wallpaper') and ya.get('floor') == yb.get('floor')
+                  and (k_after.get('rooms') or {}).get('nursery') == (k_before.get('rooms') or {}).get('nursery')
+                  and k_after.get('dogKennel') == k_before.get('dogKennel')
+                  and k_after.get('mailbox') == k_before.get('mailbox')
+                  and k_after.get('characters') == k_before.get('characters'),
+                  'yard=' + json.dumps(ya.get('items')))
             # A local copy of that save, opened on B1, keeps the mailbox when she edits and when she adds a look.
             solo = await b.new_context(viewport={'width': 820, 'height': 1180}, device_scale_factor=1, has_touch=True)
             payload = json.dumps(saved)
@@ -232,7 +257,7 @@ async def main():
             await B1.goto(url(PORT_B1))
             await B0.goto(url(PORT_B0))
             await B1.wait_for_timeout(300)
-            await B1.click('#btnHood')
+            await tap(B1, '#btnHood')
             await B1.click('[data-m="create"]')
             await adult(B1)
             await B1.wait_for_selector('#newCode')
@@ -288,6 +313,75 @@ async def main():
             await B1.wait_for_function("""(id) => { const c = (__hood().view(id).characters || []).find(x => x.id === 'c1'); return c && c.shirt === '#80ed99'; }""", arg=b1house, timeout=8000)
             kept_kid = await B1.evaluate("""(id) => { const c = (__hood().view(id).characters || []).find(x => x.id === 'c1') || {}; return { hair: c.look2 && c.look2.hair, shirt: c.shirt }; }""", b1house)
             check('an old client look update keeps her chibi look', kept_kid and kept_kid.get('hair') == 'puffs' and kept_kid.get('shirt') == '#80ed99' and not merrs, str(kept_kid) + ' ' + '; '.join(merrs[:3]))
+            # Yard case beside the mailbox and look2 cases. The fbd04db client is the old iPad.
+            rooms_before = await B1.evaluate("""(id) => {
+              const r = __hood().view(id).rooms;
+              const other = {};
+              for (const k of ['living','bedroom','kitchen','salon','nursery']) other[k] = JSON.stringify(r[k]);
+              return { other, yard: ((r.backyard || {}).items || []).length };
+            }""", b1house)
+            await B1.evaluate("""(id) => {
+              const h = __hood();
+              h.dispatch(id, {type:'item/add', room:'backyard', item:{id:'yard-swing-1', kind:'yard-swing', x:1160, y:548, flip:false, z:1, scale:1}});
+              h.dispatch(id, {type:'item/add', room:'backyard', item:{id:'tulip-1', kind:'tulip-bed', x:900, y:560, flip:false, z:1, scale:1}});
+            }""", b1house)
+            await B1.wait_for_timeout(800)
+            placed = await B1.evaluate("""(id) => {
+              const r = __hood().view(id).rooms;
+              const other = {};
+              for (const k of ['living','bedroom','kitchen','salon','nursery']) other[k] = JSON.stringify(r[k]);
+              return { ids: (r.backyard.items || []).map(i => i.id), other };
+            }""", b1house)
+            check('the new client places a swing and a tulip bed without changing the other rooms',
+                  rooms_before and rooms_before.get('yard') == 0 and placed
+                  and sorted(placed['ids']) == ['tulip-1', 'yard-swing-1'] and placed['other'] == rooms_before['other'],
+                  str(None if not placed else placed['ids']))
+            await B0.click(f'#mapWorld .mapHouse[data-go="house:{b1house}"]')
+            await B1.click('#mapWorld .mapHouse.mine')
+            await B0.wait_for_function("() => !document.body.classList.contains('view-map') && !!document.querySelector('#layer')", timeout=8000)
+            await B1.wait_for_function("() => !document.body.classList.contains('view-map') && !!document.querySelector('#layer')", timeout=8000)
+            await B0.wait_for_timeout(500)
+            old_ui = await B0.evaluate("""() => ({
+              tabs: document.querySelectorAll('#tabs .tab').length,
+              door: document.querySelectorAll('.yardDoor, .backDoor').length,
+              swing: document.querySelectorAll('.item[data-kind="yard-swing"], .item[data-kind="tulip-bed"]').length,
+            })""")
+            check('the fbd04db client has five tabs, no back door, and does not draw the swing',
+                  old_ui['tabs'] == 5 and old_ui['door'] == 0 and old_ui['swing'] == 0 and not merrs, str(old_ui) + ' ' + '; '.join(merrs[:2]))
+            await B1.evaluate("""(id) => { const kind = Object.keys(__items)[0]; __hood().dispatch(id, {type:'item/add', room:'living', item:{id:'b1-keep', kind, x:560, y:520, flip:false, z:1, scale:1}}); }""", b1house)
+            await B0.wait_for_function("(id) => ((__hood().view(id).rooms.living || {}).items || []).some(i => i.id === 'b1-keep')", arg=b1house, timeout=8000)
+            both_ways = await B1.evaluate("""(id) => {
+              const items = __hood().view(id).rooms.living.items;
+              return { old: items.some(i => i.id === 'b0-keep'), neu: items.some(i => i.id === 'b1-keep'), yard: __hood().view(id).rooms.backyard.items.map(i => i.id) };
+            }""", b1house)
+            check('a living-room edit syncs both ways and the swing stays on the new iPad',
+                  both_ways and both_ways.get('old') and both_ways.get('neu') and 'yard-swing-1' in (both_ways.get('yard') or []) and 'tulip-1' in (both_ways.get('yard') or []),
+                  str(both_ways))
+            await B0.evaluate("""(id) => {
+              __hood().dispatch(id, { type:'char/update', id:'c1', patch: { skin:'#f1c27d', hair:'#2b1d16', hairStyle:2, shirt:'#c9a0dc', pants:'#5aa9e6', size:'kid', acc:1 } });
+            }""", b1house)
+            await B1.wait_for_function("""(id) => { const c = (__hood().view(id).characters || []).find(x => x.id === 'c1'); return c && c.shirt === '#c9a0dc'; }""", arg=b1house, timeout=8000)
+            kept_yard = await B1.evaluate("""(id) => {
+              const c = (__hood().view(id).characters || []).find(x => x.id === 'c1') || {};
+              return { hair: c.look2 && c.look2.hair, yard: (__hood().view(id).rooms.backyard.items || []).map(i => i.id) };
+            }""", b1house)
+            on_disk = False
+            for fn in os.listdir(DATA):
+                if not fn.endswith('.json') or fn.startswith('_'): continue
+                if 'yard-swing-1' in open(os.path.join(DATA, fn)).read():
+                    on_disk = True
+                    break
+            check('a legacy look update keeps look2 and the yard items',
+                  kept_yard and kept_yard.get('hair') == 'puffs' and 'yard-swing-1' in (kept_yard.get('yard') or []) and on_disk and not merrs,
+                  str(kept_yard) + ' disk=' + str(on_disk))
+            await B1.evaluate("""() => __store.dispatch({type:'room/switch', room:'backyard'})""")
+            await B0.wait_for_timeout(700)
+            friend_here = await B0.evaluate("""(pid) => document.querySelectorAll('.char[data-pid="' + pid + '"]').length""", b1pid)
+            check('a friend whose room is the yard is not standing in the living room', friend_here == 0 and not merrs, 'drawn=' + str(friend_here))
+            await B1.evaluate("""(id) => { const h = __hood(); h.dispatch(id, {type:'cat/move', room:'backyard', x:940}); }""", b1house)
+            await B0.wait_for_timeout(600)
+            cat_drawn = await B0.evaluate("() => document.querySelectorAll('.pet-cat').length")
+            check('a cat whose home is the yard does not throw and is not drawn in the living room', cat_drawn == 0 and not merrs, 'cats=' + str(cat_drawn))
             await b.close()
     finally:
         for pr in (web_b0, web_b1, hood):

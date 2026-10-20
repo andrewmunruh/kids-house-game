@@ -1,7 +1,10 @@
 # Living-room WebPs load by item id. ?art=v1 ignores them, a clear pixel is not a hit,
 # and a broken URL falls back to the SVG. The tray, outfit tab, and room tabs never
 # render a contact shadow; only a floor piece on the stage does.
+# Night ink on the item wrapper has to dim a painting the same way it dims an SVG.
+import io
 import sys
+from PIL import Image
 from playwright.sync_api import sync_playwright
 
 URL = sys.argv[1]
@@ -22,6 +25,7 @@ JS = r'''async () => {
   ok('a floor raster gets a contact shadow', sofa.indexOf('artshade') >= 0 && sofa.indexOf('artimg') >= 0);
   ok('a tray thumbnail has no contact shadow', a.svgOf(a.sofa).indexOf('artshade') < 0 && a.svgOf(a.sofa).indexOf('artimg') >= 0);
   ok('a wall raster does not', a.svgOf(a.window, true).indexOf('artshade') < 0 && a.svgOf(a.window).indexOf('artimg') >= 0);
+  ok('a painted window carries a night plate', a.svgOf(a.window).indexOf('artnight') >= 0 && a.svgOf(a.sofa).indexOf('artnight') < 0);
   const img = new Image();
   img.style.cssText = 'position:absolute;left:0;top:0';
   const src = a.rasterUrl('lamp');
@@ -43,6 +47,7 @@ JS = r'''async () => {
   }
   ok('a painted pixel is a hit', a.artSolid(img, r.left + sx + 0.5, r.top + sy + 0.5) === true);
   ok('art=v1 forces the svg', a.setArtFromSearch('?art=v1') === false && a.svgOf(a.sofa).indexOf('<svg') === 0 && a.svgOf(a.sofa).indexOf('artshade') < 0);
+  ok('art=v1 window keeps the moon and stars', a.svgOf(a.window).indexOf('winNight') >= 0 && a.svgOf(a.window).indexOf('artnight') < 0);
   a.setArtFromSearch('');
   const markup = a.svgOf(a.sofa);
   ok('default can use the webp', markup.indexOf('artimg') >= 0 && markup.indexOf('sofa') >= 0);
@@ -129,13 +134,140 @@ SW = r'''async () => {
   return notes;
 }'''
 
+# Center of the opaque paint, mapped through object-fit: contain and object-position: 50% 100%.
+PAINT_AT = r'''(kind) => {
+  const img = document.querySelector(`#layer .item[data-kind="${kind}"] img.artimg`);
+  if (!img || !img.naturalWidth) return null;
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0);
+  const w = c.width, h = c.height, data = ctx.getImageData(0, 0, w, h).data;
+  let minX = w, minY = h, maxX = 0, maxY = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (data[(y * w + x) * 4 + 3] > 220) {
+      if (x < minX) minX = x; if (y < minY) minY = y; if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+    }
+  }
+  if (maxX < minX) return null;
+  const sx = Math.round((minX + maxX) / 2), sy = Math.round((minY + maxY) / 2);
+  const r = img.getBoundingClientRect();
+  const scale = Math.min(r.width / w, r.height / h);
+  const dw = w * scale, dh = h * scale;
+  const ox = r.left + (r.width - dw) * 0.5;
+  const oy = r.top + (r.height - dh);
+  const i = (sy * w + sx) * 4;
+  return {
+    src: [data[i], data[i + 1], data[i + 2]],
+    x: ox + sx * scale, y: oy + sy * scale,
+    light: img.closest('.item').classList.contains('is-light'),
+    vw: window.innerWidth, vh: window.innerHeight,
+  };
+}'''
+
+def _pixel(png, x, y):
+    im = Image.open(io.BytesIO(png)).convert('RGB')
+    return im.getpixel((int(round(x)), int(round(y))))
+
+def night_dim_notes(page):
+    """The night colour matrix on .inner has to reach the WebP, and leave lamps alone."""
+    notes = []
+    def ok(name, cond):
+        notes.append(('PASS ' if cond else 'FAIL ') + name)
+    page.evaluate("() => { window.__sky.freeze(null); window.__sky.setChoice('day'); }")
+    page.wait_for_timeout(150)
+    page.wait_for_function('''() => {
+      const img = document.querySelector('#layer img.artimg');
+      return img && img.complete && img.naturalWidth > 0;
+    }''')
+    chosen = None
+    for kind in ('sofa', 'picture', 'rug', 'plant', 'table', 'armchair', 'bookshelf', 'chair'):
+        info = page.evaluate(PAINT_AT, kind)
+        if not info or info['light']:
+            continue
+        if not (8 < info['x'] < info['vw'] - 8 and 8 < info['y'] < info['vh'] - 8):
+            continue
+        day = _pixel(page.screenshot(), info['x'], info['y'])
+        if max(abs(day[i] - info['src'][i]) for i in range(3)) <= 30:
+            chosen = (kind, info, day)
+            break
+    ok('a raster painting is on screen for the night check', chosen is not None)
+    if chosen:
+        kind, info, day = chosen
+        page.evaluate("() => window.__sky.setChoice('night')")
+        page.wait_for_timeout(150)
+        night = _pixel(page.screenshot(), info['x'], info['y'])
+        # Same matrix as #skyNightInk: 72% of the pixel, plus a step toward #2a2350.
+        exp = tuple(round(0.72 * c + off * 255) for c, off in zip(day, (0.046, 0.038, 0.088)))
+        ok(f'night ink dims the {kind} painting', max(abs(night[i] - exp[i]) for i in range(3)) <= 8)
+    lamp = page.evaluate(PAINT_AT, 'lamp')
+    if lamp and 8 < lamp['x'] < lamp['vw'] - 8 and 8 < lamp['y'] < lamp['vh'] - 8:
+        page.evaluate("() => window.__sky.setChoice('day')")
+        page.wait_for_timeout(100)
+        day = _pixel(page.screenshot(), lamp['x'], lamp['y'])
+        page.evaluate("() => window.__sky.setChoice('night')")
+        page.wait_for_timeout(100)
+        night = _pixel(page.screenshot(), lamp['x'], lamp['y'])
+        ok('a lamp painting stays undimmed at night', max(abs(day[i] - night[i]) for i in range(3)) <= 12)
+    else:
+        ok('a lamp painting stays undimmed at night', False)
+    page.evaluate("() => window.__sky.setChoice('day')")
+    return notes
+
+def window_night_notes(page):
+    """The painted bedroom window covers its sunny glass with the night plate."""
+    notes = []
+    def ok(name, cond):
+        notes.append(('PASS ' if cond else 'FAIL ') + name)
+    page.evaluate("""() => {
+      document.querySelector('#tabs button[data-room="bedroom"]')?.click();
+      window.__sky.freeze(null);
+      window.__sky.setChoice('day');
+    }""")
+    page.wait_for_function("""() => {
+      const plate = document.querySelector('#layer .item[data-kind="window"] .artnight');
+      return plate && parseFloat(getComputedStyle(plate).opacity) < 0.05;
+    }""", timeout=3000)
+    spot = page.evaluate("""() => {
+      const item = document.querySelector('#layer .item[data-kind="window"]');
+      const plate = item && item.querySelector('.artnight');
+      const img = item && item.querySelector('img.artimg');
+      if (!item || !plate || !img) return null;
+      const r = item.getBoundingClientRect();
+      return {
+        glassX: r.left + r.width * 0.388, glassY: r.top + r.height * 0.62,
+        curtainX: r.left + r.width * 0.08, curtainY: r.top + r.height * 0.40,
+        dayOp: parseFloat(getComputedStyle(plate).opacity),
+        vw: window.innerWidth, vh: window.innerHeight, w: r.width, h: r.height,
+        ready: img.complete && img.naturalWidth > 0,
+      };
+    }""")
+    on_screen = bool(spot and spot['ready'] and spot['w'] > 40 and 8 < spot['glassX'] < spot['vw'] - 8 and 8 < spot['glassY'] < spot['vh'] - 8)
+    ok('the bedroom window is on screen', on_screen)
+    if not on_screen:
+        return notes
+    day = _pixel(page.screenshot(), spot['glassX'], spot['glassY'])
+    curtain_day = _pixel(page.screenshot(), spot['curtainX'], spot['curtainY'])
+    page.evaluate("() => window.__sky.setChoice('night')")
+    page.wait_for_function("""() => {
+      const plate = document.querySelector('#layer .item[data-kind="window"] .artnight');
+      return plate && parseFloat(getComputedStyle(plate).opacity) > 0.95;
+    }""", timeout=3000)
+    night = _pixel(page.screenshot(), spot['glassX'], spot['glassY'])
+    curtain_night = _pixel(page.screenshot(), spot['curtainX'], spot['curtainY'])
+    ok('day hides the night plate and night shows it', spot['dayOp'] < 0.05)
+    ok('the painted glass goes from daylight to a night sky', sum(day) > sum(night) + 80 and night[2] > night[0] and night[0] < 90)
+    ok('the curtains stay put at night', max(abs(curtain_day[i] - curtain_night[i]) for i in range(3)) <= 18)
+    page.evaluate("() => window.__sky.setChoice('day')")
+    return notes
+
 def main():
     fails = 0
     notes = []
     with sync_playwright() as p:
         browser = p.chromium.launch()
         context = browser.new_context()
-        context.add_init_script("localStorage.setItem('cozy-whatsnew','8'); localStorage.setItem('avatar-intro','1');")
+        context.add_init_script("localStorage.setItem('cozy-whatsnew','999'); localStorage.setItem('avatar-intro','1');")
         page = context.new_page()
         page.on('pageerror', lambda e: print('PAGEERROR', e, flush=True))
         page.goto(URL, wait_until='domcontentloaded')
@@ -149,7 +281,9 @@ def main():
                 art_hits.append(r.url)
         page.on('request', track)
         page.goto(origin, wait_until='domcontentloaded')
+        notes.extend(night_dim_notes(page))
         notes.extend(page.evaluate(TRAY))
+        notes.extend(window_night_notes(page))
         def hits(kind):
             return [u for u in art_hits if f'/{kind}.webp' in u.split('?')[0]]
         notes.append(('PASS ' if len(hits('ball')) == 0 else 'FAIL ') + 'a fresh house does not fetch the ball')

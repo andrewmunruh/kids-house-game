@@ -1,0 +1,473 @@
+/* Day / night colours. One block, so a menu branch can merge it without touching style.css.
+   One veil per scene: a tint, warm pools, a soft vignette, and (at golden hour) a long shadow.
+   No filters on big layers. Stars and fireflies are dots on the map, not a second overlay.
+   The page and the grass outside the map are recoloured, not covered by another layer. */
+
+:root {
+  --sky-opacity: 0;
+  --sky-map-opacity: 0;
+  --sky-glow: 0;
+  --sky-stars: 0;
+  --sky-glass: 0;
+  --sky-tint: #1a2744;
+  --sky-body: #ffe9f0;
+  --sky-page-a: #ffe0ec;
+  --sky-page-b: #e6ddff;
+  --sky-spot: #fff6fa;
+  --sky-field-a: #c9f2c7;
+  --sky-field-b: #8fd18a;
+  --sky-win: #a2d2ff;
+  --sky-win-2: #b9e3ff;
+  --sky-house-win: #ffe08a;
+  --sky-shadow: rgba(120, 64, 28, 0);
+  --sky-orb: rgba(255, 246, 214, 0);
+  /* Plain rgba so Safari 16 can paint them. The clock writes the same variables. */
+  --sky-glow-soft: rgba(255, 186, 80, 0);
+  --sky-glow-hot: rgba(255, 220, 120, 0);
+  --sky-glow-wash: rgba(255, 170, 70, 0);
+  --sky-glow-map: rgba(255, 196, 110, 0);
+  /* Same hue as the soft glow, alpha 0, so the falloff does not fade toward black. */
+  --sky-glow-clear: rgba(255, 186, 80, 0);
+  --sky-map-tint: #ffffff;
+  --sky-vig: rgba(12, 10, 32, 0);
+}
+
+/* Whole screen, including the page behind the stage and the grass outside the map frame.
+   Day values match the original pink page and green map frame. */
+html, body { background: var(--sky-body); }
+#app {
+  background-color: var(--sky-body);
+  background-image:
+    radial-gradient(circle at 15% 10%, var(--sky-spot) 0 20%, transparent 21%),
+    radial-gradient(circle at 90% 85%, var(--sky-spot) 0 15%, transparent 16%),
+    linear-gradient(160deg, var(--sky-page-a), var(--sky-page-b));
+}
+.mapView {
+  background: radial-gradient(circle at 50% 40%, var(--sky-field-a), var(--sky-field-b));
+}
+
+/* One night tint for the whole room. It sits on the wall and floor. Item padding is
+   transparent, so the same tint shows through every bounding box. No per-item wash.
+   mix-blend-mode is one composite, not a filter. */
+.world::after,
+.ranchWorld::before,
+.parkWorld::before,
+.grWorld::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-color: var(--sky-tint);
+  opacity: var(--sky-opacity);
+  mix-blend-mode: multiply;
+}
+.world::after { z-index: 3; }
+/* Golden is a wash, not a multiply. Night stays multiply. The peach is a little deeper toward the window (the right). */
+html[data-sky="golden"] .world::after,
+html[data-sky="golden"] .ranchWorld::before,
+html[data-sky="golden"] .parkWorld::before,
+html[data-sky="golden"] .grWorld::before {
+  mix-blend-mode: normal;
+  background-image: linear-gradient(90deg, rgba(255, 179, 138, 0) 12%, rgba(255, 128, 72, 0.85) 100%);
+}
+.scenery { z-index: 4; }
+.layer { z-index: 6; }
+.ranchWorld::before,
+.parkWorld::before,
+.grWorld::before { z-index: 1; }
+
+/* Long golden shadow and a night vignette. Normal paint, so the shadow stays soft.
+   Alpha lives in the variables, so day (both zero) leaves the room alone. */
+.layer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(250deg, transparent 0%, var(--sky-shadow) 62%),
+    radial-gradient(ellipse at 50% 46%, transparent 38%, var(--sky-vig) 100%);
+}
+/* Long soft shadows, light from the window on the right. The shade stays on the far side so the wallpaper is not recoloured. */
+html[data-sky="golden"] .layer::before {
+  background-image:
+    linear-gradient(270deg, transparent 48%, var(--sky-shadow) 100%),
+    radial-gradient(ellipse at 82% 24%, transparent 55%, var(--sky-vig) 100%);
+}
+html[data-sky="golden"] .layer > .item:not(.is-light)::before,
+html[data-sky="golden"] .layer > .char::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: -95%;
+  bottom: 0;
+  width: 175%;
+  height: 20%;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 84% 42%, rgba(120, 46, 8, 0.32) 0%, rgba(120, 46, 8, 0.12) 40%, rgba(120, 46, 8, 0) 72%);
+  transform: skewX(-46deg);
+}
+
+/* Map ground and trees. A real layer on top of the drawing, put back after each render. */
+.mapWorld { z-index: 1; }
+.skyTint {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  border-radius: inherit;
+  background: var(--sky-map-tint);
+  opacity: var(--sky-map-opacity);
+  mix-blend-mode: multiply;
+}
+html[data-sky="golden"] .skyTint,
+html[data-sky="dawn"] .skyTint { mix-blend-mode: normal; }
+html[data-sky="golden"] .mapWorld::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(270deg, transparent 40%, rgba(186, 110, 52, 0.16) 100%);
+}
+
+/* Streetlamps along the road. Normal paint, so the yellow stays yellow. */
+.skyLamps {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 33% 78%, var(--sky-glow-hot) 0 12px, var(--sky-glow-soft) 36px, transparent 78px),
+    radial-gradient(circle at 69% 84%, var(--sky-glow-hot) 0 12px, var(--sky-glow-soft) 34px, transparent 74px),
+    radial-gradient(circle at 84% 52%, var(--sky-glow-hot) 0 11px, var(--sky-glow-soft) 32px, transparent 70px),
+    radial-gradient(circle at 52% 50%, var(--sky-glow-hot) 0 11px, var(--sky-glow-soft) 32px, transparent 70px),
+    radial-gradient(circle at 27% 42%, var(--sky-glow-hot) 0 11px, var(--sky-glow-soft) 32px, transparent 68px);
+}
+
+/* Moon and stars in the margin around the map. The map covers the middle. */
+.mapView::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--sky-stars);
+  background:
+    radial-gradient(circle at 78% 14%, #fff6d4 0 26px, rgba(255, 228, 160, 0.9) 40px, transparent 78px),
+    radial-gradient(circle at 10% 11%, #fff 0 3px, rgba(255, 255, 255, 0.75) 5px, transparent 9px),
+    radial-gradient(circle at 22% 8%, #fff8d0 0 2.4px, rgba(255, 248, 210, 0.7) 4.5px, transparent 8px),
+    radial-gradient(circle at 34% 15%, #fff 0 2.6px, rgba(255, 255, 255, 0.7) 4.5px, transparent 8px),
+    radial-gradient(circle at 48% 7%, #fff 0 2px, rgba(255, 255, 255, 0.65) 3.5px, transparent 7px),
+    radial-gradient(circle at 60% 12%, #fff8d0 0 2.8px, rgba(255, 248, 210, 0.75) 5px, transparent 9px),
+    radial-gradient(circle at 90% 9%, #fff 0 2.2px, rgba(255, 255, 255, 0.7) 4px, transparent 8px),
+    radial-gradient(circle at 6% 20%, #fff 0 2px, rgba(255, 255, 255, 0.6) 3.5px, transparent 7px),
+    radial-gradient(circle at 94% 24%, #fff8d0 0 2.4px, rgba(255, 248, 210, 0.7) 4px, transparent 8px),
+    radial-gradient(circle at 12% 90%, #fff 0 2.6px, rgba(255, 255, 255, 0.75) 4.5px, transparent 8px),
+    radial-gradient(circle at 26% 95%, #fff8d0 0 2px, rgba(255, 248, 210, 0.65) 3.5px, transparent 7px),
+    radial-gradient(circle at 42% 91%, #fff 0 3px, rgba(255, 255, 255, 0.75) 5px, transparent 9px),
+    radial-gradient(circle at 58% 96%, #fff 0 2px, rgba(255, 255, 255, 0.6) 3.5px, transparent 7px),
+    radial-gradient(circle at 74% 92%, #fff8d0 0 2.4px, rgba(255, 248, 210, 0.7) 4.5px, transparent 8px),
+    radial-gradient(circle at 88% 95%, #fff 0 2.2px, rgba(255, 255, 255, 0.7) 4px, transparent 8px);
+}
+
+html.sky-live .world::after,
+html.sky-live .mapWorld::after,
+html.sky-live .ranchWorld::before,
+html.sky-live .parkWorld::before,
+html.sky-live .grWorld::before {
+  transition: opacity 1.4s linear, background-color 1.4s linear;
+}
+
+/* Lamps, string lights, night-lights, windows, TVs. A radial wash, not a filter. */
+.item.is-light::before,
+.sceneLamp::after,
+.mapHouse::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--sky-glow-hot) 0%, var(--sky-glow-soft) 36%, var(--sky-glow-clear) 70%);
+}
+.item.is-light::before {
+  left: 50%;
+  top: 34%;
+  width: 220%;
+  height: 200%;
+  transform: translate(-50%, -42%);
+  z-index: 0;
+  background: radial-gradient(circle, var(--sky-glow-hot) 0%, var(--sky-glow-soft) 18%, var(--sky-glow-clear) 46%);
+}
+.item.is-light > .inner { position: relative; z-index: 1; }
+/* A second, softer pool above the furniture, just under each lamp, so nearby pieces look warm-lit.
+   The gradient is clear before the element edge. Name tags sit on the kids, above this. */
+.skyPuddles { position: absolute; inset: 0; pointer-events: none; }
+.skyPuddles i {
+  position: absolute;
+  display: block;
+  opacity: 0.62;
+  background: radial-gradient(circle, var(--sky-glow-hot) 0%, var(--sky-glow-soft) 22%, var(--sky-glow-clear) 48%);
+}
+/* The pool shares the furniture's band and paints after it. The lamp and window step above their own pool. */
+html[data-sky="night"] #layer > .item.is-light,
+html[data-sky="golden"] #layer > .item.is-light {
+  z-index: calc(var(--iz) + 1) !important;
+}
+.item.is-light[data-kind="window"]::before,
+.item.is-light[data-kind="tv"]::before { top: 46%; }
+.sceneLamp::after { left: -40%; top: -10%; width: 180%; height: 120%; z-index: -1; }
+.mapHouse::before { left: 8%; top: 42%; width: 84%; height: 36%; z-index: -1; }
+
+/* House windows go warm when the sun is down. Day keeps the online / offline glass. */
+html:not([data-sky="day"]) .houseWin { fill: var(--sky-house-win); }
+
+/* Room windows: a sky plate over the glass. Day leaves it clear so the painted sky shows. */
+.sceneWin::after {
+  content: '';
+  position: absolute;
+  left: 18%;
+  top: 17%;
+  width: 64%;
+  height: 47%;
+  z-index: 1;
+  pointer-events: none;
+  opacity: var(--sky-glass);
+  background:
+    linear-gradient(var(--ink), var(--ink)) 50% 50% / 3px 100% no-repeat,
+    linear-gradient(var(--ink), var(--ink)) 50% 50% / 100% 3px no-repeat,
+    radial-gradient(circle at 74% 30%, var(--sky-orb) 0 8px, transparent 10px),
+    radial-gradient(circle at 22% 28%, #fff 0 1.6px, transparent 2.4px),
+    radial-gradient(circle at 40% 18%, #fff 0 1.2px, transparent 2px),
+    radial-gradient(circle at 58% 42%, #fff8d0 0 1.4px, transparent 2.2px),
+    radial-gradient(circle at 30% 58%, #fff 0 1px, transparent 1.8px),
+    linear-gradient(165deg, var(--sky-win), var(--sky-win-2));
+}
+.winGlass { fill: var(--sky-win); }
+.winNight { opacity: var(--sky-glass); }
+.winDay { opacity: calc(1 - var(--sky-glass)); }
+html.sky-live .sceneWin::after,
+html.sky-live .winNight,
+html.sky-live .winDay,
+html.sky-live .artnight { transition: opacity 1.4s linear; }
+html.sky-live .winGlass { transition: fill 1.4s linear; }
+/* Painted window: the WebP is a sunny day. This plate covers just the glass
+   (curtains and sill stay) with the same moon, stars, and night sky as the SVG window.
+   Day leaves --sky-glass at 0, so the painting shows through. */
+.item .artnight {
+  position: absolute;
+  left: 22%;
+  top: 6.5%;
+  width: 56%;
+  height: 74%;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 6%;
+  opacity: var(--sky-glass);
+  background:
+    linear-gradient(var(--ink), var(--ink)) 50% 50% / 5% 100% no-repeat,
+    linear-gradient(var(--ink), var(--ink)) 50% 50% / 100% 4% no-repeat,
+    radial-gradient(circle at 72% 28%, var(--sky-orb) 0 9px, transparent 11px),
+    radial-gradient(circle at 22% 24%, #fff 0 1.6px, transparent 2.4px),
+    radial-gradient(circle at 40% 16%, #fff 0 1.2px, transparent 2px),
+    radial-gradient(circle at 18% 46%, #fff8d0 0 1.4px, transparent 2.2px),
+    radial-gradient(circle at 84% 52%, #fff 0 1px, transparent 1.8px),
+    linear-gradient(165deg, var(--sky-win), var(--sky-win-2));
+}
+
+/* Clubhouse string lights. The spot's ::after is the touch slop, so the glow uses ::before. */
+.mapClub::before {
+  content: '';
+  position: absolute;
+  left: 12%;
+  top: 30%;
+  width: 76%;
+  height: 16%;
+  z-index: 2;
+  pointer-events: none;
+  opacity: var(--sky-glow);
+  background:
+    radial-gradient(circle at 4% 60%, rgba(255, 246, 176, 0.98) 0 4px, rgba(255, 210, 80, 0.55) 6px, transparent 11px),
+    radial-gradient(circle at 18% 60%, rgba(255, 176, 210, 0.98) 0 4px, rgba(255, 140, 190, 0.45) 6px, transparent 11px),
+    radial-gradient(circle at 32% 60%, rgba(255, 246, 176, 0.98) 0 4px, rgba(255, 210, 80, 0.5) 6px, transparent 11px),
+    radial-gradient(circle at 46% 60%, rgba(170, 236, 255, 0.98) 0 4px, rgba(120, 210, 255, 0.45) 6px, transparent 11px),
+    radial-gradient(circle at 60% 60%, rgba(255, 246, 176, 0.98) 0 4px, rgba(255, 210, 80, 0.5) 6px, transparent 11px),
+    radial-gradient(circle at 74% 60%, rgba(214, 186, 255, 0.98) 0 4px, rgba(180, 150, 255, 0.45) 6px, transparent 11px),
+    radial-gradient(circle at 88% 60%, rgba(255, 246, 176, 0.98) 0 4px, rgba(255, 210, 80, 0.5) 6px, transparent 11px),
+    radial-gradient(circle at 98% 60%, rgba(255, 176, 210, 0.98) 0 4px, rgba(255, 140, 190, 0.4) 6px, transparent 11px);
+}
+
+/* Moon, stars, and fireflies. One layer on the neighborhood map. */
+.skyBits {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  opacity: var(--sky-stars);
+  background:
+    radial-gradient(circle at 8% 12%, #fff 0 2.4px, rgba(255, 255, 255, 0.7) 3.4px, transparent 6px),
+    radial-gradient(circle at 16% 22%, #fff8d0 0 2px, transparent 5px),
+    radial-gradient(circle at 24% 8%, #fff 0 2.6px, rgba(255, 255, 255, 0.65) 3.6px, transparent 6px),
+    radial-gradient(circle at 33% 18%, #fff 0 1.8px, transparent 4px),
+    radial-gradient(circle at 42% 10%, #fff8d0 0 2.5px, rgba(255, 248, 210, 0.7) 3.4px, transparent 6px),
+    radial-gradient(circle at 51% 24%, #fff 0 1.7px, transparent 4px),
+    radial-gradient(circle at 60% 7%, #fff 0 2.3px, transparent 5px),
+    radial-gradient(circle at 68% 20%, #fff8d0 0 2px, transparent 5px),
+    radial-gradient(circle at 88% 10%, #fff 0 2.2px, transparent 5px),
+    radial-gradient(circle at 92% 28%, #fff 0 1.6px, transparent 4px),
+    radial-gradient(circle at 28% 32%, #fff8d0 0 1.6px, transparent 4px),
+    radial-gradient(circle at 74% 34%, #fff 0 1.8px, transparent 4px),
+    radial-gradient(circle at 48% 36%, #fff 0 1.4px, transparent 3.5px);
+}
+.skyBits i { position: absolute; border-radius: 50%; }
+.skyBits i.star {
+  width: 5px;
+  height: 5px;
+  margin: -2px 0 0 -2px;
+  background: #fff;
+  box-shadow: 0 0 6px 2px rgba(255, 248, 220, 0.95);
+}
+.skyBits i.fly {
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  background: #e7ff9a;
+  box-shadow: 0 0 8px 3px rgba(190, 255, 120, 0.9);
+}
+html.sky-live .skyBits i.star { animation: skyTwinkle 2.8s ease-in-out infinite; }
+html.sky-live .skyBits i.fly { animation: skyFly 7s ease-in-out infinite; }
+.skyBits i.star:nth-child(1) { left: 14%; top: 14%; }
+.skyBits i.star:nth-child(2) { left: 30%; top: 8%; animation-delay: -0.6s; }
+.skyBits i.star:nth-child(3) { left: 46%; top: 16%; animation-delay: -1.3s; }
+.skyBits i.star:nth-child(4) { left: 62%; top: 11%; animation-delay: -2s; }
+.skyBits i.star:nth-child(5) { left: 84%; top: 22%; animation-delay: -0.4s; }
+.skyBits i.star:nth-child(6) { left: 22%; top: 30%; animation-delay: -1.7s; }
+/* Park is near 12% 24%. The pond is near 12% 67%. */
+.skyBits i.fly:nth-child(7) { left: 9%; top: 20%; }
+.skyBits i.fly:nth-child(8) { left: 17%; top: 30%; animation-delay: -1.8s; }
+.skyBits i.fly:nth-child(9) { left: 8%; top: 62%; animation-delay: -3.2s; }
+.skyBits i.fly:nth-child(10) { left: 16%; top: 72%; animation-delay: -4.4s; }
+.skyBits i.fly:nth-child(11) { left: 13%; top: 78%; animation-delay: -2.4s; }
+@keyframes skyTwinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+@keyframes skyFly {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(12px, -16px); }
+}
+
+/* Labels stay readable on the dark grass: a warm halo, not a dimmer on the text. */
+html[data-sky="night"] .mapSign,
+html[data-sky="golden"] .mapSign,
+html[data-sky="dawn"] .mapSign,
+html[data-sky="night"] .char .nametag,
+html[data-sky="golden"] .char .nametag,
+html[data-sky="dawn"] .char .nametag,
+html[data-sky="night"] .mapFace .fname,
+html[data-sky="golden"] .mapFace .fname,
+html[data-sky="dawn"] .mapFace .fname {
+  background: #fff6e4;
+  color: #5a3d5c;
+  box-shadow: 0 0 0 2px #5a3d5c, 0 0 8px 3px rgba(255, 246, 228, 0.95);
+}
+html[data-sky="night"] .mapFace .fname,
+html[data-sky="golden"] .mapFace .fname,
+html[data-sky="dawn"] .mapFace .fname {
+  font-size: 13px;
+  line-height: 1.35;
+}
+html[data-sky="night"] .mapSign:not(.place),
+html[data-sky="golden"] .mapSign:not(.place),
+html[data-sky="dawn"] .mapSign:not(.place) {
+  font-size: 13px;
+}
+
+/* Park lawn and ranch grass sit above the map tint, so give them their own night green.
+   Labels are separate nodes and stay on the light pill. */
+html[data-sky="night"] .parkLawn { fill: #3e6d5c; }
+html[data-sky="night"] .ranchGrass { fill: #356556; }
+
+/* Day / Night / Auto sits in the Menu. In flow, not fixed over the stage. */
+#skyMount {
+  position: fixed;
+  z-index: 9600;
+  top: 9px;
+  display: flex;
+  pointer-events: none;
+  height: 44px;
+}
+#menuDaySlot > #skyMount {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  height: auto;
+  flex: 0 0 auto;
+  pointer-events: auto;
+  z-index: auto;
+}
+#skyMount[hidden] { display: none !important; }
+.drawerTop > #skyMount {
+  position: relative;
+  top: auto;
+  left: auto;
+  height: auto;
+  flex: 0 0 auto;
+  pointer-events: auto;
+  z-index: auto;
+}
+body.view-street #skyMount { left: 150px; }
+
+.skyBtn {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 5px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--ink);
+  box-shadow: 0 3px 0 rgba(90, 61, 92, 0.25);
+  pointer-events: auto;
+}
+.skyBtn svg { width: 100%; height: 100%; }
+.skyBtn:active { transform: scale(0.96); }
+
+/* 1024: the map title is shorter, so the sun/moon button sits closer in. */
+@media (max-width: 1100px) and (min-width: 901px) {
+  body.view-street #skyMount { top: 8px; left: 136px; }
+}
+/* 820×1180: same, in the title gap. */
+@media (max-width: 900px) and (min-height: 700px) {
+  body.view-street #skyMount { top: 3px; left: 124px; }
+}
+
+/* Phones: the top bar is full, so the mounts join the scrolling decorate row.
+   On the map the row is covered, so the sun/moon button floats in the title gap. */
+body.phone:not(.view-street) #skyMount {
+  position: relative;
+  top: auto;
+  left: auto;
+  height: auto;
+  flex: 0 0 auto;
+  pointer-events: auto;
+}
+body.phone.view-street #skyMount {
+  position: fixed;
+  z-index: 9600;
+  top: 4px;
+  left: 88px;
+  height: 44px;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.sky-live .world::after, html.sky-live .mapWorld::after,
+  html.sky-live .ranchWorld::before, html.sky-live .parkWorld::before, html.sky-live .grWorld::before,
+  html.sky-live .skyBits i,
+  html.sky-live .sceneWin::after, html.sky-live .winNight, html.sky-live .winDay, html.sky-live .winGlass {
+    animation: none;
+    transition: none;
+  }
+}
+html.sky-static .skyBits i { animation: none; }

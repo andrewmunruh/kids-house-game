@@ -4,7 +4,7 @@ import asyncio, os, shutil, sys, traceback
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
 from testnav import (
-    SKIP_WN, K, to_map, go, local_page, NOTE_VS_TABLE_JS, about_slay_card, dim_card_contrast, face_chroma,
+    tap, SKIP_WN, K, to_map, go, local_page, NOTE_VS_TABLE_JS, about_slay_card, dim_card_contrast, face_chroma,
     inject_slay_hand, read_slay_hand, read_wait_style, read_secrets, read_door_hint, read_paddock,
 )
 
@@ -37,7 +37,7 @@ async def adult(pg):
     await pg.click('.adultCard [data-k="OK"]')
 
 async def join(pg, code, nth, bring):
-    await pg.click('#btnHood')
+    await tap(pg, '#btnHood')
     await pg.click('[data-m="join"]')
     await pg.fill('#codeInput', code.lower())
     await pg.click('#codeForm button')
@@ -277,7 +277,7 @@ async def polish_pass(b):
     tag = '844x390'
     ctx, pg = await phone(844, 390)
     pill = await read_secrets(pg)
-    check(f'{tag} Surprises pill stays centred on a taller phone', pill['on'] and pill['centered'], str(pill))
+    check(f'{tag} Surprises stays off the stage', not pill['on'] and not pill['overlap'], str(pill))
     await pg.click('#btnMap')
     await pg.wait_for_selector('body.view-map .mapSpot')
     await pg.click('[data-go="ranch"]')
@@ -288,13 +288,20 @@ async def polish_pass(b):
           hint.get('fs', 0) >= 12 and hint.get('on') and 'Petting zoo' in (hint.get('text') or ''), str(hint))
     await check_wait_fade(pg, tag)
     await check_long_hand(pg, tag, two_row=False)
+    await pg.click('#btnMap')
+    await pg.wait_for_selector('body.view-map .mapSpot')
+    await pg.click('[data-go="gameroom"]')
+    await pg.wait_for_selector('.grTable')
+    await pg.wait_for_timeout(300)
+    table = await pg.locator('.grTable').first.bounding_box()
+    check(f'{tag} clubhouse table is a tap target', table is not None and table['width'] >= 44 and table['height'] >= 44, str(table))
     await ctx.close()
 
     for w, h in ((844, 300), (667, 280)):
         tag = f'{w}x{h}'
         ctx, pg = await phone(w, h)
         pill = await read_secrets(pg)
-        check(f'{tag} Surprises pill sits in a side gutter', pill['on'] and not pill['coversCenter'] and pill['side'], str(pill))
+        check(f'{tag} Surprises stays off the stage', not pill['on'] and not pill['overlap'], str(pill))
         await pg.click('#btnMap')
         await pg.wait_for_selector('body.view-map .mapSpot')
         await pg.click('[data-go="ranch"]')
@@ -359,7 +366,7 @@ async def main():
             check('Home from the clubhouse goes back to her house', await P.evaluate("!document.body.classList.contains('view-gameroom') && !document.body.classList.contains('view-street')"))
 
             # ---------- three kids on a street ----------
-            await P.click('#btnHood')
+            await tap(P, '#btnHood')
             await P.click('[data-m="create"]')
             await adult(P)
             await P.wait_for_selector('#newCode', timeout=8000)

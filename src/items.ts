@@ -1,10 +1,11 @@
 import { PACK_ITEMS } from './packs';
 import { SECRET_ITEMS } from './eggs';
 import { NURSERY_ITEMS } from './nursery';
+import { YARD_ITEMS } from './yard';
 import { rasterOn, rasterUrl } from './art/cache';
 // Original rounded SVG art. Each item: viewBox 0 0 100 100, anchored bottom-center.
 export type Category = string; // built-ins: furniture | decor | plants | food | pets (packs may add more)
-export interface ItemDef { kind: string; name: string; cat: Category; w: number; h?: number; svg: string; wall?: boolean; img?: string; rooms?: string[]; pack?: string; holdable?: boolean; secret?: string; vb?: string }
+export interface ItemDef { kind: string; name: string; cat: Category; w: number; h?: number; svg: string; wall?: boolean; img?: string; rooms?: string[]; pack?: string; holdable?: boolean; secret?: string; vb?: string; light?: boolean }
 
 const O = '#5a3d5c'; // soft plum outline
 const s = `stroke="${O}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"`;
@@ -28,7 +29,7 @@ export const ITEMS: ItemDef[] = [
   // ---------- decor ----------
   { kind: 'rug', name: 'Rug', cat: 'decor', w: 320, svg: `<ellipse cx="50" cy="82" rx="48" ry="14" fill="#ffc8dd" ${s}/><ellipse cx="50" cy="82" rx="34" ry="9" fill="#bde0fe" ${s}/><ellipse cx="50" cy="82" rx="18" ry="4.5" fill="#fff" ${s}/>` },
   { kind: 'picture', name: 'Picture', cat: 'decor', w: 130, wall: true, svg: `<rect x="10" y="20" width="80" height="64" rx="8" fill="#ffd166" ${s}/><rect x="18" y="28" width="64" height="48" rx="4" fill="#bde0fe"/><circle cx="66" cy="40" r="7" fill="#fff3b0"/><path d="M18 76 L38 50 L52 64 L62 54 L82 76 Z" fill="#90e0a8" ${s}/>` },
-  { kind: 'window', name: 'Window', cat: 'decor', w: 180, wall: true, svg: `<rect x="12" y="8" width="76" height="76" rx="38" fill="#a2d2ff" ${s}/><path d="M50 8 V84 M12 50 H88" ${s}/><circle cx="34" cy="32" r="8" fill="#fff" opacity=".7"/><path d="M4 8 Q20 40 10 90 M96 8 Q80 40 90 90" stroke="#ff8fab" stroke-width="9" fill="none" stroke-linecap="round"/>` },
+  { kind: 'window', name: 'Window', cat: 'decor', w: 180, wall: true, svg: `<rect class="winGlass" x="12" y="8" width="76" height="76" rx="38" fill="#a2d2ff" ${s}/><g class="winDay"><circle cx="34" cy="32" r="8" fill="#fff" opacity=".7"/></g><g class="winNight"><circle cx="62" cy="28" r="7" fill="#fff6d8"/><circle cx="28" cy="24" r="1.4" fill="#fff"/><circle cx="44" cy="20" r="1.1" fill="#fff"/><circle cx="70" cy="42" r="1.2" fill="#fff"/><circle cx="36" cy="46" r="1" fill="#fff"/></g><path d="M50 8 V84 M12 50 H88" ${s}/><path d="M4 8 Q20 40 10 90 M96 8 Q80 40 90 90" stroke="#ff8fab" stroke-width="9" fill="none" stroke-linecap="round"/>` },
   { kind: 'clock', name: 'Clock', cat: 'decor', w: 90, wall: true, svg: `<circle cx="50" cy="50" r="38" fill="#fff" ${s}/><circle cx="50" cy="50" r="30" fill="#fff3b0"/><path d="M50 50 V28 M50 50 L64 58" ${s}/><circle cx="50" cy="50" r="3" fill="${O}"/>${blush(30, 70, 66)}` },
   { kind: 'stars', name: 'Stars', cat: 'decor', w: 140, wall: true, svg: `<path d="M30 20 l5 10 11 2 -8 8 2 11 -10 -5 -10 5 2 -11 -8 -8 11 -2z" fill="#ffd166" ${s}/><path d="M70 40 l4 8 9 1 -6 6 1 9 -8 -4 -8 4 1 -9 -6 -6 9 -1z" fill="#ffadad" ${s}/><path d="M40 66 l3 6 7 1 -5 5 1 7 -6 -3 -6 3 1 -7 -5 -5 7 -1z" fill="#a2d2ff" ${s}/>` },
   { kind: 'balloon', name: 'Balloons', cat: 'decor', w: 110, svg: `<path d="M38 52 Q44 74 50 96 M64 46 Q58 72 50 96" stroke="${O}" stroke-width="2" fill="none"/><ellipse cx="36" cy="32" rx="18" ry="22" fill="#ff8fab" ${s}/><ellipse cx="66" cy="28" rx="18" ry="22" fill="#a2d2ff" ${s}/><ellipse cx="30" cy="24" rx="4" ry="7" fill="#fff" opacity=".6"/>` },
@@ -69,7 +70,8 @@ const BUILTIN_ROOMS: Record<string, string[]> = {
   window: ['any'], ball: ['any'], vanity: ['salon'], stool: ['salon'], perfume: ['salon'], polish: ['salon'], hairdryer: ['salon'], mirror: ['salon', 'bedroom'], fridge: ['kitchen'], stove: ['kitchen'], table: ['kitchen', 'living'], chair: ['kitchen', 'living'],
 };
 for (const n of NURSERY_ITEMS) BUILTIN_ROOMS[n.kind] = ['nursery'];
-ITEMS.push(...NURSERY_ITEMS);
+for (const n of YARD_ITEMS) BUILTIN_ROOMS[n.kind] = ['backyard'];
+ITEMS.push(...NURSERY_ITEMS, ...YARD_ITEMS);
 for (const i of ITEMS) i.rooms = BUILTIN_ROOMS[i.kind] ?? (['food'].includes(i.cat) ? ['kitchen'] : ['any']);
 // Holdable by default: small/medium, non-wall, non-furniture items.
 const NOT_HOLDABLE = new Set(['rug', 'tv', 'tree']);
@@ -98,7 +100,8 @@ export const svgOf = (d: ItemDef, shade = false) => {
   const url = rasterOn() ? rasterUrl(d.kind) : undefined;
   if (!url) return svgMarkup(d);
   const shadow = shade && !d.wall ? '<i class="artshade" aria-hidden="true"></i>' : '';
-  return `${shadow}<img class="packimg artimg" data-kind="${esc(d.kind)}" src="${esc(url)}" alt="${esc(d.name)}" draggable="false" />`;
+  const night = d.kind === 'window' ? '<i class="artnight" aria-hidden="true"></i>' : '';
+  return `${shadow}${night}<img class="packimg artimg" data-kind="${esc(d.kind)}" src="${esc(url)}" alt="${esc(d.name)}" draggable="false" />`;
 };
 
 let artFallbackOn = false;
@@ -113,6 +116,7 @@ export function installArtFallback(): void {
     if (!d) return;
     img.dataset.fell = '1';
     img.parentElement?.querySelector('.artshade')?.remove();
+    img.parentElement?.querySelector('.artnight')?.remove();
     const hold = document.createElement('div');
     hold.innerHTML = svgMarkup(d);
     const next = hold.firstElementChild;

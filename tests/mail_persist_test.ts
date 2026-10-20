@@ -4,6 +4,8 @@
 //   npx tsx tests/mail_persist_test.ts b0
 //   PORT=8800 npx tsx tests/mail_persist_test.ts node
 //   npx tsx tests/mail_persist_test.ts worker --port 8801
+//   npx tsx tests/mail_persist_test.ts node --hood-port 8802
+//   HOOD_PORT=8803 npx tsx tests/mail_persist_test.ts b0
 // The repo root is the directory above this file, so the script works from any cwd.
 // node and worker use this build. b0 writes a mailbox with the fbd04db server, then this build reloads it.
 // B0_TREE overrides the old checkout (default /tmp/b0tree).
@@ -22,8 +24,12 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const B0 = process.env.B0_TREE || '/tmp/b0tree';
 const mode = process.argv[2];
 function portOf(fallback: number): number {
-  const flag = process.argv.indexOf('--port');
-  const raw = flag >= 0 ? process.argv[flag + 1] : process.env.PORT;
+  for (const flag of ['--port', '--hood-port', '--web-port']) {
+    const i = process.argv.indexOf(flag);
+    const raw = i >= 0 ? process.argv[i + 1] : '';
+    if (raw && /^\d+$/.test(raw)) return Number(raw);
+  }
+  const raw = process.env.PORT || process.env.HOOD_PORT || process.env.WEB_PORT;
   if (raw && /^\d+$/.test(raw)) return Number(raw);
   return fallback;
 }

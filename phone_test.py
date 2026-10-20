@@ -2,12 +2,35 @@
 import asyncio, os, sys
 from playwright.async_api import async_playwright
 from testnav import (
-    K, NOTE_VS_TABLE_JS, SLAY_PINK_3, about_slay_card, dim_card_contrast, face_chroma,
+    tap, K, NOTE_VS_TABLE_JS, SLAY_PINK_3, about_slay_card, dim_card_contrast, face_chroma,
     inject_slay_hand, read_slay_hand, read_wait_style, read_secrets, read_door_hint, read_paddock,
 )
 
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/kids-house-game/?hood=http://localhost:8787'
-SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/phone/'
+def opt(flag, env, default):
+    if flag in sys.argv:
+        i = sys.argv.index(flag)
+        if i + 1 < len(sys.argv): return sys.argv[i + 1]
+    return os.environ.get(env, default)
+def positionals():
+    skip = False
+    out = []
+    valued = {'--web-port', '--hood-port', '--port'}
+    for a in sys.argv[1:]:
+        if skip:
+            skip = False
+            continue
+        if a in valued:
+            skip = True
+            continue
+        if a.startswith('--'):
+            continue
+        out.append(a)
+    return out
+WEB_PORT = opt('--web-port', 'WEB_PORT', opt('--port', 'PORT', '4173'))
+HOOD_PORT = opt('--hood-port', 'HOOD_PORT', '8787')
+_pos = positionals()
+URL = _pos[0] if _pos and _pos[0].startswith('http') else f'http://localhost:{WEB_PORT}/kids-house-game/?hood=http://localhost:{HOOD_PORT}'
+SHOT = _pos[1] if _pos and _pos[0].startswith('http') and len(_pos) > 1 else (_pos[0] if _pos and not _pos[0].startswith('http') else 'screens/phone/')
 os.makedirs(SHOT, exist_ok=True)
 PHONES = [(390, 844), (844, 390), (375, 667), (667, 375), (932, 430)]
 # Short heights stand in for iPhone landscape with Safari's tab bar showing.
@@ -140,7 +163,7 @@ async def pet_targets(pg, tag, save, w, h):
     }""")
     sized = lambda b: b and b['w'] >= 44 and b['h'] >= 44
     check(f'{tag} kennel and cat tower are at least 44px', sized(boxes['shelfKennel']) and sized(boxes['shelfTower']) and sized(boxes['placedKennel']) and sized(boxes['placedTower']) and sized(boxes['out']), str(boxes))
-    await pg.click('#btnPets')
+    await tap(pg, '#btnPets')
     await pg.click('.petTabs [data-pt="dog"]')
     await pg.wait_for_selector('#kennelDog')
     await pg.evaluate("() => document.getElementById('kennelDog').scrollIntoView({block:'nearest'})")
@@ -166,7 +189,7 @@ async def pet_targets(pg, tag, save, w, h):
         await pg.evaluate("__cam.set(1900 - 180)")
         await pg.wait_for_timeout(200)
         await shot(pg, 'cat-tower-iphone')
-        await pg.click('#btnPets')
+        await tap(pg, '#btnPets')
         await pg.click('.petTabs [data-pt="dog"]')
     await pg.locator('.sheet:not(.hidden) .close').first.click()
     await pg.wait_for_function("() => !document.querySelector('.sheet:not(.hidden)')")
@@ -182,6 +205,28 @@ async def pet_targets(pg, tag, save, w, h):
 # These viewports were shipping 36px Play/Decorate buttons. The tap has to be 44px
 # and the catalog row has to stay 44px so the room does not shrink.
 TAP_SIZES = {(375, 667), (390, 844), (844, 390), (932, 430)}
+
+async def no_undo_gap(pg, tag):
+    """Undo is gone. Play/Decorate must sit against the next control, with no empty slot."""
+    gap = await pg.evaluate("""() => {
+      const undo = document.querySelector('#undoMount, #decorateUndoSlot, #menuUndoSlot, .undoBtn, .undoSlot, [aria-label="Undo"]');
+      const word = [...document.querySelectorAll('button')].some(b => (b.textContent || '').trim() === 'Undo');
+      const toggle = document.getElementById('modeToggle');
+      const parent = toggle.parentElement;
+      const tr = toggle.getBoundingClientRect();
+      const next = [...parent.children].find(el => el !== toggle && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 1);
+      const hole = next ? Math.round(Math.max(0, next.getBoundingClientRect().left - tr.right)) : 0;
+      const menu = document.getElementById('menuPop');
+      const wasHidden = menu.classList.contains('hidden');
+      menu.classList.remove('hidden');
+      const day = document.getElementById('menuDaySlot');
+      const after = day ? day.nextElementSibling : null;
+      const slot = !!(after && after.classList.contains('menuSlot'));
+      const afterH = after ? Math.round(after.getBoundingClientRect().height) : 0;
+      if (wasHidden) menu.classList.add('hidden');
+      return { undo: !!(undo || word), hole, slot, afterH, afterId: after ? (after.id || after.className) : '', parent: parent.id || parent.className };
+    }""")
+    check(f'{tag} undo is gone and leaves no gap', not gap['undo'] and gap['hole'] <= 12 and not gap['slot'], str(gap))
 
 async def mode_tap(pg, tag):
     box = await pg.evaluate("""() => {
@@ -249,6 +294,7 @@ async def phone_pass(b, w, h, save):
           f"shelf h {info['shelf']['h']:.0f}")
     check(f'{tag} room is not a sliver', info['stage']['h'] >= 140 and info['wrap']['h'] >= 160, f"stage {info['stage']['h']:.0f} wrap {info['wrap']['h']:.0f}")
     if (w, h) in TAP_SIZES: await mode_tap(pg, tag)
+    await no_undo_gap(pg, tag)
     char = await pg.evaluate("""() => {
       const c = document.querySelector('#layer .char').getBoundingClientRect();
       const s = document.querySelector('.stage').getBoundingClientRect();
@@ -261,6 +307,8 @@ async def phone_pass(b, w, h, save):
     if (w, h) == (375, 667): await check_portrait_kid(pg, tag)
     if not portrait: await stage_fill(pg, tag, w, h)
     if not portrait: await check_secrets(pg, tag, short=False)
+    if (w, h) in ARROW_SIZES: await check_indoor_arrows(pg, tag)
+    if (w, h) in ((390, 844), (844, 390)): await check_yard_door(pg, tag)
     if w in (375, 667): await living_room_one_line(pg, tag)
     if save: await shot(pg, f'house-{tag}')
 
@@ -274,7 +322,7 @@ async def phone_pass(b, w, h, save):
     info = await layout(pg)
     bad = tops_ok(info)
     ids = [t['id'] for t in info['top']]
-    check(f'{tag} own-house tools fit', bad == [] and 'btnLock' in ids and 'btnChat' in ids and 'btnMap' in ids, str(bad or ids))
+    check(f'{tag} own-house tools fit', bad == [] and 'btnMenu' in ids and 'btnChat' in ids and 'btnMap' in ids, str(bad or ids))
     await tabs_fit(pg, f'{tag} own-house')
 
     await pg.evaluate("""() => {
@@ -301,7 +349,7 @@ async def phone_pass(b, w, h, save):
         ('pets', '#btnPets', '.petTabs'),
         ('neighborhood', '#btnHood', '.hoodSheet h2'),
     ):
-        await pg.click(click)
+        await tap(pg, click)
         await pg.wait_for_selector(sel)
         c = await card_ok(pg)
         check(f'{tag} {name} sheet fits', c['ok'], str(c))
@@ -309,7 +357,7 @@ async def phone_pass(b, w, h, save):
         await pg.locator('.sheet:not(.hidden) .close').first.click()
         await pg.wait_for_function("() => !document.querySelector('.sheet:not(.hidden)')")
     await pet_targets(pg, tag, save, w, h)
-    await pg.click('#btnHood')
+    await tap(pg, '#btnHood')
     await pg.click('[data-m="join"]')
     await pg.wait_for_selector('#codeInput')
     c = await card_ok(pg)
@@ -318,7 +366,7 @@ async def phone_pass(b, w, h, save):
     check(f'{tag} join code input is 16px and tappable', c['ok'] and fs >= 16 and ih >= 44, f'fs {fs} h {ih}')
     await pg.locator('.sheet:not(.hidden) .close').first.click()
     await pg.wait_for_function("() => !document.querySelector('.sheet:not(.hidden)')")
-    await pg.click('#btnHood')
+    await tap(pg, '#btnHood')
     await pg.click('[data-m="create"]')
     await pg.wait_for_selector('.adultCard')
     c = await card_ok(pg)
@@ -375,6 +423,8 @@ async def phone_pass(b, w, h, save):
     check(f'{tag} map house tap target reaches 44', house['w'] + 16 >= 44 and house['h'] + 16 >= 44 and house['slop'], str(house))
     signs = await pg.evaluate("""() => [...document.querySelectorAll('.mapSign')].map(el => parseFloat(getComputedStyle(el).fontSize))""")
     check(f'{tag} map signs at least 11px', len(signs) >= 3 and min(signs) >= 11, str([round(s, 1) for s in signs]))
+    badge = await pg.evaluate("""() => { const el = document.querySelector('.mapHouse .homeBadge'); return el ? parseFloat(getComputedStyle(el).fontSize) : 0; }""")
+    check(f'{tag} home badge is at least 13px', badge >= 13, str(round(badge, 1)))
     if save: await shot(pg, f'map-{tag}')
     await pg.click('[data-go="park"]')
     await pg.wait_for_selector('body.view-park .parkScene')
@@ -618,16 +668,18 @@ async def stage_fill(pg, tag, w, h):
 
 async def living_room_one_line(pg, tag):
     data = await pg.evaluate("""() => {
-      const tab = [...document.querySelectorAll('.tab')].find(t => (t.textContent || '').trim() === 'Living Room');
+      const tab = [...document.querySelectorAll('.tab')].find(t => (t.getAttribute('aria-label') || t.textContent || '').trim() === 'Living Room');
       if (!tab) return {ok: false};
+      const text = [...tab.childNodes].reverse().find(n => n.nodeType === 3 && (n.textContent || '').trim());
       const range = document.createRange();
-      range.selectNodeContents(tab);
+      range.selectNodeContents(text || tab);
       const lines = range.getClientRects().length;
       const b = tab.getBoundingClientRect();
       return {lines, sw: tab.scrollWidth, cw: tab.clientWidth, w: Math.round(b.width), h: Math.round(b.height),
+        font: parseFloat(getComputedStyle(tab).fontSize),
         on: b.left >= -1 && b.right <= innerWidth + 1 && b.top >= -1 && b.bottom <= innerHeight + 1};
     }""")
-    check(f'{tag} Living Room stays on one line', data.get('lines') == 1 and data.get('sw', 9) <= data.get('cw', 0) + 1 and data.get('on'), str(data))
+    check(f'{tag} Living Room stays on one line', data.get('lines') == 1 and data.get('sw', 9) <= data.get('cw', 0) + 1 and data.get('on') and data.get('font', 0) >= 13, str(data))
 
 async def roster_targets(pg, tag):
     data = await pg.evaluate("""() => {
@@ -732,22 +784,135 @@ async def check_zoo_hint(pg, tag):
           hint.get('fs', 0) >= 12 and hint.get('on') and 'Petting zoo' in (hint.get('text') or ''),
           str(hint))
 
-async def check_secrets(pg, tag, short):
-    pill = await read_secrets(pg)
-    if short:
-        # 844×300, 667×280, 932×340: the gutter is narrower than the label, so the
-        # compact pill has to clear the stage entirely and stay a 44px target.
-        count_px = await pg.evaluate("() => parseFloat(getComputedStyle(document.querySelector('#secrets .secCount')).fontSize)")
-        check(f'{tag} Surprises pill sits fully outside the room',
-              pill['on'] and not pill['overlap'] and pill['compact'] and not pill['chrome']
-              and pill['side'] and pill['pill']['w'] >= 44 and pill['pill']['h'] >= 44,
-              str(pill))
-        check(f'{tag} compact Surprises count is 12–13px', 12 <= count_px <= 13.5, str(count_px))
+def yard_door_js():
+    return """() => {
+      const b = document.querySelector('.yardDoor');
+      const a = b && b.querySelector('.doorArt');
+      const hint = b && b.querySelector('.yardHintLabel');
+      if (!b || !a || !hint) return null;
+      const r = b.getBoundingClientRect();
+      const ar = a.getBoundingClientRect();
+      const hr = hint.getBoundingClientRect();
+      const stageEl = document.querySelector('.stage');
+      const stage = stageEl.getBoundingClientRect();
+      const sc = stage.width / (stageEl.offsetWidth || 1);
+      const inside = (box, host) => box.width > 8 && box.height > 8 && box.left >= host.left - 1 && box.right <= host.right + 1 && box.top >= host.top - 1 && box.bottom <= host.bottom + 1;
+      const arrows = [...document.querySelectorAll('.nudge')].filter(n => !n.classList.contains('off') && n.offsetParent);
+      const overlap = (box, o) => box.left < o.right - 1 && box.right > o.left + 1 && box.top < o.bottom - 1 && box.bottom > o.top + 1;
+      const cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2;
+      const top = document.elementFromPoint(cx, cy);
+      return {
+        w: Math.round(r.width), h: Math.round(r.height), aw: Math.round(ar.width),
+        doorIn: inside(r, stage), artIn: inside(ar, stage), hintIn: inside(hr, stage),
+        clear: arrows.every(n => !overlap(r, n.getBoundingClientRect()) && !overlap(ar, n.getBoundingClientRect())),
+        onDoor: !!(top && top.closest('.yardDoor')),
+        fs: Math.round(parseFloat(getComputedStyle(hint).fontSize) * sc * 10) / 10,
+        label: (hint.textContent || '').trim(),
+        cx, cy,
+      };
+    }"""
+
+# Indoor pan arrows, measured the way cfc0e4a draws them. iPad: top 230px inside the stage.
+# Phone: centred on the stage. Seven sizes: three iPads and four phones.
+ARROW_SIZES = {(1180, 820), (820, 1180), (1024, 768), (390, 844), (375, 667), (430, 932), (844, 390)}
+
+async def check_indoor_arrows(pg, tag):
+    """Living room arrows stay at the cfc0e4a position. The yard may slide its door; it does not move these."""
+    data = await pg.evaluate("""() => {
+      const stage = document.querySelector('.stage').getBoundingClientRect();
+      const mid = (stage.top + stage.bottom) / 2;
+      const arrows = ['nudgeL', 'nudgeR'].map(id => {
+        const n = document.getElementById(id);
+        const b = n.getBoundingClientRect();
+        return { top: getComputedStyle(n).top, inline: n.style.top, cy: (b.top + b.bottom) / 2 };
+      });
+      return { phone: document.body.classList.contains('phone'), room: __store.get().currentRoom, mid, arrows };
+    }""")
+    if data['phone']:
+        ok = data['room'] != 'backyard' and all(abs(a['cy'] - data['mid']) <= 4 for a in data['arrows'])
     else:
-        check(f'{tag} Surprises pill stays centred on a taller phone',
-              pill['on'] and pill['centered'] and not pill['compact'] and not pill['chrome']
-              and 'Surprises' in pill.get('text', '') and pill['pill']['w'] >= 140,
-              str(pill))
+        ok = data['room'] != 'backyard' and all(a['top'] == '230px' and a['inline'] == '' for a in data['arrows'])
+    check(f'{tag} indoor pan arrows match production', ok, str(data))
+
+async def check_yard_door(pg, tag):
+    """The whole door and its label sit on the stage, clear of the pan arrows."""
+    box = await pg.evaluate(yard_door_js())
+    check(f'{tag} back door is fully on stage',
+          box and box['w'] >= 44 and box['h'] >= 44 and box['aw'] >= 44
+          and box['doorIn'] and box['artIn'] and box['hintIn'] and box['clear'] and box['onDoor'] and box['fs'] >= 13,
+          str(box))
+
+async def tap_yard_door(pg, tag):
+    """A real click, not a dispatched event, and the kid is in the yard afterwards."""
+    await pg.evaluate("""() => { if (__store.get().currentRoom !== 'living') __store.dispatch({type:'room/switch', room:'living'}); }""")
+    await pg.wait_for_timeout(280)
+    box = await pg.evaluate(yard_door_js())
+    check(f'{tag} back door is fully on stage',
+          box and box['doorIn'] and box['artIn'] and box['hintIn'] and box['clear'] and box['onDoor'] and box['fs'] >= 13 and box['w'] >= 44,
+          str({k: box[k] for k in box if k not in ('cx', 'cy')} if box else None))
+    if not box: return
+    # Touch, not a mouse click. Portrait phones drop the click if the door moves mid-gesture.
+    await pg.locator('.yardHintLabel').tap()
+    await pg.wait_for_timeout(350)
+    room = await pg.evaluate("() => __store.get().currentRoom")
+    check(f'{tag} a real touch on the door label opens the yard', room == 'backyard', str(room))
+    await pg.locator('.yardHintLabel').tap()
+    await pg.wait_for_timeout(350)
+    room = await pg.evaluate("() => __store.get().currentRoom")
+    check(f'{tag} a real touch on Back inside returns', room == 'living', str(room))
+    await pg.locator('.yardDoor').tap()
+    await pg.wait_for_timeout(350)
+    room = await pg.evaluate("() => __store.get().currentRoom")
+    check(f'{tag} a real touch on the back door opens the yard', room == 'backyard', str(room))
+    back = await pg.evaluate(yard_door_js())
+    check(f'{tag} Back inside is fully on stage',
+          back and back['label'] == 'Back inside' and back['hintIn'] and back['doorIn'] and back['fs'] >= 13,
+          str({k: back[k] for k in ('label', 'hintIn', 'doorIn', 'fs', 'w')} if back else None))
+    # A cat posed on the door must not eat the tap. She is pinned across the label and the door.
+    await pg.evaluate("""() => {
+      __store.dispatch({ type: 'cat/set', cat: { name: 'Clover', coat: 0, room: 'backyard', x: 996 } });
+      window.__pinCat = { x: 996, y: 220 };
+    }""")
+    await pg.wait_for_timeout(250)
+    cover = await pg.evaluate("""() => {
+      const cat = document.querySelector('.pet-cat');
+      const hint = document.querySelector('.yardHintLabel');
+      const door = document.querySelector('.yardDoor');
+      if (!cat || !hint || !door) return null;
+      const hit = (a, b) => a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+      const cr = cat.getBoundingClientRect();
+      return { hint: hit(cr, hint.getBoundingClientRect()), door: hit(cr, door.getBoundingClientRect()),
+        top: (document.elementFromPoint((hint.getBoundingClientRect().left + hint.getBoundingClientRect().right) / 2, (hint.getBoundingClientRect().top + hint.getBoundingClientRect().bottom) / 2) || {}).className || '' };
+    }""")
+    check(f'{tag} a pet sits on the back door', cover and cover['hint'] and cover['door'], str(cover))
+    await pg.locator('.yardHintLabel').tap()
+    await pg.wait_for_timeout(350)
+    room = await pg.evaluate("() => __store.get().currentRoom")
+    check(f'{tag} a real touch on Back inside still works with a pet on the door', room == 'living', str(room))
+    await pg.evaluate("() => { window.__pinCat = null; }")
+
+async def check_secrets(pg, tag, short):
+    """Surprises lives in the Menu. Closed, it must not cover the room."""
+    del short
+    closed = await read_secrets(pg)
+    check(f'{tag} Surprises stays off the stage until the Menu opens',
+          not closed['on'] and not closed['overlap'], str(closed))
+    await pg.click('#btnMenu')
+    await pg.wait_for_selector('#menuPop:not(.hidden)')
+    await pg.locator('#secrets').scroll_into_view_if_needed()
+    row = await pg.evaluate("""() => {
+      const el = document.getElementById('secrets');
+      const b = el.getBoundingClientRect();
+      const count = el.querySelector('.secCount');
+      const fs = parseFloat(getComputedStyle(count || el).fontSize);
+      const label = (el.textContent || '').replace(/\\s+/g, ' ').trim();
+      return {w: Math.round(b.width), h: Math.round(b.height), fs, label,
+        on: b.width >= 44 && b.height >= 44 && b.left >= -1 && b.top >= -1 && b.right <= innerWidth + 1 && b.bottom <= innerHeight + 1};
+    }""")
+    check(f'{tag} Surprises is a Menu row',
+          row['on'] and 'Surprises' in row['label'] and row['fs'] >= 13, str(row))
+    await pg.click('#menuClose')
+    await pg.wait_for_function("() => document.getElementById('menuPop').classList.contains('hidden')")
 
 async def check_wait_fade(pg, tag):
     await inject_slay_hand(pg, 4, 'wait')
@@ -831,6 +996,7 @@ async def ipad_pass(b, w, h):
     await pg.wait_for_selector('#stage .char')
     info = await layout(pg)
     check(f'{tag} is not a phone', not info['phone'] and not info['note'] and info['scrollW'] <= info['vw'] + 1)
+    await no_undo_gap(pg, tag)
     await tabs_fit(pg, f'{tag} solo')
     await pg.evaluate("() => { document.body.classList.add('mode-hood','own-house'); }")
     await pg.wait_for_timeout(40)
@@ -842,7 +1008,8 @@ async def ipad_pass(b, w, h):
           return { w: Math.round(b.width), h: Math.round(b.height), tools };
         }""")
         check('ipad 820x1180 minimap is at least 100px wide', mini['w'] >= 100 and mini['h'] >= 44, str(mini))
-        check('ipad 820x1180 street shows seven tools and Map', len(mini['tools']) == 7 and 'btnMap' in mini['tools'], str(mini['tools']))
+        check('ipad 820x1180 house shows Chat, Menu, and Map',
+              sorted(mini['tools']) == ['btnChat', 'btnMap', 'btnMenu'], str(mini['tools']))
         tabs = await pg.evaluate("""() => [...document.querySelectorAll('.tab')].map(el => ({
           label: el.getAttribute('aria-label'), shown: (el.textContent || '').replace(/\\s+/g, ' ').trim(),
           font: parseFloat(getComputedStyle(el).fontSize), clipped: el.scrollWidth > el.clientWidth + 1
@@ -850,6 +1017,8 @@ async def ipad_pass(b, w, h):
         check('ipad 820x1180 room tabs are at least 14px',
               tabs and all(t['font'] >= 14 and not t['clipped'] for t in tabs) and any(t['label'] == 'Living Room' and 'Living' in t['shown'] for t in tabs),
               str(tabs))
+    if (w, h) in ARROW_SIZES: await check_indoor_arrows(pg, tag)
+    if (w, h) in ((820, 1180), (1180, 820)): await check_yard_door(pg, tag)
     if (w, h) == (1024, 768):
         chips = await pg.evaluate("""async () => {
           const row = document.querySelector('.drawerTop');
@@ -909,6 +1078,21 @@ async def ipad_pass(b, w, h):
     await check_long_hand(pg, tag, two_row=True, center=(w, h) == (820, 1180))
     await ctx.close()
 
+DOOR_TAPS = [(390, 844), (375, 667), (430, 932)]
+
+async def yard_door_pass(browser, engine, w, h):
+    tag = f'{engine} {w}x{h}'
+    ctx = await browser.new_context(viewport={'width': w, 'height': h}, has_touch=True, is_mobile=True, device_scale_factor=1)
+    await ctx.add_init_script(f"localStorage.setItem('{K('cozy-whatsnew')}','999')")
+    pg = await ctx.new_page()
+    pg.on('pageerror', lambda e: check(f'{tag} no page error', False, str(e)))
+    await pg.goto(URL, wait_until='networkidle')
+    await pg.wait_for_selector('#stage .char')
+    await dismiss_note(pg)
+    if (w, h) in ARROW_SIZES: await check_indoor_arrows(pg, tag)
+    await tap_yard_door(pg, tag)
+    await ctx.close()
+
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
@@ -919,7 +1103,18 @@ async def main():
             await phone_pass(b, w, h, save)
         for w, h in SHORT:
             await short_chrome_pass(b, w, h)
+        for w, h in DOOR_TAPS:
+            await yard_door_pass(b, 'chromium', w, h)
         await b.close()
+        try:
+            wb = await p.webkit.launch()
+        except Exception as e:
+            check('webkit back door tap', False, 'webkit did not launch: ' + str(e))
+            wb = None
+        if wb:
+            for w, h in DOOR_TAPS:
+                await yard_door_pass(wb, 'webkit', w, h)
+            await wb.close()
     failed = [k for k, v in res.items() if not v]
     print(f'\n{len(res) - len(failed)}/{len(res)} passed', flush=True)
     if failed:

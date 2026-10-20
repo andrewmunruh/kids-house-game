@@ -1,7 +1,7 @@
 # Multi-client neighborhood test: 3 simulated iPads against the local server.
 import asyncio, os, re, sys, random, traceback
 from playwright.async_api import async_playwright
-from testnav import PFX, SKIP_WN, K, to_map, go, local_page
+from testnav import tap, PFX, SKIP_WN, K, to_map, go, local_page
 URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = os.environ.get('HOOD_SHOTS', 'screens/hood/')
 if not SHOT.endswith('/'): SHOT += '/'
@@ -13,7 +13,7 @@ async def adult(pg):
     for d in str(q): await pg.click(f'.adultCard [data-k="{d}"]')
     await pg.click('.adultCard [data-k="OK"]')
 async def join(pg, code, nick, bring):
-    await pg.click('#btnHood'); await pg.click('[data-m="join"]')
+    await tap(pg, '#btnHood'); await pg.click('[data-m="join"]')
     await pg.fill('#codeInput', code.lower()); await pg.click('#codeForm button')
     await pg.click(f'.nicks button:has-text("{nick}")')
     if bring is not None: await pg.click('[data-m="bring"]' if bring else '[data-m="fresh"]')
@@ -77,7 +77,7 @@ async def main():
 
 async def run(P, K2, K3, mk, errs, check):
         # ---- parent creates the street on the family iPad, then joins as a kid bringing the local house ----
-        await P.click('#btnHood'); await P.click('[data-m="create"]'); await adult(P)
+        await tap(P, '#btnHood'); await P.click('[data-m="create"]'); await adult(P)
         await P.wait_for_selector('#newCode'); code = (await P.inner_text('#newCode')).strip()
         await check('create neighborhood + invite code', bool(re.fullmatch(r'[A-Z0-9]{6}', code)), code)
         await P.screenshot(path=SHOT + '01-parent-created-code.png')
@@ -106,7 +106,7 @@ async def run(P, K2, K3, mk, errs, check):
         await check('house signs show first names', await P.locator('.mapSign:has-text("Quinn\'s House")').count() == 1)
         # a name already signed in on one iPad can't be picked on another; names not on the list can't join
         K4 = await (await mk()).new_page(); await K4.goto(URL); await K4.wait_for_timeout(400)
-        await K4.click('#btnHood'); await K4.click('[data-m="join"]'); await K4.fill('#codeInput', code); await K4.click('#codeForm button')
+        await tap(K4, '#btnHood'); await K4.click('[data-m="join"]'); await K4.fill('#codeInput', code); await K4.click('#codeForm button')
         await K4.wait_for_selector('.nicks.roster')
         await check('claimed names disabled for a new device', await K4.locator('.nicks button:has-text("Quinn")').is_disabled() and await K4.locator('.nicks button[disabled]').count() == 3)
         bad = await K4.evaluate("(async () => { const ws = new WebSocket(__hood_url().replace(/^http/,'ws') + '/ws/' + __lastLookupId); return await new Promise(r => { ws.onopen = () => ws.send(JSON.stringify({t:'join', nickname:'Quinn', look:{}})); ws.onmessage = e => r(JSON.parse(e.data)); }); })()")
@@ -153,7 +153,7 @@ async def run(P, K2, K3, mk, errs, check):
         await P.screenshot(path=SHOT + '05-P-chat-bubbles.png'); await K2.screenshot(path=SHOT + '06-K2-chat-tray.png')
         await K2.click('[data-chat="close"]'); await P.click('[data-chat="close"]')
         # ---- owner locks the house ----
-        await P.click('#btnLock'); await K2.wait_for_timeout(600)
+        await tap(P, '#btnLock'); await K2.wait_for_timeout(600)
         await check('K2 sees locked house', await K2.evaluate("document.body.classList.contains('locked')"))
         before = await items(P)
         it = K2.locator('.item').first; c = await center(it); await drag(K2, c, (c[0] + 150, c[1]))
@@ -161,7 +161,7 @@ async def run(P, K2, K3, mk, errs, check):
         after = await items(P); k2v = await items(K2)
         await check('locked: forced delete refused by server, K2 rolled back', after == before and k2v == before, f'{len(before)} {len(after)} {len(k2v)}')
         await K2.screenshot(path=SHOT + '07-K2-locked-house-look-only.png')
-        await P.click('#btnLock'); await K2.wait_for_timeout(500)
+        await tap(P, '#btnLock'); await K2.wait_for_timeout(500)
         await check('unlock restores editing', not await K2.evaluate("document.body.classList.contains('locked')"))
         # Drop K2's socket and queue a phrase in the same turn (readyState is already CLOSING). It should
         # reconnect on its own and the phrase should arrive once presence is sent again.
@@ -178,7 +178,7 @@ async def run(P, K2, K3, mk, errs, check):
             await P.wait_for_timeout(200)
         await check('dropped socket reconnects and a queued phrase arrives', back == 'online' and bub == 1, f'status={back} bubbles={bub}')
         # ---- grown-up screen (on P) ----
-        await to_map(P); await P.click('#btnParent'); await adult(P)
+        await to_map(P); await tap(P, '#btnParent'); await adult(P)
         await P.wait_for_selector('#pCode'); await check('parent screen shows code', (await P.inner_text('#pCode')).strip() == code)
         await P.click('#pFree'); await K2.wait_for_timeout(500)
         await K2.click('#btnChat'); await K2.wait_for_timeout(200)
@@ -240,6 +240,41 @@ async def run(P, K2, K3, mk, errs, check):
         left, left2 = await nur_view(P), await nur_view(K2)
         await check('unknown room is refused and the nursery stays', 'attic-no' not in left['nur'] and 'nur-sync' in left['nur'] and 'nur-sync' in left2['nur'], str(left))
         await P.evaluate("""() => __store.dispatch({type:'room/switch', room:'living'})""")
+        await P.wait_for_timeout(400)
+        door = await P.evaluate("""() => ({
+          n: document.querySelectorAll('.yardDoor').length,
+          label: (document.querySelector('.yardDoor') || {}).getAttribute ? document.querySelector('.yardDoor').getAttribute('aria-label') : '',
+          map: document.querySelectorAll('[data-go="backyard"], .mapYard').length,
+          tabs: document.querySelectorAll('#tabs .tab').length,
+        })""")
+        await check('the yard is the back door, not a map pin or a sixth tab', door['n'] == 1 and door['label'] == 'Backyard' and door['map'] == 0 and door['tabs'] == 5, str(door))
+        pid = await P.evaluate('__hood().pid')
+        await P.evaluate("""() => {
+          const h = __hood(), id = h.myHouseId();
+          h.dispatch(id, {type:'item/add', room:'backyard', item:{id:'swing-sync', kind:'yard-swing', x:1160, y:548, flip:false, z:1, scale:1}});
+          h.setDog({name:'Rocket', breed:3});
+          h.dispatch(id, {type:'cat/move', room:'backyard', x:940});
+        }""")
+        await P.wait_for_timeout(800)
+        await check('a friend sees the swing without reloading', await K2.evaluate("() => __store.get().rooms.backyard.items.some(i => i.id === 'swing-sync')"))
+        await P.evaluate("""() => __store.dispatch({type:'room/switch', room:'backyard'})""")
+        await P.wait_for_timeout(700)
+        hidden = await K2.evaluate("""(pid) => ({
+          kid: document.querySelectorAll('.char[data-pid="' + pid + '"]').length,
+          dog: document.querySelectorAll('.pet-dog').length,
+          cat: document.querySelectorAll('.pet-cat').length,
+        })""", pid)
+        await check('a friend still in the living room does not see her, her dog, or the cat', hidden['kid'] == 0 and hidden['dog'] == 0 and hidden['cat'] == 0, str(hidden))
+        await K2.evaluate("""() => __store.dispatch({type:'room/switch', room:'backyard'})""")
+        await K2.wait_for_timeout(700)
+        shown = await K2.evaluate("""(pid) => ({
+          kid: document.querySelectorAll('.char[data-pid="' + pid + '"]').length,
+          swing: document.querySelectorAll('.item[data-kind="yard-swing"]').length,
+          dog: document.querySelectorAll('.pet-dog').length,
+          cat: document.querySelectorAll('.pet-cat').length,
+        })""", pid)
+        await check('the back door shows her, the swing, the dog, and the cat', shown['kid'] == 1 and shown['swing'] >= 1 and shown['dog'] >= 1 and shown['cat'] == 1, str(shown))
+        await P.evaluate("""() => __store.dispatch({type:'room/switch', room:'living'})""")
         await K2.evaluate("""() => __store.dispatch({type:'room/switch', room:'living'})""")
         await P.evaluate("""() => {
           const h = __hood(), id = h.myHouseId();
@@ -247,7 +282,6 @@ async def run(P, K2, K3, mk, errs, check):
           h.dispatch(id, {type:'item/add', room:'living', item:{id:'hood-kennel', kind:'kennel', x:1100, y:520, flip:false, z:1, scale:1}});
           h.dispatch(id, {type:'dog/kennel', item:'hood-kennel'});
         }""")
-        pid = await P.evaluate('__hood().pid')
         seen = None
         for _ in range(25):
             await P.wait_for_timeout(200)

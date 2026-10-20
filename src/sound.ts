@@ -5,7 +5,7 @@ function tone(freq: number, dur: number, type: OscillatorType = 'sine', slide = 
   if (!soundEnabled) return;
   try {
     ctx ??= new (window.AudioContext || (window as any).webkitAudioContext)();
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
     const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime;
     const f = Math.max(40, freq * (0.94 + Math.random() * 0.12));
     o.type = type; o.frequency.setValueAtTime(f, t);

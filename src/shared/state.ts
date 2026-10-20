@@ -5,10 +5,12 @@ import { sanitizeLook2, withRandomStarter, type Look2 } from './avatar';
 import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plot, type RanchOp } from './ranch';
 import { keepMailbox, type Mailbox } from './mail';
 export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon' | 'nursery' | 'backyard';
-/** Display order is the client's tab list. Backyard is a room id only until its scene ships. */
+/** Display order is the client's tab list. The backyard is a room, not a tab. */
 export const ROOM_IDS: RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard'];
-/** Rooms with a tab. A save pointing at anything else opens the living room. */
+/** Rooms with a tab. The yard is reached through the living-room door, not this list. */
 export const TAB_ROOMS: readonly RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery'];
+/** Rooms that have a scene. Anything else opens the living room. */
+export const SCENE_ROOMS: readonly RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard'];
 /** Room size in world units. v1 rooms were 1000 wide; v2 rooms are 2.4x wider. */
 export const ROOM_W = 2400, ROOM_H = 600, V1_ROOM_W = 1000;
 /** v1 layouts are re-centred in the wider room so nothing a child built moves relative to anything else. */
@@ -130,8 +132,11 @@ export function initialState(): GameState {
       // Same shape as the Salon: old saves gain these pieces, version stays 3.
       nursery: { wallpaper: '#d6f3ff', floor: '#f3ddc4', pattern: 1, items: [
         it('cloud-rug', 480, 545, 0), it('crib', 470, 480, 1), it('crib-mobile', 470, 155, 2), it('rocker', 780, 490, 3)] },
-      // Empty on purpose. The backyard scene ships later; the room key has to exist so edits are not dropped.
-      backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [] },
+      // A brand-new yard gets a bench and flowers. A stored yard, even with items: [], is never refilled.
+      backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [
+        { id: 'yard-bench-1', kind: 'yard-bench', x: 1122, y: 372, flip: false, z: 1, scale: 1 },
+        { id: 'tulip-bed-2', kind: 'tulip-bed', x: 946, y: 580, flip: false, z: 2, scale: 1 },
+      ] },
     },
     characters: [
       newCharacter({ id: 'c1', skin: '#f1c27d', hair: '#5b3a29', hairStyle: 2, shirt: '#ff7aa8', pants: '#5aa9e6', room: 'living', x: 330 + V1_OFFSET, y: 540 }),
@@ -157,7 +162,39 @@ function mapChar(s: GameState, id: string, f: (c: Character) => Character): Game
 function mapItems(s: GameState, room: RoomId, f: (r: Room) => Room): GameState {
   const cur = s.rooms[room];
   if (!cur) return s;
-  return { ...s, rooms: { ...s.rooms, [room]: f(cur) } };
+  const next = f(cur);
+  if (next === cur) return s;
+  return { ...s, rooms: { ...s.rooms, [room]: next } };
+}
+
+/** A later copy keeps its art and position, and takes a new id. The first copy keeps the id
+ *  so a kennel or mailbox reference still finds it. Ids stay inside the action id pattern. */
+function dedupeItems(items: PlacedItem[]): PlacedItem[] {
+  const used = new Set<string>();
+  let changed = false;
+  const next = items.map(it => {
+    if (!used.has(it.id)) { used.add(it.id); return it; }
+    changed = true;
+    const stem = String(it.id).replace(/-d\d+$/, '').replace(/[^A-Za-z0-9:_/.-]/g, '').slice(0, 72) || 'item';
+    let n = 2;
+    let id = (stem + '-d' + n).slice(0, 80);
+    while (used.has(id)) { n += 1; id = (stem + '-d' + n).slice(0, 80); }
+    used.add(id);
+    return { ...it, id };
+  });
+  return changed ? next : items;
+}
+
+function dedupeHouse<T extends { rooms: GameState['rooms'] }>(s: T): T {
+  let changed = false;
+  const rooms = { ...s.rooms };
+  for (const id of ROOM_IDS) {
+    const room = s.rooms[id];
+    if (!room || !Array.isArray(room.items)) continue;
+    const items = dedupeItems(room.items);
+    if (items !== room.items) { rooms[id] = { ...room, items }; changed = true; }
+  }
+  return changed ? { ...s, rooms } : s;
 }
 
 /**
@@ -173,20 +210,23 @@ export function ensureRooms<T extends { rooms?: GameState['rooms'] | null }>(s: 
     const cur = rooms[id] as Room | undefined;
     if (!cur || typeof cur !== 'object' || !Array.isArray(cur.items)) missing = true;
   }
-  if (!missing) return s;
-  const next = { ...rooms } as GameState['rooms'];
-  for (const id of ROOM_IDS) {
-    const cur = rooms[id] as Room | undefined;
-    if (!cur || typeof cur !== 'object' || !Array.isArray(cur.items)) next[id] = base[id];
-  }
-  return { ...s, rooms: next };
+  const filled: T = missing ? (() => {
+    const next = { ...rooms } as GameState['rooms'];
+    for (const id of ROOM_IDS) {
+      const cur = rooms[id] as Room | undefined;
+      if (!cur || typeof cur !== 'object' || !Array.isArray(cur.items)) next[id] = base[id];
+    }
+    return { ...s, rooms: next } as T;
+  })() : s;
+  return dedupeHouse(filled as T & { rooms: GameState['rooms'] });
 }
 
 /** Pure reducer: (state, action) -> new state. Safe to run on server too. */
 export function reduce(s: GameState, a: Action): GameState {
   switch (a.type) {
     case 'room/switch': return s.rooms[a.room] ? { ...s, currentRoom: a.room } : s;
-    case 'item/add': return mapItems(s, a.room, r => r.items.length >= 80 ? r :
+    case 'item/add': return mapItems(s, a.room, r =>
+      (r.items.length >= 80 || r.items.some(i => i.id === a.item.id)) ? r :
       ({ ...r, items: [...r.items, { ...a.item, z: maxZ(r) + 1 }] }));
     case 'item/move': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, x: clamp(a.x, 0, ROOM_W), y: clamp(a.y, 40, ROOM_H) } : i) }));
     case 'item/flip': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, flip: !i.flip } : i) }));
@@ -238,6 +278,11 @@ export function reduce(s: GameState, a: Action): GameState {
       return { ...s, dogKennel: { item: a.item } };
     }
     case 'ranch/op': {
+      const op = a.op;
+      if (op.op === 'take') {
+        const room = s.rooms[op.room as RoomId];
+        if (room && room.items.some(i => i.id === op.id)) return s;
+      }
       const r = ranchApply(cleanPlots(s.garden), cleanBasket(s.basket), a.op, a.now, s.lastEgg ?? 0);
       if (typeof r === 'string') return s;
       let next: GameState = { ...s, garden: r.plots, basket: r.basket, lastEgg: a.op.op === 'egg' ? a.now : s.lastEgg };
@@ -294,22 +339,21 @@ export function migrate(raw: any): GameState {
 }
 
 /**
- * A future room (or the backyard, which has no scene yet) has no tab.
- * Open the living room instead, and bring a kid who was standing in that
- * unknown room with her so she is not invisible.
+ * A room with no scene opens the living room. A kid standing in that unknown
+ * room comes too, so she is not invisible. The backyard has a scene and no tab.
  */
 function showKnownRoom(s: GameState): GameState {
   const current = s.currentRoom as string;
-  const onTab = (TAB_ROOMS as readonly string[]).includes(current);
+  const scene = (SCENE_ROOMS as readonly string[]).includes(current);
   const known = (room: string) => (ROOM_IDS as readonly string[]).includes(room);
   let moved = false;
   const characters = s.characters.map(c => {
     const room = c.room as string;
-    if (!known(room) || (!onTab && room === current)) { moved = true; return { ...c, room: 'living' as RoomId }; }
+    if (!known(room) || (!scene && room === current)) { moved = true; return { ...c, room: 'living' as RoomId }; }
     return c;
   });
-  if (onTab && !moved) return s;
-  return { ...s, currentRoom: onTab ? s.currentRoom : 'living', characters };
+  if (scene && !moved) return s;
+  return { ...s, currentRoom: scene ? s.currentRoom : 'living', characters };
 }
 type Listener = (s: GameState, a: Action) => void;
 
