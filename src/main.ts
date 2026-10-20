@@ -58,6 +58,10 @@ let VIEW_W = 1000; // visible window; narrower in portrait so the room can fill 
 const maxCam = () => Math.max(0, W - VIEW_W);
 const WALL_BOTTOM = 375; // wall items (manifest `wall: true`) snap so they sit on the wall
 const snapY = (def: ItemDef, y: number) => def.wall ? Math.min(y, WALL_BOTTOM) : y;
+// The stage is a 600px border-box with a 6px border, so the bottom 12px of the world is clipped.
+// Floor pieces draw 12px higher. The stored y is left alone, so old saves stay valid.
+const FLOOR_DRAW = 12;
+const drawY = (def: ItemDef, y: number) => def.wall ? y : Math.min(y, H - FLOOR_DRAW);
 const CHAR_W = 120, CHAR_H = 192;
 const ROOMS: { id: RoomId; name: string; color: string }[] = [
   { id: 'living', name: 'Living Room', color: '#ff8fab' },
@@ -650,7 +654,10 @@ function renderRoomBg(s: GameState) {
 }
 function renderMinimap(s: GameState) {
   const room = s.rooms[s.currentRoom];
-  const dots = room.items.filter(i => ITEM_MAP[i.kind]).map(i => `<i style="left:${i.x / W * 100}%;top:${(i.y - hOf(ITEM_MAP[i.kind]) * i.scale / 2) / H * 100}%"></i>`).join('');
+  const dots = room.items.filter(i => ITEM_MAP[i.kind]).map(i => {
+    const def = ITEM_MAP[i.kind];
+    return `<i style="left:${i.x / W * 100}%;top:${(drawY(def, i.y) - hOf(def) * i.scale / 2) / H * 100}%"></i>`;
+  }).join('');
   const me = s.characters.filter(c => c.room === s.currentRoom).map(c => `<b style="left:${c.x / W * 100}%;top:${(c.y - 90) / H * 100}%;background:${c.shirt}"></b>`).join('');
   $('mmDots').innerHTML = dots + me;
 }
@@ -700,7 +707,7 @@ function renderItems(s: GameState) {
     el.dataset.kind = it.kind;
     el.classList.toggle('is-light', isLightKind(it.kind, !!def.light));
     const box = placedBox(def, it.scale);
-    placeEl(el, it.x, it.y, box.w, box.h);
+    placeEl(el, it.x, drawY(def, it.y), box.w, box.h);
     const iz = 1000 + it.z;
     el.style.zIndex = String(iz);
     el.style.setProperty('--iz', String(iz));
@@ -780,18 +787,37 @@ stage.addEventListener('pointerdown', e => {
   window.addEventListener('pointercancel', end, true);
 }, true);
 
-/** Indoor dressing, and the outdoor paint plus the back door when she is home. */
+function boxesOverlap(a: DOMRect, b: DOMRect) {
+  return a.width > 2 && b.width > 2 && a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+}
+/** The door sits under furniture, the same as when it lived in the scenery, until a floor piece
+    actually covers its tap target. A lamp stays in front so a phone slide cannot hide the shade. */
+function liftDoorOverFurniture(door: HTMLElement) {
+  const tap = door.getBoundingClientRect();
+  let maxZ = 0;
+  layer.querySelectorAll<HTMLElement>('.item').forEach(el => {
+    if (el.classList.contains('is-light')) return;
+    const def = ITEM_MAP[el.dataset.kind || ''];
+    if (!def || def.wall) return;
+    if (!boxesOverlap(el.getBoundingClientRect(), tap)) return;
+    const z = parseInt(el.style.zIndex || '0', 10) || 0;
+    if (z > maxZ) maxZ = z;
+  });
+  door.style.zIndex = maxZ ? String(maxZ + 2) : '2';
+}
+/** Indoor dressing, and the outdoor paint plus the back door when she is home.
+    The door lives in the item layer (scenery is a lower stacking context) so a sofa or rug cannot cover it. */
 function paintScenery(s: GameState) {
   const room = s.rooms[s.currentRoom];
   syncScenery($('scenery'), s.currentRoom, room.items);
-  const root = $('scenery');
+  $('scenery').querySelectorAll('.yardDoor').forEach(n => n.remove());
   const go = s.currentRoom === 'living' ? 'backyard' : s.currentRoom === 'backyard' ? 'living' : '';
-  const have = root.querySelector<HTMLElement>('.yardDoor');
-  if (!go) root.querySelectorAll('.yardDoor').forEach(n => n.remove());
+  const have = layer.querySelector<HTMLElement>('.yardDoor');
+  if (!go) layer.querySelectorAll('.yardDoor').forEach(n => n.remove());
   else if (!have || have.dataset.yardGo !== go) {
-    root.querySelectorAll('.yardDoor').forEach(n => n.remove());
-    root.insertAdjacentHTML('beforeend', yardDoorMarkup(go === 'backyard' ? 'living' : 'yard'));
-    const door = root.querySelector<HTMLElement>('.yardDoor');
+    layer.querySelectorAll('.yardDoor').forEach(n => n.remove());
+    layer.insertAdjacentHTML('beforeend', yardDoorMarkup(go === 'backyard' ? 'living' : 'yard'));
+    const door = layer.querySelector<HTMLElement>('.yardDoor');
     if (door) bindYardDoor(door);
   }
   stage.classList.toggle('room-yard', s.currentRoom === 'backyard');
@@ -2666,7 +2692,9 @@ function swingAt(it: PlacedItem) {
   syncSwingPose();
 }
 function sitAt(it: PlacedItem) {
-  const y = Math.max(FLOOR_Y + 40, it.y - 8);
+  const def = ITEM_MAP[it.kind];
+  const foot = def ? drawY(def, it.y) : Math.min(it.y, H - FLOOR_DRAW);
+  const y = Math.max(FLOOR_Y + 40, foot - 8);
   if (hood && view === 'house') {
     const me = myPres();
     if (me && me.where === 'house') { setMyPres({ ...me, x: it.x, y, flip: false }); renderAvatars(); }
@@ -2868,8 +2896,10 @@ function tickKennels() {
   if (spot) {
     seen.add(spot.key);
     const look = kennelLook(spot.dog.name, Date.now());
-    // Sit in the doorway: feet on the floor of the opening, peeking lifts the head over the arch.
-    const y = spot.item.y - (look === 'peek' ? 24 : 2);
+    const kennelDef = ITEM_MAP[spot.item.kind];
+    const foot = kennelDef ? drawY(kennelDef, spot.item.y) : Math.min(spot.item.y, H - FLOOR_DRAW);
+    // Sit in the doorway: feet on the drawn floor of the opening, peeking lifts the head over the arch.
+    const y = foot - (look === 'peek' ? 24 : 2);
     let r = kennelRuns.get(spot.key);
     if (!r || !r.el.isConnected) {
       r?.el.remove();
@@ -3760,7 +3790,7 @@ function placeYardHints() {
     dx += step;
     door.style.transform = `translate(${(dx / sc).toFixed(1)}px, 0)`;
   }
-  if (!hint) return;
+  if (!hint) { liftDoorOverFurniture(door); return; }
   const span = hint.querySelector('span');
   if (span) {
     const range = document.createRange();
@@ -3784,6 +3814,8 @@ function placeYardHints() {
   else if (h2.right + hx > stage2.right - pad) hx -= h2.right + hx - (stage2.right - pad);
   if (Math.abs(hx) > 0.5) hint.style.translate = `calc(-50% + ${(hx / sc).toFixed(1)}px) 0`;
   else hint.style.translate = '';
+  // Stack from the slide she can actually tap. Doing it last keeps the label's own nudge put.
+  liftDoorOverFurniture(door);
 }void refreshArt(store.get().currentRoom);
 // ---------- hidden surprises ----------
 const renderSecrets = () => {
