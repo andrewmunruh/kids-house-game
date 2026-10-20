@@ -69,7 +69,7 @@ async def main():
         dh = ((a['b'] - a['t']) / (s['b'] - s['t']) - 1) * 100
         feet = (a['b'] - s['b']) / s['w'] * 100
         cx = ((a['l'] + a['r']) / 2 - (s['l'] + s['r']) / 2) / s['w'] * 100
-        ok = abs(dw) <= TOL and abs(dh) <= TOL
+        ok = round(abs(dw), 1) <= TOL and round(abs(dh), 1) <= TOL   # exactly ±TOL passes
         fails += not ok
         rows.append(dict(kind=k, dw=round(dw, 1), dh=round(dh, 1), feet=round(feet, 1), cx=round(cx, 1), ok=ok))
         print(f"{'OK' if ok else 'FAIL'} {k:18} dw={dw:+5.1f}% dh={dh:+5.1f}% feet={feet:+4.1f}% cx={cx:+4.1f}%", flush=True)

@@ -51,8 +51,42 @@ def seal_faint(fg,al):
         bad=np.isin(lab,1+np.where(clear==0)[0])
         fg[bad]=ap.OUTLINE; al[bad]=255
     return fg,al
+def tidy(fg,al):
+    """Drop solid specks cut off from the body (with their faint halo), fill
+    1-30 px clear pinholes, and with OPEN="kind:r" shave silhouette parts thinner
+    than 2r px (e.g. a teat tip that turns into a plum spike) and re-lay the edge."""
+    solid=al>=200; lab,n=ndi.label(solid)
+    if n>1:
+        sz=ndi.sum(solid,lab,index=np.arange(1,n+1)); keep=np.isin(lab,1+np.where(sz>=60)[0])
+        _,(iy,ix)=ndi.distance_transform_edt(~solid,return_indices=True)
+        owner=keep[iy,ix]; drop=(al>0)&~owner
+        al[drop]=0
+        if drop.any():   # soften the notch the dropped halo leaves
+            N=ndi.binary_dilation(drop,iterations=4)&(al>0)&(al<255)
+            b=ndi.gaussian_filter(al.astype(float),1.0); al[N]=np.minimum(al[N],b[N])
+    clear=al==0; hl,hn=ndi.label(ndi.binary_fill_holes(~clear)&clear)
+    for i in range(1,hn+1):
+        m=hl==i
+        if m.sum()<30: fg[m]=ap.OUTLINE; al[m]=255
+    r=OPEN.get(cur.get('kind'))
+    if r:
+        m=al>=128; yy,xx=np.mgrid[-r:r+1,-r:r+1]; o=ndi.binary_opening(m,structure=(xx*xx+yy*yy)<=r*r)
+        rows=np.where(m.any(1))[0]; top=np.zeros_like(m); top[:rows[0]+int(0.2*(rows[-1]-rows[0]))]=True   # top fifth only
+        cut=ndi.binary_dilation(m&~o&top,iterations=3)&~ndi.binary_dilation(o,iterations=1)&top
+        al[cut]=0
+        if cut.any():   # re-lay the soft edge only around the cut
+            near=ndi.binary_dilation(cut,iterations=10)&(al>0)
+            d=ndi.distance_transform_edt(np.pad(al>0,1))[1:-1,1:-1]
+            fg[near&(d<=ap.CONTOUR_PX)]=ap.OUTLINE
+            for i,a in enumerate(ap.RAMP,1):
+                mm=near&(d>i-1)&(d<=i); al[mm]=np.minimum(al[mm],a)
+    lab,n=ndi.label(al>0)   # one island: drop faint crumbs left off the body
+    if n>1:
+        sz=ndi.sum(al>0,lab,index=np.arange(1,n+1)); al[(lab>0)&(lab!=1+int(np.argmax(sz)))]=0
+    return fg,al
+OPEN={t.split(':')[0]:int(t.split(':')[1]) for t in (os.environ.get('OPEN') or '').split(',') if t}
 _f=finish
-finish=lambda fg,al,ring: seal_faint(*_f(fg,al,ring))
+finish=lambda fg,al,ring: tidy(*seal_faint(*_f(fg,al,ring)))
 ap.finish=finish
 # SHRINK="kind:fx:fy,..." scales the fitted box about its bottom centre (feet stay put),
 # for refitting to the in-game alpha>0 size measured by tests/art_ingame_bounds.py.
@@ -70,6 +104,6 @@ import json
 items={i['kind']:i for i in json.load(open(sys.argv[1]))}
 rawdir,group=sys.argv[2],sys.argv[3]
 for k in sys.argv[4:]:
-    cur['mask']=os.path.join(rawdir,k+'.open.png')
+    cur['mask']=os.path.join(rawdir,k+'.open.png'); cur['kind']=k
     out,size,st=ap.build(items[k],os.path.join(rawdir,k+'.jpg'),group)
     print(f"{k} {size}B stretch {st:.2f}{' STRETCH' if abs(st-1)>.18 else ''}",flush=True)
