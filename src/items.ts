@@ -104,6 +104,16 @@ export const svgOf = (d: ItemDef, shade = false) => {
   return `${shadow}${night}<img class="packimg artimg" data-kind="${esc(d.kind)}" src="${esc(url)}" alt="${esc(d.name)}" draggable="false" />`;
 };
 
+/**
+ * Shelf card. Same painting as the room when one exists; the SVG only when it does not.
+ * A painting that is not in memory yet is an empty image. The shelf fills its src when the card is near the tray.
+ */
+export const shelfThumb = (d: ItemDef, painted: boolean) => {
+  if (!rasterOn() || !painted) return svgMarkup(d);
+  if (rasterUrl(d.kind)) return svgOf(d);
+  return `<img class="packimg artimg artpending" data-kind="${esc(d.kind)}" alt="${esc(d.name)}" draggable="false" decoding="async" />`;
+};
+
 let artFallbackOn = false;
 /** Swap a raster image that failed to load for the current SVG. One listener for the page. */
 export function installArtFallback(): void {
