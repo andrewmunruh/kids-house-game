@@ -37,6 +37,14 @@ async def boxes(b, base, room, layout):
       for(const [k,x,y,z] of L) s.dispatch({type:'item/add',room:R,item:{id:'qa-'+k,kind:k,x,y,flip:false,z,scale:1}});}""",
                       [room, [list(t) for t in layout]])
     await pg.wait_for_timeout(1200)
+    # Pack items draw their SVG through <img class="packimg">, so the CSS rule that hides the
+    # floor-shadow ellipse cannot reach inside it. Swap each pack SVG for a copy without it
+    # (the raster side hides .artshade, so both sides are measured without a shadow).
+    await pg.evaluate(r"""async()=>{for(const im of document.querySelectorAll('.item img.packimg')){
+      if(!/\.svg(\?|$)/.test(im.src)) continue;
+      const t=await (await fetch(im.src)).text();
+      const c=t.replace(/<ellipse[^>]*fill="#000"[^>]*\/?>(<\/ellipse>)?/g,'');
+      await new Promise(r=>{im.onload=r;im.onerror=r;im.src=URL.createObjectURL(new Blob([c],{type:'image/svg+xml'}));});}}""")
     await pg.add_style_tag(content=HIDE)
     out = {}
     for k, x, y, z in layout:
