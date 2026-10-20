@@ -54,9 +54,12 @@ async def boxes(b, base, room, layout):
 
 async def main():
     base, room = sys.argv[1], sys.argv[2]
-    layout = LAYOUTS[room]
-    if sys.argv[3:]:
-        layout = [t for t in layout if t[0] in sys.argv[3:]]
+    if room in LAYOUTS:
+        layout = LAYOUTS[room]
+        if sys.argv[3:]:
+            layout = [t for t in layout if t[0] in sys.argv[3:]]
+    else:   # any other room: list the kinds; each is placed and measured on its own
+        layout = [(k, 1100 + 150 * (i % 6), 560, 1) for i, k in enumerate(sys.argv[3:])]
     async with async_playwright() as p:
         b = await p.chromium.launch()
         svg = await boxes(b, base + '?art=v1', room, layout)
