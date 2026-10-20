@@ -787,15 +787,23 @@ stage.addEventListener('pointerdown', e => {
   window.addEventListener('pointercancel', end, true);
 }, true);
 
-/** Furniture can stack without limit. The door stays above every piece and under a kid, unless a piece was brought even further forward. */
+function boxesOverlap(a: DOMRect, b: DOMRect) {
+  return a.width > 2 && b.width > 2 && a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+}
+/** The door sits under furniture, the same as when it lived in the scenery, until a floor piece
+    actually covers its tap target. A lamp stays in front so a phone slide cannot hide the shade. */
 function liftDoorOverFurniture(door: HTMLElement) {
+  const tap = door.getBoundingClientRect();
   let maxZ = 0;
   layer.querySelectorAll<HTMLElement>('.item').forEach(el => {
+    if (el.classList.contains('is-light')) return;
+    const def = ITEM_MAP[el.dataset.kind || ''];
+    if (!def || def.wall) return;
+    if (!boxesOverlap(el.getBoundingClientRect(), tap)) return;
     const z = parseInt(el.style.zIndex || '0', 10) || 0;
-    const light = el.classList.contains('is-light') ? 1 : 0;
-    if (z + light > maxZ) maxZ = z + light;
+    if (z > maxZ) maxZ = z;
   });
-  door.style.zIndex = String(Math.max(4900, maxZ + 2));
+  door.style.zIndex = maxZ ? String(maxZ + 2) : '2';
 }
 /** Indoor dressing, and the outdoor paint plus the back door when she is home.
     The door lives in the item layer (scenery is a lower stacking context) so a sofa or rug cannot cover it. */
@@ -812,8 +820,6 @@ function paintScenery(s: GameState) {
     const door = layer.querySelector<HTMLElement>('.yardDoor');
     if (door) bindYardDoor(door);
   }
-  const door = layer.querySelector<HTMLElement>('.yardDoor');
-  if (door) liftDoorOverFurniture(door);
   stage.classList.toggle('room-yard', s.currentRoom === 'backyard');
   syncSwingPose();
   if (!doorPress) placeYardHints();
@@ -2686,7 +2692,9 @@ function swingAt(it: PlacedItem) {
   syncSwingPose();
 }
 function sitAt(it: PlacedItem) {
-  const y = Math.max(FLOOR_Y + 40, it.y - 8);
+  const def = ITEM_MAP[it.kind];
+  const foot = def ? drawY(def, it.y) : Math.min(it.y, H - FLOOR_DRAW);
+  const y = Math.max(FLOOR_Y + 40, foot - 8);
   if (hood && view === 'house') {
     const me = myPres();
     if (me && me.where === 'house') { setMyPres({ ...me, x: it.x, y, flip: false }); renderAvatars(); }
@@ -2888,8 +2896,10 @@ function tickKennels() {
   if (spot) {
     seen.add(spot.key);
     const look = kennelLook(spot.dog.name, Date.now());
-    // Sit in the doorway: feet on the floor of the opening, peeking lifts the head over the arch.
-    const y = spot.item.y - (look === 'peek' ? 24 : 2);
+    const kennelDef = ITEM_MAP[spot.item.kind];
+    const foot = kennelDef ? drawY(kennelDef, spot.item.y) : Math.min(spot.item.y, H - FLOOR_DRAW);
+    // Sit in the doorway: feet on the drawn floor of the opening, peeking lifts the head over the arch.
+    const y = foot - (look === 'peek' ? 24 : 2);
     let r = kennelRuns.get(spot.key);
     if (!r || !r.el.isConnected) {
       r?.el.remove();
@@ -3780,7 +3790,7 @@ function placeYardHints() {
     dx += step;
     door.style.transform = `translate(${(dx / sc).toFixed(1)}px, 0)`;
   }
-  if (!hint) return;
+  if (!hint) { liftDoorOverFurniture(door); return; }
   const span = hint.querySelector('span');
   if (span) {
     const range = document.createRange();
@@ -3804,6 +3814,8 @@ function placeYardHints() {
   else if (h2.right + hx > stage2.right - pad) hx -= h2.right + hx - (stage2.right - pad);
   if (Math.abs(hx) > 0.5) hint.style.translate = `calc(-50% + ${(hx / sc).toFixed(1)}px) 0`;
   else hint.style.translate = '';
+  // Stack from the slide she can actually tap. Doing it last keeps the label's own nudge put.
+  liftDoorOverFurniture(door);
 }void refreshArt(store.get().currentRoom);
 // ---------- hidden surprises ----------
 const renderSecrets = () => {

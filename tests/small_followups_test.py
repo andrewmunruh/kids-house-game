@@ -2,7 +2,9 @@
 # night-arch clip and the bud-vase glass tint.
 # A floor piece stored at y=600 must draw about 12px higher (the stage border
 # clips that strip) without the save changing. The living-room door stays above
-# a sofa and a rug that cover it, and a tap still opens the yard.
+# a sofa and a rug that cover its tap target, and a tap still opens the yard.
+# The starter lamp stays in front of that door. Sit, the kenneled dog, and the
+# speech bubble use the drawn y, not the stored one.
 import asyncio, io, os, sys
 from PIL import Image
 from playwright.async_api import async_playwright
@@ -135,6 +137,9 @@ async def check_window(pg, tag):
       return {
         shoulderX: r.left + r.width * 0.30, shoulderY: r.top + r.height * 0.10,
         glassX: r.left + r.width * 0.40, glassY: r.top + r.height * 0.55,
+        lowX: r.left + r.width * 0.40, lowY: r.top + r.height * 0.78,
+        frameX: r.left + r.width * 0.18, frameY: r.top + r.height * 0.78,
+        sillX: r.left + r.width * 0.40, sillY: r.top + r.height * 0.86,
         clip: cp.slice(0, 12),
         vw: innerWidth, vh: innerHeight,
       };
@@ -144,21 +149,36 @@ async def check_window(pg, tag):
         return
     if 'polygon' not in (spot['clip'] or ''):
         fail(f"{tag} night plate clip {spot['clip']}")
-    day_s = pixel(await pg.screenshot(), spot['shoulderX'], spot['shoulderY'])
-    day_g = pixel(await pg.screenshot(), spot['glassX'], spot['glassY'])
+    shot = await pg.screenshot()
+    day_s = pixel(shot, spot['shoulderX'], spot['shoulderY'])
+    day_g = pixel(shot, spot['glassX'], spot['glassY'])
+    day_low = pixel(shot, spot['lowX'], spot['lowY'])
+    day_frame = pixel(shot, spot['frameX'], spot['frameY'])
+    day_sill = pixel(shot, spot['sillX'], spot['sillY'])
     await pg.evaluate("() => __sky.setChoice('night')")
     await pg.wait_for_function("""() => {
       const plate = document.querySelector('#layer .item[data-kind="window"] .artnight');
-      return plate && parseFloat(getComputedStyle(plate).opacity) > 0.95;
+      return plate && parseFloat(getComputedStyle(plate).opacity) > 0.99;
     }""", timeout=3000)
-    night_s = pixel(await pg.screenshot(), spot['shoulderX'], spot['shoulderY'])
-    night_g = pixel(await pg.screenshot(), spot['glassX'], spot['glassY'])
+    shot = await pg.screenshot()
+    night_s = pixel(shot, spot['shoulderX'], spot['shoulderY'])
+    night_g = pixel(shot, spot['glassX'], spot['glassY'])
+    night_low = pixel(shot, spot['lowX'], spot['lowY'])
+    night_frame = pixel(shot, spot['frameX'], spot['frameY'])
+    night_sill = pixel(shot, spot['sillX'], spot['sillY'])
     if night_sky(night_s):
         fail(f'{tag} night square corner still sky {night_s}')
-    if max(abs(day_s[i] - night_s[i]) for i in range(3)) > 18:
+    # WebKit's night veil shifts this highlight by about 20. A real clip leak goes much further.
+    if max(abs(day_s[i] - night_s[i]) for i in range(3)) > 28:
         fail(f'{tag} arch shoulder changed at night {day_s} -> {night_s}')
     if not night_sky(night_g) or sum(day_g) < sum(night_g) + 40:
         fail(f'{tag} arch glass did not go night {day_g} -> {night_g}')
+    if not night_sky(night_low) or sum(day_low) < sum(night_low) + 40:
+        fail(f'{tag} lower pane still daylight {day_low} -> {night_low}')
+    if night_sky(night_frame) or max(abs(day_frame[i] - night_frame[i]) for i in range(3)) > 18:
+        fail(f'{tag} night clip ate the frame {day_frame} -> {night_frame}')
+    if night_sky(night_sill) or max(abs(day_sill[i] - night_sill[i]) for i in range(3)) > 18:
+        fail(f'{tag} night clip ate the sill {day_sill} -> {night_sill}')
     await pg.evaluate("() => __sky.setChoice('day')")
 
 async def check_vase(pg, tag):
@@ -197,6 +217,238 @@ async def check_vase(pg, tag):
         fail(f'{tag} bud vase lip still grey {lip}')
     if not (bloom[0] > bloom[1] + 15 and bloom[0] > bloom[2]):
         fail(f'{tag} bud vase bloom changed {bloom}')
+
+async def check_lamp(pg, tag):
+    """Starter living room: the floor lamp stays in front of the back door."""
+    hit = await pg.evaluate("""() => {
+      const s = __store;
+      s.dispatch({type:'room/switch', room:'living'});
+      __sky.setChoice('day');
+      const kid = s.get().characters[0];
+      s.dispatch({type:'char/move', id:kid.id, room:'living', x:1030, y:540});
+      const viewW = parseFloat(document.querySelector('.stage').style.width) || 1000;
+      __cam.set(1030 - viewW / 2);
+      const lamp = s.get().rooms.living.items.find(i => i.kind === 'lamp');
+      s.dispatch({type:'item/move', room:'living', id:lamp.id, x:lamp.x, y:lamp.y});
+      const door = document.querySelector('.yardDoor');
+      const art = door && door.querySelector('.doorArt');
+      const lampEl = document.querySelector('#layer .item[data-kind="lamp"]');
+      const sofa = document.querySelector('#layer .item[data-kind="sofa"]');
+      const rug = document.querySelector('#layer .item[data-kind="rug"]');
+      if (!door || !art || !lampEl) return null;
+      const overlap = (a, b) => a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+      const tap = door.getBoundingClientRect();
+      const lr = lampEl.getBoundingClientRect();
+      const ar = art.getBoundingClientRect();
+      const z = (el) => parseInt(getComputedStyle(el).zIndex, 10) || 0;
+      const owner = (x, y) => {
+        const top = document.elementFromPoint(x, y);
+        if (!top || !top.closest) return '';
+        if (top.closest('.yardDoor')) return 'door';
+        const item = top.closest('.item');
+        return item ? item.dataset.kind || 'item' : '';
+      };
+      let doorOnLamp = false;
+      const ix0 = Math.max(lr.left, tap.left), ix1 = Math.min(lr.right, tap.right);
+      const iy0 = Math.max(lr.top, tap.top), iy1 = Math.min(lr.bottom, tap.bottom);
+      if (ix1 - ix0 > 2 && iy1 - iy0 > 2) {
+        for (let y = iy0 + 1; y < iy1; y += 3) {
+          for (let x = ix0 + 1; x < ix1; x += 4) {
+            if (owner(x, y) === 'door') doorOnLamp = true;
+          }
+        }
+      }
+      let shade = '';
+      const spots = [[0.50, 0.16], [0.42, 0.22], [0.58, 0.20], [0.50, 0.30]];
+      for (const [fx, fy] of spots) {
+        const who = owner(lr.left + lr.width * fx, lr.top + lr.height * fy);
+        if (who === 'door') doorOnLamp = true;
+        if (!shade && who) shade = who;
+        if (who === 'lamp') shade = 'lamp';
+      }
+      return {
+        doorOnLamp, shade,
+        doorZ: z(door), lampZ: z(lampEl),
+        sofaOn: !!(sofa && overlap(sofa.getBoundingClientRect(), tap)),
+        rugOn: !!(rug && overlap(rug.getBoundingClientRect(), tap)),
+        lampOn: overlap(lr, tap),
+      };
+    }""")
+    await pg.wait_for_timeout(80)
+    if not hit:
+        fail(f'{tag} starter lamp missing')
+        return
+    if hit['sofaOn'] or hit['rugOn']:
+        fail(f"{tag} starter sofa/rug already cover the door")
+    if hit['doorZ'] >= hit['lampZ']:
+        fail(f"{tag} starter door z {hit['doorZ']} covers lamp {hit['lampZ']}")
+    if hit['doorOnLamp']:
+        fail(f'{tag} door paints over the starter lamp')
+    if hit['shade'] != 'lamp':
+        fail(f"{tag} lampshade top is {hit['shade']}")
+
+async def check_anchors(pg, tag):
+    """Sit, the kenneled dog, and the speech bubble follow the drawn y."""
+    await pg.evaluate("""() => {
+      const s = __store;
+      s.dispatch({type:'room/switch', room:'living'});
+      document.querySelector('#modePlay')?.click();
+      __sky.setChoice('day');
+      if (!s.get().rooms.living.items.some(i => i.id === 'qa-seat'))
+        s.dispatch({type:'item/add', room:'living', item:{id:'qa-seat', kind:'chair', x:1600, y:600, flip:false, z:1, scale:1}});
+      const viewW = parseFloat(document.querySelector('.stage').style.width) || 1000;
+      __cam.set(1600 - viewW / 2);
+      const kid = s.get().characters[0];
+      s.dispatch({type:'char/move', id:kid.id, room:'living', x:2000, y:520});
+    }""")
+    await pg.wait_for_timeout(180)
+    seat = await pg.evaluate("""() => {
+      const viewW = parseFloat(document.querySelector('.stage').style.width) || 1000;
+      __cam.set(1600 - viewW / 2);
+      const seat = __store.get().rooms.living.items.find(i => i.id === 'qa-seat');
+      if (seat) __store.dispatch({type:'item/move', room:'living', id:seat.id, x:seat.x, y:seat.y});
+      const el = document.querySelector('.item[data-id="qa-seat"]');
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2, vw: innerWidth, vh: innerHeight };
+    }""")
+    if not seat or not (8 < seat['x'] < seat['vw'] - 8):
+        fail(f'{tag} seat off screen')
+        return
+    await pg.mouse.click(seat['x'], seat['y'])
+    await pg.wait_for_timeout(200)
+    sit = await pg.evaluate("""() => {
+      const stage = document.querySelector('.stage');
+      const st = stage.getBoundingClientRect();
+      const view = parseFloat(stage.style.width) || 1;
+      const sc = st.width / view;
+      const origin = st.top + 6 * sc;
+      const world = (py) => (py - origin) / sc;
+      const item = document.querySelector('.item[data-id="qa-seat"]');
+      const kid = document.querySelector('.char');
+      if (!item || !kid) return null;
+      const stored = __store.get().rooms.living.items.find(i => i.id === 'qa-seat');
+      kid.querySelector('.bubble')?.remove();
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.textContent = 'Hello';
+      bubble.style.animation = 'none';
+      kid.appendChild(bubble);
+      const ir = item.getBoundingClientRect();
+      const kr = kid.getBoundingClientRect();
+      const br = bubble.getBoundingClientRect();
+      return {
+        storedY: stored ? stored.y : null,
+        itemBottom: world(ir.bottom),
+        kidBottom: world(kr.bottom),
+        bubbleBottom: world(br.bottom),
+        kidH: kr.height / sc,
+      };
+    }""")
+    if not sit:
+        fail(f'{tag} sit target missing')
+        return
+    if sit['storedY'] != 600:
+        fail(f"{tag} seat stored y {sit['storedY']}")
+    drawn = sit['itemBottom']
+    want = max(430, drawn - 8)
+    stored_sit = max(430, 600 - 8)
+    if abs(sit['kidBottom'] - want) > 2.5:
+        fail(f"{tag} sit feet {sit['kidBottom']:.1f} want {want:.1f}")
+    if abs(stored_sit - want) > 6 and abs(sit['kidBottom'] - stored_sit) < 4:
+        fail(f"{tag} sit still uses stored y {sit['kidBottom']:.1f}")
+    bubble_want = want - sit['kidH'] - 34
+    if abs(sit['bubbleBottom'] - bubble_want) > 3:
+        fail(f"{tag} sit bubble {sit['bubbleBottom']:.1f} want {bubble_want:.1f}")
+    await pg.evaluate("""() => {
+      const s = __store;
+      if (!s.get().dog) s.dispatch({type:'dog/set', dog:{name:'Pip', breed:0, owner:s.get().characters[0].id}});
+      if (!s.get().rooms.living.items.some(i => i.id === 'qa-kennel'))
+        s.dispatch({type:'item/add', room:'living', item:{id:'qa-kennel', kind:'kennel', x:1900, y:600, flip:false, z:1, scale:1}});
+      if (s.get().dogKennel?.item !== 'qa-kennel') s.dispatch({type:'dog/kennel', item:'qa-kennel'});
+      const viewW = parseFloat(document.querySelector('.stage').style.width) || 1000;
+      __cam.set(1900 - viewW / 2);
+      const kid = s.get().characters[0];
+      s.dispatch({type:'char/move', id:kid.id, room:'living', x:2100, y:520});
+    }""")
+    await pg.wait_for_timeout(180)
+    await pg.evaluate("""() => {
+      const viewW = parseFloat(document.querySelector('.stage').style.width) || 1000;
+      __cam.set(1900 - viewW / 2);
+      const kennel = __store.get().rooms.living.items.find(i => i.id === 'qa-kennel');
+      if (kennel) __store.dispatch({type:'item/move', room:'living', id:kennel.id, x:kennel.x, y:kennel.y});
+    }""")
+    try:
+        await pg.wait_for_selector('.pet.kenneled', timeout=3000)
+    except Exception:
+        fail(f'{tag} kennel dog missing')
+        return
+    await pg.wait_for_timeout(80)
+    dog = await pg.evaluate("""() => {
+      const stage = document.querySelector('.stage');
+      const st = stage.getBoundingClientRect();
+      const view = parseFloat(stage.style.width) || 1;
+      const sc = st.width / view;
+      const origin = st.top + 6 * sc;
+      const world = (py) => (py - origin) / sc;
+      const item = document.querySelector('.item[data-id="qa-kennel"]');
+      const pet = document.querySelector('.pet.kenneled');
+      if (!item || !pet) return null;
+      const stored = __store.get().rooms.living.items.find(i => i.id === 'qa-kennel');
+      const ir = item.getBoundingClientRect();
+      const pr = pet.getBoundingClientRect();
+      return {
+        storedY: stored ? stored.y : null,
+        itemBottom: world(ir.bottom),
+        dogBottom: world(pr.bottom),
+        peek: pet.classList.contains('peek'),
+        x: (pr.left + pr.right) / 2,
+        y: pr.top + pr.height * 0.45,
+        vw: innerWidth, vh: innerHeight,
+      };
+    }""")
+    if not dog:
+        fail(f'{tag} kennel measure missing')
+        return
+    if dog['storedY'] != 600:
+        fail(f"{tag} kennel stored y {dog['storedY']}")
+    off = 24 if dog['peek'] else 2
+    dog_want = dog['itemBottom'] - off
+    stored_dog = 600 - off
+    if abs(dog['dogBottom'] - dog_want) > 2.5:
+        fail(f"{tag} kennel dog {dog['dogBottom']:.1f} want {dog_want:.1f}")
+    if abs(stored_dog - dog_want) > 6 and abs(dog['dogBottom'] - stored_dog) < 4:
+        fail(f"{tag} kennel dog still uses stored y {dog['dogBottom']:.1f}")
+    if not (8 < dog['x'] < dog['vw'] - 8 and 8 < dog['y'] < dog['vh'] - 8):
+        fail(f'{tag} kennel dog off screen')
+        return
+    await pg.mouse.click(dog['x'], dog['y'])
+    await pg.wait_for_timeout(450)
+    bub = await pg.evaluate("""() => {
+      const stage = document.querySelector('.stage');
+      const st = stage.getBoundingClientRect();
+      const view = parseFloat(stage.style.width) || 1;
+      const sc = st.width / view;
+      const origin = st.top + 6 * sc;
+      const world = (py) => (py - origin) / sc;
+      const pet = document.querySelector('.pet.kenneled');
+      const bubble = pet && pet.querySelector('.bubble');
+      if (!pet || !bubble) return null;
+      const pr = pet.getBoundingClientRect();
+      const br = bubble.getBoundingClientRect();
+      return { bubbleBottom: world(br.bottom), dogH: pr.height / sc, dogBottom: world(pr.bottom) };
+    }""")
+    if not bub:
+        fail(f'{tag} kennel speech bubble missing')
+        return
+    bub_want = bub['dogBottom'] - bub['dogH'] - 34
+    if abs(bub['bubbleBottom'] - bub_want) > 3.5:
+        fail(f"{tag} kennel bubble {bub['bubbleBottom']:.1f} want {bub_want:.1f}")
+    # The bubble rides the drawn dog. A stored-y dog would put it about 12px lower.
+    stored_bub = (600 - off) - bub['dogH'] - 34
+    if abs(stored_bub - bub_want) > 6 and abs(bub['bubbleBottom'] - stored_bub) < 4:
+        fail(f"{tag} kennel bubble still follows stored y {bub['bubbleBottom']:.1f}")
+    await pg.evaluate("() => document.querySelector('#modeDecorate')?.click()")
 
 async def check_door(pg, tag):
     await pg.evaluate("""() => {
@@ -258,25 +510,42 @@ async def check_door(pg, tag):
     if room != 'backyard':
         fail(f'{tag} tap on the covered door stayed in {room}')
 
-async def main():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
+async def run_engine(p, name):
+    try:
+        browser = await getattr(p, name).launch()
+    except Exception as e:
+        print(f'{name} unavailable: {e}', flush=True)
+        return False
+    try:
         for w, h in SIZES:
-            tag = f'{w}x{h}'
+            tag = f'{name} {w}x{h}'
             phone = min(w, h) < 500 or (w > h and h <= 500)
             ctx = await browser.new_context(viewport={'width': w, 'height': h}, has_touch=phone, is_mobile=min(w, h) < 500, device_scale_factor=1)
             await ctx.add_init_script("localStorage.setItem('cozy-whatsnew','999'); localStorage.setItem('avatar-intro','1');")
             pg = await ctx.new_page()
-            pg.on('pageerror', lambda e: fail(f'{tag} pageerror {e}'))
+            pg.on('pageerror', lambda e, tag=tag: fail(f'{tag} pageerror {e}'))
             await pg.goto(URL, wait_until='networkidle')
             await dismiss(pg)
             await check_floor(pg, tag)
             await check_window(pg, tag)
             await check_vase(pg, tag)
+            await check_lamp(pg, tag)
+            await check_anchors(pg, tag)
             await check_door(pg, tag)
             await ctx.close()
             print(f'{tag} checked', flush=True)
+    finally:
         await browser.close()
+    return True
+
+async def main():
+    async with async_playwright() as p:
+        saw = False
+        for name in ('chromium', 'webkit'):
+            if await run_engine(p, name):
+                saw = True
+        if not saw:
+            fail('no browser engine launched')
     if problems:
         print(f'FAIL {len(problems)}')
         sys.exit(1)
