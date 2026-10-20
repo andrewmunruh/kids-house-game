@@ -35,7 +35,7 @@ walk(join(root, 'assets/art'));
 check('no probe asset is shipped', !names.some(n => n.includes('_probe')));
 
 const sw = readFileSync(join(root, 'public/sw.js'), 'utf8');
-check('art is served from the service worker cache', sw.includes('cache.match') && sw.includes('/assets/art/'));
+check('art is served from the service worker cache', sw.includes('cache.match') && sw.includes('/assets/art/') && sw.includes('.webp'));
 check('the service worker does not cache.add a missing image', !/\bcache\.add\s*\(/.test(sw));
 check('a missing image is a quiet 404', sw.includes('status:404') || sw.includes('status: 404'));
 
@@ -65,6 +65,36 @@ if (py) {
     check('living rasters load, art=v1 skips them, and a broken url falls back', false);
   } finally {
     await server.close();
+  }
+
+  const outDir = join(process.env.TMPDIR || '/tmp', 'art-sw-prod');
+  try {
+    await new Promise<void>((resolve, reject) => {
+      execFile(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'build', '--mode', 'production', '--outDir', outDir, '--emptyOutDir'], {
+        cwd: root,
+        // The dev server above sets NODE_ENV=development on this process. Vite
+        // keeps an already-set NODE_ENV, and import.meta.env.PROD follows it,
+        // so a child build would drop the production-only service worker.
+        env: { ...process.env, VITE_BASE: '/', NODE_ENV: 'production' },
+        timeout: 120000,
+      }, (err, stdout, stderr) => {
+        if (stdout) process.stdout.write(stdout);
+        if (stderr) process.stderr.write(stderr);
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    await new Promise<void>((resolve, reject) => {
+      execFile(py, [join(root, 'tests/raster_sw_prod.py'), outDir], { timeout: 60000 }, (err, stdout, stderr) => {
+        if (stdout) process.stdout.write(stdout);
+        if (stderr) process.stderr.write(stderr);
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    check('a production build serves hashed paintings cache-first', true);
+  } catch {
+    check('a production build serves hashed paintings cache-first', false);
   }
 }
 

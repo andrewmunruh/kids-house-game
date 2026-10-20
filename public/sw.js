@@ -3,7 +3,12 @@ self.addEventListener('install',e=>{self.skipWaiting();});
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 
 function artRequest(url){
-  return url.pathname.indexOf('/assets/art/')>=0;
+  var path=url.pathname;
+  // Dev and an unhashed file still live under /assets/art/. The Vite build
+  // emits each painting as /assets/<name>-<hash>.webp, so the directory
+  // match never sees it and the painting would stay network-first.
+  if(path.indexOf('/assets/art/')>=0)return true;
+  return path.indexOf('/assets/')>=0 && path.slice(-5).toLowerCase()==='.webp';
 }
 
 // Item paintings are cache-first: one network fetch on a miss, then the cache.
