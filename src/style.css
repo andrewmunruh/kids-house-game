@@ -844,10 +844,11 @@ body.view-street .stage { visibility: hidden; }
   body.phone .whatsNew .wnLine { padding: 2px 6px; gap: 6px; }
   body.phone .whatsNew .wnArt { width: 36px; height: 28px; }
   body.phone .whatsNew .wnLine p, body.phone .whatsNew .wnList.many .wnLine p { font-size: 14px; }
-  body.phone .whatsNew .wnGo { flex: 0 0 auto; margin-top: 6px; min-height: 44px; font-size: 18px; padding: 6px 16px; }
+  /* The pulse scale and a 44px minimum measured 43px at 844×390. A fixed box stays a tap. */
+  body.phone .whatsNew .wnGo { flex: 0 0 auto; margin-top: 6px; height: 48px; min-height: 48px; font-size: 18px; line-height: 1; padding: 6px 16px; animation: none; }
   body.phone .whatsNew .card:has(.wnList.many) { padding: 8px 10px; }
   body.phone .whatsNew .card:has(.wnList.many) .wnTitle { font-size: 18px !important; margin: 0 0 4px !important; }
-  body.phone .whatsNew .card:has(.wnList.many) .wnGo { margin-top: 6px; padding: 6px 16px; font-size: 18px; min-height: 44px; }
+  body.phone .whatsNew .card:has(.wnList.many) .wnGo { margin-top: 6px; padding: 6px 16px; font-size: 18px; height: 48px; min-height: 48px; animation: none; }
   /* The ranch label scales with the short scene. Keep it at least 13px. */
   body.phone .barnDoor .doorHint { font-size: max(13px, min(24px, calc(19px * var(--sc)))); }
 }
