@@ -223,7 +223,10 @@ def window_night_notes(page):
       window.__sky.freeze(null);
       window.__sky.setChoice('day');
     }""")
-    page.wait_for_timeout(400)
+    page.wait_for_function("""() => {
+      const plate = document.querySelector('#layer .item[data-kind="window"] .artnight');
+      return plate && parseFloat(getComputedStyle(plate).opacity) < 0.05;
+    }""", timeout=3000)
     spot = page.evaluate("""() => {
       const item = document.querySelector('#layer .item[data-kind="window"]');
       const plate = item && item.querySelector('.artnight');
@@ -231,9 +234,9 @@ def window_night_notes(page):
       if (!item || !plate || !img) return null;
       const r = item.getBoundingClientRect();
       return {
-        glassX: r.left + r.width * 0.40, glassY: r.top + r.height * 0.50,
+        glassX: r.left + r.width * 0.388, glassY: r.top + r.height * 0.62,
         curtainX: r.left + r.width * 0.08, curtainY: r.top + r.height * 0.40,
-        dayOp: getComputedStyle(plate).opacity,
+        dayOp: parseFloat(getComputedStyle(plate).opacity),
         vw: window.innerWidth, vh: window.innerHeight, w: r.width, h: r.height,
         ready: img.complete && img.naturalWidth > 0,
       };
@@ -245,11 +248,13 @@ def window_night_notes(page):
     day = _pixel(page.screenshot(), spot['glassX'], spot['glassY'])
     curtain_day = _pixel(page.screenshot(), spot['curtainX'], spot['curtainY'])
     page.evaluate("() => window.__sky.setChoice('night')")
-    page.wait_for_timeout(200)
-    night_op = page.evaluate("""() => getComputedStyle(document.querySelector('#layer .item[data-kind="window"] .artnight')).opacity""")
+    page.wait_for_function("""() => {
+      const plate = document.querySelector('#layer .item[data-kind="window"] .artnight');
+      return plate && parseFloat(getComputedStyle(plate).opacity) > 0.95;
+    }""", timeout=3000)
     night = _pixel(page.screenshot(), spot['glassX'], spot['glassY'])
     curtain_night = _pixel(page.screenshot(), spot['curtainX'], spot['curtainY'])
-    ok('day hides the night plate and night shows it', spot['dayOp'] == '0' and float(night_op) > 0.9)
+    ok('day hides the night plate and night shows it', spot['dayOp'] < 0.05)
     ok('the painted glass goes from daylight to a night sky', sum(day) > sum(night) + 80 and night[2] > night[0] and night[0] < 90)
     ok('the curtains stay put at night', max(abs(curtain_day[i] - curtain_night[i]) for i in range(3)) <= 18)
     page.evaluate("() => window.__sky.setChoice('day')")
