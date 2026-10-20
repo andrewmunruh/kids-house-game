@@ -896,7 +896,7 @@ function renderToolbar(s: GameState) {
   const it = selected && s.rooms[s.currentRoom].items.find(i => i.id === selected);
   if (!it || !ITEM_MAP[it.kind]) { toolbar.classList.add('hidden'); return; }
   const def = ITEM_MAP[it.kind];
-  const top = it.y - hOf(def) * it.scale - 20;
+  const top = drawY(def, it.y) - hOf(def) * it.scale - 20;
   toolbar.classList.remove('hidden');
   toolbar.style.left = Math.max(camX + 130, Math.min(camX + VIEW_W - 130, it.x)) / W * 100 + '%';
   toolbar.style.top = Math.max(40, top) / H * 100 + '%';

@@ -4,7 +4,7 @@
 # clips that strip) without the save changing. The living-room door stays above
 # a sofa and a rug that cover its tap target, and a tap still opens the yard.
 # The starter lamp stays in front of that door. Sit, the kenneled dog, and the
-# speech bubble use the drawn y, not the stored one.
+# speech bubble use the drawn y, not the stored one. So does the Decorate toolbar.
 import asyncio, io, os, sys
 from PIL import Image
 from playwright.async_api import async_playwright
@@ -450,6 +450,74 @@ async def check_anchors(pg, tag):
         fail(f"{tag} kennel bubble still follows stored y {bub['bubbleBottom']:.1f}")
     await pg.evaluate("() => document.querySelector('#modeDecorate')?.click()")
 
+async def check_toolbar(pg, tag, touch=False):
+    """The Decorate toolbar above a selected floor piece follows the drawn y.
+    The same chair at stored y=500 and y=600: the toolbar must move 88px (600 draws at 588), not 100."""
+    tops = {}
+    for y in (500, 600):
+        pos = await pg.evaluate("""(y) => {
+          const s = __store;
+          s.dispatch({type:'room/switch', room:'living'});
+          document.querySelector('#modeDecorate')?.click();
+          if (!s.get().rooms.living.items.some(i => i.id === 'qa-seat'))
+            s.dispatch({type:'item/add', room:'living', item:{id:'qa-seat', kind:'chair', x:1600, y, flip:false, z:1, scale:1}});
+          // Put the chair in the visible window (phones do not always follow __cam.set), clear of the kid.
+          const viewW = parseFloat(document.querySelector('.stage').style.width) || 1000;
+          const x = Math.round(__cam.get() + viewW * 0.66);
+          s.dispatch({type:'item/front', room:'living', id:'qa-seat'});
+          s.dispatch({type:'item/move', room:'living', id:'qa-seat', x, y});
+          const el = document.querySelector('.item[data-id="qa-seat"]');
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 };
+        }""", y)
+        if not pos:
+            fail(f'{tag} toolbar seat missing')
+            return
+        await pg.wait_for_timeout(120)
+        # Tap a point that actually hits the chair (another piece may overlap its box).
+        pos = await pg.evaluate("""() => {
+          const el = document.querySelector('.item[data-id="qa-seat"]'); const r = el.getBoundingClientRect();
+          for (let fy = 0.5; fy < 0.95; fy += 0.1) for (let fx = 0.5; fx > 0.05; fx -= 0.1) for (const sx of [fx, 1 - fx]) {
+            const x = r.left + r.width * sx, y = r.top + r.height * fy;
+            const h = document.elementFromPoint(x, y);
+            if (h && h.closest('.item') === el) return { x, y };
+          }
+          return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 };
+        }""")
+        if touch:
+            await pg.touchscreen.tap(pos['x'], pos['y'])
+        else:
+            await pg.mouse.click(pos['x'], pos['y'])
+        await pg.wait_for_timeout(150)
+        top = await pg.evaluate("""() => {
+          const t = document.getElementById('toolbar');
+          if (!t || t.classList.contains('hidden')) return null;
+          return parseFloat(t.style.top) / 100 * 600;
+        }""")
+        if top is None:
+            # One retry: a tap right after a re-render can land as the end of the previous gesture.
+            await pg.wait_for_timeout(250)
+            if touch:
+                await pg.touchscreen.tap(pos['x'], pos['y'])
+            else:
+                await pg.mouse.click(pos['x'], pos['y'])
+            await pg.wait_for_timeout(200)
+            top = await pg.evaluate("""() => {
+              const t = document.getElementById('toolbar');
+              if (!t || t.classList.contains('hidden')) return null;
+              return parseFloat(t.style.top) / 100 * 600;
+            }""")
+        if top is None:
+            hit = await pg.evaluate("(p) => { const h = document.elementFromPoint(p.x, p.y); return h ? (h.tagName + '.' + h.className + ' ' + ((h.closest('[data-id]') || {}).dataset || {}).id) : null; }", pos)
+            fail(f'{tag} toolbar not shown for y={y} hit {hit} at {pos}')
+            return
+        tops[y] = top
+    d = tops[600] - tops[500]
+    if abs(d - 88) > 0.6:
+        fail(f'{tag} toolbar moved {d:.1f} between y=500 and y=600, want 88 (drawn y)')
+    await pg.evaluate("() => { const s = __store; const seat = s.get().rooms.living.items.find(i => i.id === 'qa-seat'); if (seat) s.dispatch({type:'item/move', room:'living', id:'qa-seat', x:seat.x, y:600}); }")
+
 async def check_door(pg, tag):
     await pg.evaluate("""() => {
       const s = __store;
@@ -531,6 +599,7 @@ async def run_engine(p, name):
             await check_vase(pg, tag)
             await check_lamp(pg, tag)
             await check_anchors(pg, tag)
+            await check_toolbar(pg, tag, phone)
             await check_door(pg, tag)
             await ctx.close()
             print(f'{tag} checked', flush=True)
