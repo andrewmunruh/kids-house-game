@@ -22,16 +22,21 @@ ME = lambda pg: pg.evaluate('__hood().myPresence()')
 async def map_btn_ok(pg):
     b = await pg.locator('#btnMap').bounding_box()
     return b is not None and await pg.locator('#btnMap').is_visible() and b['x'] + b['width'] > 1024 - 70 and b['y'] < 70
-async def wait_map_settled(pg):
+async def wait_map_settled(pg, w=None, h=None):
     """The zoom and the map-in animation move the world. Fit checks wait until it is still."""
+    if w:
+        await pg.wait_for_function("""([w, h]) => innerWidth === w && innerHeight === h""", arg=[w, h])
+        await pg.wait_for_timeout(450)
     await pg.evaluate("() => { window.__mapFit = null; }")
     await pg.wait_for_function("""() => {
-      const w = document.getElementById('mapWorld');
-      if (!w) return false;
-      if (w.classList.contains('zoomIn')) return false;
-      const anims = w.getAnimations ? w.getAnimations() : [];
+      const world = document.getElementById('mapWorld');
+      if (!world) return false;
+      if (world.classList.contains('zoomIn')) return false;
+      const anims = world.getAnimations ? world.getAnimations() : [];
       if (anims.some(a => a.playState === 'running')) return false;
-      const r = w.getBoundingClientRect();
+      const faces = [...document.querySelectorAll('.mapFace')];
+      if (faces.length && faces.some(el => el.getBoundingClientRect().width < 1)) return false;
+      const r = world.getBoundingClientRect();
       if (r.width < 20 || r.height < 20) return false;
       const prev = window.__mapFit;
       const now = { l: r.left, t: r.top, w: r.width, h: r.height };
@@ -130,7 +135,7 @@ async def main():
             }""")
         for w, h in ((1024, 768), (820, 1180), (1180, 820), (390, 844), (375, 667)):
             await P.set_viewport_size({'width': w, 'height': h})
-            await wait_map_settled(P)
+            await wait_map_settled(P, w, h)
             bad = await pois_in_view(P)
             check(f'map POIs fit inside {w}x{h}', bad == [], json.dumps(bad))
         await P.set_viewport_size({'width': 1024, 'height': 768})
