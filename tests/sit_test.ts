@@ -6,7 +6,8 @@ import { SIT_POSE } from '../src/avatar/sit';
 import { fillLook2 } from '../src/shared/avatar';
 import { NICKNAMES, PROTOCOL, cleanAction, cleanHouseState, cleanPresence } from '../src/shared/hood';
 import { ensureRooms, initialState, migrate, newCharacter, reduce, type Character, type GameState } from '../src/shared/state';
-import { anchorsOf, furnitureClearsSeat, resolveDrop, seatFractions, type SeatPiece } from '../src/shared/sit';
+import { anchorsOf, bedArt, furnitureClearsSeat, inLieRect, lieBedKinds, lieOffset, lieSpot, resolveDrop, seatFractions, type SeatPiece } from '../src/shared/sit';
+import { hOf, ITEM_MAP } from '../src/items';
 
 let pass = 0;
 const check = (name: string, ok: boolean, extra = '') => { console.log((ok ? 'PASS ' : 'FAIL ') + name, extra); if (ok) pass++; else process.exitCode = 1; };
@@ -89,9 +90,28 @@ async function main() {
   check('a sofa has two sit anchors', sofaAnchors.length === 2 && sofaAnchors[0].n === 0 && sofaAnchors[1].n === 1 && sofaAnchors[0].pose === 'sit' && Math.abs(sofaAnchors[0].x - (800 - 0.18 * 260)) < 0.01 && Math.abs(sofaAnchors[0].y - (560 - 0.33 * 260)) < 0.01);
   const flipped = anchorsOf({ ...sofa, flip: true });
   check('a flip mirrors the sofa anchors', Math.abs(flipped[0].x - (800 + 0.18 * 260)) < 0.01 && flipped[0].n === 0);
-  check('a chair and a bed have one anchor', anchorsOf(chair).length === 1 && anchorsOf(chair)[0].pose === 'sit' && anchorsOf(bed).length === 1 && anchorsOf(bed)[0].pose === 'lie' && Math.abs(anchorsOf(bed)[0].x - (500 - 0.08 * 300)) < 0.01);
-  check('crib, high chair, and pet beds are not seats', !seatFractions('crib') && !seatFractions('high-chair') && !seatFractions('cat-bed') && !seatFractions('pet-bed') && !seatFractions('dog-bed') && !seatFractions('tulip-bed'));
+  const bedHead = lieSpot('bed', 300, 300, 'head', false)!;
+  const bedAnchor = anchorsOf(bed)[0];
+  check('a chair and a bed have one anchor', anchorsOf(chair).length === 1 && anchorsOf(chair)[0].pose === 'sit' && anchorsOf(bed).length === 1 && bedAnchor.pose === 'lie' && Math.abs(bedAnchor.x + lieOffset('head', false).x - (500 - 150 + bedHead.x * 300)) < 0.05);
+  check('crib, high chair, and pet beds are not seats', !seatFractions('crib') && !seatFractions('high-chair') && !seatFractions('cat-bed') && !seatFractions('pet-bed') && !seatFractions('dog-bed') && !seatFractions('tulip-bed') && !seatFractions('bedtime-snack'));
   check('a bunk lies on one anchor', seatFractions('bunk-bed')?.pose === 'lie' && seatFractions('bunk-bed')?.spots.length === 1);
+  check('a daybed lies down', seatFractions('pack:cc-canopy-daybed')?.pose === 'lie');
+  for (const kind of lieBedKinds()) {
+    const def = ITEM_MAP[kind];
+    const art = bedArt(kind)!;
+    const w = def.w, h = hOf(def);
+    for (const flip of [false, true]) {
+      const mirror = (r: { x: number; y: number; w: number; h: number }) => flip ? { x: 1 - (r.x + r.w), y: r.y, w: r.w, h: r.h } : r;
+      const head = lieSpot(kind, w, h, 'head', flip)!;
+      const classic = lieSpot(kind, w, h, 'classic', flip)!;
+      const chest = lieSpot(kind, w, h, 'chest', flip)!;
+      const hip = lieSpot(kind, w, h, 'hip', flip)!;
+      const tag = kind + (flip ? ' flip' : '');
+      check(tag + ' head is on the pillow', inLieRect(head, mirror(art.pillow)) && inLieRect(classic, mirror(art.pillow)), JSON.stringify({ head, classic }));
+      check(tag + ' body is on the mattress', inLieRect(chest, mirror(art.mattress)) && inLieRect(hip, mirror(art.mattress)), JSON.stringify({ chest, hip }));
+      if (flip) check(tag + ' mirrors the pillow', Math.abs(head.x - (1 - art.head.x)) < 0.002 && Math.abs(head.y - art.head.y) < 0.002);
+    }
+  }
   for (const [w, h] of SIZES) {
     const a = anchorsOf(chair);
     check(`anchors stay in room space at ${w}x${h}`, a[0].x === anchorsOf(chair)[0].x && a[0].y === anchorsOf(chair)[0].y);
@@ -141,7 +161,7 @@ async function main() {
   const classicLie = characterSVG(look, 'lie');
   check('classic standing svg has no pose', classic.indexOf('data-pose') < 0 && classic.indexOf('data-chibi') < 0);
   check('a classic doll gets a bent-leg sit', classicSit.indexOf('data-pose="sit"') >= 0 && classicSit.indexOf('rotate(-68') >= 0);
-  check('a classic doll lies with closed eyes', classicLie.indexOf('data-pose="lie"') >= 0 && classicLie.indexOf('rotate(-78') >= 0 && classicLie.indexOf('Q40 52') >= 0);
+  check('a classic doll lies with closed eyes and one turn', classicLie.indexOf('data-pose="lie"') >= 0 && classicLie.indexOf('rotate(-78') < 0 && classicLie.indexOf('data-dollhead') >= 0 && classicLie.indexOf('Q40 52') >= 0);
   const chibiLook = fillLook2({ v: 1, hair: 'braids', dress: 'party', dressC: '#f4a3c8', acc: ['bow'], bottom: 'skirt' });
   const standing = chibiSVG(chibiLook, { rich: true, uid: 'st' });
   const sitting = chibiSVG(chibiLook, { rich: true, uid: 'si', pose: SIT_POSE, poseName: 'sit' });
@@ -216,6 +236,10 @@ async function main() {
   await msg(hood, A, { t: 'act', houseId: hidA, cid: 7, action: { type: 'char/move', id: doll.id, room: 'living', x: sat.x, y: sat.y, seat: { item: 'chair-a', pose: 'sit', n: 0 } } });
   await msg(hood, A, { t: 'act', houseId: hidA, cid: 8, action: { type: 'item/front', room: 'living', id: 'chair-a' } });
   check('front leaves the doll seated', hood.houses.get(hidA)!.state.characters.find(c => c.id === doll.id)!.seat?.pose === 'sit');
+  await msg(hood, A, { t: 'pres', p: { where: 'house', houseId: hidA, room: 'living', x: sat.x, y: sat.y, flip: false, seat: { id: 'chair-a', pose: 'sit', n: 0 } } });
+  check('a player cannot take a seat a doll already has', !hood.presence.get(pidA)?.seat);
+  await msg(hood, A, { t: 'pres', p: { where: 'house', houseId: hidA, room: 'living', x: 1100, y: 480, flip: false, seat: { id: 'sofa-a', pose: 'sit', n: 0 } } });
+  check('a free seat still accepts her', hood.presence.get(pidA)?.seat?.id === 'sofa-a' && hood.presence.get(pidA)?.seat?.n === 0);
 
   const bad = cleanPresence({ where: 'house', houseId: 'h', room: 'living', x: 1, y: 2, flip: false, seat: { id: 'nope', pose: 'fly', n: 3 } }, () => true, () => false);
   check('a bad seat is dropped and the presence still arrives', !!bad && bad.x === 1 && !bad.seat);

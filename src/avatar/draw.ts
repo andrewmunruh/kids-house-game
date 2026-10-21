@@ -70,9 +70,10 @@ function nextUid(): string {
 function wrapHip(inner: string, pose: Pose): string {
   return pose.hip ? `<g transform="rotate(${f(pose.hip)} 100 238)">${inner}</g>` : inner;
 }
-function wrapHead(inner: string, pose: Pose): string {
-  const head = pose.head ? `<g transform="rotate(${f(pose.head)} 100 158)">${inner}</g>` : inner;
-  return wrapHip(head, pose);
+function wrapHead(inner: string, pose: Pose, skull = false): string {
+  const turned = pose.head ? `<g transform="rotate(${f(pose.head)} 100 158)">${inner}</g>` : inner;
+  const mark = skull ? ' class="dollhead" data-dollhead="1"' : ' class="dollhead"';
+  return wrapHip(`<g${mark}>${turned}</g>`, pose);
 }
 
 function defs(u: string, rich: boolean, mask: string): string {
@@ -217,7 +218,7 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean; pose
   ].join(';');
   const legs = limb('leg', 'l', legPart('l'), pose) + limb('leg', 'r', legPart('r'), pose);
   const arms = limb('arm', 'l', `<g class="hand">${armPart('l')}</g>`, pose) + limb('arm', 'r', `<g class="hand">${armPart('r')}</g>`, pose);
-  const body = `<g data-layer="body">${legs}${wrapHip(torso() + arms, pose)}${wrapHead(headShape(u), pose)}</g>`;
+  const body = `<g data-layer="body">${legs}${wrapHip(torso() + arms, pose)}${wrapHead(headShape(u), pose, true)}</g>`;
   const top = L.dress ? dressLayer(pose, L, u, rich, hem) : topLayer(pose, L, u, rich, hem);
   const shadow = `<g class="shadow"><ellipse cx="100" cy="308" rx="52" ry="9" fill="url(#${u}s)"/><ellipse cx="87" cy="307" rx="15" ry="3.6" fill="#3a1d3c" opacity=".16"/><ellipse cx="113" cy="307" rx="15" ry="3.6" fill="#3a1d3c" opacity=".16"/></g>`;
   const mask = hatHairMask(u, L.hair, L.acc);

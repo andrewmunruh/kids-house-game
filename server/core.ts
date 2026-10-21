@@ -477,9 +477,20 @@ export class Neighborhood {
         if (p.ride !== undefined && [...this.presence].some(([pid, q]) => pid !== me.pid && q.where === 'ranch' && q.ride === p.ride)) {
           this.send(c, { t: 'noride', ride: p.ride }); delete p.ride; // one rider per horse
         }
+        let pres = p;
+        if (pres.seat && pres.where === 'house') {
+          const house = this.houses.get(pres.houseId);
+          const seat = pres.seat;
+          const dollThere = !!house?.state.characters.some(ch => ch.room === pres.room && ch.seat?.item === seat.id && ch.seat.n === seat.n);
+          const kidThere = [...this.presence].some(([pid, q]) => pid !== me.pid && q.where === 'house' && q.houseId === pres.houseId && q.room === pres.room && q.seat?.id === seat.id && q.seat.n === seat.n);
+          if (dollThere || kidThere) {
+            const { seat: _drop, ...rest } = pres;
+            pres = rest;
+          }
+        }
         const wasIn = this.presence.get(me.pid)?.where === 'gameroom';
-        this.presence.set(me.pid, p);
-        this.broadcastPresence(me.pid, p, me.pid);
+        this.presence.set(me.pid, pres);
+        this.broadcastPresence(me.pid, pres, me.pid);
         if (wasIn !== (p.where === 'gameroom')) {
           if (p.where === 'gameroom') this.clearAway(me.pid); else this.noteAway(me.pid);
           // walking out of the Game Room gives up a seat at a table that isn't playing; mid-game she keeps it and can come back

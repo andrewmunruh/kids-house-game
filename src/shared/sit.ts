@@ -17,16 +17,141 @@ const NOT_SEAT = /crib|bassinet|high-?chair|cat-bed|pet-bed|dog-bed|kennel|tulip
 
 export interface SeatFractions { pose: SeatPose; spots: { dx: number; dy: number }[] }
 
+/** A rectangle in the piece, fractions from the top-left. The painted image fills the box. */
+export interface LieRect { x: number; y: number; w: number; h: number }
+
+/**
+ * Pillow and mattress on the painted bed, not the SVG.
+ * `head` is where the chibi head center should land (unflipped).
+ * `clip` picks the footboard overlay in CSS (`.k-bed-*`).
+ */
+export interface BedArt {
+  head: { x: number; y: number };
+  pillow: LieRect;
+  mattress: LieRect;
+  clip: string;
+}
+
+/** Measured on the WebP. Head targets keep the face off the headboard and the hips on the mattress. */
+const BED_ART: Record<string, BedArt> = {
+  bed: {
+    head: { x: 0.24, y: 0.36 },
+    pillow: { x: 0.10, y: 0.27, w: 0.22, h: 0.18 },
+    mattress: { x: 0.36, y: 0.34, w: 0.36, h: 0.16 },
+    clip: 'starter',
+  },
+  'wooden-bed': {
+    head: { x: 0.22, y: 0.47 },
+    pillow: { x: 0.12, y: 0.36, w: 0.24, h: 0.18 },
+    mattress: { x: 0.38, y: 0.46, w: 0.32, h: 0.16 },
+    clip: 'wooden',
+  },
+  'checker-bed': {
+    head: { x: 0.16, y: 0.38 },
+    pillow: { x: 0.08, y: 0.26, w: 0.22, h: 0.18 },
+    mattress: { x: 0.38, y: 0.40, w: 0.32, h: 0.16 },
+    clip: 'checker',
+  },
+  'bunk-bed': {
+    head: { x: 0.11, y: 0.58 },
+    pillow: { x: 0.05, y: 0.52, w: 0.18, h: 0.14 },
+    mattress: { x: 0.22, y: 0.56, w: 0.36, h: 0.14 },
+    clip: 'bunk',
+  },
+  'canopy-bed': {
+    head: { x: 0.38, y: 0.52 },
+    pillow: { x: 0.28, y: 0.46, w: 0.24, h: 0.14 },
+    mattress: { x: 0.48, y: 0.48, w: 0.28, h: 0.16 },
+    clip: 'canopy',
+  },
+  'cc-heart-bed': {
+    head: { x: 0.22, y: 0.67 },
+    pillow: { x: 0.12, y: 0.58, w: 0.26, h: 0.16 },
+    mattress: { x: 0.36, y: 0.64, w: 0.36, h: 0.16 },
+    clip: 'heart',
+  },
+  'cc-canopy-daybed': {
+    head: { x: 0.37, y: 0.58 },
+    pillow: { x: 0.26, y: 0.50, w: 0.26, h: 0.16 },
+    mattress: { x: 0.48, y: 0.54, w: 0.30, h: 0.16 },
+    clip: 'daybed',
+  },
+};
+
+const LIE_KINDS = ['bed', 'pack:wooden-bed', 'pack:checker-bed', 'pack:bunk-bed', 'pack:canopy-bed', 'pack:cc-heart-bed', 'pack:cc-canopy-daybed'];
+
+function isLieBed(k: string): boolean {
+  if (k === 'bed' || /bunk/.test(k) || /daybed/.test(k)) return true;
+  return /(^|[-_:])bed$/.test(k);
+}
+
+export function lieBedKinds(): string[] { return LIE_KINDS.slice(); }
+
+/** Painted pillow, mattress, and head target. Unknown beds use the starter bed. */
+export function bedArt(kind: string): BedArt | null {
+  const k = String(kind || '').toLowerCase();
+  if (!k || NOT_SEAT.test(k) || !isLieBed(k)) return null;
+  const slug = k.replace(/^pack:/, '');
+  return BED_ART[slug] || BED_ART[k] || BED_ART.bed;
+}
+
+/**
+ * One CSS turn, rotate(-78deg) around 40% 72% of the 120×192 box.
+ * Points are the chibi head, chest, and hip before that turn.
+ * A flipped bed mirrors the result; the SVG is not rotated as well.
+ */
+const LIE_BOX: Record<'head' | 'chest' | 'hip' | 'classic', { x: number; y: number }> = {
+  head: { x: 55.0733, y: 59.7445 },
+  chest: { x: 60, y: 114 },
+  hip: { x: 60, y: 138 },
+  classic: { x: 60, y: 52.8 },
+};
+const LIE_OX = 48;
+const LIE_OY = 138.24;
+
+function lieTurn(px: number, py: number): { x: number; y: number } {
+  const rad = -78 * Math.PI / 180;
+  const c = Math.cos(rad), s = Math.sin(rad);
+  const dx = px - LIE_OX, dy = py - LIE_OY;
+  const x = LIE_OX + c * dx - s * dy;
+  const y = LIE_OY + s * dx + c * dy;
+  return { x: x - 60, y: y - 192 };
+}
+
+/** Offset from the anchor (bottom center of the doll box) to that point, in room pixels. */
+export function lieOffset(part: 'head' | 'chest' | 'hip' | 'classic', flipped: boolean): { x: number; y: number } {
+  const p = LIE_BOX[part];
+  const u = lieTurn(p.x, p.y);
+  return { x: flipped ? -u.x : u.x, y: u.y };
+}
+
+/** Where that point lands in the piece, fractions from the top-left. `w` and `h` are the drawn size. */
+export function lieSpot(kind: string, w: number, h: number, part: 'head' | 'chest' | 'hip' | 'classic', flipped: boolean): { x: number; y: number } | null {
+  const art = bedArt(kind);
+  if (!art || w < 1 || h < 1) return null;
+  const head = lieOffset('head', false);
+  const dx = (art.head.x - 0.5) * w - head.x;
+  const dy = (art.head.y - 1) * h - head.y;
+  const off = lieOffset(part, flipped);
+  const adx = flipped ? -dx : dx;
+  return { x: 0.5 + (adx + off.x) / w, y: 1 + (dy + off.y) / h };
+}
+
+export function inLieRect(p: { x: number; y: number }, r: LieRect): boolean {
+  return p.x >= r.x - 1e-4 && p.y >= r.y - 1e-4 && p.x <= r.x + r.w + 1e-4 && p.y <= r.y + r.h + 1e-4;
+}
+
 /**
  * Category anchors, measured from the piece's center-bottom.
  * dx and dy are fractions of width and height. A flip mirrors dx.
  * A sofa has two. A chair, armchair, stool, and bed have one. A bench has two.
- * A bunk uses the bottom bunk only (one lie anchor).
+ * A bunk uses the bottom bunk only (one lie anchor). Bed spots are filled in
+ * by anchorsOf from the painted pillow, because the head offset is in pixels.
  */
 export function seatFractions(kind: string): SeatFractions | null {
   const k = String(kind || '').toLowerCase();
   if (!k || NOT_SEAT.test(k)) return null;
-  if (k === 'bed' || /(^|[-_:])bed$/.test(k) || /bunk/.test(k)) return { pose: 'lie', spots: [{ dx: -0.08, dy: -0.30 }] };
+  if (isLieBed(k)) return { pose: 'lie', spots: [{ dx: 0, dy: 0 }] };
   if (/sofa|couch|loveseat/.test(k)) return { pose: 'sit', spots: [{ dx: -0.18, dy: -0.33 }, { dx: 0.18, dy: -0.33 }] };
   if (/armchair/.test(k)) return { pose: 'sit', spots: [{ dx: 0, dy: -0.32 }] };
   if (/bench/.test(k)) return { pose: 'sit', spots: [{ dx: -0.22, dy: -0.30 }, { dx: 0.22, dy: -0.30 }] };
@@ -54,6 +179,14 @@ export function anchorsOf(p: SeatPiece): Anchor[] {
   const spec = seatFractions(p.kind);
   if (!spec) return [];
   const sc = p.scale || 1;
+  const art = spec.pose === 'lie' ? bedArt(p.kind) : null;
+  if (art) {
+    const w = p.w * sc, h = p.h * sc;
+    const head = lieOffset('head', false);
+    const dx = (art.head.x - 0.5) * w - head.x;
+    const dy = (art.head.y - 1) * h - head.y;
+    return [{ x: p.x + (p.flip ? -dx : dx), y: p.footY + dy, pose: 'lie', n: 0 }];
+  }
   return spec.spots.map((s, i) => {
     const dx = s.dx * p.w * sc;
     const dy = s.dy * p.h * sc;

@@ -66,7 +66,7 @@ export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 
 </svg>`;
 }
 
-/** Classic dolls have no chibi look. Sit bends the legs. Lie turns the body and closes the eyes for that frame. */
+/** Classic dolls have no chibi look. Sit bends the legs. Lie closes the eyes. The CSS pose turns the body once. */
 function classicPose(c: { skin: string; hair: string; hairStyle: number; shirt: string; pants: string; acc?: number }, poseName: 'sit' | 'lie'): string {
   const legs = poseName === 'sit'
     ? `<rect class="leg" x="34" y="108" width="13" height="28" rx="6" fill="${c.pants}" ${s} transform="rotate(-68 40 112)"/>
@@ -86,13 +86,15 @@ function classicPose(c: { skin: string; hair: string; hairStyle: number; shirt: 
   <path class="shirt" data-hem="126" d="M28 82 Q28 74 40 74 H60 Q72 74 72 82 L74 126 H26 Z" fill="${c.shirt}" ${s}/>
   <circle cx="50" cy="96" r="5" fill="#fff" opacity=".7"/>
   <rect x="44" y="64" width="12" height="12" fill="${c.skin}" ${s}/>
-  <circle cx="50" cy="44" r="30" fill="${c.skin}" ${s}/>
+  <g class="dollhead">
+  <circle class="dollhead" data-dollhead="1" cx="50" cy="44" r="30" fill="${c.skin}" ${s}/>
   ${hair(c.hairStyle, c.hair, false)}
   ${eyes}
   <ellipse cx="32" cy="58" rx="5" ry="3" fill="#ff8fab" opacity=".6"/><ellipse cx="68" cy="58" rx="5" ry="3" fill="#ff8fab" opacity=".6"/>
   <path d="M44 60 Q50 66 56 60" ${s} fill="none"/>
   ${accessory(c.acc ?? 0, c.shirt)}
+  </g>
   <circle class="hand" cx="22" cy="96" r="6" fill="${c.skin}" ${s}/><circle class="hand" cx="78" cy="96" r="6" fill="${c.skin}" ${s}/>`;
-  const turned = poseName === 'lie' ? `<g transform="rotate(-78 50 110)">${body}</g>` : body;
-  return `<svg data-pose="${poseName}" viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">${turned}</svg>`;
+  // The lie turn is the pose-lie class. Rotating again here would spin her to -156°.
+  return `<svg data-pose="${poseName}" viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
 }

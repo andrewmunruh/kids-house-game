@@ -10,7 +10,7 @@ import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROS
 import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } from './pets';
 import { mailboxArt, installMail } from './mail';
 import { installPlayMode, playGesture } from './playmode';
-import { resolveDrop, seatFractions, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
+import { bedArt, lieBedKinds, lieOffset, lieSpot, resolveDrop, seatFractions, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
 import { poseNamed } from './avatar/sit';
 import { unreadCount } from './shared/mail';
 import { parkSceneSVG, swingSVG, ballSVG, treeIcon, pawIcon, gateIcon, streetGateSVG, PARK_H, SWING_BAR } from './park';
@@ -320,6 +320,7 @@ function fit() {
     const aspect = boxW / Math.max(1, boxH);
     VIEW_W = Math.round(Math.max(480, Math.min(W, H * aspect)));
   } else VIEW_W = 1000;
+  VIEW_W = withPlayZoomFloor(VIEW_W);
   stage.style.width = VIEW_W + 'px';
   stage.style.height = H + 'px';
   const sc = Math.min(boxW / VIEW_W, boxH / H);
@@ -425,12 +426,84 @@ function nudgeScroll(scroll: HTMLElement, nodes: HTMLElement[]) {
   return Math.abs(scroll.scrollLeft - before) > 0.5;
 }
 function phoneShowHouseKid() { frameHouseKid(false); }
+/**
+ * Play on a short screen. The widest floor piece stays at most about 55% of the view,
+ * so a bed does not fill a phone. iPad sizes are over 500 on the short side.
+ */
+function playZoomFloor(): number {
+  if (view !== 'house' || !play.isPlay()) return 0;
+  if (Math.min(window.innerWidth, window.innerHeight) >= 500) return 0;
+  if (store.get().currentRoom === 'backyard') return 0;
+  let piece = 0;
+  for (const it of store.get().rooms[store.get().currentRoom].items) {
+    const def = ITEM_MAP[it.kind];
+    if (!def || def.wall) continue;
+    piece = Math.max(piece, def.w * (it.scale || 1));
+  }
+  if (piece < 40) return 0;
+  return Math.min(W, Math.ceil(piece / 0.55));
+}
+function withPlayZoomFloor(viewW: number): number {
+  const floor = playZoomFloor();
+  return floor && viewW < floor ? floor : viewW;
+}
+/** Raise the view when Play on a short screen would let a piece fill it. */
+function raisePlayZoom() {
+  const next = withPlayZoomFloor(VIEW_W);
+  if (next <= VIEW_W + 0.5) return;
+  VIEW_W = next;
+  stage.style.width = VIEW_W + 'px';
+  const wrap = $('stageWrap');
+  const sc = Math.min(wrap.clientWidth / VIEW_W, wrap.clientHeight / H);
+  stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
+  if (document.body.classList.contains('phone')) stage.style.setProperty('--fit', String(sc));
+  if (camX > maxCam()) setCam(camX);
+  else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
+}
+/** The piece she is sitting on, or the one under her finger in Play. */
+let playAim: string | null = null;
+function playPairBounds(): { minX: number; maxX: number } | null {
+  if (view !== 'house' || !play.isPlay()) return null;
+  if (Math.min(window.innerWidth, window.innerHeight) >= 500) return null;
+  const s = store.get();
+  if (s.currentRoom === 'backyard') return null;
+  let dollX: number | null = null;
+  let targetId: string | null = playAim;
+  if (hood && inner !== local) {
+    const me = myPres();
+    if (me && me.where === 'house' && me.room === s.currentRoom) {
+      dollX = me.x;
+      if (!targetId) targetId = presSeat(hood.pid, me)?.item ?? null;
+    }
+  }
+  if (dollX === null) {
+    const c = s.characters.find(ch => ch.id === activeChar && ch.room === s.currentRoom) ?? s.characters.find(ch => ch.room === s.currentRoom);
+    if (!c) return null;
+    dollX = c.x;
+    if (!targetId) targetId = dollSeat(c)?.item ?? null;
+  }
+  if (!targetId) return null;
+  const it = s.rooms[s.currentRoom].items.find(i => i.id === targetId);
+  const def = it && ITEM_MAP[it.kind];
+  if (!it || !def) return null;
+  const half = def.w * (it.scale || 1) / 2;
+  return { minX: Math.min(dollX - 100, it.x - half), maxX: Math.max(dollX + 100, it.x + half) };
+}
 /** Pan so the kid and her name tag sit inside the stage. On a drop, step her inward if the camera is already at the end of the room. */
 function frameHouseKid(nudgeX: boolean) {
   if (view !== 'house' || doorPress) return;
   // The yard camera is staged. Centring her here pans the starter bench off a phone.
   if (store.get().currentRoom === 'backyard') {
     if (Math.abs(camX - YARD_CAM) > 0.5) setCam(YARD_CAM);
+    placeYardHints();
+    return;
+  }
+  const pair = playPairBounds();
+  if (pair) {
+    const span = pair.maxX - pair.minX;
+    const pad = 20;
+    const cam = span + pad * 2 > VIEW_W ? pair.minX - pad : (pair.minX + pair.maxX) / 2 - VIEW_W / 2;
+    if (Math.abs(cam - camX) > 0.5) setCam(cam);
     placeYardHints();
     return;
   }
@@ -562,7 +635,7 @@ function growPhonePlayStage() {
   const wrap = $('stageWrap');
   const boxW = wrap.clientWidth, boxH = wrap.clientHeight;
   if (boxW < 20 || boxH < 20 || !(boxH > boxW * 0.85)) return;
-  const next = Math.max(280, Math.min(860, Math.round(H * boxW / boxH)));
+  const next = Math.min(W, withPlayZoomFloor(Math.max(280, Math.min(860, Math.round(H * boxW / boxH)))));
   if (Math.abs(next - VIEW_W) < 2) return;
   VIEW_W = next;
   stage.style.width = VIEW_W + 'px';
@@ -622,13 +695,17 @@ function takenSeats(skipChar?: string, skipPid?: string): { item: string; n: 0 |
   const s = store.get();
   const out: { item: string; n: 0 | 1 }[] = [];
   for (const c of s.characters) {
-    if (c.id === skipChar || c.room !== s.currentRoom || !c.seat) continue;
-    out.push({ item: c.seat.item, n: c.seat.n });
+    if (c.id === skipChar || c.room !== s.currentRoom) continue;
+    const seat = dollSeat(c);
+    if (!seat) continue;
+    out.push({ item: seat.item, n: seat.n });
   }
   if (hood && view === 'house') {
     const add = (pid: string, p: Presence) => {
-      if (pid === skipPid || p.where !== 'house' || p.houseId !== currentHouseId || p.room !== s.currentRoom || !p.seat) return;
-      out.push({ item: p.seat.id, n: p.seat.n });
+      if (pid === skipPid || p.where !== 'house' || p.houseId !== currentHouseId || p.room !== s.currentRoom) return;
+      const seat = presSeat(pid, p);
+      if (!seat) return;
+      out.push({ item: seat.item, n: seat.n });
     };
     hood.presence.forEach((p, pid) => add(pid, p));
     const me = myPres();
@@ -684,10 +761,11 @@ function seatUnderPointer(cx: number, cy: number): PlacedItem | null {
   return null;
 }
 function seatFrontClass(kind: string): string {
+  const art = bedArt(kind);
+  if (art) return 'k-bed k-bed-' + art.clip;
   const k = kind.toLowerCase();
   if (/sofa|couch|loveseat/.test(k)) return 'k-sofa';
   if (/bench/.test(k)) return 'k-bench';
-  if (/bed|bunk/.test(k) && !/cat-bed|pet-bed|dog-bed|flower|tulip/.test(k)) return 'k-bed';
   if (/chair|stool|rocker/.test(k)) return 'k-chair';
   return '';
 }
@@ -1020,6 +1098,7 @@ function renderChars(s: GameState) {
     el.classList.toggle('flipped', c.flip);
     el.classList.toggle('pose-sit', pose === 'sit');
     el.classList.toggle('pose-lie', pose === 'lie');
+    el.classList.toggle('pose-lie-r', pose === 'lie' && !!s.rooms[s.currentRoom].items.find(i => i.id === seat?.item)?.flip);
     el.classList.toggle('active', c.id === activeChar);
     stampAvatar(el, c, c.id === activeChar);
     el.classList.toggle('pose-swing', swingPose?.id === c.id);
@@ -1220,12 +1299,22 @@ store.subscribe((s, a) => {
     case 'room/switch': {
       const wasYard = stage.classList.contains('room-yard');
       if (hood && inner !== local) moveMeToRoom(a.room);
+      const zoomed = withPlayZoomFloor(VIEW_W);
+      if (zoomed !== VIEW_W) {
+        VIEW_W = zoomed;
+        stage.style.width = VIEW_W + 'px';
+        const wrap = $('stageWrap');
+        const sc = Math.min(wrap.clientWidth / VIEW_W, wrap.clientHeight / H);
+        stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
+        if (document.body.classList.contains('phone')) stage.style.setProperty('--fit', String(sc));
+        if (camX > maxCam()) setCam(camX);
+      }
       renderAll(); renderDrawer();
       if (a.room === 'backyard' || wasYard) fit();
       void refreshArt(a.room);
       break;
     }
-    case 'item/add': renderItems(s); void loadNewArt(); break;
+    case 'item/add': renderItems(s); raisePlayZoom(); void loadNewArt(); break;
     case 'game/reset': renderAll(); break;
     case 'room/wallpaper': case 'room/floor': case 'room/pattern': case 'room/wallTile': case 'room/floorTile': renderRoomBg(s); break;
     case 'char/update': case 'char/move':
@@ -1412,6 +1501,7 @@ function attachCharDrag(el: HTMLElement) {
         if (Math.abs(nx - lastX) > 3) { const flip = nx < lastX; if (flip !== cur.flip) store.dispatch({ type: 'char/update', id, patch: { flip } }); lastX = nx; }
         const y = Math.max(FLOOR_Y + 40, p.y + off.y);
         moveDoll(id, s.currentRoom, nx, y, null);
+        if (play.isPlay()) { playAim = seatUnderPointer(ev.clientX, ev.clientY)?.id ?? null; frameHouseKid(false); }
         // hovering a room tab = "walk to that room"
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('drop'));
         (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest('.tab:not(.on)')?.classList.add('drop');
@@ -1429,6 +1519,7 @@ function attachCharDrag(el: HTMLElement) {
         const p = toRoom(ev.clientX, ev.clientY);
         const releaseX = p.x + off.x;
         const releaseY = Math.max(FLOOR_Y + 40, p.y + off.y);
+        playAim = null;
         if (play.isPlay()) {
           const hit = seatUnderPointer(ev.clientX, ev.clientY);
           const drop = resolveDrop({ mode: 'play', via: 'drag', releaseX, releaseY, piece: hit ? seatPieceOf(hit) : null, occupied: takenSeats(id) });
@@ -1749,6 +1840,11 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorke
 (window as any).__avatar = { richAvatars, randomLook2, look2FromLegacy, legacyFromLook2, sanitizeLook2, handsFor };
 (window as any).__frameHouseKid = () => frameHouseKid(true);
 (window as any).__layoutNameTags = () => layoutNameTags();
+(window as any).__lie = {
+  bedArt, lieBedKinds, lieOffset, lieSpot,
+  box(kind: string) { const d = ITEM_MAP[kind]; return d ? { w: d.w, h: hOf(d) } : null; },
+};
+(window as any).__paint = () => { renderAvatars(); };
 
 
 // =====================================================================================
@@ -1812,6 +1908,7 @@ function renderAvatars() {
       el.classList.toggle('flipped', p.flip);
       el.classList.toggle('pose-sit', pose === 'sit');
       el.classList.toggle('pose-lie', pose === 'lie');
+      el.classList.toggle('pose-lie-r', pose === 'lie' && !!piece?.flip);
       stampAvatar(el, look, pid === hood.pid);
     }
   }
@@ -1833,6 +1930,7 @@ function attachMyAvatarDrag(el: HTMLElement) {
         const x = Math.max(40, Math.min(W - 40, q.x + off.x)), y = Math.max(FLOOR_Y + 40, Math.min(H, q.y + off.y));
         const flip = Math.abs(x - lastX) > 3 ? x < lastX : cur.flip; if (Math.abs(x - lastX) > 3) lastX = x;
         placeMe(cur, x, y, flip, null); renderAvatars(); renderMinimap(store.get());
+        if (play.isPlay()) { playAim = seatUnderPointer(ev.clientX, ev.clientY)?.id ?? null; frameHouseKid(false); }
       },
       onUp(ev) {
         el.classList.remove('lifted');
@@ -1841,6 +1939,7 @@ function attachMyAvatarDrag(el: HTMLElement) {
         const q = toRoom(ev.clientX, ev.clientY);
         const releaseX = Math.max(40, Math.min(W - 40, q.x + off.x));
         const releaseY = Math.max(FLOOR_Y + 40, Math.min(H, q.y + off.y));
+        playAim = null;
         if (play.isPlay()) {
           const hit = seatUnderPointer(ev.clientX, ev.clientY);
           const drop = resolveDrop({ mode: 'play', via: 'drag', releaseX, releaseY, piece: hit ? seatPieceOf(hit) : null, occupied: takenSeats(undefined, hood!.pid) });
@@ -3074,6 +3173,7 @@ function sitAt(it: PlacedItem) {
     if (!drop.moved) return;
     placeMe(me, drop.x, drop.y, false, drop.seat ? { id: drop.seat.item, pose: drop.seat.pose, n: drop.seat.n } : null);
     renderAvatars();
+    frameHouseKid(false);
     return;
   }
   const s = store.get();
@@ -3087,6 +3187,7 @@ function sitAt(it: PlacedItem) {
   if (drop.toast) { toast(drop.toast); sfx.pop(); return; }
   if (!drop.moved) return;
   moveDoll(c.id, s.currentRoom, drop.x, drop.y, drop.seat);
+  frameHouseKid(false);
 }
 function syncKennelBtn(el: HTMLElement, key: string, inside: boolean) {
   const mine = hood ? key === hood.pid : key === 'solo';
