@@ -315,7 +315,7 @@ async def polish_pass(b):
 
 async def main():
     async with async_playwright() as p:
-        b = await p.chromium.launch()
+        b = await getattr(p, os.environ.get("GR_BROWSER", "chromium")).launch()
         prod = []
         errs = {}
         async def mk(w=1024, h=768):
