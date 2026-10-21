@@ -3418,9 +3418,10 @@ function tickKennels() {
     }
     const pose = look === 'rest' ? 'sleep' : 'sit';
     if (r.pose !== pose || r.look !== look + spot.dog.breed) {
-      const keep = [...r.el.querySelectorAll('.bubble, .kennelBtn')];
-      r.el.innerHTML = `<div class="inner">${dogSVG(spot.dog.breed, pose)}</div>${look === 'rest' ? '<div class="zzz"><b>Zzz</b><i>z</i><i>z</i><i>z</i></div>' : ''}`;
-      for (const node of keep) r.el.appendChild(node);
+      // Swap only the drawing. Detaching and re-adding the speech bubble restarted its pop
+      // animation, so a rest/peek flip made the bubble shrink and bounce again mid-sentence.
+      for (const node of [...r.el.children]) if (!node.matches('.bubble, .kennelBtn')) node.remove();
+      r.el.insertAdjacentHTML('afterbegin', `<div class="inner">${dogSVG(spot.dog.breed, pose)}</div>${look === 'rest' ? '<div class="zzz"><b>Zzz</b><i>z</i><i>z</i><i>z</i></div>' : ''}`);
       r.pose = pose; r.look = look + spot.dog.breed;
     }
     r.el.dataset.name = spot.dog.name;
