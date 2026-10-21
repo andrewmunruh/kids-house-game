@@ -433,12 +433,14 @@ function phoneShowHouseKid() { frameHouseKid(false); }
 function playZoomFloor(): number {
   if (view !== 'house' || !play.isPlay()) return 0;
   if (Math.min(window.innerWidth, window.innerHeight) >= 500) return 0;
-  if (store.get().currentRoom === 'backyard') return 0;
+  // Same floor in every room, including the yard, so the stage does not jump at the door.
   let piece = 0;
-  for (const it of store.get().rooms[store.get().currentRoom].items) {
-    const def = ITEM_MAP[it.kind];
-    if (!def || def.wall) continue;
-    piece = Math.max(piece, def.w * (it.scale || 1));
+  for (const room of Object.values(store.get().rooms)) {
+    for (const it of room.items) {
+      const def = ITEM_MAP[it.kind];
+      if (!def || def.wall) continue;
+      piece = Math.max(piece, def.w * (it.scale || 1));
+    }
   }
   if (piece < 40) return 0;
   return Math.min(W, Math.ceil(piece / 0.55));
@@ -462,6 +464,8 @@ function raisePlayZoom() {
 }
 /** The piece she is sitting on, or the one under her finger in Play. */
 let playAim: string | null = null;
+/** True while her finger is down on a doll. Panning during that drag slides the furniture under the finger. */
+let charDrag = false;
 function playPairBounds(): { minX: number; maxX: number } | null {
   if (view !== 'house' || !play.isPlay()) return null;
   if (Math.min(window.innerWidth, window.innerHeight) >= 500) return null;
@@ -498,11 +502,18 @@ function frameHouseKid(nudgeX: boolean) {
     placeYardHints();
     return;
   }
+  if (charDrag) return;
   const pair = playPairBounds();
   if (pair) {
-    const span = pair.maxX - pair.minX;
     const pad = 20;
-    const cam = span + pad * 2 > VIEW_W ? pair.minX - pad : (pair.minX + pair.maxX) / 2 - VIEW_W / 2;
+    const span = pair.maxX - pair.minX;
+    let cam = camX;
+    if (span + pad * 2 > VIEW_W) cam = pair.minX - pad;
+    else {
+      if (pair.minX - pad < cam) cam = pair.minX - pad;
+      if (pair.maxX + pad > cam + VIEW_W) cam = pair.maxX + pad - VIEW_W;
+    }
+    cam = Math.max(0, Math.min(maxCam(), cam));
     if (Math.abs(cam - camX) > 0.5) setCam(cam);
     placeYardHints();
     return;
@@ -1492,6 +1503,7 @@ function attachCharDrag(el: HTMLElement) {
     const p0 = toRoom(e.clientX, e.clientY); const off = { x: c.x - p0.x, y: c.y - p0.y };
     let lastX = c.x, moved = false;
     el.classList.add('lifted'); sfx.pick(); renderChars(store.get());
+    charDrag = true;
     startDrag(e, {
       onMove(ev) {
         const p = toRoom(ev.clientX, ev.clientY); const nx = p.x + off.x;
@@ -1501,12 +1513,14 @@ function attachCharDrag(el: HTMLElement) {
         if (Math.abs(nx - lastX) > 3) { const flip = nx < lastX; if (flip !== cur.flip) store.dispatch({ type: 'char/update', id, patch: { flip } }); lastX = nx; }
         const y = Math.max(FLOOR_Y + 40, p.y + off.y);
         moveDoll(id, s.currentRoom, nx, y, null);
-        if (play.isPlay()) { playAim = seatUnderPointer(ev.clientX, ev.clientY)?.id ?? null; frameHouseKid(false); }
+        if (play.isPlay()) playAim = seatUnderPointer(ev.clientX, ev.clientY)?.id ?? null;
         // hovering a room tab = "walk to that room"
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('drop'));
         (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest('.tab:not(.on)')?.classList.add('drop');
       },
       onUp(ev) {
+        charDrag = false;
+        playAim = null;
         el.classList.remove('lifted'); document.querySelectorAll('.tab').forEach(t => t.classList.remove('drop'));
         const tab = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest<HTMLElement>('[data-room]');
         const cur = store.get().characters.find(x => x.id === id);
@@ -1519,7 +1533,6 @@ function attachCharDrag(el: HTMLElement) {
         const p = toRoom(ev.clientX, ev.clientY);
         const releaseX = p.x + off.x;
         const releaseY = Math.max(FLOOR_Y + 40, p.y + off.y);
-        playAim = null;
         if (play.isPlay()) {
           const hit = seatUnderPointer(ev.clientX, ev.clientY);
           const drop = resolveDrop({ mode: 'play', via: 'drag', releaseX, releaseY, piece: hit ? seatPieceOf(hit) : null, occupied: takenSeats(id) });
@@ -1922,6 +1935,7 @@ function attachMyAvatarDrag(el: HTMLElement) {
     const p0 = myPres(); if (!p0 || p0.where !== 'house') return;
     const q0 = toRoom(e.clientX, e.clientY), off = { x: p0.x - q0.x, y: p0.y - q0.y };
     let lastX = p0.x, moved = false; el.classList.add('lifted'); sfx.pick();
+    charDrag = true;
     startDrag(e, {
       onMove(ev) {
         const q = toRoom(ev.clientX, ev.clientY), cur = myPres(); if (!cur || cur.where !== 'house') return;
@@ -1930,16 +1944,17 @@ function attachMyAvatarDrag(el: HTMLElement) {
         const x = Math.max(40, Math.min(W - 40, q.x + off.x)), y = Math.max(FLOOR_Y + 40, Math.min(H, q.y + off.y));
         const flip = Math.abs(x - lastX) > 3 ? x < lastX : cur.flip; if (Math.abs(x - lastX) > 3) lastX = x;
         placeMe(cur, x, y, flip, null); renderAvatars(); renderMinimap(store.get());
-        if (play.isPlay()) { playAim = seatUnderPointer(ev.clientX, ev.clientY)?.id ?? null; frameHouseKid(false); }
+        if (play.isPlay()) playAim = seatUnderPointer(ev.clientX, ev.clientY)?.id ?? null;
       },
       onUp(ev) {
+        charDrag = false;
+        playAim = null;
         el.classList.remove('lifted');
         const cur = myPres();
         if (!moved || !cur || cur.where !== 'house') { sfx.click(); return; }
         const q = toRoom(ev.clientX, ev.clientY);
         const releaseX = Math.max(40, Math.min(W - 40, q.x + off.x));
         const releaseY = Math.max(FLOOR_Y + 40, Math.min(H, q.y + off.y));
-        playAim = null;
         if (play.isPlay()) {
           const hit = seatUnderPointer(ev.clientX, ev.clientY);
           const drop = resolveDrop({ mode: 'play', via: 'drag', releaseX, releaseY, piece: hit ? seatPieceOf(hit) : null, occupied: takenSeats(undefined, hood!.pid) });

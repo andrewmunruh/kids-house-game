@@ -44,7 +44,12 @@ async def kid_box(pg, cid):
       if (!el) return null;
       const r = el.getBoundingClientRect();
       if (r.width < 2) return null;
-      return { x: r.left + r.width / 2, y: r.top + r.height * 0.72, top: r.top, bottom: r.bottom, left: r.left, right: r.right };
+      const seated = el.classList.contains('pose-lie') || el.classList.contains('pose-sit');
+      const head = seated && el.querySelector('[data-dollhead]');
+      const h = head ? head.getBoundingClientRect() : null;
+      const x = h && h.width > 2 ? h.left + h.width / 2 : r.left + r.width / 2;
+      const y = h && h.height > 2 ? h.top + h.height / 2 : r.top + r.height * 0.72;
+      return { x, y, top: r.top, bottom: r.bottom, left: r.left, right: r.right };
     }""", cid)
 
 async def item_box(pg, iid):
@@ -207,16 +212,37 @@ async def run_size(pg, w, h):
     if (w, h) in SHOTS and lay['seat'] and lay['seat']['pose'] == 'lie':
         await pg.evaluate("""() => { const viewW = parseFloat(document.querySelector('.stage').style.width) || 1000; __cam.set(1500 - viewW / 2); }""")
         await shot(pg, f'lie-bed-{w}x{h}.png')
-    me = await kid_box(pg, cid)
+    # Empty floor beside the bed. Both the head and the drop stay out of the
+    # 80px edge-scroll band, so the camera cannot walk a parked bed under the finger.
     away = await pg.evaluate("""() => {
       const stage = document.querySelector('.stage');
       const st = stage.getBoundingClientRect();
       const view = parseFloat(stage.style.width) || 1;
       const sc = st.width / view;
-      const x = 1100, y = 540;
-      return { x: st.left + 6 * sc + (x - __cam.get()) * sc, y: st.top + 6 * sc + y * sc };
+      const inset = Math.min(110, Math.max(88, st.width * 0.18));
+      const dropRoom = 1180, dropY = 500;
+      const headRoom = 1422;
+      const span = (headRoom - dropRoom) * sc;
+      const roomAt = (sx, cam) => cam + (sx - st.left - 6 * sc) / sc;
+      let cam = dropRoom - (inset - 6 * sc) / sc;
+      cam = Math.max(0, Math.min(2400 - view, cam));
+      let headSx = st.left + 6 * sc + (headRoom - cam) * sc;
+      if (headSx > st.right - inset) {
+        cam = headRoom - (st.width - inset - 6 * sc) / sc;
+        cam = Math.max(0, Math.min(2400 - view, cam));
+        headSx = st.left + 6 * sc + (headRoom - cam) * sc;
+      }
+      __cam.set(cam);
+      const sx = st.left + 6 * sc + (dropRoom - cam) * sc;
+      const sy = st.top + 6 * sc + (dropY - 0) * sc;
+      return { x: sx, y: sy, cam, inset, headSx, span };
     }""")
-    await drag(pg, (me['x'], me['y']), (away['x'], away['y']))
+    await pg.wait_for_timeout(40)
+    me = await kid_box(pg, cid)
+    if not me or me['x'] < 8 or me['y'] < 8:
+        fail(f'{tag} lie head is off screen before the stand-up drag {me}')
+    else:
+        await drag(pg, (me['x'], me['y']), (away['x'], away['y']))
     stood = await state_of(pg, cid)
     if stood['seat']:
         fail(f'{tag} drag off the bed left a seat {stood}')
