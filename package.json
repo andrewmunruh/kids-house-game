@@ -20,7 +20,8 @@
     "test:phone": "/workspace/.pwvenv/bin/python phone_test.py",
     "test:ranch": "/workspace/.pwvenv/bin/python ranch_test.py",
     "test:ride": "/workspace/.pwvenv/bin/python ride_pose_test.py",
-    "test:whatsnew": "/workspace/.pwvenv/bin/python whatsnew_test.py"
+    "test:whatsnew": "/workspace/.pwvenv/bin/python whatsnew_test.py",
+    "test:sit": "vite-node tests/sit_test.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261016.1",
@@ -29,6 +30,7 @@
     "tsx": "^4.23.15",
     "typescript": "^5.5.0",
     "vite": "^5.4.0",
+    "vite-node": "2.1.9",
     "wrangler": "^4.151.1",
     "ws": "^8.22.0"
   }

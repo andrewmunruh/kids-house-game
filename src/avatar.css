@@ -61,7 +61,7 @@
 .char.pose-lie .leg, .char.pose-lie .arm,
 .avatar.pose-lie .leg, .avatar.pose-lie .arm { animation: none; }
 .char.pose-sit > .inner, .avatar.pose-sit > .inner { animation: none; transform: translateY(26%); }
-/* One turn. The SVG stays upright; this class is the only rotation. A flipped bed uses the mirror matrix. */
+/* One turn, flat on the mattress. The SVG stays upright; this class is the only rotation. A flipped bed uses the mirror matrix. */
 .layer .char.pose-lie > .inner,
 .char.avatar.pose-lie > .inner,
 .char.chibi.pose-lie > .inner,
@@ -69,7 +69,7 @@
 .char.chibi-bob.pose-lie > .inner,
 .char.pose-lie.pose-swing > .inner,
 .avatar.pose-lie > .inner {
-  animation: none; transform: rotate(-78deg); transform-origin: 40% 72%;
+  animation: none; transform: rotate(-90deg); transform-origin: 40% 72%;
 }
 .layer .char.pose-lie.pose-lie-r > .inner,
 .char.avatar.pose-lie.pose-lie-r > .inner,
@@ -78,9 +78,12 @@
 .char.pose-lie.pose-lie-r > .inner,
 .avatar.pose-lie.pose-lie-r > .inner {
   animation: none;
-  transform: matrix(-0.207912, -0.978148, -0.978148, 0.207912, 217.1989, 156.4494);
+  transform: matrix(0, -1, -1, 0, 210.24, 186.24);
   transform-origin: 0 0;
 }
+/* The standing tag sits above the box. A lying head is lower, so the tag comes down with her. */
+.char.pose-lie > .nametag,
+.avatar.pose-lie > .nametag { top: 54%; }
 .char.pose-lie > .inner svg,
 .char.avatar.pose-lie > .inner svg,
 .avatar.pose-lie > .inner svg { transform: none; }

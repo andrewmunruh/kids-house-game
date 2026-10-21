@@ -35,25 +35,25 @@ export interface BedArt {
 /** Measured on the WebP. Head targets keep the face off the headboard and the hips on the mattress. */
 const BED_ART: Record<string, BedArt> = {
   bed: {
-    head: { x: 0.24, y: 0.36 },
+    head: { x: 0.24, y: 0.42 },
     pillow: { x: 0.10, y: 0.27, w: 0.22, h: 0.18 },
     mattress: { x: 0.36, y: 0.34, w: 0.36, h: 0.16 },
     clip: 'starter',
   },
   'wooden-bed': {
-    head: { x: 0.22, y: 0.47 },
+    head: { x: 0.22, y: 0.53 },
     pillow: { x: 0.12, y: 0.36, w: 0.24, h: 0.18 },
     mattress: { x: 0.38, y: 0.46, w: 0.32, h: 0.16 },
     clip: 'wooden',
   },
   'checker-bed': {
-    head: { x: 0.16, y: 0.38 },
-    pillow: { x: 0.08, y: 0.26, w: 0.22, h: 0.18 },
+    head: { x: 0.16, y: 0.45 },
+    pillow: { x: 0.08, y: 0.26, w: 0.22, h: 0.22 },
     mattress: { x: 0.38, y: 0.40, w: 0.32, h: 0.16 },
     clip: 'checker',
   },
   'bunk-bed': {
-    head: { x: 0.11, y: 0.58 },
+    head: { x: 0.11, y: 0.62 },
     pillow: { x: 0.05, y: 0.52, w: 0.18, h: 0.14 },
     mattress: { x: 0.22, y: 0.56, w: 0.36, h: 0.14 },
     clip: 'bunk',
@@ -96,7 +96,8 @@ export function bedArt(kind: string): BedArt | null {
 }
 
 /**
- * One CSS turn, rotate(-78deg) around 40% 72% of the 120×192 box.
+ * One CSS turn, rotate(-90deg) around 40% 72% of the 120×192 box.
+ * That lays her flat on the mattress. -78 left her feet about 12° up.
  * Points are the chibi head, chest, and hip before that turn.
  * A flipped bed mirrors the result; the SVG is not rotated as well.
  */
@@ -110,7 +111,7 @@ const LIE_OX = 48;
 const LIE_OY = 138.24;
 
 function lieTurn(px: number, py: number): { x: number; y: number } {
-  const rad = -78 * Math.PI / 180;
+  const rad = -90 * Math.PI / 180;
   const c = Math.cos(rad), s = Math.sin(rad);
   const dx = px - LIE_OX, dy = py - LIE_OY;
   const x = LIE_OX + c * dx - s * dy;
@@ -240,6 +241,44 @@ export function resolveDrop(opts: {
     if (d < bestD) { best = a; bestD = d; }
   }
   return { x: best.x, y: best.y, seat: { item: piece.id, pose: best.pose, n: best.n }, toast: null, moved: true };
+}
+
+/** Drawn width of a seat, without scale. Unknown kinds use a wide default so she clears the piece. */
+const PIECE_W: Record<string, number> = {
+  sofa: 260, armchair: 150, bed: 300, chair: 100, stool: 90, rocker: 190, 'yard-bench': 140,
+  'bar-stool': 52.8, 'bunk-bed': 294, 'canopy-bed': 294, 'cc-bubble-chair': 142, 'cc-canopy-daybed': 276,
+  'cc-dryer-chair': 164, 'cc-heart-bed': 236, 'cc-mani-chair': 188, 'cc-mushroom-stool': 112,
+  'cc-scallop-loveseat': 248, 'checker-bed': 196, 'cloud-sofa': 212, 'comfy-armchair': 161.7,
+  'cream-sofa': 234.6, 'egg-chair': 126, 'fancy-sofa': 234.6, 'gaming-chair': 101.4, 'lattice-bench': 147,
+  'puffy-stool': 46.9, 'rocking-chair': 137.2, 'salon-chair': 111.8, 'swivel-stool': 46.2,
+  'waiting-bench': 166.6, 'wash-chair': 186.2, 'wood-armchair': 127.4, 'wood-stool': 46.2, 'wooden-bed': 235.2,
+};
+
+export function pieceWidth(kind: string): number {
+  const k = String(kind || '').toLowerCase().replace(/^pack:/, '');
+  return PIECE_W[k] ?? 320;
+}
+
+/** Standing feet. The same y a new kid starts on. */
+export const STAND_Y = 540;
+
+/**
+ * Floor beside the piece she was on. `fromX` picks the side she was already
+ * closer to. A 70px gap clears her 120px body. The other side is used when
+ * the first one would leave the room.
+ */
+export function standBeside(itemX: number, itemW: number, fromX: number, roomW = 2400): { x: number; y: number } {
+  const reach = Math.max(0, itemW) / 2 + 70;
+  const edge = 40;
+  let side = fromX < itemX - 8 ? -1 : 1;
+  let x = itemX + side * reach;
+  if (x < edge || x > roomW - edge) {
+    side = -side;
+    x = itemX + side * reach;
+  }
+  if (x < edge) x = edge;
+  if (x > roomW - edge) x = roomW - edge;
+  return { x, y: STAND_Y };
 }
 
 /** Moving past 6px, flipping, deleting, or holding stands her. A tap, front, and back do not. */

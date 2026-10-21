@@ -4,7 +4,7 @@ import { sanitizeLook2, withRandomStarter, type Look2 } from './avatar';
 // so a future multiplayer server can validate/relay the same actions.
 import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plot, type RanchOp } from './ranch';
 import { keepMailbox, type Mailbox } from './mail';
-import { cleanDollSeat, seatStillThere, type DollSeat } from './sit';
+import { cleanDollSeat, pieceWidth, seatStillThere, standBeside, type DollSeat } from './sit';
 export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon' | 'nursery' | 'backyard';
 /** Display order is the client's tab list. The backyard is a room, not a tab. */
 export const ROOM_IDS: RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard'];
@@ -169,13 +169,26 @@ export function standChar(c: Character): Character {
   return rest;
 }
 
-/** She is not carried. x and y stay at the anchor she already had. */
-function clearSeatsOn(s: GameState, itemId: string): GameState {
+/** The piece a seat was just cleared from, so the local player can stand beside it too. */
+export interface ClearedPiece { id: string; x: number; kind: string; scale: number }
+let clearedFurniture: ClearedPiece | null = null;
+export function takeClearedFurniture(): ClearedPiece | null {
+  const v = clearedFurniture;
+  clearedFurniture = null;
+  return v;
+}
+
+/** She is not carried. She stands on the floor beside where the piece was. */
+function clearSeatsOn(s: GameState, itemId: string, item: { x: number; kind: string; scale: number } | null): GameState {
+  if (item) clearedFurniture = { id: itemId, x: item.x, kind: item.kind, scale: item.scale || 1 };
   let changed = false;
   const characters = s.characters.map(c => {
     if (c.seat?.item !== itemId) return c;
     changed = true;
-    return standChar(c);
+    if (!item) return standChar(c);
+    const spot = standBeside(item.x, pieceWidth(item.kind) * (item.scale || 1), c.x);
+    const { seat: _drop, ...rest } = c;
+    return { ...rest, x: spot.x, y: spot.y };
   });
   return changed ? { ...s, characters } : s;
 }
@@ -255,21 +268,27 @@ export function ensureRooms<T extends { rooms?: GameState['rooms'] | null }>(s: 
 
 /** Pure reducer: (state, action) -> new state. Safe to run on server too. */
 export function reduce(s: GameState, a: Action): GameState {
+  clearedFurniture = null;
   switch (a.type) {
     case 'room/switch': return s.rooms[a.room] ? { ...s, currentRoom: a.room } : s;
     case 'item/add': return mapItems(s, a.room, r =>
       (r.items.length >= 80 || r.items.some(i => i.id === a.item.id)) ? r :
       ({ ...r, items: [...r.items, { ...a.item, z: maxZ(r) + 1 }] }));
     case 'item/move': {
+      const prev = s.rooms[a.room]?.items.find(i => i.id === a.id) ?? null;
       const moved = mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, x: clamp(a.x, 0, ROOM_W), y: clamp(a.y, 40, ROOM_H) } : i) }));
-      return a.stand ? clearSeatsOn(moved, a.id) : moved;
+      return a.stand ? clearSeatsOn(moved, a.id, prev) : moved;
     }
-    case 'item/flip': return clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, flip: !i.flip } : i) })), a.id);
+    case 'item/flip': {
+      const prev = s.rooms[a.room]?.items.find(i => i.id === a.id) ?? null;
+      return clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, flip: !i.flip } : i) })), a.id, prev);
+    }
     case 'item/front': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, z: maxZ(r) + 1 } : i) }));
     case 'item/back': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, z: minZ(r) - 1 } : i) }));
     case 'item/delete': {
-      const gone = s.rooms[a.room]?.items.some(i => i.id === a.id && i.kind === 'kennel');
-      const next = clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.filter(i => i.id !== a.id) })), a.id);
+      const prev = s.rooms[a.room]?.items.find(i => i.id === a.id) ?? null;
+      const gone = prev?.kind === 'kennel';
+      const next = clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.filter(i => i.id !== a.id) })), a.id, prev);
       return gone && s.dogKennel?.item === a.id ? { ...next, dogKennel: null } : next;
     }
     case 'room/wallpaper': return mapItems(s, a.room, r => ({ ...r, wallpaper: a.color }));
@@ -299,7 +318,7 @@ export function reduce(s: GameState, a: Action): GameState {
     case 'char/hold': {
       const c = s.characters.find(c => c.id === a.id); const it = s.rooms[a.room]?.items.find(i => i.id === a.itemId);
       if (!c || !it || c.held[a.hand] || c.room !== a.room) return s;
-      const next = clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.filter(i => i.id !== a.itemId) })), a.itemId);
+      const next = clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.filter(i => i.id !== a.itemId) })), a.itemId, it);
       const held = mapChar(next, a.id, ch => ({ ...ch, held: { ...ch.held, [a.hand]: it } }));
       return it.kind === 'kennel' && s.dogKennel?.item === a.itemId ? { ...held, dogKennel: null } : held;
     }

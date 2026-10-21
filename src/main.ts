@@ -4,13 +4,13 @@ import './scenery.css';
 import './mail.css';
 import './avatar.css';
 import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapPortraitBgSVG, mapTreesSVG, portraitMeadowSVG, mapSkySVG, mapMeadowSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
-import { createStore, newCharacter, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
+import { createStore, newCharacter, takeClearedFurniture, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
 import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterSay, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, cleanPetName, CAT_NAMES, DOG_NAMES, PARK_W, PARK_SPOTS, SLIDE, DOG_AREA, mailIsFree, type Presence, type Bubble, type Look, type Fx } from './shared/hood';
 import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } from './pets';
 import { mailboxArt, installMail } from './mail';
 import { installPlayMode, playGesture } from './playmode';
-import { bedArt, lieBedKinds, lieOffset, lieSpot, resolveDrop, seatFractions, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
+import { bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, standBeside, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
 import { poseNamed } from './avatar/sit';
 import { unreadCount } from './shared/mail';
 import { parkSceneSVG, swingSVG, ballSVG, treeIcon, pawIcon, gateIcon, streetGateSVG, PARK_H, SWING_BAR } from './park';
@@ -430,16 +430,28 @@ function phoneShowHouseKid() { frameHouseKid(false); }
  * Play on a short screen. The widest floor piece stays at most about 55% of the view,
  * so a bed does not fill a phone. iPad sizes are over 500 on the short side.
  */
+function widestFloorPiece(items: { kind: string; scale: number }[]): number {
+  let piece = 0;
+  for (const it of items) {
+    const def = ITEM_MAP[it.kind];
+    if (!def || def.wall) continue;
+    piece = Math.max(piece, def.w * (it.scale || 1));
+  }
+  return piece;
+}
 function playZoomFloor(): number {
   if (view !== 'house' || !play.isPlay()) return 0;
   if (Math.min(window.innerWidth, window.innerHeight) >= 500) return 0;
-  // Same floor in every room, including the yard, so the stage does not jump at the door.
-  let piece = 0;
-  for (const room of Object.values(store.get().rooms)) {
-    for (const it of room.items) {
-      const def = ITEM_MAP[it.kind];
-      if (!def || def.wall) continue;
-      piece = Math.max(piece, def.w * (it.scale || 1));
+  // This room's widest piece, so a bedroom is not shrunk to fit the nursery rug.
+  // The yard stays at least as wide as the busiest indoor room, so the door and
+  // the play set still share one frame with the living room.
+  const rooms = store.get().rooms;
+  const here = store.get().currentRoom;
+  let piece = widestFloorPiece(rooms[here]?.items ?? []);
+  if (here === 'backyard') {
+    for (const id of Object.keys(rooms) as RoomId[]) {
+      if (id === 'backyard') continue;
+      piece = Math.max(piece, widestFloorPiece(rooms[id].items));
     }
   }
   if (piece < 40) return 0;
@@ -1291,6 +1303,7 @@ function refreshShelfArt(): void {
 }
 
 function clearMySeatIfFurniture(a: Action) {
+  const piece = takeClearedFurniture();
   if (!hood) return;
   const me = myPres();
   if (!me || me.where !== 'house' || !me.seat) return;
@@ -1300,9 +1313,12 @@ function clearMySeatIfFurniture(a: Action) {
   else if (a.type === 'char/hold') id = a.itemId;
   else return;
   if (!id || me.seat.id !== id || a.room !== me.room) return;
-  const { seat: _drop, ...rest } = me;
+  const where = piece && piece.id === id ? piece : null;
+  const w = where ? pieceWidth(where.kind) * (where.scale || 1) : pieceWidth('bed');
+  const spot = standBeside(where ? where.x : me.x, w, me.x);
   localPose.delete('p:' + hood.pid);
-  setMyPres(rest);
+  const { seat: _drop, ...rest } = me;
+  setMyPres({ ...rest, x: spot.x, y: spot.y });
 }
 store.subscribe((s, a) => {
   clearMySeatIfFurniture(a);
@@ -1310,18 +1326,9 @@ store.subscribe((s, a) => {
     case 'room/switch': {
       const wasYard = stage.classList.contains('room-yard');
       if (hood && inner !== local) moveMeToRoom(a.room);
-      const zoomed = withPlayZoomFloor(VIEW_W);
-      if (zoomed !== VIEW_W) {
-        VIEW_W = zoomed;
-        stage.style.width = VIEW_W + 'px';
-        const wrap = $('stageWrap');
-        const sc = Math.min(wrap.clientWidth / VIEW_W, wrap.clientHeight / H);
-        stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
-        if (document.body.classList.contains('phone')) stage.style.setProperty('--fit', String(sc));
-        if (camX > maxCam()) setCam(camX);
-      }
       renderAll(); renderDrawer();
-      if (a.room === 'backyard' || wasYard) fit();
+      // Phone Play refits so a smaller room can use the height the previous room gave up.
+      if (a.room === 'backyard' || wasYard || (play.isPlay() && Math.min(window.innerWidth, window.innerHeight) < 500)) fit();
       void refreshArt(a.room);
       break;
     }

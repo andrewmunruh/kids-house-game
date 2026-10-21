@@ -270,18 +270,24 @@ async def run_size(pg, w, h):
       __cam.set(it.x - viewW / 2);
     }""", cid)
     await pg.wait_for_timeout(80)
-    held = await state_of(pg, cid)
+    old_sofa = await pg.evaluate("""() => __store.get().rooms.living.items.find(i => i.id === 'sit-sofa').x""")
     sofa = await item_box(pg, 'sit-sofa')
     # Grab the left arm, clear of the doll on the right cushion.
     await drag(pg, (sofa['left'] + 12, sofa['top'] + sofa['h'] * 0.55), (sofa['left'] + 90, sofa['top'] + sofa['h'] * 0.55))
     after = await state_of(pg, cid)
     moved = await pg.evaluate("""() => { const it = __store.get().rooms.living.items.find(i => i.id === 'sit-sofa'); return it.x; }""")
+    # Right cushion, so she stands on the right of the sofa she left.
+    expect_x = old_sofa + 260 / 2 + 70
     if after['seat']:
         fail(f'{tag} moving the sofa left her seated {after}')
-    if abs(after['x'] - held['x']) > 1.5 or abs(after['y'] - held['y']) > 1.5:
-        fail(f'{tag} she was carried {after} from {held}')
-    if abs(moved - 1500) < 6:
-        fail(f'{tag} sofa did not move {moved}')
+    # The first pixels of a drag move the piece before she stands, so the spot is a few pixels off the rest position.
+    if abs(after['y'] - 540) > 1.5 or abs(after['x'] - expect_x) > 12:
+        fail(f'{tag} she is not on the floor beside the old sofa {after} expected {expect_x} from {old_sofa}')
+    if abs(moved - old_sofa) < 6:
+        fail(f'{tag} sofa did not move {old_sofa} -> {moved}')
+    if (w, h) in SHOTS:
+        await pg.evaluate("""(x) => { const viewW = parseFloat(document.querySelector('.stage').style.width) || 1000; __cam.set(x - viewW / 2); }""", after['x'])
+        await pg.locator('.stage').screenshot(path=f'{OUT}/stand-floor-move-{w}x{h}.png')
     # Play does not drag furniture, and a slip does not sit anyone.
     await pg.click('#modePlay')
     await pg.evaluate("""(cid) => { const s = __store; s.dispatch({ type: 'char/move', id: cid, room: 'living', x: 1200, y: 540, seat: null }); }""", cid)
@@ -295,6 +301,25 @@ async def run_size(pg, w, h):
         fail(f'{tag} a play slip sat someone {slip}')
     if abs(x1 - x0) > 1:
         fail(f'{tag} play slip moved the sofa {x0} -> {x1}')
+    # Flipping the bed stands her on the floor beside where it was.
+    await pg.click('#modeDecorate')
+    cid = await ready(pg, 'bedroom', 'bed', 'sit-bed', 1500, 1400)
+    stood_flip = await pg.evaluate("""(cid) => {
+      const s = __store;
+      const it = s.get().rooms.bedroom.items.find(i => i.id === 'sit-bed');
+      s.dispatch({ type: 'char/move', id: cid, room: 'bedroom', x: it.x - 30, y: 470, seat: { item: 'sit-bed', pose: 'lie', n: 0 } });
+      const oldX = it.x;
+      s.dispatch({ type: 'item/flip', room: 'bedroom', id: 'sit-bed' });
+      const c = s.get().characters.find(c => c.id === cid);
+      const viewW = parseFloat(document.querySelector('.stage').style.width) || 1000;
+      __cam.set(c.x - viewW / 2);
+      return { x: c.x, y: c.y, seat: c.seat || null, oldX };
+    }""", cid)
+    if stood_flip['seat'] or abs(stood_flip['y'] - 540) > 1.5 or abs(stood_flip['x'] - stood_flip['oldX']) <= 150:
+        fail(f'{tag} flipping the bed did not stand her on the floor {stood_flip}')
+    if (w, h) in SHOTS:
+        await pg.wait_for_timeout(80)
+        await pg.locator('.stage').screenshot(path=f'{OUT}/stand-floor-flip-{w}x{h}.png')
     print(f'{tag} checked', flush=True)
 
 async def main():

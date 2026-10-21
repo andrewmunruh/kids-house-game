@@ -4,6 +4,7 @@
 // Letters are kept on the server for up to 30 days: filtered more strictly than chat, first names only.
 // A kid can leave three unread letters in one mailbox. A grown-up can clear them, or limit new letters to preset phrases.
 import { reduce, initialState, ensureRooms, type GameState, type Dog, type Action } from '../src/shared/state';
+import { pieceWidth, standBeside } from '../src/shared/sit';
 import { withRandomStarter } from '../src/shared/avatar';
 import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, applyLook, cleanPresence, cleanHouseName,
@@ -190,13 +191,16 @@ export class Neighborhood {
       this.send(x, { t: 'pres', pid, p: p ? this.viewPresence(p, x) : null });
     }
   }
-  /** Furniture moved, flipped, deleted, or held. She stands at her last anchor. Her x and y stay. */
-  private dropPresenceSeats(houseId: string, room: string, itemId: string) {
+  /** Furniture moved, flipped, deleted, or held. She stands on the floor beside where it was. */
+  private dropPresenceSeats(houseId: string, room: string, item: { id: string; x: number; kind: string; scale: number }) {
+    const w = pieceWidth(item.kind) * (item.scale || 1);
     for (const [pid, p] of this.presence) {
-      if (p.where !== 'house' || p.houseId !== houseId || p.room !== room || p.seat?.id !== itemId) continue;
+      if (p.where !== 'house' || p.houseId !== houseId || p.room !== room || p.seat?.id !== item.id) continue;
+      const spot = standBeside(item.x, w, p.x);
       const { seat: _drop, ...rest } = p;
-      this.presence.set(pid, rest);
-      this.broadcastPresence(pid, rest);
+      const next = { ...rest, x: spot.x, y: spot.y };
+      this.presence.set(pid, next);
+      this.broadcastPresence(pid, next);
     }
   }
   private wireHouse(h: HouseFull, c: Conn): HouseFull {
@@ -454,6 +458,9 @@ export class Neighborhood {
         // An old stored house may still be missing a room if it was loaded before this process filled it.
         // Fill first so reduce never throws, and so a living-room edit cannot save a copy that dropped the nursery.
         const ready = ensureRooms(h.state);
+        const standId = a.type === 'item/flip' || a.type === 'item/delete' || (a.type === 'item/move' && a.stand) ? a.id
+          : a.type === 'char/hold' ? a.itemId : '';
+        const stoodOn = standId ? ready.rooms[a.room]?.items.find(i => i.id === standId) : undefined;
         const next: GameState = reduce(ready, a);
         if (next === h.state) return nack('noop');
         if (JSON.stringify(next).length > MAX_HOUSE_JSON) return nack('toobig');
@@ -462,8 +469,7 @@ export class Neighborhood {
         // an old reducer has no default and would wipe the house if it saw an unknown action.
         // seat rides only to clients that said sit:1. Everyone else gets the same x and y.
         this.broadcastAct(h.id, me.pid, cid, a, c, catAct, kennelAct);
-        if (a.type === 'item/flip' || a.type === 'item/delete' || (a.type === 'item/move' && a.stand)) this.dropPresenceSeats(h.id, a.room, a.id);
-        if (a.type === 'char/hold') this.dropPresenceSeats(h.id, a.room, a.itemId);
+        if (stoodOn) this.dropPresenceSeats(h.id, a.room, stoodOn);
         return;
       }
       case 'pres': {

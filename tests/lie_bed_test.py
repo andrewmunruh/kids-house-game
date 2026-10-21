@@ -191,8 +191,8 @@ async def run_sizes(pg):
                     else:
                         a, b = m['matrix'][0], m['matrix'][1]
                         det = a * m['matrix'][3] - b * m['matrix'][2]
-                        if not flip and (a < 0.05 or abs(b) < 0.9):
-                            fail(tag + f' not a single -78 turn {m["matrix"][:4]}')
+                        if not flip and (abs(a) > 0.2 or abs(b) < 0.9):
+                            fail(tag + f' not a flat lie {m["matrix"][:4]}')
                         if flip and det > -0.5:
                             fail(tag + f' flipped pose did not mirror {det:.2f}')
                     if bool(m['poseR']) != flip:
@@ -281,22 +281,31 @@ async def own_avatar(browser):
       const m = t && t !== 'none' ? t.slice(7, -1).split(',').map(Number) : null;
       const z = getComputedStyle(el, '::after').content || '';
       const svg = el.querySelector('svg');
+      const tag = el.querySelector('.nametag');
+      const head = el.querySelector('[data-dollhead]');
+      const tr = tag ? tag.getBoundingClientRect() : null;
+      const hr = head ? head.getBoundingClientRect() : null;
+      const kr = el.getBoundingClientRect();
       return {
         lie: el.classList.contains('pose-lie'),
         matrix: m,
         z,
         chibi: el.classList.contains('chibi'),
         svgTurn: !!(svg && svg.outerHTML.indexOf('rotate(-78') >= 0),
+        tagLow: !!(tr && hr && tr.top > kr.top + 8 && tr.bottom > hr.top - 4 && tr.top < hr.bottom),
+        tagTop: tag ? getComputedStyle(tag).top : '',
       };
     }""")
     if got.get('missing') or not got.get('lie'):
         fail('own avatar is not lying ' + str(got))
-    elif not got.get('matrix') or got['matrix'][0] < 0.05 or abs(got['matrix'][1]) < 0.9:
+    elif not got.get('matrix') or abs(got['matrix'][0]) > 0.2 or abs(got['matrix'][1]) < 0.9:
         fail('own avatar is upright ' + str(got.get('matrix')))
     elif 'z z' not in (got.get('z') or ''):
         fail('own avatar missing z z')
     elif got.get('svgTurn'):
         fail('own avatar svg rotates as well')
+    elif not got.get('tagLow'):
+        fail('lying name tag is still at standing height ' + str(got.get('tagTop')))
     else:
         print('own avatar lies', 'chibi' if got.get('chibi') else 'classic', flush=True)
     await pg.locator('.stage').screenshot(path=f'{OUT}/avatar-lie-820x1180.png')
@@ -318,7 +327,7 @@ async def own_avatar(browser):
       const inside = (r) => r && r.left > stage.left - 8 && r.right < stage.right + 8 && r.top > stage.top - 8 && r.bottom < stage.bottom + 40;
       return { matrix: m, widest, bedIn: inside(br), headIn: inside(hr), lie: !!(el && el.classList.contains('pose-lie')) };
     }""")
-    if not phone.get('lie') or not phone.get('matrix') or phone['matrix'][0] < 0.05:
+    if not phone.get('lie') or not phone.get('matrix') or abs(phone['matrix'][0]) > 0.2 or abs(phone['matrix'][1]) < 0.9:
         fail('390 own avatar upright ' + str(phone.get('matrix')))
     if phone.get('widest', 1) > 0.58:
         fail(f'390 play zoom {phone.get("widest")}')
