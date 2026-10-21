@@ -4,6 +4,7 @@ import { RANCH_W, BARN_W, RANCH_Y0, RANCH_Y1, HORSES, ANIMALS, FOODS, type Baske
 import { GAMEROOM_W, type TablePub, type TableOp } from './games/index';
 import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, validKennel, ROOM_W, ROOM_H, MAX_CHARS, ROOM_IDS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
 import { sanitizeLook2, type Look2 } from './avatar';
+import { cleanDollSeat, cleanPresSeat, seatStillThere, type DollSeat, type PresSeat } from './sit';
 import { CATALOG_NAMES } from './catalog-names';
 import { MAIL_COLORS, MAIL_MAX, MAIL_STICKERS, keepMailbox, type Mailbox } from './mail';
 
@@ -650,12 +651,15 @@ export function applyLook(prev: Look | null | undefined, incoming: unknown): Loo
 }
 function cleanCharacter(c: any): Character | null {
   const id = str(c?.id, ID_RE); if (!id || !isRoom(c?.room)) return null;
-  return newCharacter({ ...cleanLook(c), id, room: c.room, x: num(c.x, 0, ROOM_W) ?? ROOM_W / 2, y: num(c.y, 60, ROOM_H) ?? 540, flip: c.flip === true,
+  const ch = newCharacter({ ...cleanLook(c), id, room: c.room, x: num(c.x, 0, ROOM_W) ?? ROOM_W / 2, y: num(c.y, 60, ROOM_H) ?? 540, flip: c.flip === true,
     held: { left: c.held?.left ? cleanItem(c.held.left) : null, right: c.held?.right ? cleanItem(c.held.right) : null } });
+  const seat = cleanDollSeat(c?.seat);
+  if (seat) ch.seat = seat;
+  return ch;
 }
 
 // ---------- pets ----------
-export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1. A grown-up mailbox listing is an optional field on parentInfo; old clients ignore it. settings.freeMail is optional too: missing means letters follow freeChat.
+export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1. A seat rides on char/move and on house presence, and is forwarded only to clients that say sit:1. There is no PROTOCOL 5. A grown-up mailbox listing is an optional field on parentInfo; old clients ignore it. settings.freeMail is optional too: missing means letters follow freeChat.
 export const PROTO_PETS = 2, PROTO_RANCH = 3, PROTO_GAMES = 4;
 export const CAT_NAMES = ['Mittens', 'Luna', 'Biscuit', 'Pumpkin', 'Whiskers', 'Mochi', 'Pepper', 'Noodle', 'Ginger', 'Socks'];
 export const DOG_NAMES = ['Buddy', 'Coco', 'Max', 'Daisy', 'Peanut', 'Rocket', 'Bella', 'Waffles', 'Scout', 'Honey'];
@@ -684,14 +688,23 @@ export function cleanAction(a: any): Action | null {
   const room = a.room;
   switch (a.type) {
     case 'item/add': { const item = cleanItem(a.item); return isRoom(room) && item ? { type: a.type, room, item } : null; }
-    case 'item/move': { const id = str(a.id, ID_RE), x = num(a.x, 0, ROOM_W), y = num(a.y, 0, ROOM_H); return isRoom(room) && id && x !== null && y !== null ? { type: a.type, room, id, x, y } : null; }
+    case 'item/move': { const id = str(a.id, ID_RE), x = num(a.x, 0, ROOM_W), y = num(a.y, 0, ROOM_H); return isRoom(room) && id && x !== null && y !== null ? { type: a.type, room, id, x, y, ...(a.stand === true ? { stand: true as const } : {}) } : null; }
     case 'item/flip': case 'item/front': case 'item/back': case 'item/delete': { const id = str(a.id, ID_RE); return isRoom(room) && id ? { type: a.type, room, id } : null; }
     case 'room/wallpaper': case 'room/floor': { const color = str(a.color, COLOR_RE, 9); return isRoom(room) && color ? { type: a.type, room, color } : null; }
     case 'room/pattern': { const p = num(a.pattern, 0, 3); return isRoom(room) && p !== null ? { type: a.type, room, pattern: Math.round(p) } : null; }
     case 'room/wallTile': case 'room/floorTile': { if (!isRoom(room)) return null; if (a.tile === null) return { type: a.type, room, tile: null }; const t = str(a.tile, TILE_RE, 101); return t ? { type: a.type, room, tile: t } : null; }
-    case 'char/add': { const c = cleanCharacter(a.char); return c ? { type: a.type, char: { ...c, held: { left: null, right: null } } } : null; }
+    case 'char/add': { const c = cleanCharacter(a.char); if (!c) return null; const { seat: _drop, ...rest } = c; return { type: a.type, char: { ...rest, held: { left: null, right: null } } }; }
     case 'char/update': { const id = str(a.id, ID_RE), patch = cleanLookPatch(a.patch); return id && patch ? { type: a.type, id, patch } : null; }
-    case 'char/move': { const id = str(a.id, ID_RE), x = num(a.x, 0, ROOM_W), y = num(a.y, 60, ROOM_H); return id && isRoom(room) && x !== null && y !== null ? { type: a.type, id, room, x, y } : null; }
+    case 'char/move': {
+      const id = str(a.id, ID_RE), x = num(a.x, 0, ROOM_W), y = num(a.y, 60, ROOM_H);
+      if (!id || !isRoom(room) || x === null || y === null) return null;
+      const base = { type: 'char/move' as const, id, room, x, y };
+      if (!('seat' in a)) return base;
+      if (a.seat === null) return { ...base, seat: null };
+      const seat = cleanDollSeat(a.seat);
+      // A bad seat is dropped. The move still happens, and she stands.
+      return { ...base, seat: seat ?? null };
+    }
     case 'char/delete': { const id = str(a.id, ID_RE); return id ? { type: a.type, id } : null; }
     case 'char/hold': { const id = str(a.id, ID_RE), itemId = str(a.itemId, ID_RE); return id && itemId && isRoom(room) && (a.hand === 'left' || a.hand === 'right') ? { type: a.type, id, hand: a.hand, room, itemId } : null; }
     case 'char/release': { const id = str(a.id, ID_RE), x = num(a.x, 0, ROOM_W), y = num(a.y, 0, ROOM_H); return id && x !== null && y !== null && (a.hand === 'left' || a.hand === 'right') ? { type: a.type, id, hand: a.hand, x, y } : null; }
@@ -716,7 +729,14 @@ export function cleanHouseState(raw: any): GameState {
       items: (Array.isArray(src.items) ? src.items : []).slice(0, 80).map(cleanItem).filter(Boolean) as PlacedItem[],
     };
   }
-  const characters = (Array.isArray(s.characters) ? s.characters : []).slice(0, MAX_CHARS).map(cleanCharacter).filter(Boolean) as Character[];
+  const characters = ((Array.isArray(s.characters) ? s.characters : []).slice(0, MAX_CHARS).map(cleanCharacter).filter(Boolean) as Character[])
+    .map(c => {
+      const seat = seatStillThere(c.seat, rooms[c.room]?.items);
+      if (seat) return c.seat === seat ? c : { ...c, seat };
+      if (!c.seat) return c;
+      const { seat: _drop, ...rest } = c;
+      return rest;
+    });
   const cat = (s as any).cat ? cleanCat((s as any).cat) : null;
   const dogKennel = validKennel({ dogKennel: (s as any).dogKennel, rooms });
   const mailbox = filterMailbox((s as any).mailbox);
@@ -773,8 +793,8 @@ export const PARK_SPOTS: ParkSpot[] = [
 ];
 export const SLIDE = { top: { x: 905, y: 330 }, bottom: { x: 1110, y: 545 }, ladder: 850 };
 export const DOG_AREA = { x0: 2440, x1: 2840, y0: 470, y1: 585 };
-export interface Presence { where: 'street' | 'house' | 'park' | 'ranch' | 'barn' | 'gameroom'; houseId?: string; room?: RoomId; x: number; y: number; flip: boolean; pose?: Pose; spot?: number; ride?: number }
-export function cleanPresence(p: any, houseExists: (id: string) => boolean): Presence | null {
+export interface Presence { where: 'street' | 'house' | 'park' | 'ranch' | 'barn' | 'gameroom'; houseId?: string; room?: RoomId; x: number; y: number; flip: boolean; pose?: Pose; spot?: number; ride?: number; seat?: PresSeat }
+export function cleanPresence(p: any, houseExists: (id: string) => boolean, itemInRoom?: (houseId: string, room: RoomId, id: string) => boolean): Presence | null {
   if (!p || (p.where !== 'street' && p.where !== 'house' && p.where !== 'park' && p.where !== 'ranch' && p.where !== 'barn' && p.where !== 'gameroom')) return null;
   const x = num(p.x, 0, 20000), y = num(p.y, 0, ROOM_H); if (x === null || y === null) return null;
   if (p.where === 'street') return { where: 'street', x, y, flip: p.flip === true };
@@ -794,7 +814,11 @@ export function cleanPresence(p: any, houseExists: (id: string) => boolean): Pre
     return out;
   }
   const houseId = str(p.houseId, ID_RE); if (!houseId || !houseExists(houseId) || !isRoom(p.room)) return null;
-  return { where: 'house', houseId, room: p.room, x: Math.min(x, ROOM_W), y, flip: p.flip === true };
+  const out: Presence = { where: 'house', houseId, room: p.room, x: Math.min(x, ROOM_W), y, flip: p.flip === true };
+  // A bad seat is dropped. x and y still arrive, so she is standing at that point.
+  const seat = cleanPresSeat(p.seat);
+  if (seat && (!itemInRoom || itemInRoom(houseId, p.room, seat.id))) out.seat = seat;
+  return out;
 }
 export const sameSpot = (a: Presence, b: Presence) => a.where === b.where && (a.where !== 'house' || (a.houseId === b.houseId && a.room === b.room));
 
@@ -825,8 +849,8 @@ export interface HouseFull extends HouseMeta { state: GameState }
 export type Bubble = { kind: 'phrase' | 'emote'; v: number } | { kind: 'text'; v: string };
 
 export type ClientMsg =
-  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number }
-  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number }
+  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number }
+  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number }
   | { t: 'dog'; dog: Dog | null }
   | { t: 'fx'; fx: Fx }
   | { t: 'ranch'; o: RanchOp }
@@ -845,7 +869,7 @@ export type ClientMsg =
 
 export type ServerMsg =
   | { t: 'joined'; token: string; pid: string }
-  | { t: 'welcome'; pid: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[] }
+  | { t: 'welcome'; pid: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[]; sit?: 1 }
   | { t: 'act'; houseId: string; by: string; cid: number; action: Action }
   | { t: 'nack'; houseId: string; cid: number; reason: string; state?: GameState }
   | { t: 'pres'; pid: string; p: Presence | null }

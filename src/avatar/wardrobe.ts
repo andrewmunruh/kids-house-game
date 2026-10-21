@@ -6,6 +6,11 @@ import { S, SH, bumps, scallop, f, limb, type Pose, SHOULDER, HAND } from './geo
 type Look = Required<Look2>;
 const L = 'var(--line)';
 
+/** Sit swings the legs out. Skirts, tutus, dresses, and overalls then drape the lap instead of following a leg. */
+function wideLegs(pose: Pose): boolean {
+  return Math.abs(pose.legL) >= 40 || Math.abs(pose.legR) >= 40;
+}
+
 function shade(shape: string, u: string, rich: boolean, folds: string[] = []): string {
   const lines = folds.map(d => `<path d="${d}" fill="none" stroke="#3a1d3c" stroke-width="2.4" stroke-linecap="round" opacity=".22"/>`).join('');
   return (rich ? `<path d="${shape}" fill="url(#${u}c)"/>` : '') + lines;
@@ -149,6 +154,10 @@ function legWear(side: 'l' | 'r', pose: Pose, y1: number, u: string, rich: boole
 export function bottomLayer(pose: Pose, look: Look, u: string, rich: boolean): string {
   if (look.dress) return '<g data-layer="bottom"></g>';
   const st = look.bottom;
+  if (wideLegs(pose) && (st === 'skirt' || st === 'tutu' || st === 'overalls')) {
+    const d = st === 'tutu' ? 'M52 216 H148 L160 248 Q100 260 40 248 Z' : 'M62 218 H138 L152 252 Q100 264 48 252 Z';
+    return `<g data-layer="bottom"><path class="skirt" d="${d}" fill="var(--bottom)" ${S(3)}/></g>`;
+  }
   if (st === 'skirt') {
     const d = 'M68 222 H132 L146 262 Q100 274 54 262 Z';
     return `<g data-layer="bottom"><path class="skirt" d="${d}" fill="var(--bottom)" ${S(3)}/>${shade(d, u, rich, ['M82 234 L76 258', 'M100 232 V266', 'M118 234 L126 258'])}<path d="M114 224 H132 L146 262 Q130 268 118 266 Z" ${SH}/><path d="M72 228 Q66 246 64 258" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".3"/><path d="M84 236 v10 M116 236 v10" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 3" opacity=".55"/></g>`;
@@ -176,6 +185,10 @@ export function bottomOverLayer(pose: Pose, look: Look, u: string, rich: boolean
     return `<g data-layer="bottom-over"><path d="M80 176 L72 164 M120 176 L128 164" stroke="${L}" stroke-width="12" stroke-linecap="round"/><path d="M80 176 L72 164 M120 176 L128 164" stroke="var(--bottom)" stroke-width="7.5" stroke-linecap="round"/><path d="${bib}" fill="var(--bottom)" ${S(3)}/>${shade(bib, u, rich, ['M86 200 q14 6 28 0'])}<path d="M88 190 H112 V206 Q100 212 88 206 Z" fill="var(--bottom-trim)" ${S(2.4)}/><circle cx="82" cy="186" r="3.6" fill="#fff" ${S(2)}/><circle cx="118" cy="186" r="3.6" fill="#fff" ${S(2)}/><path d="M66 222 H134 L135 230 H65 Z" fill="var(--bottom)" ${S(3)}/><path d="M108 180 H122 L124 228 H110 Z" ${SH}/><path d="M82 182 v12" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".4"/></g>`;
   }
   if (st === 'tutu') {
+    if (wideLegs(pose)) {
+      const d = 'M58 220 H142 L154 246 Q100 256 46 246 Z';
+      return `<g data-layer="bottom-over"><path class="skirt" d="${d}" fill="var(--bottom)" ${S(2.4)}/></g>`;
+    }
     let tiers = '';
     const rows: [number, number, number, number][] = [[266, 50, 150, 8], [256, 56, 144, 7], [246, 64, 136, 6]];
     for (let i = 0; i < rows.length; i++) {
@@ -249,6 +262,7 @@ export function dressLayer(pose: Pose, look: Look, u: string, rich: boolean, hem
       + `<path d="M97 218 l-5 14 M103 218 l5 14" stroke="var(--top-trim)" stroke-width="3" stroke-linecap="round"/>`
       + `<path d="M80 158 Q78 172 94 170 Q99 166 100 162 Q101 166 106 170 Q122 172 120 158 Q100 164 80 158 Z" fill="#fff" ${S(2.4)}/>`;
   }
+  if (wideLegs(pose)) skirt = 'M68 214 H132 L150 250 Q100 262 50 250 Z';
   const clip = `${skirt} ${bodice}`;
   const cloth = `<path class="skirt" d="${skirt}" fill="var(--top)" ${S(3)}/><path d="${bodice}" fill="var(--top)" ${S(3)}/><g clip-path="url(#${cid})">${shade(clip, u, rich, ['M80 226 Q74 248 70 266', 'M120 226 Q126 248 130 266'])}${extra}</g>`;
   return `<g class="shirt" data-hem="${hem}"><defs><clipPath id="${cid}"><path d="${clip}"/></clipPath></defs>${puffOnTop ? cloth + sleeves : sleeves + cloth}</g>`;

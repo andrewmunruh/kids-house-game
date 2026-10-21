@@ -4,6 +4,7 @@ import { sanitizeLook2, withRandomStarter, type Look2 } from './avatar';
 // so a future multiplayer server can validate/relay the same actions.
 import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plot, type RanchOp } from './ranch';
 import { keepMailbox, type Mailbox } from './mail';
+import { cleanDollSeat, seatStillThere, type DollSeat } from './sit';
 export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon' | 'nursery' | 'backyard';
 /** Display order is the client's tab list. The backyard is a room, not a tab. */
 export const ROOM_IDS: RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard'];
@@ -42,6 +43,8 @@ export interface Character {
   room: RoomId; x: number; y: number; flip: boolean;
   /** Items held in each hand travel with the character (x/y of a held item are ignored). */
   held: { left: PlacedItem | null; right: PlacedItem | null };
+  /** Omitted when she is standing, so a standing kid matches an old save. */
+  seat?: DollSeat;
 }
 export const MAX_CHARS = 8;
 
@@ -86,7 +89,7 @@ export interface GameState {
 export type Action =
   | { type: 'room/switch'; room: RoomId }
   | { type: 'item/add'; room: RoomId; item: PlacedItem }
-  | { type: 'item/move'; room: RoomId; id: string; x: number; y: number }
+  | { type: 'item/move'; room: RoomId; id: string; x: number; y: number; stand?: true }
   | { type: 'item/flip'; room: RoomId; id: string }
   | { type: 'item/front'; room: RoomId; id: string }
   | { type: 'item/back'; room: RoomId; id: string }
@@ -98,7 +101,7 @@ export type Action =
   | { type: 'room/floorTile'; room: RoomId; tile: string | null }
   | { type: 'char/add'; char: Character }
   | { type: 'char/update'; id: string; patch: Partial<Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc' | 'flip'>> & { look2?: Look2 | null } }
-  | { type: 'char/move'; id: string; room: RoomId; x: number; y: number }
+  | { type: 'char/move'; id: string; room: RoomId; x: number; y: number; seat?: DollSeat | null }
   | { type: 'char/delete'; id: string }
   | { type: 'char/hold'; id: string; hand: Hand; room: RoomId; itemId: string }
   | { type: 'char/release'; id: string; hand: Hand; x: number; y: number }
@@ -157,6 +160,35 @@ const minZ = (r: Room) => r.items.reduce((m, i) => Math.min(m, i.z), 0);
 
 function mapChar(s: GameState, id: string, f: (c: Character) => Character): GameState {
   return { ...s, characters: s.characters.map(c => c.id === id ? f(c) : c) };
+}
+
+/** Drop `seat` so a standing kid's JSON matches an old save. */
+export function standChar(c: Character): Character {
+  if (!c.seat) return c;
+  const { seat: _drop, ...rest } = c;
+  return rest;
+}
+
+/** She is not carried. x and y stay at the anchor she already had. */
+function clearSeatsOn(s: GameState, itemId: string): GameState {
+  let changed = false;
+  const characters = s.characters.map(c => {
+    if (c.seat?.item !== itemId) return c;
+    changed = true;
+    return standChar(c);
+  });
+  return changed ? { ...s, characters } : s;
+}
+
+function withSeat(c: Character, roomItems: { id?: string }[] | null | undefined, seat: DollSeat | null | undefined, touched: boolean): Character {
+  if (!touched) {
+    const kept = seatStillThere(c.seat, roomItems);
+    if (kept) return c.seat === kept ? c : { ...c, seat: kept };
+    return standChar(c);
+  }
+  const kept = seatStillThere(seat, roomItems);
+  if (!kept) return standChar(c);
+  return { ...c, seat: kept };
 }
 
 function mapItems(s: GameState, room: RoomId, f: (r: Room) => Room): GameState {
@@ -228,13 +260,16 @@ export function reduce(s: GameState, a: Action): GameState {
     case 'item/add': return mapItems(s, a.room, r =>
       (r.items.length >= 80 || r.items.some(i => i.id === a.item.id)) ? r :
       ({ ...r, items: [...r.items, { ...a.item, z: maxZ(r) + 1 }] }));
-    case 'item/move': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, x: clamp(a.x, 0, ROOM_W), y: clamp(a.y, 40, ROOM_H) } : i) }));
-    case 'item/flip': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, flip: !i.flip } : i) }));
+    case 'item/move': {
+      const moved = mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, x: clamp(a.x, 0, ROOM_W), y: clamp(a.y, 40, ROOM_H) } : i) }));
+      return a.stand ? clearSeatsOn(moved, a.id) : moved;
+    }
+    case 'item/flip': return clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, flip: !i.flip } : i) })), a.id);
     case 'item/front': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, z: maxZ(r) + 1 } : i) }));
     case 'item/back': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, z: minZ(r) - 1 } : i) }));
     case 'item/delete': {
       const gone = s.rooms[a.room]?.items.some(i => i.id === a.id && i.kind === 'kennel');
-      const next = mapItems(s, a.room, r => ({ ...r, items: r.items.filter(i => i.id !== a.id) }));
+      const next = clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.filter(i => i.id !== a.id) })), a.id);
       return gone && s.dogKennel?.item === a.id ? { ...next, dogKennel: null } : next;
     }
     case 'room/wallpaper': return mapItems(s, a.room, r => ({ ...r, wallpaper: a.color }));
@@ -249,7 +284,11 @@ export function reduce(s: GameState, a: Action): GameState {
       if ('look2' in a.patch) { if (look2) next.look2 = look2; else delete next.look2; }
       return next;
     });
-    case 'char/move': return s.rooms[a.room] ? mapChar(s, a.id, c => ({ ...c, room: a.room, x: clamp(a.x, 0, ROOM_W), y: clamp(a.y, 60, ROOM_H) })) : s;
+    case 'char/move': return s.rooms[a.room] ? mapChar(s, a.id, c => {
+      const next: Character = { ...c, room: a.room, x: clamp(a.x, 0, ROOM_W), y: clamp(a.y, 60, ROOM_H) };
+      // An old char/move has no seat field and only copies x and y.
+      return withSeat(next, s.rooms[a.room].items, a.seat, 'seat' in a);
+    }) : s;
     case 'char/delete': {
       const c = s.characters.find(c => c.id === a.id); if (!c) return s;
       // anything the character was holding is put down where they stood
@@ -260,7 +299,7 @@ export function reduce(s: GameState, a: Action): GameState {
     case 'char/hold': {
       const c = s.characters.find(c => c.id === a.id); const it = s.rooms[a.room]?.items.find(i => i.id === a.itemId);
       if (!c || !it || c.held[a.hand] || c.room !== a.room) return s;
-      const next = mapItems(s, a.room, r => ({ ...r, items: r.items.filter(i => i.id !== a.itemId) }));
+      const next = clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.filter(i => i.id !== a.itemId) })), a.itemId);
       const held = mapChar(next, a.id, ch => ({ ...ch, held: { ...ch.held, [a.hand]: it } }));
       return it.kind === 'kennel' && s.dogKennel?.item === a.itemId ? { ...held, dogKennel: null } : held;
     }
@@ -326,16 +365,31 @@ export function migrate(raw: any): GameState {
       return ch;
     });
   const next = ensureRooms({ ...base, ...s, rooms: { ...base.rooms, ...s.rooms }, characters });
-  const dogKennel = validKennel(next);
+  const seated = keepSeats(next);
+  const dogKennel = validKennel(seated);
   const withKennel = dogKennel === next.dogKennel ? next : { ...next, dogKennel };
   const mailbox = keepMailbox((withKennel as { mailbox?: unknown }).mailbox);
-  let kept: GameState = withKennel;
+  let kept: GameState = seated === next ? withKennel : { ...withKennel, characters: seated.characters };
   if (mailbox) kept = { ...kept, mailbox };
   else if (kept.mailbox) {
     const { mailbox: _drop, ...rest } = kept;
     kept = rest;
   }
-  return showKnownRoom(kept);
+  return keepSeats(showKnownRoom(kept));
+}
+
+/** A seat stays only while its item is still in that doll's room. */
+function keepSeats(s: GameState): GameState {
+  let changed = false;
+  const characters = s.characters.map(c => {
+    const kept = seatStillThere(cleanDollSeat(c.seat), s.rooms[c.room]?.items);
+    if (kept) return c.seat?.item === kept.item && c.seat.pose === kept.pose && c.seat.n === kept.n ? c : { ...c, seat: kept };
+    if (!c.seat) return c;
+    changed = true;
+    return standChar(c);
+  });
+  if (!changed && characters.every((c, i) => c === s.characters[i])) return s;
+  return { ...s, characters };
 }
 
 /**

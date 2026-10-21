@@ -55,6 +55,19 @@
 .chibi-bob > .inner { animation: chibiBob 1.8s ease-in-out infinite alternate; }
 @keyframes chibiBob { from { transform: translateY(0); } to { transform: translateY(-4px); } }
 
+/* Seated kids do not walk. The sit pose lifts the drawing so her hips land on the anchor. */
+.char.pose-sit .leg, .char.pose-sit .arm,
+.avatar.pose-sit .leg, .avatar.pose-sit .arm,
+.char.pose-lie .leg, .char.pose-lie .arm,
+.avatar.pose-lie .leg, .avatar.pose-lie .arm { animation: none; }
+.char.pose-sit > .inner, .avatar.pose-sit > .inner { animation: none; transform: translateY(26%); }
+.char.pose-lie > .inner, .avatar.pose-lie > .inner { animation: none; transform: rotate(-78deg); transform-origin: 40% 72%; }
+.char.pose-lie::after, .avatar.pose-lie::after {
+  content: 'z z'; position: absolute; left: 62%; top: 6%; font-weight: 800; font-size: 15px; color: #7a5b86;
+  pointer-events: none; letter-spacing: 1px;
+}
+.char.pose-sit .leg, .avatar.pose-sit .leg { animation: none; }
+
 .char.chibi.hold-target::after { top: 72%; }
 .char.chibi.hold-target[data-hand="left"]::after { left: var(--hx-l); }
 .char.chibi.hold-target[data-hand="right"]::after { left: var(--hx-r); }

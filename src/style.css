@@ -30,6 +30,16 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .item, .char { position: absolute; touch-action: none; cursor: grab; }
 .item .inner, .char .inner { position: relative; width: 100%; height: 100%; transform-origin: 50% 100%; transition: transform .18s, filter .18s; }
 .item.flipped .inner svg, .char.flipped > .inner svg { transform: scaleX(-1); }
+/* Paint-only front of an occupied seat: arms, blanket lip. The saved z does not change. */
+.seatFront { position: absolute; pointer-events: none; }
+.seatFront .inner { position: relative; width: 100%; height: 100%; }
+.seatFront .inner svg, .seatFront .artimg, .seatFront .packimg { display: block; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; }
+.seatFront.flipped .inner svg, .seatFront.flipped .artimg, .seatFront.flipped .packimg { transform: scaleX(-1); }
+.seatFront .artshade, .seatFront .artnight { display: none; }
+.seatFront.k-sofa { clip-path: polygon(0 38%, 18% 38%, 18% 72%, 82% 72%, 82% 38%, 100% 38%, 100% 100%, 0 100%); }
+.seatFront.k-chair { clip-path: inset(64% 12% 0 12%); }
+.seatFront.k-bench { clip-path: inset(72% 0 0 0); }
+.seatFront.k-bed { clip-path: inset(46% 4% 0 18%); }
 .item.sel .inner { filter: drop-shadow(0 0 0 #fff) drop-shadow(0 0 6px #fff) drop-shadow(0 0 3px #ffd166); }
 .lifted .inner { transform: scale(1.1) translateY(-6px); filter: drop-shadow(0 14px 8px rgba(0,0,0,.18)); }
 .bounce { animation: bounce .45s cubic-bezier(.3,1.8,.5,1); }

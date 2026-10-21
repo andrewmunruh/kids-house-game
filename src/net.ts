@@ -51,6 +51,8 @@ export class HoodClient {
   houses = new Map<string, HouseRec>();
   presence = new Map<string, Presence>();
   status: 'connecting' | 'online' | 'offline' = 'offline';
+  /** The welcome said sit:1. An old Worker never does, so the pose stays on her screen only. */
+  speaksSit = false;
   /** The server closed this socket because the same sign-in connected somewhere else. Do not reconnect on our own. */
   replaced = false;
   /** Rainbow Ranch garden (shared per street) + server clock offset so growth looks the same on every iPad. */
@@ -113,8 +115,8 @@ export class HoodClient {
       this.ws = ws;
       if (prev && prev !== ws) { try { prev.close(); } catch { /* already closed */ } }
       ws.onopen = () => {
-        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1 });
-        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1 });
+        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1, sit: 1 });
+        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1, sit: 1 });
         else done('notoken');
       };
       ws.onmessage = e => { const m: ServerMsg = JSON.parse(e.data); this.handle(m); if (m.t === 'welcome') { this.armStable(); done('ok'); } if (m.t === 'error') done(m.code + (m.msg ? ':' + m.msg : '')); if (m.t === 'removed') done('removed'); };
@@ -143,6 +145,7 @@ export class HoodClient {
       case 'joined': this.cfg.token = m.token; this.cfg.pid = m.pid; saveHoodConfig(this.cfg); break;
       case 'welcome':
         this.pid = m.pid; this.settings = m.settings; this.status = 'online';
+        this.speaksSit = m.sit === 1;
         this.players = new Map(m.players.map(p => [p.pid, p]));
         { const old = this.houses; this.houses = new Map();
           for (const h of m.houses) { const { state, ...meta } = h; const prev = old.get(h.id);

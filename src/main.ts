@@ -10,6 +10,8 @@ import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROS
 import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } from './pets';
 import { mailboxArt, installMail } from './mail';
 import { installPlayMode, playGesture } from './playmode';
+import { resolveDrop, seatFractions, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
+import { poseNamed } from './avatar/sit';
 import { unreadCount } from './shared/mail';
 import { parkSceneSVG, swingSVG, ballSVG, treeIcon, pawIcon, gateIcon, streetGateSVG, PARK_H, SWING_BAR } from './park';
 import { houseSVG, ICONS, toast, adultCheck } from './hood-ui';
@@ -605,8 +607,111 @@ const overBin = (cx: number, cy: number) => { const r = bin.getBoundingClientRec
 
 // ---------- character geometry ----------
 const charScale = (c: Character) => SIZE_SCALE[c.size] ?? 1;
+/** Pose remembered on this screen when the Worker did not say sit:1. It is not sent. */
+const localPose = new Map<string, DollSeat>();
+function ownsDolls(): boolean {
+  if (!hood || inner === local) return true;
+  return hood.houses.get(currentHouseId)?.meta.ownerId === hood.pid;
+}
+function seatPieceOf(it: PlacedItem): SeatPiece | null {
+  const def = ITEM_MAP[it.kind];
+  if (!def || !seatFractions(it.kind)) return null;
+  return { id: it.id, kind: it.kind, x: it.x, footY: drawY(def, it.y), flip: !!it.flip, scale: it.scale || 1, w: def.w, h: hOf(def) };
+}
+function takenSeats(skipChar?: string, skipPid?: string): { item: string; n: 0 | 1 }[] {
+  const s = store.get();
+  const out: { item: string; n: 0 | 1 }[] = [];
+  for (const c of s.characters) {
+    if (c.id === skipChar || c.room !== s.currentRoom || !c.seat) continue;
+    out.push({ item: c.seat.item, n: c.seat.n });
+  }
+  if (hood && view === 'house') {
+    const add = (pid: string, p: Presence) => {
+      if (pid === skipPid || p.where !== 'house' || p.houseId !== currentHouseId || p.room !== s.currentRoom || !p.seat) return;
+      out.push({ item: p.seat.id, n: p.seat.n });
+    };
+    hood.presence.forEach((p, pid) => add(pid, p));
+    const me = myPres();
+    if (me && hood.pid !== skipPid) add(hood.pid, me);
+  }
+  return out;
+}
+function remembered(key: string, seat: DollSeat | null) {
+  if (seat) localPose.set(key, seat); else localPose.delete(key);
+}
+/** A seat object goes on the wire only after welcome said sit:1. Solo play always saves it. */
+function moveDoll(id: string, room: RoomId, x: number, y: number, seat: DollSeat | null) {
+  const offline = !hood || inner === local;
+  const sendSeat = offline || !!hood?.speaksSit;
+  if (!sendSeat) remembered('c:' + id, seat);
+  else localPose.delete('c:' + id);
+  if (sendSeat) store.dispatch({ type: 'char/move', id, room, x, y, seat });
+  else store.dispatch({ type: 'char/move', id, room, x, y });
+}
+function placeMe(cur: Presence, x: number, y: number, flip: boolean, seat: PresSeat | null) {
+  const { seat: _prev, ...rest } = cur;
+  if (hood && !hood.speaksSit) {
+    remembered('p:' + hood.pid, seat ? { item: seat.id, pose: seat.pose, n: seat.n } : null);
+    setMyPres({ ...rest, x, y, flip });
+    return;
+  }
+  if (hood) localPose.delete('p:' + hood.pid);
+  setMyPres(seat ? { ...rest, x, y, flip, seat } : { ...rest, x, y, flip });
+}
+function dollSeat(c: Character): DollSeat | null {
+  if (c.seat) return c.seat;
+  return localPose.get('c:' + c.id) ?? null;
+}
+function presSeat(pid: string, p: Presence): DollSeat | null {
+  if (p.seat) return { item: p.seat.id, pose: p.seat.pose, n: p.seat.n };
+  return localPose.get('p:' + pid) ?? null;
+}
+function seatUnderPointer(cx: number, cy: number): PlacedItem | null {
+  const s = store.get();
+  const list = document.elementsFromPoint(cx, cy);
+  const seen = new Set<string>();
+  for (let i = 0; i < list.length; i++) {
+    const node = list[i];
+    if (!node || !node.closest) continue;
+    const itemEl = node.closest('.item') as HTMLElement | null;
+    if (!itemEl) continue;
+    const id = itemEl.dataset.id;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const it = s.rooms[s.currentRoom].items.find(it => it.id === id);
+    if (it && seatFractions(it.kind)) return it;
+  }
+  return null;
+}
+function seatFrontClass(kind: string): string {
+  const k = kind.toLowerCase();
+  if (/sofa|couch|loveseat/.test(k)) return 'k-sofa';
+  if (/bench/.test(k)) return 'k-bench';
+  if (/bed|bunk/.test(k) && !/cat-bed|pet-bed|dog-bed|flower|tulip/.test(k)) return 'k-bed';
+  if (/chair|stool|rocker/.test(k)) return 'k-chair';
+  return '';
+}
+function seatedHere(): Map<string, number> {
+  const s = store.get();
+  const ids = new Map<string, number>();
+  const note = (item: string, n: number) => { const prev = ids.get(item); ids.set(item, prev === undefined ? n : Math.max(prev, n)); };
+  for (const c of s.characters) {
+    const seat = c.room === s.currentRoom ? dollSeat(c) : null;
+    if (seat) note(seat.item, seat.n);
+  }
+  if (hood && view === 'house') {
+    const add = (pid: string, p: Presence) => {
+      const seat = p.where === 'house' && p.houseId === currentHouseId && p.room === s.currentRoom ? presSeat(pid, p) : null;
+      if (seat) note(seat.item, seat.n);
+    };
+    hood.presence.forEach((p, pid) => add(pid, p));
+    const me = myPres();
+    if (me) add(hood.pid, me);
+  }
+  return ids;
+}
 function handWorld(c: Character, hand: Hand) {
-  const sc = charScale(c); const pt = handsFor(c)[hand]; let hx = pt.x; if (c.flip) hx = 100 - hx;
+  const sc = charScale(c); const pt = handsFor(c, poseNamed(dollSeat(c)?.pose))[hand]; let hx = pt.x; if (c.flip) hx = 100 - hx;
   return { x: c.x + (hx - 50) / 100 * CHAR_W * sc, y: c.y - CHAR_H * sc + pt.y / 160 * CHAR_H * sc };
 }
 /** Which character hand (if any) would catch a holdable item dropped at world point p. */
@@ -718,7 +823,36 @@ function renderItems(s: GameState) {
   layer.querySelectorAll<HTMLElement>('.item').forEach(el => { if (!seen.has(el.dataset.id!)) el.remove(); });
   paintScenery(s);
   syncSkyPuddles();
+  syncSeatFronts();
   renderToolbar(s); renderMinimap(s);
+}
+/** Paint-only front of an occupied seat. The saved item and its z stay one object. */
+function syncSeatFronts() {
+  const s = store.get();
+  const occ = seatedHere();
+  const seen = new Set<string>();
+  occ.forEach((_n, id) => {
+    const it = s.rooms[s.currentRoom]?.items.find(i => i.id === id);
+    const def = it && ITEM_MAP[it.kind];
+    const cls = it && seatFrontClass(it.kind);
+    if (!it || !def || !cls) return;
+    seen.add(id);
+    let el = layer.querySelector<HTMLElement>(`.seatFront[data-id="${id}"]`);
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'seatFront';
+      el.dataset.id = id;
+      layer.appendChild(el);
+    }
+    const src = layer.querySelector<HTMLElement>(`.item[data-id="${id}"] .inner`);
+    const inner = el.querySelector('.inner');
+    if (!inner || (src && inner.innerHTML !== src.innerHTML)) el.innerHTML = `<div class="inner">${src ? src.innerHTML : svgOf(def, true)}</div>`;
+    el.className = 'seatFront ' + cls + (it.flip ? ' flipped' : '');
+    const box = placedBox(def, it.scale);
+    placeEl(el, it.x, drawY(def, it.y), box.w, box.h);
+    el.style.zIndex = String(1000 + it.z + 3);
+  });
+  layer.querySelectorAll<HTMLElement>('.seatFront').forEach(el => { if (!seen.has(el.dataset.id || '')) el.remove(); });
 }
 
 /** True from pointerdown on the back door until pointerup. Framing must not move the door mid-tap. */
@@ -829,7 +963,7 @@ function paintScenery(s: GameState) {
 const charEls = new Map<string, HTMLElement>();
 function heldHTML(c: Character) {
   const sc = charScale(c), bw = CHAR_W * sc, bh = CHAR_H * sc;
-  const pts = handsFor(c), shrink = c.look2 ? 0.85 : 1;
+  const pts = handsFor(c, poseNamed(dollSeat(c)?.pose)), shrink = c.look2 ? 0.85 : 1;
   return (['left', 'right'] as Hand[]).map(hand => {
     const it = c.held[hand]; const def = it && ITEM_MAP[it.kind]; if (!it || !def) return '';
     const k = Math.min(0.7, 120 * sc / Math.max(def.w, hOf(def)) / it.scale) * shrink;
@@ -874,14 +1008,18 @@ function renderChars(s: GameState) {
       el.innerHTML = `<div class="inner"></div><div class="hands"></div>`;
       layer.appendChild(el); charEls.set(c.id, el); attachCharDrag(el);
     }
-    const look = lookStamp(c);
-    if (el.dataset.look !== look) { el.querySelector('.inner')!.innerHTML = characterSVG(c); el.dataset.look = look; }
-    const heldKey = JSON.stringify([c.held.left?.id, c.held.left?.flip, c.held.right?.id, c.held.right?.flip, c.size]);
+    const seat = dollSeat(c);
+    const pose = seat?.pose ?? null;
+    const look = lookStamp(c) + (pose || '');
+    if (el.dataset.look !== look) { el.querySelector('.inner')!.innerHTML = characterSVG(c, pose); el.dataset.look = look; }
+    const heldKey = JSON.stringify([c.held.left?.id, c.held.left?.flip, c.held.right?.id, c.held.right?.flip, c.size, pose]);
     if (el.dataset.held !== heldKey) { el.querySelector('.hands')!.innerHTML = heldHTML(c); el.dataset.held = heldKey; }
     const sc = charScale(c);
     placeEl(el, c.x, c.y, CHAR_W * sc, CHAR_H * sc);
-    el.style.zIndex = String(5000 + Math.round(c.y));
+    el.style.zIndex = seat ? String(1000 + (s.rooms[s.currentRoom].items.find(i => i.id === seat.item)?.z ?? 0) + 1 + seat.n) : String(5000 + Math.round(c.y));
     el.classList.toggle('flipped', c.flip);
+    el.classList.toggle('pose-sit', pose === 'sit');
+    el.classList.toggle('pose-lie', pose === 'lie');
     el.classList.toggle('active', c.id === activeChar);
     stampAvatar(el, c, c.id === activeChar);
     el.classList.toggle('pose-swing', swingPose?.id === c.id);
@@ -1062,7 +1200,22 @@ function refreshShelfArt(): void {
   markShelfArt();
 }
 
+function clearMySeatIfFurniture(a: Action) {
+  if (!hood) return;
+  const me = myPres();
+  if (!me || me.where !== 'house' || !me.seat) return;
+  let id = '';
+  if (a.type === 'item/flip' || a.type === 'item/delete') id = a.id;
+  else if (a.type === 'item/move' && a.stand) id = a.id;
+  else if (a.type === 'char/hold') id = a.itemId;
+  else return;
+  if (!id || me.seat.id !== id || a.room !== me.room) return;
+  const { seat: _drop, ...rest } = me;
+  localPose.delete('p:' + hood.pid);
+  setMyPres(rest);
+}
 store.subscribe((s, a) => {
+  clearMySeatIfFurniture(a);
   switch (a.type) {
     case 'room/switch': {
       const wasYard = stage.classList.contains('room-yard');
@@ -1077,8 +1230,9 @@ store.subscribe((s, a) => {
     case 'room/wallpaper': case 'room/floor': case 'room/pattern': case 'room/wallTile': case 'room/floorTile': renderRoomBg(s); break;
     case 'char/update': case 'char/move':
       if (a.type === 'char/move' && swingPose && !swingLock && a.id === swingPose.id) swingPose = null;
-      renderChars(s); syncSwingPose(); if (view === 'ranch') renderRanchAvatars(); else if (view === 'park') renderParkAvatars(); break;
-    case 'char/add': case 'char/delete': case 'char/hold': case 'char/release': renderItems(s); renderChars(s); if (currentTab === '__people') renderDrawer(); break;
+      renderChars(s); syncSeatFronts(); syncSwingPose(); if (view === 'ranch') renderRanchAvatars(); else if (view === 'park') renderParkAvatars(); break;
+    case 'char/add': case 'char/delete': case 'char/hold': case 'char/release': renderItems(s); renderChars(s); renderAvatars(); if (currentTab === '__people') renderDrawer(); break;
+    case 'item/move': case 'item/flip': case 'item/delete': renderItems(s); renderChars(s); renderAvatars(); break;
     case 'settings/sound': renderSoundBtn(s); break;
     default: renderItems(s);
   }
@@ -1171,10 +1325,26 @@ function onItemPointer(el: HTMLElement, e: PointerEvent) {
   beginItemDrag(el, e);
 }
 
+/** Play waits for pointerup. A slip past 6px does not sit her and does not drag the piece. */
+function watchPlayTap(el: HTMLElement, e: PointerEvent) {
+  e.preventDefault(); e.stopPropagation();
+  if (twoFinger) return;
+  const id = el.dataset.id!;
+  const x0 = e.clientX, y0 = e.clientY;
+  startDrag(e, {
+    edgeScroll: false,
+    onMove() {},
+    onUp(ev) {
+      if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 6) return;
+      onPlayTap(el, id);
+    },
+  });
+}
+
 function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
   e.preventDefault(); e.stopPropagation();
   if (twoFinger) return;
-  if (play.isPlay()) { onPlayTap(el, el.dataset.id!); return; }
+  if (play.isPlay()) { watchPlayTap(el, e); return; }
   if (!canEdit()) { lockedNudge(el); return; }
   const s = store.get(); const room = s.currentRoom;
   const id = el.dataset.id!; const it = s.rooms[room].items.find(i => i.id === id); if (!it) return;
@@ -1190,7 +1360,7 @@ function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
       if (moved) { toolbar.classList.add('hidden'); bin.classList.add('show'); }
       bin.classList.toggle('hot', overBin(ev.clientX, ev.clientY));
       const half = def.w * it.scale / 2;
-      store.dispatch({ type: 'item/move', room, id, x: Math.max(half * .6, Math.min(W - half * .6, p.x + off.x)), y: snapY(def, p.y + off.y) });
+      store.dispatch({ type: 'item/move', room, id, x: Math.max(half * .6, Math.min(W - half * .6, p.x + off.x)), y: snapY(def, p.y + off.y), ...(moved ? { stand: true as const } : {}) });
       if (moved) toolbar.classList.add('hidden');
       target = moved && def.holdable ? holdTarget(p) : null; showHoldTarget(target);
     },
@@ -1224,6 +1394,8 @@ function attachCharDrag(el: HTMLElement) {
     if (heldEl && !heldClear) { if (play.isPlay()) { e.preventDefault(); e.stopPropagation(); return; } if (!canEdit()) { e.stopPropagation(); lockedNudge(el); return; } return beginHeldDrag(el, heldEl, e); }
     e.preventDefault(); e.stopPropagation();
     if (twoFinger) return;
+    // A visitor in Play does not drag the host's dolls. Another girl's avatar is not a doll.
+    if (play.isPlay() && !ownsDolls()) return;
     if (!canEdit()) { lockedNudge(el); return; }
     selected = null; renderItems(store.get());
     const id = el.dataset.cid!; activeChar = id;
@@ -1235,9 +1407,11 @@ function attachCharDrag(el: HTMLElement) {
       onMove(ev) {
         const p = toRoom(ev.clientX, ev.clientY); const nx = p.x + off.x;
         if (Math.hypot(p.x - p0.x, p.y - p0.y) > 6) moved = true;
+        if (!moved) return;
         const cur = store.get().characters.find(x => x.id === id); if (!cur) return;
         if (Math.abs(nx - lastX) > 3) { const flip = nx < lastX; if (flip !== cur.flip) store.dispatch({ type: 'char/update', id, patch: { flip } }); lastX = nx; }
-        store.dispatch({ type: 'char/move', id, room: s.currentRoom, x: nx, y: Math.max(FLOOR_Y + 40, p.y + off.y) });
+        const y = Math.max(FLOOR_Y + 40, p.y + off.y);
+        moveDoll(id, s.currentRoom, nx, y, null);
         // hovering a room tab = "walk to that room"
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('drop'));
         (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest('.tab:not(.on)')?.classList.add('drop');
@@ -1246,13 +1420,22 @@ function attachCharDrag(el: HTMLElement) {
         el.classList.remove('lifted'); document.querySelectorAll('.tab').forEach(t => t.classList.remove('drop'));
         const tab = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest<HTMLElement>('[data-room]');
         const cur = store.get().characters.find(x => x.id === id);
-        if (moved && cur && tab && tab.dataset.room !== s.currentRoom) {
+        if (!moved || !cur) { sfx.click(); return; }
+        if (tab && tab.dataset.room !== s.currentRoom) {
           const r = tab.getBoundingClientRect(); sparkles(r.left + r.width / 2, r.top + r.height / 2, 9); sfx.swish();
-          store.dispatch({ type: 'char/move', id, room: tab.dataset.room as RoomId, x: cur.x, y: cur.y });
+          moveDoll(id, tab.dataset.room as RoomId, cur.x, cur.y, null);
           return;
         }
+        const p = toRoom(ev.clientX, ev.clientY);
+        const releaseX = p.x + off.x;
+        const releaseY = Math.max(FLOOR_Y + 40, p.y + off.y);
+        if (play.isPlay()) {
+          const hit = seatUnderPointer(ev.clientX, ev.clientY);
+          const drop = resolveDrop({ mode: 'play', via: 'drag', releaseX, releaseY, piece: hit ? seatPieceOf(hit) : null, occupied: takenSeats(id) });
+          moveDoll(id, s.currentRoom, drop.x, drop.y, drop.seat);
+        } else moveDoll(id, s.currentRoom, releaseX, releaseY, null);
         sfx.drop(); bounce(el);
-        if (moved) requestAnimationFrame(() => frameHouseKid(true));
+        requestAnimationFrame(() => frameHouseKid(true));
       },
     });
   });
@@ -1597,8 +1780,8 @@ function useStore(next: AnyStore) {
 }
 
 // ---------- avatars (other kids, and me) inside a house ----------
-function avatarHTML(look: Look, name: string) {
-  return `<div class="inner">${characterSVG(look)}</div><div class="nametag">${esc(name)}</div>`;
+function avatarHTML(look: Look, name: string, pose?: 'sit' | 'lie' | null) {
+  return `<div class="inner">${characterSVG(look, pose)}</div><div class="nametag">${esc(name)}</div>`;
 }
 function renderAvatars() {
   const keep = new Set<string>();
@@ -1615,17 +1798,25 @@ function renderAvatars() {
         el = document.createElement('div'); el.className = 'char avatar ' + (pid === hood.pid ? 'mine' : 'other'); el.dataset.pid = pid;
         layer.appendChild(el); avatarEls.set(pid, el);
         if (pid === hood.pid) attachMyAvatarDrag(el);
+        else el.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); });
       }
-      const look = pl.look, key = JSON.stringify(look) + pl.nickname;
-      if (el.dataset.look !== key) { const b = el.querySelector('.bubble'); el.innerHTML = avatarHTML(look, pl.nickname); if (b) el.appendChild(b); el.dataset.look = key; }
+      const look = pl.look;
+      const seat = presSeat(pid, p);
+      const pose = seat?.pose ?? null;
+      const key = JSON.stringify(look) + pl.nickname + (pose || '');
+      if (el.dataset.look !== key) { const b = el.querySelector('.bubble'); el.innerHTML = avatarHTML(look, pl.nickname, pose); if (b) el.appendChild(b); el.dataset.look = key; }
       const sc = SIZE_SCALE[look.size] ?? 1;
       placeEl(el, p.x, p.y, CHAR_W * sc, CHAR_H * sc);
-      el.style.zIndex = String(5000 + Math.round(p.y));
+      const piece = seat && store.get().rooms[room].items.find(i => i.id === seat.item);
+      el.style.zIndex = piece ? String(1000 + piece.z + 1 + seat.n) : String(5000 + Math.round(p.y));
       el.classList.toggle('flipped', p.flip);
+      el.classList.toggle('pose-sit', pose === 'sit');
+      el.classList.toggle('pose-lie', pose === 'lie');
       stampAvatar(el, look, pid === hood.pid);
     }
   }
   for (const [pid, el] of avatarEls) if (!keep.has(pid) || !el.isConnected) { if (!keep.has(pid)) el.remove(); avatarEls.delete(pid); }
+  syncSeatFronts();
   updateNear();
 }
 function attachMyAvatarDrag(el: HTMLElement) {
@@ -1633,15 +1824,32 @@ function attachMyAvatarDrag(el: HTMLElement) {
     e.preventDefault(); e.stopPropagation(); if (twoFinger || !hood) return;
     const p0 = myPres(); if (!p0 || p0.where !== 'house') return;
     const q0 = toRoom(e.clientX, e.clientY), off = { x: p0.x - q0.x, y: p0.y - q0.y };
-    let lastX = p0.x; el.classList.add('lifted'); sfx.pick();
+    let lastX = p0.x, moved = false; el.classList.add('lifted'); sfx.pick();
     startDrag(e, {
       onMove(ev) {
         const q = toRoom(ev.clientX, ev.clientY), cur = myPres(); if (!cur || cur.where !== 'house') return;
+        if (Math.hypot(q.x - q0.x, q.y - q0.y) > 6) moved = true;
+        if (!moved) return;
         const x = Math.max(40, Math.min(W - 40, q.x + off.x)), y = Math.max(FLOOR_Y + 40, Math.min(H, q.y + off.y));
         const flip = Math.abs(x - lastX) > 3 ? x < lastX : cur.flip; if (Math.abs(x - lastX) > 3) lastX = x;
-        setMyPres({ ...cur, x, y, flip }); renderAvatars(); renderMinimap(store.get());
+        placeMe(cur, x, y, flip, null); renderAvatars(); renderMinimap(store.get());
       },
-      onUp() { el.classList.remove('lifted'); sfx.drop(); bounce(el); requestAnimationFrame(() => frameHouseKid(true)); },
+      onUp(ev) {
+        el.classList.remove('lifted');
+        const cur = myPres();
+        if (!moved || !cur || cur.where !== 'house') { sfx.click(); return; }
+        const q = toRoom(ev.clientX, ev.clientY);
+        const releaseX = Math.max(40, Math.min(W - 40, q.x + off.x));
+        const releaseY = Math.max(FLOOR_Y + 40, Math.min(H, q.y + off.y));
+        if (play.isPlay()) {
+          const hit = seatUnderPointer(ev.clientX, ev.clientY);
+          const drop = resolveDrop({ mode: 'play', via: 'drag', releaseX, releaseY, piece: hit ? seatPieceOf(hit) : null, occupied: takenSeats(undefined, hood!.pid) });
+          const seat = drop.seat ? { id: drop.seat.item, pose: drop.seat.pose, n: drop.seat.n } : null;
+          placeMe(cur, drop.x, drop.y, cur.flip, seat);
+        } else placeMe(cur, releaseX, releaseY, cur.flip, null);
+        renderAvatars(); renderMinimap(store.get());
+        sfx.drop(); bounce(el); requestAnimationFrame(() => frameHouseKid(true));
+      },
     });
   });
 }
@@ -2841,17 +3049,44 @@ function swingAt(it: PlacedItem) {
   syncSwingPose();
 }
 function sitAt(it: PlacedItem) {
-  const def = ITEM_MAP[it.kind];
-  const foot = def ? drawY(def, it.y) : Math.min(it.y, H - FLOOR_DRAW);
-  const y = Math.max(FLOOR_Y + 40, foot - 8);
+  const piece = seatPieceOf(it);
+  if (!piece) return;
   if (hood && view === 'house') {
     const me = myPres();
-    if (me && me.where === 'house') { setMyPres({ ...me, x: it.x, y, flip: false }); renderAvatars(); }
+    if (!me || me.where !== 'house') return;
+    if (!hood.speaksSit) {
+      const key = 'p:' + hood.pid;
+      const on = localPose.get(key)?.item === it.id;
+      const y = Math.max(FLOOR_Y + 40, piece.footY - 8);
+      if (on) localPose.delete(key);
+      else localPose.set(key, { item: it.id, pose: piece && seatFractions(it.kind)!.pose, n: 0 });
+      const { seat: _prev, ...rest } = me;
+      setMyPres({ ...rest, x: it.x, y, flip: false });
+      renderAvatars();
+      return;
+    }
+    const drop = resolveDrop({
+      mode: 'play', via: 'tap', releaseX: it.x, releaseY: piece.footY, piece,
+      occupied: takenSeats(undefined, hood.pid),
+      alreadyOn: me.seat?.id === it.id ? it.id : null,
+    });
+    if (drop.toast) { toast(drop.toast); sfx.pop(); return; }
+    if (!drop.moved) return;
+    placeMe(me, drop.x, drop.y, false, drop.seat ? { id: drop.seat.item, pose: drop.seat.pose, n: drop.seat.n } : null);
+    renderAvatars();
     return;
   }
   const s = store.get();
   const c = s.characters.find(ch => ch.id === activeChar && ch.room === s.currentRoom) ?? s.characters.find(ch => ch.room === s.currentRoom);
-  if (c) store.dispatch({ type: 'char/move', id: c.id, room: s.currentRoom, x: it.x, y });
+  if (!c) return;
+  const drop = resolveDrop({
+    mode: 'play', via: 'tap', releaseX: it.x, releaseY: piece.footY, piece,
+    occupied: takenSeats(c.id),
+    alreadyOn: c.seat?.item === it.id ? it.id : null,
+  });
+  if (drop.toast) { toast(drop.toast); sfx.pop(); return; }
+  if (!drop.moved) return;
+  moveDoll(c.id, s.currentRoom, drop.x, drop.y, drop.seat);
 }
 function syncKennelBtn(el: HTMLElement, key: string, inside: boolean) {
   const mine = hood ? key === hood.pid : key === 'solo';

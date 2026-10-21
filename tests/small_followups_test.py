@@ -340,9 +340,11 @@ async def check_anchors(pg, tag):
       return {
         storedY: stored ? stored.y : null,
         itemBottom: world(ir.bottom),
+        itemH: ir.height / sc,
         kidBottom: world(kr.bottom),
         bubbleBottom: world(br.bottom),
         kidH: kr.height / sc,
+        pose: kid.classList.contains('pose-sit'),
       };
     }""")
     if not sit:
@@ -351,8 +353,9 @@ async def check_anchors(pg, tag):
     if sit['storedY'] != 600:
         fail(f"{tag} seat stored y {sit['storedY']}")
     drawn = sit['itemBottom']
-    want = max(430, drawn - 8)
-    stored_sit = max(430, 600 - 8)
+    # Chair sit anchor: dy -0.48 of the drawn height, measured from the drawn foot.
+    want = drawn - 0.48 * sit['itemH']
+    stored_sit = 600 - 0.48 * sit['itemH']
     if abs(sit['kidBottom'] - want) > 2.5:
         fail(f"{tag} sit feet {sit['kidBottom']:.1f} want {want:.1f}")
     if abs(stored_sit - want) > 6 and abs(sit['kidBottom'] - stored_sit) < 4:
