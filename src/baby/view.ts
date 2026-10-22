@@ -5,7 +5,7 @@ import { rasterOn, rasterUrl } from '../art/cache';
 import { toast } from '../hood-ui';
 import { sfx } from '../sound';
 import { cleanPetName } from '../shared/hood';
-import { STAND_Y, type DollSeat, type SeatPiece } from '../shared/sit';
+import { dollAnchorOffset, STAND_Y, type DollSeat, type SeatPiece } from '../shared/sit';
 import { ROOM_W, ROOM_H, type Action, type GameState, type PlacedItem, type RoomId } from '../shared/state';
 import {
   EASE_MS, babyBedKind, babyDragAllowed, bedLieCenter, blossomsFilled, moodLabel, resolveBabyDrop,
@@ -15,10 +15,26 @@ import { babySVG } from './draw';
 
 const BW = 110;
 const BH = 148;
+/** Chest slot in the 120×192 doll box. Narrower than the shirt, and below the chin. */
+const CRADLE_W = 32;
+const CRADLE_H = 30;
+const CRADLE_X = 60;
+const CRADLE_Y = 124;
 const CARES: BabyCare[] = ['feed', 'burp', 'change', 'rock'];
 const PRESETS = ['Bean', 'Pip', 'Mochi', 'Bunny', 'Dot', 'Sunny'];
 
 export interface BabyBox extends SeatPiece { z: number }
+
+/** Feet of the doll who is holding her. Scale and pose are that doll's, not the viewer's. */
+export interface HolderSpot {
+  x: number;
+  y: number;
+  flip: boolean;
+  scale?: number;
+  pose?: 'sit' | 'lie' | null;
+  /** The bed is flipped, so the body uses the pose-lie-r matrix. */
+  lieFlip?: boolean;
+}
 
 export interface BabyHost {
   layer: HTMLElement;
@@ -35,7 +51,7 @@ export interface BabyHost {
   box: (it: PlacedItem) => BabyBox | null;
   holderId: () => string;
   /** Pass a player or doll id to draw her on that avatar. Omit it for the viewer. */
-  holderSpot: (id?: string) => { x: number; y: number; flip: boolean } | null;
+  holderSpot: (id?: string) => HolderSpot | null;
   /** False once that holder has left the house or disconnected. */
   holderHere: (id: string) => boolean;
   occupied: () => { item: string; n: 0 | 1 }[];
@@ -61,6 +77,17 @@ export function installBaby(host: BabyHost): { render: () => void } {
     node.style.top = (y - h) / ROOM_H * 100 + '%';
     node.style.width = w / ROOM_W * 100 + '%';
     node.style.height = h / ROOM_H * 100 + '%';
+  }
+
+  /** Bottom-center of the cradle on this doll. The slot scales with her and follows sit and lie. */
+  function cradleSpot(h: HolderSpot): { x: number; y: number; w: number; h: number } {
+    const scale = h.scale && h.scale > 0 ? h.scale : 1;
+    const pose = h.pose === 'sit' || h.pose === 'lie' ? h.pose : null;
+    const off = dollAnchorOffset(CRADLE_X, CRADLE_Y, pose, !!h.lieFlip, scale);
+    const dx = pose === 'lie' ? off.x : (h.flip ? -off.x : off.x);
+    const w = CRADLE_W * scale;
+    const hh = CRADLE_H * scale;
+    return { x: h.x + dx, y: h.y + off.y + hh / 2, w, h: hh };
   }
 
   function latestCare(b: Baby, now: number): BabyCare | null {
@@ -184,8 +211,9 @@ export function installBaby(host: BabyHost): { render: () => void } {
           return;
         }
         const hold = host.holderSpot();
-        const x = hold ? hold.x + 28 : cur.x;
-        const y = hold ? Math.max(40, hold.y - 110) : cur.y;
+        const at = hold ? cradleSpot(hold) : null;
+        const x = at ? at.x : cur.x;
+        const y = at ? Math.max(40, at.y) : cur.y;
         host.dispatch({ type: 'baby/hold', holder: host.holderId(), room: host.get().currentRoom, x, y, now: host.clock() });
         sfx.pick();
       };
@@ -324,7 +352,7 @@ export function installBaby(host: BabyHost): { render: () => void } {
   }
 
   function position(node: HTMLElement, b: Baby) {
-    node.classList.remove('baby-lie', 'baby-lie-r', 'flipped');
+    node.classList.remove('baby-lie', 'baby-lie-r', 'baby-cradle', 'flipped');
     const room = host.get().currentRoom;
     if ((b.spot === 'crib' || b.spot === 'bassinet') && b.bed) {
       const it = host.get().rooms[b.room]?.items.find(i => i.id === b.bed) ?? null;
@@ -340,11 +368,13 @@ export function installBaby(host: BabyHost): { render: () => void } {
     }
     if (b.spot === 'arms') {
       const h = b.holder ? host.holderSpot(b.holder) : null;
-      const x = h ? h.x + (h.flip ? -28 : 28) : b.x;
-      const y = h ? h.y - 110 : b.y;
-      place(node, x, y, BW, BH);
+      const at = h ? cradleSpot(h) : null;
+      const x = at ? at.x : b.x;
+      const y = at ? at.y : b.y;
+      place(node, x, y, at ? at.w : CRADLE_W, at ? at.h : CRADLE_H);
       node.style.zIndex = String(5000 + Math.round(h ? h.y : b.y) + 2);
-      if (h?.flip) node.classList.add('flipped');
+      node.classList.add('baby-cradle');
+      if (h && (h.pose === 'lie' ? h.lieFlip : h.flip)) node.classList.add('flipped');
       return;
     }
     if (b.spot === 'mat' && b.seat) {
@@ -385,9 +415,10 @@ export function installBaby(host: BabyHost): { render: () => void } {
     if (!spot) return;
     const room = host.get().currentRoom;
     if (b.room === room) return;
+    const at = cradleSpot(spot);
     host.dispatch({
       type: 'baby/hold', holder: b.holder, room,
-      x: spot.x + 28, y: Math.max(40, spot.y - 110), now: host.clock(),
+      x: at.x, y: Math.max(40, at.y), now: host.clock(),
     });
   }
 

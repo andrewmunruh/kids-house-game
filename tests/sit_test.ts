@@ -6,7 +6,7 @@ import { SIT_POSE } from '../src/avatar/sit';
 import { fillLook2 } from '../src/shared/avatar';
 import { NICKNAMES, PROTOCOL, cleanAction, cleanHouseState, cleanPresence } from '../src/shared/hood';
 import { ensureRooms, initialState, migrate, newCharacter, reduce, type Character, type GameState } from '../src/shared/state';
-import { anchorsOf, bedArt, furnitureClearsSeat, inLieRect, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, standBeside, STAND_Y, type SeatPiece } from '../src/shared/sit';
+import { anchorsOf, bedArt, dollAnchorOffset, furnitureClearsSeat, inLieRect, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, standBeside, STAND_Y, type SeatPiece } from '../src/shared/sit';
 import { hOf, ITEM_MAP } from '../src/items';
 
 let pass = 0;
@@ -93,6 +93,12 @@ async function main() {
   const bedHead = lieSpot('bed', 300, 300, 'head', false)!;
   const bedAnchor = anchorsOf(bed)[0];
   check('a chair and a bed have one anchor', anchorsOf(chair).length === 1 && anchorsOf(chair)[0].pose === 'sit' && anchorsOf(bed).length === 1 && bedAnchor.pose === 'lie' && Math.abs(bedAnchor.x + lieOffset('head', false).x - (500 - 150 + bedHead.x * 300)) < 0.05);
+  const chest = (pose: 'sit' | 'lie' | null, flip: boolean, scale: number) => dollAnchorOffset(60, 124, pose, flip, scale);
+  const kidChest = chest(null, false, 1), grown = chest(null, false, 1.28), seated = chest('sit', false, 1);
+  const flat = chest('lie', false, 1), flatFlip = chest('lie', true, 1), flatLittle = chest('lie', false, 0.78);
+  check('the cradle anchor sits on the chest and scales with the doll', Math.abs(kidChest.x) < 0.01 && Math.abs(kidChest.y - -68) < 0.01 && Math.abs(grown.y - -68 * 1.28) < 0.01 && Math.abs(grown.x) < 0.01);
+  check('sitting drops the cradle with the 26% pose', Math.abs(seated.y - (-68 + 0.26 * 192)) < 0.01 && Math.abs(seated.x) < 0.01);
+  check('lying uses the mattress turn, and a flipped bed mirrors at kid size', Math.abs(flat.x - -26.24) < 0.05 && Math.abs(flat.y - -65.76) < 0.05 && Math.abs(flatFlip.x - 26.24) < 0.05 && Math.abs(flatFlip.y - flat.y) < 0.05 && Math.abs(flatLittle.x - flat.x * 0.78) < 0.05);
   check('crib, high chair, and pet beds are not seats', !seatFractions('crib') && !seatFractions('high-chair') && !seatFractions('cat-bed') && !seatFractions('pet-bed') && !seatFractions('dog-bed') && !seatFractions('tulip-bed') && !seatFractions('bedtime-snack'));
   check('a bunk lies on one anchor', seatFractions('bunk-bed')?.pose === 'lie' && seatFractions('bunk-bed')?.spots.length === 1);
   check('a daybed lies down', seatFractions('pack:cc-canopy-daybed')?.pose === 'lie');

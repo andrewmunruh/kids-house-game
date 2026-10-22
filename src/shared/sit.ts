@@ -126,6 +126,32 @@ export function lieOffset(part: 'head' | 'chest' | 'hip' | 'classic', flipped: b
   return { x: flipped ? -u.x : u.x, y: u.y };
 }
 
+const DOLL_W = 120;
+const DOLL_H = 192;
+/** Same fraction as `.char.pose-sit > .inner { transform: translateY(26%) }`. */
+const SIT_DROP = 0.26;
+
+/**
+ * Offset from the doll's feet to a point in the 120×192 box, in room pixels.
+ * Sit drops the drawing. Lie uses the same turn as the mattress.
+ * A flipped bed uses the pose-lie-r matrix (210.24, 186.24), which is in pixels.
+ * `scale` is SIZE_SCALE. The result already includes it.
+ */
+export function dollAnchorOffset(px: number, py: number, pose: 'sit' | 'lie' | null, lieFlip: boolean, scale = 1): { x: number; y: number } {
+  const s = scale > 0 ? scale : 1;
+  if (pose === 'lie' && lieFlip) {
+    const xLocal = -py * s + 210.24;
+    const yLocal = -px * s + 186.24;
+    return { x: -DOLL_W * s / 2 + xLocal, y: -DOLL_H * s + yLocal };
+  }
+  if (pose === 'lie') {
+    const u = lieTurn(px, py);
+    return { x: u.x * s, y: u.y * s };
+  }
+  const drop = pose === 'sit' ? SIT_DROP * DOLL_H * s : 0;
+  return { x: (px - DOLL_W / 2) * s, y: (py - DOLL_H) * s + drop };
+}
+
 /** Where that point lands in the piece, fractions from the top-left. `w` and `h` are the drawn size. */
 export function lieSpot(kind: string, w: number, h: number, part: 'head' | 'chest' | 'hip' | 'classic', flipped: boolean): { x: number; y: number } | null {
   const art = bedArt(kind);

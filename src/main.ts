@@ -4337,17 +4337,22 @@ renderBaby = installBaby({
     const s = store.get();
     const self = (hood && inner !== local && hood.pid) ? hood.pid : (activeChar || s.characters[0]?.id || '');
     const id = who || self;
+    const spot = (at: { x: number; y: number }, flip: boolean, scale: number, seat: DollSeat | null) => {
+      const pose = seat?.pose === 'sit' || seat?.pose === 'lie' ? seat.pose : null;
+      const piece = pose === 'lie' ? s.rooms[s.currentRoom]?.items.find(i => i.id === seat?.item) : undefined;
+      return { x: at.x, y: at.y, flip, scale: scale > 0 ? scale : 1, pose, lieFlip: !!(pose === 'lie' && piece?.flip) };
+    };
     const doll = s.characters.find(c => c.id === id && c.room === s.currentRoom);
     if (doll) {
-      const at = seatedAt(s.currentRoom, dollSeat(doll), doll);
-      return { x: at.x, y: at.y, flip: doll.flip };
+      const seat = dollSeat(doll);
+      return spot(seatedAt(s.currentRoom, seat, doll), doll.flip, SIZE_SCALE[doll.size] ?? 1, seat);
     }
     if (hood && view === 'house') {
       const p = id === hood.pid ? myPres() : hood.presence.get(id);
       if (p && p.where === 'house' && p.houseId === currentHouseId && p.room === s.currentRoom) {
         const seat = presSeat(id, p);
-        const at = seatedAt(s.currentRoom, seat, p);
-        return { x: at.x, y: at.y, flip: p.flip };
+        const size = hood.players.get(id)?.look?.size ?? 'kid';
+        return spot(seatedAt(s.currentRoom, seat, p), p.flip, SIZE_SCALE[size] ?? 1, seat);
       }
     }
     return null;
