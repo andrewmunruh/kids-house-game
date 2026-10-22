@@ -142,6 +142,16 @@ def disk_letter(data, text):
                 return state
     return None
 
+async def wait_disk_letter(data, text, seconds=3.0):
+    """The hood writes the house a few hundred milliseconds after the letter is in memory. Poll so a fast edit is not read before that file."""
+    deadline = time.monotonic() + seconds
+    found = None
+    while True:
+        found = disk_letter(data, text)
+        if found or time.monotonic() >= deadline:
+            return found
+        await asyncio.sleep(0.1)
+
 async def adult(pg):
     await pg.wait_for_selector('.adultCard .q')
     q = int(await pg.get_attribute('.adultCard .q', 'data-q'))
@@ -323,7 +333,7 @@ async def main():
               const edit = __hood().view(id).rooms.living.items.some(i => i.id === 'b0-keep');
               return { hair: me.look2 && me.look2.hair, mail: L, edit };
             }""", b1house)
-            disk = disk_letter(DATA, 'old iPad')
+            disk = await wait_disk_letter(DATA, 'old iPad')
             check('an fbd04db edit keeps look2 and the mailbox', kept_mix and kept_mix.get('hair') == 'buns' and kept_mix.get('edit') and any('old iPad' in t for t in kept_mix.get('mail') or []) and disk and not merrs, str(kept_mix) + ' ' + '; '.join(merrs[:3]))
             # Her house kid already has a chibi look. The cached fbd04db page sends only the legacy colors.
             await B1.evaluate("""(id) => {
