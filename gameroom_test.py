@@ -296,21 +296,52 @@ async def polish_pass(b):
           and data.get('minGap', 0) >= 8 and bool(heights) and min(heights) >= 128 and max(heights) <= 155 and data.get('mounts'),
           str(data))
     moved = False
-    tap = data.get('tap')
+    tap = None
     after = None
-    if tap and data.get('me'):
-        # WebKit sometimes swallows this click. The kid has not moved yet, so try again.
+    me = data.get('me')
+    if me:
+        # A point inside the horse box can sit above the horizon, and the game ignores that tap.
+        # WebKit also drops some mouse clicks on a touch phone, so try a real touch too.
         for _try in range(4):
-            await pg.mouse.click(tap['x'], tap['y'])
+            tap = await pg.evaluate("""() => {
+              const world = document.getElementById('ranchWorld');
+              const ranch = document.getElementById('ranch');
+              if (!world || !ranch) return null;
+              const rect = world.getBoundingClientRect();
+              const sc = ranch.clientHeight / 600;
+              const blocked = (el) => !!(el && el.closest('.horse, .animal, .rprop, .savatar, .pet, .plot, .bucket, .fallenApple, .basketChip, .top, .drawer'));
+              for (let y = Math.min(innerHeight - 6, rect.bottom - 4); y > rect.top + 4; y -= 8) {
+                const wy = (y - rect.top) / sc;
+                if (wy < 450) break;
+                for (let x = rect.left + 10; x < rect.right - 10; x += 12) {
+                  const el = document.elementFromPoint(x, y);
+                  if (el && el.closest('#ranchWorld') && !blocked(el)) return {x, y, wy: Math.round(wy)};
+                }
+              }
+              return null;
+            }""")
+            if not tap:
+                await pg.wait_for_timeout(80)
+                continue
+            await pg.touchscreen.tap(tap['x'], tap['y'])
             for _ in range(8):
-                await pg.wait_for_timeout(100)
+                await pg.wait_for_timeout(80)
                 after = await pg.evaluate("() => { const m = __ranch().me; return m && {x: m.x, ride: m.ride == null ? null : m.ride}; }")
-                if after and abs(after['x'] - data['me']['x']) > 12 and after['ride'] is None:
+                if after and abs(after['x'] - me['x']) > 12 and after['ride'] is None:
                     moved = True
                     break
             if moved:
                 break
-    check(f'{tag} a ground tap near a horse walks the kid', moved, str({'tap': tap, 'from': data.get('me'), 'after': after}))
+            await pg.mouse.click(tap['x'], tap['y'])
+            for _ in range(6):
+                await pg.wait_for_timeout(80)
+                after = await pg.evaluate("() => { const m = __ranch().me; return m && {x: m.x, ride: m.ride == null ? null : m.ride}; }")
+                if after and abs(after['x'] - me['x']) > 12 and after['ride'] is None:
+                    moved = True
+                    break
+            if moved:
+                break
+    check(f'{tag} a ground tap near a horse walks the kid', moved, str({'tap': tap, 'from': me, 'after': after}))
     await check_wait_fade(pg, tag)
     await check_long_hand(pg, tag, two_row=False)
     await ctx.close()
