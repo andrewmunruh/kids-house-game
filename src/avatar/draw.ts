@@ -236,7 +236,8 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean; pose
     `<g data-layer="hair-front">${wrapHead(`<g${clip}>${hairFront(L.hair, u, rich)}</g>`, pose)}</g>`,
     wrapHead(accessoryLayer(L), pose),
   ];
-  if (opt?.holding) layers.splice(6, 0, wrapHip(cradleArm('under', true, L.skin), pose));
+  const holdPose = opt?.poseName === 'sit' || opt?.poseName === 'lie' ? opt.poseName : null;
+  if (opt?.holding) layers.splice(6, 0, wrapHip(cradleArm('under', true, L.skin, holdPose, topHex), pose));
   const layersHtml = layers.join('');
   const shownTop = L.dress || L.top;
   const poseAttr = opt?.poseName ? ` data-pose="${opt.poseName}"` : '';
@@ -247,5 +248,7 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean; pose
 export function chibiCradleFront(look: Look2, poseName?: 'sit' | 'lie' | null): string {
   const L = fillLook2(look);
   const pose = poseNamed(poseName) ?? poseFor(L);
-  return `<svg viewBox="0 0 200 320" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg">${wrapHip(cradleArm('over', true, L.skin), pose)}</svg>`;
+  const holdPose = poseName === 'sit' || poseName === 'lie' ? poseName : null;
+  const cloth = L.dress ? L.dressC : L.topC;
+  return `<svg viewBox="0 0 200 320" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg">${wrapHip(cradleArm('over', true, L.skin, holdPose, cloth), pose)}</svg>`;
 }

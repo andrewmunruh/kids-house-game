@@ -19,11 +19,11 @@ const BH = 148;
  * Chest slot in the 120×192 doll box. The arm span used by the cradle check
  * runs from x 16 to 104 (width 88) and from y 98 to 168, under the chin.
  * The portrait is turned on its side inside this slot, so the painted pixels
- * are about 85% of that width (~75×53) and stay inside the band.
+ * are about 89% of that width and stay inside the band.
  * (CRADLE_X, CRADLE_Y) is the center of the slot.
  */
-const CRADLE_W = 76;
-const CRADLE_H = 54;
+const CRADLE_W = 80;
+const CRADLE_H = 57;
 const CRADLE_X = 60;
 const CRADLE_Y = 133;
 const CARES: BabyCare[] = ['feed', 'burp', 'change', 'rock'];

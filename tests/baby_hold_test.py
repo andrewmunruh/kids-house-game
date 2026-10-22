@@ -266,6 +266,15 @@ CRADLE_JS = """(sel) => {
   const overR = over[0] ? over[0].getBoundingClientRect() : null;
   const overOn = !!(overR && overR.width > 4 && overR.left < artR - 2 && overR.right > artL + 2 && overR.top < artB - 2 && overR.bottom > artT + 2);
   const armsOk = visible.length === 2 && under.length === 1 && over.length === 1 && hangingHidden && overOn && visible.every(function (n) { return n.classList.contains('cradle'); });
+  const handNodes = [...holder.querySelectorAll('.cradle-hand')].concat(front ? [...front.querySelectorAll('.cradle-hand')] : []);
+  const handPts = handNodes.map(function (n) {
+    const r = n.getBoundingClientRect();
+    return [(r.left + r.right) / 2, (r.top + r.bottom) / 2];
+  });
+  const handsIn = handPts.length === 2 && handPts.every(function (p) { return pip(corners, p[0], p[1]); });
+  const crown = at((minx + maxx) / 2 / iw, miny / ih);
+  const soles = at((minx + maxx) / 2 / iw, (maxy + 1) / ih);
+  const headUp = crown[1] <= soles[1] + 8;
   const sizeOk = frac >= 0.80 && frac <= 0.90;
   const cradle = baby.classList.contains('baby-cradle');
   let why = '';
@@ -274,10 +283,13 @@ CRADLE_JS = """(sel) => {
   else if (!sizeOk) why = 'size';
   else if (!cradle) why = 'class';
   else if (!armsOk) why = 'arms';
+  else if (!handsIn) why = 'hands';
+  else if (!headUp) why = 'headup';
   return {
-    ok: outside.length === 0 && !overlap && sizeOk && cradle && armsOk,
+    ok: outside.length === 0 && !overlap && sizeOk && cradle && armsOk && handsIn && headUp,
     why, pose, lieFlip, doll: Math.round(doll * 100) / 100,
     arms: visible.length, hang: hanging.length, under: under.length, over: over.length,
+    hands: handPts.length, headUp,
     frac: Math.round(frac * 1000) / 1000,
     px: Math.round(extent * 10) / 10,
     torso: Math.round(alen * 10) / 10,
@@ -299,13 +311,18 @@ async def frame_holder(pg, sel):
 
 async def closeup(pg, name):
     box = await pg.evaluate("""() => {
-      const nodes = [...document.querySelectorAll('#stage .char.holding, #stage .baby.baby-cradle, #stage .cradle-front')];
+      const holder = document.querySelector('#stage .char.holding');
+      const nodes = [...document.querySelectorAll('#stage .baby.baby-cradle, #stage .cradle-front, #stage .arm.cradle')];
       let l = 1e9, t = 1e9, r = -1e9, b = -1e9, n = 0;
       for (const el of nodes) {
         const q = el.getBoundingClientRect();
         if (q.width < 2 || q.height < 2) continue;
         l = Math.min(l, q.left); t = Math.min(t, q.top); r = Math.max(r, q.right); b = Math.max(b, q.bottom);
         n += 1;
+      }
+      if (holder) {
+        const q = holder.getBoundingClientRect();
+        if (q.width > 2) { l = Math.min(l, q.left); r = Math.max(r, q.right); t = Math.min(t, q.top); }
       }
       if (!n) return null;
       const pad = 18;

@@ -270,6 +270,16 @@ async function main() {
   const heldChibi = characterSVG(chibiLook, 'sit', true);
   const chibiFront = cradleFrontSVG(chibiLook, 'sit');
   check('a holding chibi draws one under arm and keeps the hanging arms in the picture', armCount(heldChibi, 'arm cradle') === 1 && armCount(heldChibi, 'arm l hang') >= 1 && armCount(heldChibi, 'arm r hang') >= 1 && armCount(chibiFront, 'arm cradle') === 1 && chibiFront.indexOf('class="arm l') < 0);
+  const handPts = (svg: string) => [...svg.matchAll(/class="cradle-hand" data-cx="([\d.]+)" data-cy="([\d.]+)"/g)].map(m => [Number(m[1]), Number(m[2])]);
+  const inBox = (pts: number[][], x0: number, y0: number, x1: number, y1: number) => pts.length === 2 && pts.every(p => p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1);
+  const classicBox = [20, 90, 80, 132];
+  const chibiBox = [40, 180, 160, 262];
+  check('classic cradle hands sit on the bundle', inBox(handPts(heldSvg + front), classicBox[0], classicBox[1], classicBox[2], classicBox[3]));
+  const classicLie = characterSVG(look, 'lie', true) + cradleFrontSVG(look, 'lie');
+  check('classic lying hands sit on the bundle', inBox(handPts(classicLie), classicBox[0], classicBox[1], classicBox[2], classicBox[3]));
+  check('chibi cradle hands sit on the bundle and she wears her sleeves', inBox(handPts(heldChibi + chibiFront), chibiBox[0], chibiBox[1], chibiBox[2], chibiBox[3]) && heldChibi.indexOf('stroke="#ff7aa8"') >= 0 && chibiFront.indexOf('stroke="#ff7aa8"') >= 0 && heldChibi.indexOf('<path class="cradle-hand"') >= 0);
+  const chibiLie = characterSVG(chibiLook, 'lie', true) + cradleFrontSVG(chibiLook, 'lie');
+  check('chibi lying hands sit on the bundle', inBox(handPts(chibiLie), chibiBox[0], chibiBox[1], chibiBox[2], chibiBox[3]));
 
   console.log(pass + ' passed');
 }

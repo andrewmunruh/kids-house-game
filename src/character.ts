@@ -64,14 +64,15 @@ export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 
   <path d="M44 60 Q50 66 56 60" ${s} fill="none"/>
   ${accessory(c.acc ?? 0, c.shirt)}
   <circle class="hand hang" cx="${HANDS.left.x}" cy="${HANDS.left.y}" r="6" fill="${c.skin}" ${s}/><circle class="hand hang" cx="${HANDS.right.x}" cy="${HANDS.right.y}" r="6" fill="${c.skin}" ${s}/>
-  ${holding ? cradleArm('under', false, cradleSkin(c.skin)) : ''}
+  ${holding ? cradleArm('under', false, cradleSkin(c.skin), null) : ''}
 </svg>`;
 }
 
 /** The arm that rests on the blanket, in a layer above the baby. */
 export function cradleFrontSVG(c: Pick<Character, 'skin'> & { look2?: Look2 | null }, poseName?: 'sit' | 'lie' | null): string {
   if (c.look2) return chibiCradleFront(c.look2, poseName);
-  return `<svg viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">${cradleArm('over', false, cradleSkin(c.skin))}</svg>`;
+  const pose = poseName === 'sit' || poseName === 'lie' ? poseName : null;
+  return `<svg viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">${cradleArm('over', false, cradleSkin(c.skin), pose)}</svg>`;
 }
 
 /** Classic dolls have no chibi look. Sit bends the legs. Lie closes the eyes. The CSS pose turns the body once. */
@@ -103,7 +104,7 @@ function classicPose(c: { skin: string; hair: string; hairStyle: number; shirt: 
   ${accessory(c.acc ?? 0, c.shirt)}
   </g>
   <circle class="hand hang" cx="22" cy="96" r="6" fill="${c.skin}" ${s}/><circle class="hand hang" cx="78" cy="96" r="6" fill="${c.skin}" ${s}/>
-  ${holding ? cradleArm('under', false, cradleSkin(c.skin)) : ''}`;
+  ${holding ? cradleArm('under', false, cradleSkin(c.skin), poseName) : ''}`;
   // The lie turn is the pose-lie class. Rotating again here would spin her to -156°.
   return `<svg data-pose="${poseName}" viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
 }
