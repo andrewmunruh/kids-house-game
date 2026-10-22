@@ -94,7 +94,8 @@ export const ITEM_MAP: Record<string, ItemDef> = Object.fromEntries(ITEMS.map(i 
 const esc = (t: string) => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 /** Height in room units (square unless the art says otherwise). */
 export const hOf = (d: ItemDef) => d.h ?? d.w;
-/** The drawing shipped before raster art: an inline SVG, or a pack image. */
+/** The drawing shipped before raster art: an inline SVG, or a pack image.
+ *  Winter Cheer is a pack WebP with no SVG, so ?art=v1 still loads that file. */
 export const svgMarkup = (d: ItemDef) => d.img
   ? `<img class="packimg" src="${esc(d.img)}" alt="${esc(d.name)}" draggable="false" />`
   : `<svg viewBox="${d.vb ?? '0 0 100 100'}" xmlns="http://www.w3.org/2000/svg">${d.svg}</svg>`;

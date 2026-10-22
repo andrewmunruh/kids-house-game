@@ -6306,8 +6306,8 @@
     "size": "medium",
     "pack": "winter",
     "png": "packs/winter/wc-cinnamon-tray.webp",
-    "widthUnits": 720,
-    "heightUnits": 271,
+    "widthUnits": 150,
+    "heightUnits": 45,
     "gameW": 150,
     "holdable": true
   },
@@ -6382,8 +6382,8 @@
     "size": "small",
     "pack": "winter",
     "png": "packs/winter/wc-ice-skates.webp",
-    "widthUnits": 521,
-    "heightUnits": 720,
+    "widthUnits": 100,
+    "heightUnits": 100,
     "gameW": 100,
     "holdable": true
   },
@@ -6645,8 +6645,8 @@
     "size": "small",
     "pack": "winter",
     "png": "packs/winter/wc-cane-lamp.webp",
-    "widthUnits": 376,
-    "heightUnits": 720,
+    "widthUnits": 90,
+    "heightUnits": 234,
     "gameW": 90,
     "holdable": true
   },

@@ -78,6 +78,17 @@ for (const p of dumped.pairs) {
 }
 check('svg markup is well formed', lintBad.length === 0, lintBad.slice(0, 6).join('; '));
 
+// New Winter Cheer slugs are not in fbd04db, so the equality checks above skip
+// them. Hold the paintings to the shipped raster contract instead.
+let winterOk = false;
+try {
+  execSync('python3 tests/winter_art_check.py', { stdio: 'inherit' });
+  winterOk = true;
+} catch {
+  winterOk = false;
+}
+check('winter paintings are exact 3x under 60KB', winterOk);
+
 const py = ['/tmp/pwvenv/bin/python', '/workspace/.pwvenv/bin/python'].find(p => { try { execSync(`test -x ${p}`); return true; } catch { return false; } });
 check('placement measurer is available', !!py, 'playwright python');
 if (py) {
