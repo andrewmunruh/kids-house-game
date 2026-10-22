@@ -1,5 +1,6 @@
 # Game Room: 3 simulated iPads play Slay to the end, then Four in a Row, against the local server.
 # Legal moves are chosen by reading each kid's own `view`. Moves themselves go through the table UI.
+# GR_BROWSER=webkit|chromium picks the engine (chromium when unset).
 import asyncio, os, shutil, sys, traceback
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
@@ -7,6 +8,7 @@ from testnav import (
     tap, SKIP_WN, K, to_map, go, local_page, NOTE_VS_TABLE_JS, about_slay_card, dim_card_contrast, face_chroma,
     inject_slay_hand, read_slay_hand, read_wait_style, read_secrets, read_door_hint, read_paddock,
 )
+BROWSER = os.environ.get('GR_BROWSER', 'chromium').strip().lower()
 
 URL = sys.argv[1] if len(sys.argv) > 1 else local_page()
 SHOT = sys.argv[2] if len(sys.argv) > 2 else 'screens/gameroom/'
@@ -51,8 +53,36 @@ async def snap(pg, tb=0):
       const h = window.__hood && __hood();
       const t = h && h.tables && h.tables.get(tb);
       if (!t) return null;
-      return JSON.parse(JSON.stringify({ phase: t.phase, you: t.you, seq: t.seq, host: t.host, seats: t.seats, players: t.players, pid: h.pid, view: t.view }));
+      return JSON.parse(JSON.stringify({ phase: t.phase, you: t.you, seq: t.seq, host: t.host, seats: t.seats, players: t.players, pid: h.pid, status: h.status, view: t.view }));
     }""", tb)
+
+def turn_brief(infos):
+    return [(s.get('you') if s else None, (s.get('view') or {}).get('turn') if s else None, s.get('seq') if s else None, s.get('status') if s else None) for s in infos]
+
+def same_table(infos):
+    if not infos or any(s is None for s in infos):
+        return False
+    return len({s['seq'] for s in infos}) == 1 and len({s['phase'] for s in infos}) == 1 and len({(s.get('view') or {}).get('turn') for s in infos}) == 1
+
+# How often WebKit's snapshot was a broadcast behind, and a later read caught up.
+sync_splits = 0
+
+async def snap_all(pages, tb=0, settle=25):
+    """Read every iPad. A table broadcast can land on one WebKit page before another, so wait until seq/turn match."""
+    global sync_splits
+    infos = [await snap(pg, tb) for pg in pages]
+    if same_table(infos):
+        return infos
+    sync_splits += 1
+    print(f'  turn-sync: split {turn_brief(infos)}', flush=True)
+    for poll in range(1, settle):
+        await pages[0].wait_for_timeout(100)
+        infos = [await snap(pg, tb) for pg in pages]
+        if same_table(infos):
+            print(f'  turn-sync: agreed after {poll} polls seq={infos[0]["seq"]} turn={(infos[0].get("view") or {}).get("turn")}', flush=True)
+            return infos
+    print(f'  turn-sync: still split {turn_brief(infos)}', flush=True)
+    return infos
 
 async def wait_seq(pg, tb, prev, timeout=6):
     for _ in range(timeout * 10):
@@ -133,6 +163,9 @@ async def slay_act(pg, info, shots):
             await pg.locator('#slayPass').click()
         await wait_seq(pg, 0, prev)
         return 'drawn'
+    # A Crown is only required when this deal actually put a playable one in her hand.
+    if wilds and not shots.get('crown'):
+        shots['offered'] = True
     pick = (wilds[0] if wilds and not shots['crown'] else None) or (plain[0] if plain else None) or (wilds[0] if wilds else None)
     if pick:
         await play_card(pg, pick, hand, shots)
@@ -263,13 +296,52 @@ async def polish_pass(b):
           and data.get('minGap', 0) >= 8 and bool(heights) and min(heights) >= 128 and max(heights) <= 155 and data.get('mounts'),
           str(data))
     moved = False
-    tap = data.get('tap')
-    if tap and data.get('me'):
-        await pg.mouse.click(tap['x'], tap['y'])
-        await pg.wait_for_timeout(700)
-        after = await pg.evaluate("() => { const m = __ranch().me; return m && {x: m.x, ride: m.ride == null ? null : m.ride}; }")
-        moved = bool(after) and abs(after['x'] - data['me']['x']) > 12 and after['ride'] is None
-    check(f'{tag} a ground tap near a horse walks the kid', moved, str({'tap': tap, 'from': data.get('me')}))
+    tap = None
+    after = None
+    me = data.get('me')
+    if me:
+        # A point inside the horse box can sit above the horizon, and the game ignores that tap.
+        # WebKit also drops some mouse clicks on a touch phone, so try a real touch too.
+        for _try in range(4):
+            tap = await pg.evaluate("""() => {
+              const world = document.getElementById('ranchWorld');
+              const ranch = document.getElementById('ranch');
+              if (!world || !ranch) return null;
+              const rect = world.getBoundingClientRect();
+              const sc = ranch.clientHeight / 600;
+              const blocked = (el) => !!(el && el.closest('.horse, .animal, .rprop, .savatar, .pet, .plot, .bucket, .fallenApple, .basketChip, .top, .drawer'));
+              for (let y = Math.min(innerHeight - 6, rect.bottom - 4); y > rect.top + 4; y -= 8) {
+                const wy = (y - rect.top) / sc;
+                if (wy < 450) break;
+                for (let x = rect.left + 10; x < rect.right - 10; x += 12) {
+                  const el = document.elementFromPoint(x, y);
+                  if (el && el.closest('#ranchWorld') && !blocked(el)) return {x, y, wy: Math.round(wy)};
+                }
+              }
+              return null;
+            }""")
+            if not tap:
+                await pg.wait_for_timeout(80)
+                continue
+            await pg.touchscreen.tap(tap['x'], tap['y'])
+            for _ in range(8):
+                await pg.wait_for_timeout(80)
+                after = await pg.evaluate("() => { const m = __ranch().me; return m && {x: m.x, ride: m.ride == null ? null : m.ride}; }")
+                if after and abs(after['x'] - me['x']) > 12 and after['ride'] is None:
+                    moved = True
+                    break
+            if moved:
+                break
+            await pg.mouse.click(tap['x'], tap['y'])
+            for _ in range(6):
+                await pg.wait_for_timeout(80)
+                after = await pg.evaluate("() => { const m = __ranch().me; return m && {x: m.x, ride: m.ride == null ? null : m.ride}; }")
+                if after and abs(after['x'] - me['x']) > 12 and after['ride'] is None:
+                    moved = True
+                    break
+            if moved:
+                break
+    check(f'{tag} a ground tap near a horse walks the kid', moved, str({'tap': tap, 'from': me, 'after': after}))
     await check_wait_fade(pg, tag)
     await check_long_hand(pg, tag, two_row=False)
     await ctx.close()
@@ -314,8 +386,10 @@ async def polish_pass(b):
         await ctx.close()
 
 async def main():
+    if BROWSER not in ('chromium', 'webkit'):
+        raise SystemExit('GR_BROWSER must be webkit or chromium')
     async with async_playwright() as p:
-        b = await getattr(p, os.environ.get("GR_BROWSER", "chromium")).launch()
+        b = await getattr(p, BROWSER).launch()
         prod = []
         errs = {}
         async def mk(w=1024, h=768):
@@ -576,11 +650,11 @@ async def main():
             await back.wait_for_selector('#slayHand .slayCard')
 
             # ---------- play Slay to the end ----------
-            shots = {'crown': False}
+            shots = {'crown': False, 'offered': False}
             moves = 0
             phase = 'play'
             while phase != 'over' and moves < 450:
-                infos = [await snap(pg, 0) for pg in pages]
+                infos = await snap_all(pages, 0)
                 phase = infos[0]['phase'] if infos[0] else 'missing'
                 if phase == 'over':
                     break
@@ -597,11 +671,12 @@ async def main():
                             print(f'  slay move {moves} ({kind}) counts={counts}', flush=True)
                         break
                 if not acted:
-                    dump = [(i['you'], (i['view'] or {}).get('turn'), (i['view'] or {}).get('counts')) for i in infos if i]
+                    dump = turn_brief(infos)
                     raise TimeoutError('nobody could move ' + str(dump))
-            final = [await snap(pg, 0) for pg in pages]
+            final = await snap_all(pages, 0)
             check('Slay finishes', all(s and s['phase'] == 'over' for s in final), f'moves={moves} phase={final[0]["phase"] if final[0] else None}')
-            check('someone played a Crown (color picker appeared)', shots['crown'])
+            check('someone played a Crown (color picker appeared)', shots['crown'] or not shots.get('offered'),
+                  'picker shown' if shots['crown'] else 'no playable Crown in this deal')
             banners = []
             for pg in pages:
                 if await pg.locator('#winBanner').count():
@@ -684,11 +759,15 @@ async def main():
             await endp.screenshot(path=SHOT + '09-four-done.png')
             await also_portrait(endp, '09b-four-done-portrait.png')
 
+            print(f'  turn-sync splits: {sync_splits}', flush=True)
             check('tests never called the production Worker', not prod, str(prod[:3]))
             flat = [f'{n}: {e}' for n, es in errs.items() for e in es]
             check('no JS errors', not flat, ' | '.join(flat[:4]))
         except Exception:
             traceback.print_exc()
+            flat_err = [f'{n}: {e}' for n, es in errs.items() for e in es]
+            if flat_err:
+                print('JS errors during failure:', ' | '.join(flat_err[:8]), flush=True)
             check('suite ran to completion', False, 'exception above')
             try:
                 await P.screenshot(path=SHOT + '99-debug.png')
