@@ -15,11 +15,14 @@ import { babySVG } from './draw';
 
 const BW = 110;
 const BH = 148;
-/** Chest slot in the 120×192 doll box. Narrower than the shirt, and below the chin. */
-const CRADLE_W = 32;
-const CRADLE_H = 30;
+/**
+ * Chest slot in the 120×192 doll box. 46 is about 80% of the classic shirt,
+ * so she fills the torso and rests on the arms. 52 keeps her under the chin.
+ */
+const CRADLE_W = 46;
+const CRADLE_H = 52;
 const CRADLE_X = 60;
-const CRADLE_Y = 124;
+const CRADLE_Y = 126;
 const CARES: BabyCare[] = ['feed', 'burp', 'change', 'rock'];
 const PRESETS = ['Bean', 'Pip', 'Mochi', 'Bunny', 'Dot', 'Sunny'];
 

@@ -9,10 +9,10 @@
 .baby.flipped .babySpin { transform: scaleX(-1); }
 /* Held: the slot is the chest. The same portrait turns inside it, so the art is not redrawn. */
 .baby.baby-cradle .babySpin {
-  position: absolute; left: 50%; top: 50%; width: 62%; height: 90%;
-  transform: translate(-50%, -50%) rotate(-80deg);
+  position: absolute; left: 50%; top: 50%; width: 63%; height: 77%;
+  transform: translate(-50%, -50%) rotate(-30deg);
 }
-.baby.baby-cradle.flipped .babySpin { transform: translate(-50%, -50%) rotate(80deg) scaleX(-1); }
+.baby.baby-cradle.flipped .babySpin { transform: translate(-50%, -50%) rotate(30deg) scaleX(-1); }
 .baby.is-rock .babyRock { animation: babyRock 0.8s ease-in-out; transform-origin: 50% 55%; }
 .baby.is-feed .babyInner { animation: babyWiggle 0.6s ease-in-out; }
 @keyframes babyRock {

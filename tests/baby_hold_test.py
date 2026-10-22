@@ -136,7 +136,8 @@ async def card_layout(pg):
     }""")
 
 CRADLE_VIEWS = [(820, 1180), (390, 844), (844, 390)]
-# Chibi shirt in the 120×192 doll box. It also sits inside the classic shirt.
+# Hold band in the 120×192 doll box: below the chin, across the torso and the arms.
+# The bundle may overlap the arms. It may not overlap the head.
 CRADLE_JS = """(sel) => {
   const holder = document.querySelector(sel);
   const baby = document.querySelector('#stage .baby');
@@ -148,7 +149,7 @@ CRADLE_JS = """(sel) => {
   const sc = stage.getBoundingClientRect().height / stage.offsetHeight;
   const pose = holder.classList.contains('pose-lie') ? 'lie' : (holder.classList.contains('pose-sit') ? 'sit' : 'stand');
   const lieFlip = holder.classList.contains('pose-lie-r');
-  const torso = [[42, 100.8], [78, 100.8], [80.4, 141.6], [39.6, 141.6]];
+  const torso = [[16, 98], [104, 98], [104, 168], [16, 168]];
   const head = [[24, 22.8], [96, 22.8], [96, 96], [24, 96]];
   const doll = b.width / sc / 120;
   function map(px, py) {
@@ -202,10 +203,11 @@ CRADLE_JS = """(sel) => {
     for (const p of hp) if (p[0] >= L && p[0] <= R && p[1] >= T && p[1] <= Bm) overlap = true;
     for (let i = 0; i < 4 && !overlap; i++) for (let k = 0; k < 4; k++) if (hit(box[i], box[(i + 1) % 4], hp[k], hp[(k + 1) % 4])) overlap = true;
   }
-  const wide = babyR.width > b.width * 0.45;
+  const fracW = babyR.width / b.width, fracH = babyR.height / b.height;
+  const sizeOk = fracW >= 0.34 && fracW <= 0.7 && fracH >= 0.22;
   return {
-    ok: outside.length === 0 && !overlap && !wide && baby.classList.contains('baby-cradle'),
-    why: outside.length ? 'torso' : (overlap ? 'head' : (wide ? 'wide' : (baby.classList.contains('baby-cradle') ? '' : 'class'))),
+    ok: outside.length === 0 && !overlap && sizeOk && baby.classList.contains('baby-cradle'),
+    why: outside.length ? 'torso' : (overlap ? 'head' : (!sizeOk ? 'size' : (baby.classList.contains('baby-cradle') ? '' : 'class'))),
     pose, lieFlip, doll: Math.round(doll * 100) / 100,
     baby: { w: Math.round(babyR.width * 10) / 10, h: Math.round(babyR.height * 10) / 10 },
     holder: { w: Math.round(b.width), h: Math.round(b.height) },
