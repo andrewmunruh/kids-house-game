@@ -238,7 +238,7 @@ async function main() {
     && packItems.find(e => e.name === 'Gaming Chair')?.room === 'bedroom'
     && packItems.find(e => e.slug === 'comfy-armchair')?.room === 'living'
     && packItems.find(e => e.slug === 'cc-light-vanity')?.room === 'salon');
-  const codeNames = [...(readFileSync(new URL('../src/items.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/nursery.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/yard.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/eggs.ts', import.meta.url), 'utf8')).matchAll(/name:\s*'([^']+)'/g)].map(m => m[1]);
+  const codeNames = [...(readFileSync(new URL('../src/items.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/nursery.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/yard.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/bathroom.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/eggs.ts', import.meta.url), 'utf8')).matchAll(/name:\s*'([^']+)'/g)].map(m => m[1]);
   const mapSrc = readFileSync(new URL('../src/map.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
   check('the yard is not a map place', !/data-go=["']backyard|mapYard|aria-label="Backyard"/.test(mapSrc) && /data-yard-go/.test(mapSrc));
   const swingArt = readFileSync(new URL('../src/yard.ts', import.meta.url), 'utf8');

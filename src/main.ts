@@ -4,7 +4,7 @@ import './scenery.css';
 import './mail.css';
 import './avatar.css';
 import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapPortraitBgSVG, mapTreesSVG, portraitMeadowSVG, mapSkySVG, mapMeadowSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
-import { createStore, newCharacter, takeClearedFurniture, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
+import { createStore, newCharacter, takeClearedFurniture, drawnScale, itemSizeOf, ITEM_SIZE_STEPS, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
 import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROSTER, normCode, validInvite, filterSay, FILTER_MSG, isNear, streetWidth, slotX, cleanLook, cleanPetName, CAT_NAMES, DOG_NAMES, PARK_W, PARK_SPOTS, SLIDE, DOG_AREA, mailIsFree, type Presence, type Bubble, type Look, type Fx } from './shared/hood';
 import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } from './pets';
@@ -72,6 +72,7 @@ const ROOMS: { id: RoomId; name: string; color: string }[] = [
   { id: 'kitchen', name: 'Kitchen', color: '#5cc985' },
   { id: 'salon', name: 'Salon', color: '#f0a0d8' },
   { id: 'nursery', name: 'Nursery', color: '#9ad7f5' },
+  { id: 'bathroom', name: 'Bathroom', color: '#7ec8d6' },
 ];
 const roomColor = (r: string) => ROOMS.find(x => x.id === r)?.color ?? '#ccc';
 // ?yard=1 stages the approval shots. The catalog itself is always registered.
@@ -100,6 +101,8 @@ const ICON = {
   front: `<svg viewBox="0 0 48 48"><rect x="6" y="6" width="22" height="22" rx="5" fill="#ddd" stroke="#5a3d5c" stroke-width="3"/><rect x="18" y="18" width="24" height="24" rx="5" fill="#ffd166" stroke="#5a3d5c" stroke-width="3"/></svg>`,
   back: `<svg viewBox="0 0 48 48"><rect x="18" y="18" width="24" height="24" rx="5" fill="#ddd" stroke="#5a3d5c" stroke-width="3"/><rect x="6" y="6" width="22" height="22" rx="5" fill="#ffd166" stroke="#5a3d5c" stroke-width="3"/></svg>`,
   trash: `<svg viewBox="0 0 48 48"><rect x="12" y="14" width="24" height="28" rx="5" fill="#ff8fab" stroke="#5a3d5c" stroke-width="3"/><rect x="8" y="9" width="32" height="7" rx="3.5" fill="#ffadad" stroke="#5a3d5c" stroke-width="3"/><path d="M20 21 V35 M28 21 V35" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/></svg>`,
+  smaller: `<svg viewBox="0 0 48 48"><rect x="16" y="16" width="16" height="16" rx="4" fill="#bde0fe" stroke="#5a3d5c" stroke-width="3"/><path d="M8 24 H14 M34 24 H40" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/></svg>`,
+  bigger: `<svg viewBox="0 0 48 48"><rect x="12" y="12" width="24" height="24" rx="5" fill="#ffd166" stroke="#5a3d5c" stroke-width="3"/><path d="M24 6 V11 M24 37 V42 M6 24 H11 M37 24 H42" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/></svg>`,
 };
 const PEOPLE_ICON = `<svg viewBox="0 0 48 48"><circle cx="17" cy="18" r="8" fill="#ffd166" stroke="#5a3d5c" stroke-width="3"/><circle cx="32" cy="20" r="7" fill="#ff8fab" stroke="#5a3d5c" stroke-width="3"/><path d="M5 42 Q6 28 17 28 Q28 28 29 42 Z" fill="#8ecae6" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/><path d="M24 42 Q25 30 32 30 Q42 30 43 42 Z" fill="#c9a0dc" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/></svg>`;
 const MENU_ICON = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 15 H37 M11 24 H37 M11 33 H37" fill="none" stroke="#5a3d5c" stroke-width="4" stroke-linecap="round"/></svg>`;
@@ -150,7 +153,7 @@ app.innerHTML = `
       <div class="scenery" id="scenery"></div>
       <div class="layer" id="layer"></div>
       <div class="toolbar hidden" id="toolbar">
-        <button data-a="flip">${ICON.flip}</button><button data-a="front">${ICON.front}</button><button data-a="back">${ICON.back}</button><button data-a="delete" class="danger">${ICON.trash}</button>
+        <button data-a="smaller" aria-label="Smaller">${ICON.smaller}</button><button data-a="bigger" aria-label="Bigger">${ICON.bigger}</button><button data-a="flip" aria-label="Flip">${ICON.flip}</button><button data-a="front" aria-label="Bring forward">${ICON.front}</button><button data-a="back" aria-label="Send back">${ICON.back}</button><button data-a="delete" class="danger" aria-label="Put away">${ICON.trash}</button>
       </div>
     </div>
     <button class="nudge left" id="nudgeL" aria-label="Look left"><svg viewBox="0 0 40 40"><path d="M24 10 L14 20 L24 30" fill="none" stroke="#5a3d5c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -430,12 +433,12 @@ function phoneShowHouseKid() { frameHouseKid(false); }
  * Play on a short screen. The widest floor piece stays at most about 55% of the view,
  * so a bed does not fill a phone. iPad sizes are over 500 on the short side.
  */
-function widestFloorPiece(items: { kind: string; scale: number }[]): number {
+function widestFloorPiece(items: { kind: string; scale: number; size?: number }[]): number {
   let piece = 0;
   for (const it of items) {
     const def = ITEM_MAP[it.kind];
     if (!def || def.wall) continue;
-    piece = Math.max(piece, def.w * (it.scale || 1));
+    piece = Math.max(piece, def.w * drawnScale(it));
   }
   return piece;
 }
@@ -502,7 +505,7 @@ function playPairBounds(): { minX: number; maxX: number } | null {
   const it = s.rooms[s.currentRoom].items.find(i => i.id === targetId);
   const def = it && ITEM_MAP[it.kind];
   if (!it || !def) return null;
-  const half = def.w * (it.scale || 1) / 2;
+  const half = def.w * drawnScale(it) / 2;
   return { minX: Math.min(dollX - 100, it.x - half), maxX: Math.max(dollX + 100, it.x + half) };
 }
 /** Pan so the kid and her name tag sit inside the stage. On a drop, step her inward if the camera is already at the end of the room. */
@@ -586,7 +589,7 @@ function moveKidX(kid: HTMLElement, x: number) {
   const c = store.get().characters.find(ch => ch.id === id); if (!c) return;
   store.dispatch({ type: 'char/move', id, room: store.get().currentRoom, x, y: c.y });
 }
-const TAB_SHORT: Record<string, string> = { living: 'Living', bedroom: 'Bed', kitchen: 'Kitchen', salon: 'Salon', nursery: 'Nursery' };
+const TAB_SHORT: Record<string, string> = { living: 'Living', bedroom: 'Bed', kitchen: 'Kitchen', salon: 'Salon', nursery: 'Nursery', bathroom: 'Bath' };
 /** Minimap shows in Decorate, or whenever the room is wider than the window. Phone portrait Play hides it so the stage can grow. */
 function syncMinimap() {
   const inHouse = view === 'house';
@@ -598,7 +601,7 @@ function syncMinimap() {
 }
 const TAB_ICO = `<svg class="tabIco" width="14" height="12" viewBox="0 0 16 12" aria-hidden="true"><path d="M1 6 L8 1 L15 6 V11 H1 Z" fill="currentColor"/></svg>`;
 function tabsCompact() {
-  // Phones narrower than 700px use the short names so five tabs, Menu, and Map share one row at 13px.
+  // Phones narrower than 700px use the short names so six tabs, Menu, and Map share one row at 13px.
   // iPad keeps the full names: the Menu freed the row, and 12px type is below the floor.
   if (!document.body.classList.contains('phone')) return false;
   return window.matchMedia('(max-width: 700px)').matches;
@@ -712,7 +715,7 @@ function ownsDolls(): boolean {
 function seatPieceOf(it: PlacedItem): SeatPiece | null {
   const def = ITEM_MAP[it.kind];
   if (!def || !seatFractions(it.kind)) return null;
-  return { id: it.id, kind: it.kind, x: it.x, footY: drawY(def, it.y), flip: !!it.flip, scale: it.scale || 1, w: def.w, h: hOf(def) };
+  return { id: it.id, kind: it.kind, x: it.x, footY: drawY(def, it.y), flip: !!it.flip, scale: drawnScale(it), w: def.w, h: hOf(def) };
 }
 function takenSeats(skipChar?: string, skipPid?: string): { item: string; n: 0 | 1 }[] {
   const s = store.get();
@@ -863,7 +866,7 @@ function renderMinimap(s: GameState) {
   const room = s.rooms[s.currentRoom];
   const dots = room.items.filter(i => ITEM_MAP[i.kind]).map(i => {
     const def = ITEM_MAP[i.kind];
-    return `<i style="left:${i.x / W * 100}%;top:${(drawY(def, i.y) - hOf(def) * i.scale / 2) / H * 100}%"></i>`;
+    return `<i style="left:${i.x / W * 100}%;top:${(drawY(def, i.y) - hOf(def) * drawnScale(i) / 2) / H * 100}%"></i>`;
   }).join('');
   const me = s.characters.filter(c => c.room === s.currentRoom).map(c => `<b style="left:${c.x / W * 100}%;top:${(c.y - 90) / H * 100}%;background:${c.shirt}"></b>`).join('');
   $('mmDots').innerHTML = dots + me;
@@ -913,7 +916,7 @@ function renderItems(s: GameState) {
     }
     el.dataset.kind = it.kind;
     el.classList.toggle('is-light', isLightKind(it.kind, !!def.light));
-    const box = placedBox(def, it.scale);
+    const box = placedBox(def, drawnScale(it));
     placeEl(el, it.x, drawY(def, it.y), box.w, box.h);
     const iz = 1000 + it.z;
     el.style.zIndex = String(iz);
@@ -949,7 +952,7 @@ function syncSeatFronts() {
     const inner = el.querySelector('.inner');
     if (!inner || (src && inner.innerHTML !== src.innerHTML)) el.innerHTML = `<div class="inner">${src ? src.innerHTML : svgOf(def, true)}</div>`;
     el.className = 'seatFront ' + cls + (it.flip ? ' flipped' : '');
-    const box = placedBox(def, it.scale);
+    const box = placedBox(def, drawnScale(it));
     placeEl(el, it.x, drawY(def, it.y), box.w, box.h);
     el.style.zIndex = String(1000 + it.z + 3);
   });
@@ -1067,8 +1070,9 @@ function heldHTML(c: Character) {
   const pts = handsFor(c, poseNamed(dollSeat(c)?.pose)), shrink = c.look2 ? 0.85 : 1;
   return (['left', 'right'] as Hand[]).map(hand => {
     const it = c.held[hand]; const def = it && ITEM_MAP[it.kind]; if (!it || !def) return '';
-    const k = Math.min(0.7, 120 * sc / Math.max(def.w, hOf(def)) / it.scale) * shrink;
-    const iw = def.w * it.scale * k, ih = hOf(def) * it.scale * k;
+    const fit = drawnScale(it);
+    const k = Math.min(0.7, 120 * sc / Math.max(def.w, hOf(def)) / fit) * shrink;
+    const iw = def.w * fit * k, ih = hOf(def) * fit * k;
     const hx = pts[hand].x / 100 * bw, hy = pts[hand].y / 160 * bh;
     return `<div class="held ${it.flip ? 'flipped' : ''}" data-hand="${hand}" style="left:${(hx - iw / 2) / bw * 100}%;top:${(hy - ih * 0.62) / bh * 100}%;width:${iw / bw * 100}%;height:${ih / bh * 100}%"><div class="inner">${svgOf(def)}</div></div>`;
   }).join('');
@@ -1134,12 +1138,18 @@ function renderChars(s: GameState) {
 
 function renderToolbar(s: GameState) {
   const it = selected && s.rooms[s.currentRoom].items.find(i => i.id === selected);
-  if (!it || !ITEM_MAP[it.kind]) { toolbar.classList.add('hidden'); return; }
+  if (play.isPlay() || !it || !ITEM_MAP[it.kind]) { toolbar.classList.add('hidden'); return; }
   const def = ITEM_MAP[it.kind];
-  const top = drawY(def, it.y) - hOf(def) * it.scale - 20;
+  const top = drawY(def, it.y) - hOf(def) * drawnScale(it) - 20;
   toolbar.classList.remove('hidden');
-  toolbar.style.left = Math.max(camX + 130, Math.min(camX + VIEW_W - 130, it.x)) / W * 100 + '%';
+  toolbar.style.left = Math.max(camX + 160, Math.min(camX + VIEW_W - 160, it.x)) / W * 100 + '%';
   toolbar.style.top = Math.max(40, top) / H * 100 + '%';
+  const step = itemSizeOf(it.size);
+  const at = ITEM_SIZE_STEPS.indexOf(step);
+  const smaller = toolbar.querySelector<HTMLButtonElement>('[data-a="smaller"]');
+  const bigger = toolbar.querySelector<HTMLButtonElement>('[data-a="bigger"]');
+  if (smaller) smaller.disabled = at <= 0;
+  if (bigger) bigger.disabled = at >= ITEM_SIZE_STEPS.length - 1;
 }
 function renderSoundBtn(s: GameState) {
   const ico = $('soundIco'); if (ico) ico.innerHTML = s.soundOn ? ICON.soundOn : ICON.soundOff;
@@ -1308,7 +1318,7 @@ function clearMySeatIfFurniture(a: Action) {
   const me = myPres();
   if (!me || me.where !== 'house' || !me.seat) return;
   let id = '';
-  if (a.type === 'item/flip' || a.type === 'item/delete') id = a.id;
+  if (a.type === 'item/flip' || a.type === 'item/delete' || a.type === 'item/size') id = a.id;
   else if (a.type === 'item/move' && a.stand) id = a.id;
   else if (a.type === 'char/hold') id = a.itemId;
   else return;
@@ -1339,7 +1349,7 @@ store.subscribe((s, a) => {
       if (a.type === 'char/move' && swingPose && !swingLock && a.id === swingPose.id) swingPose = null;
       renderChars(s); syncSeatFronts(); syncSwingPose(); if (view === 'ranch') renderRanchAvatars(); else if (view === 'park') renderParkAvatars(); break;
     case 'char/add': case 'char/delete': case 'char/hold': case 'char/release': renderItems(s); renderChars(s); renderAvatars(); if (currentTab === '__people') renderDrawer(); break;
-    case 'item/move': case 'item/flip': case 'item/delete': renderItems(s); renderChars(s); renderAvatars(); break;
+    case 'item/move': case 'item/flip': case 'item/delete': case 'item/size': renderItems(s); renderChars(s); renderAvatars(); break;
     case 'settings/sound': renderSoundBtn(s); break;
     default: renderItems(s);
   }
@@ -1466,7 +1476,7 @@ function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
       if (Math.hypot(p.x - p0.x, p.y - p0.y) > 6) moved = true;
       if (moved) { toolbar.classList.add('hidden'); bin.classList.add('show'); }
       bin.classList.toggle('hot', overBin(ev.clientX, ev.clientY));
-      const half = def.w * it.scale / 2;
+      const half = def.w * drawnScale(it) / 2;
       store.dispatch({ type: 'item/move', room, id, x: Math.max(half * .6, Math.min(W - half * .6, p.x + off.x)), y: snapY(def, p.y + off.y), ...(moved ? { stand: true as const } : {}) });
       if (moved) toolbar.classList.add('hidden');
       target = moved && def.holdable ? holdTarget(p) : null; showHoldTarget(target);
@@ -1807,6 +1817,15 @@ toolbar.addEventListener('click', e => {
   if (!canEdit()) { lockedNudge(null); return; }
   const room = store.get().currentRoom, id = selected, el = layer.querySelector(`.item[data-id="${id}"]`);
   switch (b.dataset.a) {
+    case 'smaller': case 'bigger': {
+      const cur = store.get().rooms[room].items.find(i => i.id === id);
+      if (!cur) break;
+      const at = ITEM_SIZE_STEPS.indexOf(itemSizeOf(cur.size));
+      const n = b.dataset.a === 'smaller' ? at - 1 : at + 1;
+      if (n < 0 || n >= ITEM_SIZE_STEPS.length) break;
+      store.dispatch({ type: 'item/size', room, id, size: ITEM_SIZE_STEPS[n] });
+      sfx.click(); bounce(el); break;
+    }
     case 'flip': store.dispatch({ type: 'item/flip', room, id }); sfx.swish(); bounce(el); break;
     case 'front': store.dispatch({ type: 'item/front', room, id }); sfx.click(); bounce(el); break;
     case 'back': store.dispatch({ type: 'item/back', room, id }); sfx.click(); bounce(el); break;
@@ -3162,7 +3181,7 @@ function swingAt(it: PlacedItem) {
     return;
   }
   const def = ITEM_MAP[it.kind];
-  const seatY = it.y - (def ? hOf(def) * it.scale * 0.26 : 40);
+  const seatY = it.y - (def ? hOf(def) * drawnScale(it) * 0.26 : 40);
   swingPose = { id: c.id, item: it.id };
   swingLock = true;
   store.dispatch({ type: 'char/move', id: c.id, room: s.currentRoom, x: it.x, y: seatY });
@@ -3451,7 +3470,7 @@ function roomBed(s: GameState): { x: number; y: number; h: number; pet: boolean 
   const pick = (pets.length ? pets : beds).reduce<PlacedItem | null>((a, b) => !a || b.z >= a.z ? b : a, null);
   if (!pick) return null;
   const def = ITEM_MAP[pick.kind];
-  return { x: pick.x, y: pick.y, h: def ? hOf(def) * pick.scale : 80, pet: petBedKind(pick.kind) };
+  return { x: pick.x, y: pick.y, h: def ? hOf(def) * drawnScale(pick) : 80, pet: petBedKind(pick.kind) };
 }
 function tapTower() {
   const s = store.get();
@@ -3469,7 +3488,7 @@ function tickCat() {
   const tower = roomTower(s);
   const bed = tower ? null : roomBed(s);
   const def = tower ? ITEM_MAP[tower.kind] : undefined;
-  const th = tower && def ? hOf(def) * tower.scale : 0;
+  const th = tower && def ? hOf(def) * drawnScale(tower) : 0;
   const b = catAt(cat, Date.now(), tower ? { x: tower.x } : null, bed ? { x: bed.x } : null, prefersReducedMotion());
   const leaping = !!tower && performance.now() < leapUntil;
   const perch = leaping ? 2 : b.perch;

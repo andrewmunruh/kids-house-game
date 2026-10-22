@@ -5,13 +5,13 @@ import { sanitizeLook2, withRandomStarter, type Look2 } from './avatar';
 import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plot, type RanchOp } from './ranch';
 import { keepMailbox, type Mailbox } from './mail';
 import { cleanDollSeat, pieceWidth, seatStillThere, standBeside, type DollSeat } from './sit';
-export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon' | 'nursery' | 'backyard';
+export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon' | 'nursery' | 'bathroom' | 'backyard';
 /** Display order is the client's tab list. The backyard is a room, not a tab. */
-export const ROOM_IDS: RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard'];
+export const ROOM_IDS: RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'bathroom', 'backyard'];
 /** Rooms with a tab. The yard is reached through the living-room door, not this list. */
-export const TAB_ROOMS: readonly RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery'];
+export const TAB_ROOMS: readonly RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'bathroom'];
 /** Rooms that have a scene. Anything else opens the living room. */
-export const SCENE_ROOMS: readonly RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard'];
+export const SCENE_ROOMS: readonly RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'bathroom', 'backyard'];
 /** Room size in world units. v1 rooms were 1000 wide; v2 rooms are 2.4x wider. */
 export const ROOM_W = 2400, ROOM_H = 600, V1_ROOM_W = 1000;
 /** v1 layouts are re-centred in the wider room so nothing a child built moves relative to anything else. */
@@ -25,6 +25,41 @@ export interface PlacedItem {
   flip: boolean;
   z: number;         // layer order
   scale: number;
+  /** Decorate-mode size. Omitted at 1 so an old save stays byte-for-byte the same. */
+  size?: number;
+}
+
+/** Kid steps from smaller to bigger. Missing, or anything that snaps to 1, is the old size. */
+export const ITEM_SIZE_STEPS = [0.75, 0.875, 1, 1.25, 1.5] as const;
+export type ItemSizeStep = (typeof ITEM_SIZE_STEPS)[number];
+
+/** Nearest step. A missing or junk value is 1, which is what an old save draws. */
+export function itemSizeOf(raw: unknown): ItemSizeStep {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return 1;
+  let best: ItemSizeStep = 1;
+  let dist = Infinity;
+  for (const step of ITEM_SIZE_STEPS) {
+    const d = Math.abs(raw - step);
+    if (d < dist) { dist = d; best = step; }
+  }
+  return best;
+}
+
+/** scale × size. An item with no size field draws at its old scale. */
+export function drawnScale(it: { scale?: number; size?: number } | null | undefined): number {
+  return ((it?.scale || 1) * itemSizeOf(it?.size));
+}
+
+/** Write size only when it is not 1, so old JSON without the field stays identical. */
+export function applyItemSize(item: PlacedItem, raw: number): PlacedItem {
+  const size = itemSizeOf(raw);
+  if (size === 1) {
+    if (item.size == null) return item;
+    const { size: _drop, ...rest } = item;
+    return rest;
+  }
+  if (item.size === size) return item;
+  return { ...item, size };
 }
 
 export interface Room {
@@ -91,6 +126,7 @@ export type Action =
   | { type: 'item/add'; room: RoomId; item: PlacedItem }
   | { type: 'item/move'; room: RoomId; id: string; x: number; y: number; stand?: true }
   | { type: 'item/flip'; room: RoomId; id: string }
+  | { type: 'item/size'; room: RoomId; id: string; size: number }
   | { type: 'item/front'; room: RoomId; id: string }
   | { type: 'item/back'; room: RoomId; id: string }
   | { type: 'item/delete'; room: RoomId; id: string }
@@ -136,6 +172,10 @@ export function initialState(): GameState {
       nursery: { wallpaper: '#d6f3ff', floor: '#f3ddc4', pattern: 1, items: [
         it('cloud-rug', 480, 545, 0), it('crib', 470, 480, 1), it('crib-mobile', 470, 155, 2), it('rocker', 780, 490, 3)] },
       // A brand-new yard gets a bench and flowers. A stored yard, even with items: [], is never refilled.
+      // Same shape as the Nursery: old saves gain these pieces, version stays 3.
+      bathroom: { wallpaper: '#d4f4fb', floor: '#f7e7d4', pattern: 3, items: [
+        it('bath-mat', 180, 560, 0), it('shower-curtain', -40, 520, 1), it('soaking-tub', 160, 500, 2), it('rubber-ducky', 300, 545, 3),
+        it('bath-toilet', 480, 500, 4), it('sink-vanity', 700, 500, 5), it('bath-mirror', 700, 175, 6), it('towel-bar', 940, 200, 7)] },
       backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [
         { id: 'yard-bench-1', kind: 'yard-bench', x: 1122, y: 372, flip: false, z: 1, scale: 1 },
         { id: 'tulip-bed-2', kind: 'tulip-bed', x: 946, y: 580, flip: false, z: 2, scale: 1 },
@@ -180,13 +220,13 @@ export function takeClearedFurniture(): ClearedPiece | null {
 
 /** She is not carried. She stands on the floor beside where the piece was. */
 function clearSeatsOn(s: GameState, itemId: string, item: { x: number; kind: string; scale: number } | null): GameState {
-  if (item) clearedFurniture = { id: itemId, x: item.x, kind: item.kind, scale: item.scale || 1 };
+  if (item) clearedFurniture = { id: itemId, x: item.x, kind: item.kind, scale: drawnScale(item) };
   let changed = false;
   const characters = s.characters.map(c => {
     if (c.seat?.item !== itemId) return c;
     changed = true;
     if (!item) return standChar(c);
-    const spot = standBeside(item.x, pieceWidth(item.kind) * (item.scale || 1), c.x);
+    const spot = standBeside(item.x, pieceWidth(item.kind) * drawnScale(item), c.x);
     const { seat: _drop, ...rest } = c;
     return { ...rest, x: spot.x, y: spot.y };
   });
@@ -283,6 +323,12 @@ export function reduce(s: GameState, a: Action): GameState {
       const prev = s.rooms[a.room]?.items.find(i => i.id === a.id) ?? null;
       return clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, flip: !i.flip } : i) })), a.id, prev);
     }
+    case 'item/size': {
+      const prev = s.rooms[a.room]?.items.find(i => i.id === a.id) ?? null;
+      if (!prev || itemSizeOf(prev.size) === itemSizeOf(a.size)) return s;
+      const next = mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? applyItemSize(i, a.size) : i) }));
+      return clearSeatsOn(next, a.id, prev);
+    }
     case 'item/front': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, z: maxZ(r) + 1 } : i) }));
     case 'item/back': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, z: minZ(r) - 1 } : i) }));
     case 'item/delete': {
@@ -372,7 +418,7 @@ export function migrate(raw: any): GameState {
     delete s.character;
   }
   if (s.version !== 3) return initialState();
-  // Rooms added after a save was made (salon, nursery, backyard) come from the starter layout.
+  // Rooms added after a save was made (salon, nursery, bathroom, backyard) come from the starter layout.
   // Existing rooms win, so a kid's furniture is never replaced by the starter set.
   const base = initialState();
   const characters = (Array.isArray(s.characters) ? s.characters : []).slice(0, MAX_CHARS)

@@ -3,7 +3,7 @@
 // Privacy: no emails, last names, or IP addresses are stored. Chat bubbles are relayed to nearby players only and never logged.
 // Letters are kept on the server for up to 30 days: filtered more strictly than chat, first names only.
 // A kid can leave three unread letters in one mailbox. A grown-up can clear them, or limit new letters to preset phrases.
-import { reduce, initialState, ensureRooms, type GameState, type Dog, type Action } from '../src/shared/state';
+import { reduce, initialState, ensureRooms, drawnScale, type GameState, type Dog, type Action } from '../src/shared/state';
 import { pieceWidth, standBeside } from '../src/shared/sit';
 import { withRandomStarter } from '../src/shared/avatar';
 import {
@@ -17,7 +17,7 @@ import { cleanBasket, cleanPlots, cleanRanchOp, ranchApply, BASKET_ITEM, type Ba
 export interface KV { get<T>(k: string): Promise<T | undefined>; put(k: string, v: unknown): Promise<void>; delete(k: string): Promise<void> }
 /** Maps invite codes (case-insensitive, unique across streets) to permanent street ids. */
 export interface CodeRegistry { claim(code: string, id: string): Promise<boolean>; release(code: string, id: string): Promise<void> }
-export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number }
+export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number }
 
 interface Player { pid: string; nickname: string; houseId: string; tokenHash: string; look: Look; joinedAt: number; dog?: Dog | null; basket?: Basket }
 /** One table in the Game Room. Seats are kept by player id, so a kid who reconnects is still sitting there with her cards. */
@@ -166,10 +166,12 @@ export class Neighborhood {
   }
   /** seat is forwarded only to sit:1 clients. The sender always gets the action she sent. */
   private broadcastAct(houseId: string, by: string, cid: number, a: Action, sender: Conn, catAct: boolean, kennelAct: boolean) {
+    const sizeAct = a.type === 'item/size';
     for (const x of this.conns) {
       if (!x.pid) continue;
       if (catAct && (x.v ?? 1) < PROTO_PETS && x !== sender) continue;
       if (kennelAct && (x.pet ?? 0) < 1 && x !== sender) continue;
+      if (sizeAct && (x.fit ?? 0) < 1 && x !== sender) continue;
       const action = x === sender || (x.sit ?? 0) >= 1 ? a : this.withoutSeat(a);
       this.send(x, { t: 'act', houseId, by, cid, action });
     }
@@ -192,8 +194,8 @@ export class Neighborhood {
     }
   }
   /** Furniture moved, flipped, deleted, or held. She stands on the floor beside where it was. */
-  private dropPresenceSeats(houseId: string, room: string, item: { id: string; x: number; kind: string; scale: number }) {
-    const w = pieceWidth(item.kind) * (item.scale || 1);
+  private dropPresenceSeats(houseId: string, room: string, item: { id: string; x: number; kind: string; scale: number; size?: number }) {
+    const w = pieceWidth(item.kind) * drawnScale(item);
     for (const [pid, p] of this.presence) {
       if (p.where !== 'house' || p.houseId !== houseId || p.room !== room || p.seat?.id !== item.id) continue;
       const spot = standBeside(item.x, w, p.x);
@@ -383,6 +385,7 @@ export class Neighborhood {
         c.pet = m.pet === 1 ? 1 : 0;
         c.mail = m.mail === 1 ? 1 : 0;
         c.sit = m.sit === 1 ? 1 : 0;
+        c.fit = m.fit === 1 ? 1 : 0;
         const h = typeof m.token === 'string' ? await sha256(m.token) : '';
         const p = h ? Object.values(meta.players).find(p => p.tokenHash === h) : undefined;
         if (!p) { this.send(c, { t: 'error', code: 'badtoken' }); return; }
@@ -395,6 +398,7 @@ export class Neighborhood {
         c.pet = m.pet === 1 ? 1 : 0;
         c.mail = m.mail === 1 ? 1 : 0;
         c.sit = m.sit === 1 ? 1 : 0;
+        c.fit = m.fit === 1 ? 1 : 0;
         const roster = meta.roster ?? [];
         let nickname: string;
         if (roster.length) {
@@ -458,7 +462,7 @@ export class Neighborhood {
         // An old stored house may still be missing a room if it was loaded before this process filled it.
         // Fill first so reduce never throws, and so a living-room edit cannot save a copy that dropped the nursery.
         const ready = ensureRooms(h.state);
-        const standId = a.type === 'item/flip' || a.type === 'item/delete' || (a.type === 'item/move' && a.stand) ? a.id
+        const standId = a.type === 'item/flip' || a.type === 'item/delete' || a.type === 'item/size' || (a.type === 'item/move' && a.stand) ? a.id
           : a.type === 'char/hold' ? a.itemId : '';
         const stoodOn = standId ? ready.rooms[a.room]?.items.find(i => i.id === standId) : undefined;
         const next: GameState = reduce(ready, a);
@@ -468,6 +472,7 @@ export class Neighborhood {
         // Cat acts stay off clients older than pets. dog/kennel stays off clients that did not say pet:1:
         // an old reducer has no default and would wipe the house if it saw an unknown action.
         // seat rides only to clients that said sit:1. Everyone else gets the same x and y.
+        // item/size rides only to clients that said fit:1. An old reducer has no default and would wipe the house.
         this.broadcastAct(h.id, me.pid, cid, a, c, catAct, kennelAct);
         if (stoodOn) this.dropPresenceSeats(h.id, a.room, stoodOn);
         return;

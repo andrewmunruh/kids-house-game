@@ -7,7 +7,7 @@ from playwright.async_api import async_playwright
 
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://127.0.0.1:5173/kids-house-game/'
 ROOT = Path(__file__).resolve().parents[1]
-ROOMS = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard']
+ROOMS = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'bathroom', 'backyard']
 SIZES = [(820, 1180), (390, 844), (844, 390)]
 PAINTED = set()
 for f in (ROOT / 'assets' / 'art').glob('*/*.webp'):

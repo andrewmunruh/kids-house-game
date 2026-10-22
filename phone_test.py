@@ -82,7 +82,7 @@ def tops_ok(info):
     return bad
 
 async def tabs_fit(pg, tag):
-    """Five room tabs on one row, each a 44px target, clear of the minimap. Map stays on screen."""
+    """Six room tabs on one row, each a 44px target, clear of the minimap. Map stays on screen."""
     data = await pg.evaluate("""() => {
       const vis = el => !!(el && el.offsetParent);
       const tabs = [...document.querySelectorAll('.tab')].filter(vis);
@@ -114,8 +114,8 @@ async def tabs_fit(pg, tag):
     clipped = [t['name'] for t in data['boxes'] if t['clipped']]
     off = [t['name'] for t in data['boxes'] if t['x'] < -1 or t['r'] > data['vw'] + 1 or t['y'] < -1 or t['b'] > data['vh'] + 1]
     tools_bad = [t['id'] for t in data['tools'] if t['w'] < 44 or t['h'] < 44 or t['x'] < -1 or t['r'] > data['vw'] + 1]
-    check(f'{tag} five tabs on one row, 44px, clear of the minimap',
-          data['n'] == 5 and names[-1] == 'Nursery' and 'Living Room' in names and data['oneRow']
+    check(f'{tag} six tabs on one row, 44px, clear of the minimap',
+          data['n'] == 6 and names[-1] == 'Bathroom' and 'Nursery' in names and 'Living Room' in names and data['oneRow']
           and not small and not clipped and not off and not data['overlap']
           and not tools_bad and any(t['id'] == 'btnMap' for t in data['tools']),
           str({'names': names, 'small': small, 'clipped': clipped, 'off': off, 'overlap': data['overlap'], 'tools': tools_bad,

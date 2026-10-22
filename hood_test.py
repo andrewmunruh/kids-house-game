@@ -247,7 +247,7 @@ async def run(P, K2, K3, mk, errs, check):
           map: document.querySelectorAll('[data-go="backyard"], .mapYard').length,
           tabs: document.querySelectorAll('#tabs .tab').length,
         })""")
-        await check('the yard is the back door, not a map pin or a sixth tab', door['n'] == 1 and door['label'] == 'Backyard' and door['map'] == 0 and door['tabs'] == 5, str(door))
+        await check('the yard is the back door, not a map pin or a room tab', door['n'] == 1 and door['label'] == 'Backyard' and door['map'] == 0 and door['tabs'] == 6, str(door))
         pid = await P.evaluate('__hood().pid')
         await P.evaluate("""() => {
           const h = __hood(), id = h.myHouseId();

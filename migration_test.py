@@ -113,6 +113,7 @@ LS = "Object.fromEntries(Object.keys(localStorage).sort().map(k => [k, localStor
 OLD_ROOMS = ('living', 'bedroom', 'kitchen', 'salon')
 BOTH_ROOMS = ('living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard')
 STARTER_KINDS = ['cloud-rug', 'crib', 'crib-mobile', 'rocker']
+BATH_KINDS = ['bath-mat', 'shower-curtain', 'soaking-tub', 'rubber-ducky', 'bath-toilet', 'sink-vanity', 'bath-mirror', 'towel-bar']
 def items_of(snap, rooms=None):
     return {hid: sorted((r, i['id'], i['kind'], round(i['x']), round(i['y'])) for r, room in h['view']['rooms'].items() if rooms is None or r in rooms for i in room['items']) for hid, h in snap['houses'].items()}
 def house_body(view):
@@ -313,10 +314,11 @@ async def main():
             await solo_ctx.add_init_script("if (!sessionStorage.getItem('solo-set')) { sessionStorage.setItem('solo-set','1'); localStorage.setItem('cozy-whatsnew','999'); localStorage.setItem('cozy-house', " + json.dumps(json.dumps(solo_a)) + "); }")
             solo = await solo_ctx.new_page(); solo.on('pageerror', lambda e: errs.append('solo ' + str(e)))
             await solo.goto(f'{BASE}/kids-house-game/?hood=http://localhost:{PORT_HOOD}'); await solo.wait_for_selector('#stage .char'); await solo.wait_for_timeout(400)
-            solo_now = await solo.evaluate("""() => { const s = __store.get(); return { v: s.version, old: Object.fromEntries(['living','bedroom','kitchen','salon'].map(r => [r, s.rooms[r].items.map(i => i.id)])), nursery: s.rooms.nursery.items.map(i => i.kind), yard: s.rooms.backyard.items.map(i => i.id), tabs: [...document.querySelectorAll('.tab')].map(t => t.textContent.trim()) }; }""")
+            solo_now = await solo.evaluate("""() => { const s = __store.get(); const sized = Object.values(s.rooms).some(r => r.items.some(i => 'size' in i)); return { v: s.version, old: Object.fromEntries(['living','bedroom','kitchen','salon'].map(r => [r, s.rooms[r].items.map(i => i.id)])), nursery: s.rooms.nursery.items.map(i => i.kind), bath: s.rooms.bathroom.items.map(i => i.kind), yard: s.rooms.backyard.items.map(i => i.id), sized, tabs: [...document.querySelectorAll('.tab')].map(t => t.textContent.trim()) }; }""")
             solo_old = {r: [i['id'] for i in solo_a['rooms'][r]['items']] for r in solo_a['rooms'] if r in solo_now['old']}
             solo_yard = [i['id'] for i in solo_a['rooms'].get('backyard', {}).get('items', [])]
-            check('an old solo save keeps its nursery and its saved yard', solo_now['v'] == 3 and solo_now['nursery'] == STARTER_KINDS and solo_now['yard'] == solo_yard and all(sorted(solo_now['old'][r]) == sorted(solo_old[r]) for r in solo_old) and solo_now['tabs'][-1] == 'Nursery')
+            check('an old solo save keeps its nursery and its saved yard', solo_now['v'] == 3 and solo_now['nursery'] == STARTER_KINDS and solo_now['yard'] == solo_yard and all(sorted(solo_now['old'][r]) == sorted(solo_old[r]) for r in solo_old) and 'Nursery' in solo_now['tabs'] and solo_now['tabs'][-1] == 'Bathroom')
+            check('an old solo save gains the bathroom and items stay at 1x', solo_now['bath'] == BATH_KINDS and solo_now['sized'] is False, str(solo_now.get('bath')))
             follow = await solo.evaluate("""() => { const s = __store.get(); const p = __pets(); return { kennel: s.dogKennel || null, name: s.dog && s.dog.name, following: p.dogs.indexOf('solo') >= 0, shown: p.kennel }; }""")
             check('an old save loads with the dog following', not follow['kennel'] and follow['name'] == 'Rocket' and follow['following'] and not follow['shown'], str(follow))
             await solo.evaluate("""() => __store.dispatch({type:'item/add', room:'nursery', item:{id:'solo-round', kind:'bunny-plush', x:420, y:500, flip:false}})""")
@@ -350,7 +352,8 @@ async def main():
             # Kennel the dog on the new build, then an old client edits the same house.
             await K2.evaluate("""() => { const h = __hood(), id = h.myHouseId();
               h.dispatch(id, {type:'item/add', room:'living', item:{id:'keep-kennel', kind:'kennel', x:1100, y:520, flip:false, z:1, scale:1}});
-              h.dispatch(id, {type:'dog/kennel', item:'keep-kennel'}); }""")
+              h.dispatch(id, {type:'dog/kennel', item:'keep-kennel'});
+              h.dispatch(id, {type:'item/size', room:'living', id:'keep-kennel', size:1.5}); }""")
             await K2.wait_for_timeout(900)
             # A new client publishes a full look. Friends see look2 plus the legacy colors an old iPad can draw.
             pid_p = ids_a[0][0]
@@ -417,7 +420,10 @@ async def main():
                     if isinstance(v, dict) and v.get('id') == k2house and isinstance(v.get('state'), dict):
                         disk_old = v['state']
             check('old client edit syncs and the server copy keeps the nursery', k2_sees['edit'] and 'friend-nur' in k2_sees['nursery'] and disk_old and any(i['id'] == 'friend-nur' for i in disk_old['rooms']['nursery']['items']) and any(i['id'] == 'old-client-edit' for i in disk_old['rooms']['living']['items']) and not old_errs, str(k2_sees) + ' ' + '; '.join(old_errs[:2]))
-            check('old client round-trip keeps the kennel state', bool(disk_old and disk_old.get('dogKennel') and disk_old['dogKennel'].get('item') == 'keep-kennel' and any(i['id'] == 'keep-kennel' for i in disk_old['rooms']['living']['items']) and not old_errs), str(None if not disk_old else disk_old.get('dogKennel')))
+            kennel_row = next((i for i in ((disk_old or {}).get('rooms') or {}).get('living', {}).get('items') or [] if i.get('id') == 'keep-kennel'), None)
+            check('old client round-trip keeps the kennel state', bool(disk_old and disk_old.get('dogKennel') and disk_old['dogKennel'].get('item') == 'keep-kennel' and kennel_row and not old_errs), str(None if not disk_old else disk_old.get('dogKennel')))
+            bath_disk = [i.get('kind') for i in ((disk_old or {}).get('rooms') or {}).get('bathroom', {}).get('items') or []]
+            check('old client edit keeps the bathroom and a resized item', bath_disk == BATH_KINDS and kennel_row and kennel_row.get('size') == 1.5 and not old_errs, str(bath_disk) + ' size=' + str(None if not kennel_row else kennel_row.get('size')))
             kept_mail = [L for L in ((disk_old or {}).get('mailbox') or {}).get('letters') or [] if 'yard' in (L.get('text') or '')]
             k2_mail = await K2.evaluate("""(id) => { const L = ((__hood().view(id).mailbox || {}).letters || [])[0]; return L && L.text; }""", k2house)
             check('old client edit keeps the mail', bool(kept_mail) and k2_mail and 'yard' in k2_mail and await K2.locator('.mapMail').count() >= 1, str(kept_mail)[:160] + ' k2=' + str(k2_mail))

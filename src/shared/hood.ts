@@ -2,7 +2,7 @@
 // Nothing here touches the DOM or Node APIs, so it runs in browsers, Node and Cloudflare Workers.
 import { RANCH_W, BARN_W, RANCH_Y0, RANCH_Y1, HORSES, ANIMALS, FOODS, type Basket, type Plot, type RanchOp } from './ranch';
 import { GAMEROOM_W, type TablePub, type TableOp } from './games/index';
-import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, validKennel, ROOM_W, ROOM_H, MAX_CHARS, ROOM_IDS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
+import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, validKennel, itemSizeOf, ROOM_W, ROOM_H, MAX_CHARS, ROOM_IDS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
 import { sanitizeLook2, type Look2 } from './avatar';
 import { cleanDollSeat, cleanPresSeat, seatStillThere, type DollSeat, type PresSeat } from './sit';
 import { CATALOG_NAMES } from './catalog-names';
@@ -619,7 +619,11 @@ export function cleanItem(i: any): PlacedItem | null {
   if (!i || typeof i !== 'object') return null;
   const id = str(i.id, ID_RE), kind = str(i.kind, KIND_RE, 100);
   if (!id || !kind) return null;
-  return { id, kind, x: num(i.x, 0, ROOM_W) ?? ROOM_W / 2, y: num(i.y, 0, ROOM_H) ?? 500, flip: i.flip === true, z: Math.round(num(i.z, -1e6, 1e6) ?? 0), scale: num(i.scale, 0.3, 3) ?? 1 };
+  const base: PlacedItem = { id, kind, x: num(i.x, 0, ROOM_W) ?? ROOM_W / 2, y: num(i.y, 0, ROOM_H) ?? 500, flip: i.flip === true, z: Math.round(num(i.z, -1e6, 1e6) ?? 0), scale: num(i.scale, 0.3, 3) ?? 1 };
+  // Missing size is 1 and is left off, so an old item's JSON does not grow a field.
+  if (!('size' in i) || i.size == null) return base;
+  const size = itemSizeOf(i.size);
+  return size === 1 ? base : { ...base, size };
 }
 export type Look = Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc'> & { look2?: Look2 };
 export function cleanLookPatch(p: any): Partial<Look & { flip: boolean; look2: Look2 | null }> | null {
@@ -659,7 +663,7 @@ function cleanCharacter(c: any): Character | null {
 }
 
 // ---------- pets ----------
-export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1. A seat rides on char/move and on house presence, and is forwarded only to clients that say sit:1. There is no PROTOCOL 5. A grown-up mailbox listing is an optional field on parentInfo; old clients ignore it. settings.freeMail is optional too: missing means letters follow freeChat.
+export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, bathroom, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1. A seat rides on char/move and on house presence, and is forwarded only to clients that say sit:1. item/size is forwarded only to clients that say fit:1. A missing item size is 1, and old clients ignore the field. There is no PROTOCOL 5. A grown-up mailbox listing is an optional field on parentInfo; old clients ignore it. settings.freeMail is optional too: missing means letters follow freeChat.
 export const PROTO_PETS = 2, PROTO_RANCH = 3, PROTO_GAMES = 4;
 export const CAT_NAMES = ['Mittens', 'Luna', 'Biscuit', 'Pumpkin', 'Whiskers', 'Mochi', 'Pepper', 'Noodle', 'Ginger', 'Socks'];
 export const DOG_NAMES = ['Buddy', 'Coco', 'Max', 'Daisy', 'Peanut', 'Rocket', 'Bella', 'Waffles', 'Scout', 'Honey'];
@@ -690,6 +694,7 @@ export function cleanAction(a: any): Action | null {
     case 'item/add': { const item = cleanItem(a.item); return isRoom(room) && item ? { type: a.type, room, item } : null; }
     case 'item/move': { const id = str(a.id, ID_RE), x = num(a.x, 0, ROOM_W), y = num(a.y, 0, ROOM_H); return isRoom(room) && id && x !== null && y !== null ? { type: a.type, room, id, x, y, ...(a.stand === true ? { stand: true as const } : {}) } : null; }
     case 'item/flip': case 'item/front': case 'item/back': case 'item/delete': { const id = str(a.id, ID_RE); return isRoom(room) && id ? { type: a.type, room, id } : null; }
+    case 'item/size': { const id = str(a.id, ID_RE); if (!isRoom(room) || !id || typeof a.size !== 'number' || !Number.isFinite(a.size)) return null; return { type: 'item/size', room, id, size: itemSizeOf(a.size) }; }
     case 'room/wallpaper': case 'room/floor': { const color = str(a.color, COLOR_RE, 9); return isRoom(room) && color ? { type: a.type, room, color } : null; }
     case 'room/pattern': { const p = num(a.pattern, 0, 3); return isRoom(room) && p !== null ? { type: a.type, room, pattern: Math.round(p) } : null; }
     case 'room/wallTile': case 'room/floorTile': { if (!isRoom(room)) return null; if (a.tile === null) return { type: a.type, room, tile: null }; const t = str(a.tile, TILE_RE, 101); return t ? { type: a.type, room, tile: t } : null; }
@@ -849,8 +854,8 @@ export interface HouseFull extends HouseMeta { state: GameState }
 export type Bubble = { kind: 'phrase' | 'emote'; v: number } | { kind: 'text'; v: string };
 
 export type ClientMsg =
-  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number }
-  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number }
+  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number; fit?: number }
+  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number; fit?: number }
   | { t: 'dog'; dog: Dog | null }
   | { t: 'fx'; fx: Fx }
   | { t: 'ranch'; o: RanchOp }

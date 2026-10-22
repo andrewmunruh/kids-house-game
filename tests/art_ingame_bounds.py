@@ -15,7 +15,12 @@ LAYOUTS = {'nursery': [
     ('nursery-lamp', 1720, 402, 2), ('rocker', 1960, 565, 2), ('play-mat', 1420, 595, -5), ('night-light', 880, 585, 1),
     ('baby-shelf', 1010, 540, 1), ('music-box', 1110, 595, 2), ('bassinet', 1230, 560, 1), ('rattle', 1310, 598, 3),
     ('doll-rose', 1370, 585, 3), ('doll-honey', 1450, 585, 3), ('doll-cocoa', 1530, 585, 3), ('baby-bottle', 1590, 598, 3),
-    ('rocking-horse', 1700, 570, 2), ('bunny-plush', 1820, 585, 3), ('stacking-rings', 1900, 588, 3), ('blocks', 1970, 585, 3)]}
+    ('rocking-horse', 1700, 570, 2), ('bunny-plush', 1820, 585, 3), ('stacking-rings', 1900, 588, 3), ('blocks', 1970, 585, 3)],
+ 'bathroom': [
+    ('bath-mat', 900, 575, 0), ('shower-curtain', 1080, 540, 1), ('soaking-tub', 1280, 530, 2), ('rubber-ducky', 1480, 575, 3),
+    ('bath-toilet', 1620, 530, 4), ('sink-vanity', 1840, 530, 5), ('bath-mirror', 1840, 250, 6), ('towel-bar', 2060, 260, 7),
+    ('soap-dish', 1480, 500, 8), ('laundry-hamper', 980, 530, 9), ('bath-stool', 1680, 575, 10),
+    ('floor-cushion', 1100, 575, 11), ('story-pillow', 1320, 575, 12), ('berry-basket', 1520, 575, 13), ('ribbon-tray', 1960, 575, 14)]}
 HIDE = ("html,body,#app,.stage,#stage,#stage *{background:transparent!important} body *{visibility:hidden!important} "
         ".item.qa-show,.item.qa-show *{visibility:visible!important} .item.qa-show .artshade{visibility:hidden!important} "
         ".item.qa-show svg ellipse[fill=\"#000\"]{display:none!important} "

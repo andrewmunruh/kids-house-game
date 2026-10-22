@@ -42,7 +42,7 @@ export async function lookupNeighborhood(url: string, code: string): Promise<Loo
 type Pending = { cid: number; action: Action; sent: boolean };
 interface HouseRec { meta: HouseMeta; confirmed: GameState; pending: Pending[]; view: GameState | null }
 type Handler = (...a: any[]) => void;
-const coalesceKey = (a: Action) => a.type === 'item/move' ? 'im:' + a.id : a.type === 'char/move' ? 'cm:' + a.id : null;
+const coalesceKey = (a: Action) => a.type === 'item/move' ? 'im:' + a.id : a.type === 'char/move' ? 'cm:' + a.id : a.type === 'item/size' ? 'is:' + ('id' in a ? a.id : '') : null;
 
 export class HoodClient {
   ws: WebSocket | null = null;
@@ -115,8 +115,8 @@ export class HoodClient {
       this.ws = ws;
       if (prev && prev !== ws) { try { prev.close(); } catch { /* already closed */ } }
       ws.onopen = () => {
-        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1, sit: 1 });
-        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1, sit: 1 });
+        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1 });
+        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1 });
         else done('notoken');
       };
       ws.onmessage = e => { const m: ServerMsg = JSON.parse(e.data); this.handle(m); if (m.t === 'welcome') { this.armStable(); done('ok'); } if (m.t === 'error') done(m.code + (m.msg ? ':' + m.msg : '')); if (m.t === 'removed') done('removed'); };

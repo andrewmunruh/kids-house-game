@@ -94,7 +94,7 @@ async def main():
         check('"go outside" leaves the barn into the yard', (await P.evaluate('__ranch()'))['inBarn'] is False and (await UI(P))['view'] == 'ranch')
         await go(P, 'gameroom'); check('clubhouse hides room tabs and names the clubhouse', await place_bar(P, 'The Clubhouse'))
         await go(P, 'home'); check('map -> home again', (await UI(P))['view'] == 'house' and await map_btn_ok(P))
-        check('room tabs come back inside the house', await P.evaluate("getComputedStyle(document.querySelector('.tabs')).display !== 'none' && document.querySelectorAll('.tab').length === 5"))
+        check('room tabs come back inside the house', await P.evaluate("getComputedStyle(document.querySelector('.tabs')).display !== 'none' && document.querySelectorAll('.tab').length === 6"))
         # house layouts for 1..12 houses (roster max is 12): never on top of each other, the park, ranch or square
         await to_map(P)
         lay = [await P.evaluate(f'__mapLayout({n})') for n in range(1, 13)]
