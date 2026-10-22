@@ -335,7 +335,8 @@ async def polish_pass(b):
     await pg.wait_for_selector('.grTable')
     await pg.wait_for_timeout(300)
     table = await pg.locator('.grTable').first.bounding_box()
-    check(f'{tag} clubhouse table is a tap target', table is not None and table['width'] >= 44 and table['height'] >= 44, str(table))
+    # WebKit can report a 44px target as 43.999, so allow half a pixel.
+    check(f'{tag} clubhouse table is a tap target', table is not None and table['width'] >= 43.5 and table['height'] >= 43.5, str(table))
     await ctx.close()
 
     for w, h in ((844, 300), (667, 280)):
