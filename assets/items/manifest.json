@@ -6051,7 +6051,7 @@
     "size": "large",
     "pack": "winter",
     "png": "packs/winter/wc-holiday-tree.webp",
-    "widthUnits": 461,
+    "widthUnits": 470,
     "heightUnits": 720,
     "gameW": 180,
     "holdable": false
@@ -6156,8 +6156,8 @@
     "size": "medium",
     "pack": "winter",
     "png": "packs/winter/wc-penguin-chair.webp",
-    "widthUnits": 720,
-    "heightUnits": 704,
+    "widthUnits": 662,
+    "heightUnits": 720,
     "gameW": 140,
     "holdable": false
   },
@@ -6321,7 +6321,7 @@
     "size": "medium",
     "pack": "winter",
     "png": "packs/winter/wc-snowman.webp",
-    "widthUnits": 467,
+    "widthUnits": 474,
     "heightUnits": 720,
     "gameW": 100,
     "holdable": true
@@ -6506,7 +6506,7 @@
     "size": "medium",
     "pack": "winter",
     "png": "packs/winter/wc-polar-plush.webp",
-    "widthUnits": 611,
+    "widthUnits": 570,
     "heightUnits": 720,
     "gameW": 96,
     "holdable": true
@@ -6521,7 +6521,7 @@
     "size": "small",
     "pack": "winter",
     "png": "packs/winter/wc-penguin-plush.webp",
-    "widthUnits": 561,
+    "widthUnits": 508,
     "heightUnits": 720,
     "gameW": 90,
     "holdable": true
@@ -6706,7 +6706,7 @@
     "size": "small",
     "pack": "winter",
     "png": "packs/winter/wc-nutcracker.webp",
-    "widthUnits": 244,
+    "widthUnits": 222,
     "heightUnits": 720,
     "gameW": 80,
     "holdable": true
@@ -6721,7 +6721,7 @@
     "size": "medium",
     "pack": "winter",
     "png": "packs/winter/wc-reindeer.webp",
-    "widthUnits": 432,
+    "widthUnits": 427,
     "heightUnits": 720,
     "gameW": 96,
     "holdable": true
@@ -6737,7 +6737,7 @@
     "pack": "winter",
     "png": "packs/winter/wc-sleigh-planter.webp",
     "widthUnits": 720,
-    "heightUnits": 562,
+    "heightUnits": 612,
     "gameW": 160,
     "holdable": false
   },
@@ -6752,7 +6752,7 @@
     "pack": "winter",
     "png": "packs/winter/wc-gingerbread-village.webp",
     "widthUnits": 720,
-    "heightUnits": 573,
+    "heightUnits": 298,
     "gameW": 156,
     "holdable": false
   }
