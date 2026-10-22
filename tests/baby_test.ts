@@ -99,10 +99,15 @@ async function main() {
   const onChair = resolveBabyDrop({ mode: 'play', releaseX: 400, releaseY: 500, piece: chairPiece, occupied: [] });
   const taken = resolveBabyDrop({ mode: 'play', releaseX: 20, releaseY: 30, piece: chairPiece, occupied: [{ item: 'chair-1', n: 0 }] });
   const deco = resolveBabyDrop({ mode: 'decorate', releaseX: 15, releaseY: 25, piece: chairPiece, occupied: [] });
+  const bedPiece: SeatPiece = { id: 'bed-1', kind: 'bed', x: 600, footY: 540, flip: false, scale: 1, w: 280, h: 180 };
+  const onBed = resolveBabyDrop({ mode: 'play', releaseX: 600, releaseY: 500, piece: bedPiece, occupied: [] });
+  const decoBed = resolveBabyDrop({ mode: 'decorate', releaseX: 600, releaseY: 500, piece: bedPiece, occupied: [] });
   check('play drop lies her in the crib', onCrib.spot === 'crib' && onCrib.bed === 'crib-1' && onCrib.seat === null);
   check('play drop on a chair sits her', onChair.spot === 'mat' && onChair.seat?.pose === 'sit' && onChair.seat?.item === 'chair-1');
+  check('play drop lies her on a bed', onBed.spot === 'mat' && onBed.seat?.pose === 'lie' && onBed.seat?.item === 'bed-1' && onBed.bed === null);
   check('a taken chair leaves her on the mat', taken.spot === 'mat' && taken.seat === null && taken.x === 20 && taken.y === 30);
   check('decorate does not seat her', deco.spot === 'mat' && deco.seat === null && deco.x === 15);
+  check('decorate does not lie her on a bed', decoBed.spot === 'mat' && decoBed.seat === null && decoBed.bed === null);
   check('only the owner may drag her', babyDragAllowed(false) === false && babyDragAllowed(true) === true);
 
   let s = reduce(initialState(), { type: 'baby/meet', now: 1000 });
@@ -122,6 +127,17 @@ async function main() {
   check('she only blocks the cushion she is using', babyOccupant(seated.baby, 'nursery')?.n === 0 && babyOccupant(s.baby, 'nursery') === null);
   const untouched = babyAfterFurniture(s.baby!, 'crib-1', false, { x: 1, y: 2 });
   check('moving the crib keeps the same baby', untouched === s.baby);
+  const movedCrib = reduce(s, { type: 'item/move', room: 'nursery', id: 'crib-1', x: 1400, y: 480, stand: true });
+  const sizedCrib = reduce(s, { type: 'item/size', room: 'nursery', id: 'crib-1', size: 1.5 });
+  check('moving the crib while she is in it keeps her lying there', movedCrib.baby?.spot === 'crib' && movedCrib.baby?.bed === 'crib-1' && movedCrib.rooms.nursery.items.find(i => i.id === 'crib-1')!.x === 1400);
+  check('resizing the crib while she is in it keeps her lying there', sizedCrib.baby?.spot === 'crib' && sizedCrib.baby?.bed === 'crib-1' && sizedCrib.rooms.nursery.items.find(i => i.id === 'crib-1')!.size === 1.5);
+  const heldBaby = reduce(s, { type: 'baby/hold', holder: 'c1', room: 'nursery', x: 400, y: 420, now: 3 });
+  const heldMove = reduce(heldBaby, { type: 'item/move', room: 'nursery', id: 'crib-1', x: 1500, y: 480, stand: true });
+  const heldSize = reduce(heldBaby, { type: 'item/size', room: 'nursery', id: 'crib-1', size: 0.75 });
+  const heldDel = reduce(heldBaby, { type: 'item/delete', room: 'nursery', id: 'crib-1' });
+  check('moving the crib while she is held keeps the cuddle', heldMove.baby?.spot === 'arms' && heldMove.baby?.holder === 'c1');
+  check('resizing the crib while she is held keeps the cuddle', heldSize.baby?.spot === 'arms' && heldSize.baby?.holder === 'c1' && heldSize.rooms.nursery.items.find(i => i.id === 'crib-1')!.size === 0.75);
+  check('deleting the crib while she is held keeps the cuddle', heldDel.baby?.spot === 'arms' && heldDel.baby?.holder === 'c1' && !heldDel.rooms.nursery.items.some(i => i.id === 'crib-1'));
 
   const hood = new Neighborhood(kv, { flushMs: 5 });
   await hood.init('BABYTEST');
@@ -163,6 +179,7 @@ async function main() {
   await msg(hood, B, { t: 'act', houseId: hid, cid: 3, action: { type: 'baby/care', care: 'feed', now: 1 } });
   check('a friend can feed her up to Happy', hood.houses.get(hid)!.state.baby!.mood === 3 && A.last('act')?.action?.type === 'baby/care' && B.last('act')?.action?.care === 'feed' && babyActs(C).length === 0);
 
+  await msg(hood, B, { t: 'pres', p: { where: 'house', houseId: hid, room: 'nursery', x: 400, y: 540, flip: false } });
   await msg(hood, B, { t: 'act', houseId: hid, cid: 4, action: { type: 'baby/hold', holder: 'someone', room: 'nursery', x: 400, y: 420, now: 1 } });
   check('the friend picks her up', hood.houses.get(hid)!.state.baby!.spot === 'arms' && hood.houses.get(hid)!.state.baby!.holder === pidB);
 
@@ -199,6 +216,35 @@ async function main() {
   check('a client that did not say baby:1 is nacked and not echoed', E.last('nack')?.reason === 'invalid' && babyActs(B).length === 0 && hood.houses.get(hid)!.state.baby!.mood === 3);
 
   check('the older client stayed quiet the whole time', C.inbox.every(m => !(m.t === 'act' && String(m.action?.type || '').startsWith('baby/'))));
+
+  await msg(hood, B, { t: 'pres', p: { where: 'house', houseId: hid, room: 'nursery', x: 420, y: 540, flip: false } });
+  await msg(hood, B, { t: 'act', houseId: hid, cid: 8, action: { type: 'baby/hold', holder: pidB, room: 'nursery', x: 448, y: 430, now: 1 } });
+  check('she can be held again while her friend is in the house', hood.houses.get(hid)!.state.baby!.spot === 'arms' && hood.houses.get(hid)!.state.baby!.holder === pidB);
+  await msg(hood, B, { t: 'pres', p: { where: 'house', houseId: hid, room: 'bedroom', x: 700, y: 540, flip: false } });
+  check('another room in the same house keeps the cuddle', hood.houses.get(hid)!.state.baby!.spot === 'arms' && hood.houses.get(hid)!.state.baby!.holder === pidB);
+  A.inbox.length = 0; B.inbox.length = 0; C.inbox.length = 0;
+  await msg(hood, B, { t: 'pres', p: { where: 'street', x: 200, y: 540, flip: false } });
+  const dropped = hood.houses.get(hid)!.state.baby!;
+  check('leaving the house puts her on the mat', dropped.spot === 'mat' && !dropped.holder && dropped.room === 'bedroom');
+  check('both baby clients hear the release and the older client does not', A.last('act')?.action?.type === 'baby/hold' && A.last('act')?.action?.holder === null && B.last('act')?.action?.holder === null && babyActs(C).length === 0);
+  A.inbox.length = 0;
+  await msg(hood, A, { t: 'act', houseId: hid, cid: 9, action: { type: 'baby/hold', holder: pidA, room: 'nursery', x: 500, y: 430, now: 1 } });
+  check('after she is put down anyone can hold her', !A.last('nack') && hood.houses.get(hid)!.state.baby!.holder === pidA && hood.houses.get(hid)!.state.baby!.spot === 'arms');
+  await msg(hood, A, { t: 'act', houseId: hid, cid: 10, action: { type: 'baby/hold', holder: null, room: 'nursery', x: 640, y: 540, now: 1 } });
+  await msg(hood, B, { t: 'pres', p: { where: 'house', houseId: hid, room: 'nursery', x: 640, y: 540, flip: true } });
+  await msg(hood, B, { t: 'act', houseId: hid, cid: 11, action: { type: 'baby/hold', holder: pidB, room: 'nursery', x: 612, y: 430, now: 1 } });
+  check('the friend is holding her before the disconnect', hood.houses.get(hid)!.state.baby!.holder === pidB);
+  A.inbox.length = 0; C.inbox.length = 0;
+  hood.onClose(B);
+  await msg(hood, A, { t: 'pres', p: { where: 'house', houseId: hid, room: 'nursery', x: 800, y: 540, flip: false } });
+  const afterClose = hood.houses.get(hid)!.state.baby!;
+  check('a disconnect puts her on the mat where her holder was', afterClose.spot === 'mat' && !afterClose.holder && afterClose.x === 640 && afterClose.room === 'nursery');
+  check('the owner hears the disconnect release and the older client does not', A.last('act')?.action?.holder === null && babyActs(C).length === 0);
+  const stuck = hood.houses.get(hid)!.state.baby!;
+  stuck.spot = 'arms'; stuck.holder = 'pgone';
+  A.inbox.length = 0;
+  await msg(hood, A, { t: 'act', houseId: hid, cid: 12, action: { type: 'baby/hold', holder: pidA, room: 'nursery', x: 700, y: 430, now: 1 } });
+  check('a holder who is already gone is not cuddling', !A.last('nack') && hood.houses.get(hid)!.state.baby!.holder === pidA);
 
   console.log(pass + ' passed');
 }

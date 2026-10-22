@@ -19,6 +19,8 @@ export interface KV { get<T>(k: string): Promise<T | undefined>; put(k: string, 
 /** Maps invite codes (case-insensitive, unique across streets) to permanent street ids. */
 export interface CodeRegistry { claim(code: string, id: string): Promise<boolean>; release(code: string, id: string): Promise<void> }
 export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number }
+/** Not a real socket. Baby release is broadcast to every baby client, including the kid who just left. */
+const RELEASE_SENDER: Conn = { send() {}, close() {} };
 
 interface Player { pid: string; nickname: string; houseId: string; tokenHash: string; look: Look; joinedAt: number; dog?: Dog | null; basket?: Basket }
 /** One table in the Game Room. Seats are kept by player id, so a kid who reconnects is still sitting there with her cards. */
@@ -201,6 +203,40 @@ export class Neighborhood {
       this.send(x, { t: 'pres', pid, p: p ? this.viewPresence(p, x) : null });
     }
   }
+  /** Still in this house on a live socket. A map, another house, or a disconnect means she can be taken. */
+  private babyHolderHere(pid: string, houseId: string): boolean {
+    if (![...this.conns].some(x => x.pid === pid)) return false;
+    const p = this.presence.get(pid);
+    return !!p && p.where === 'house' && p.houseId === houseId;
+  }
+
+  /**
+   * The holder disconnected or left this house. She stands on the mat where they were.
+   * Walking into another room of the same house does not drop her.
+   */
+  private releaseHeldBaby(pid: string, prev: Presence | null, stayed?: Presence | null) {
+    for (const h of this.houses.values()) {
+      const b = h.state.baby;
+      if (!b || b.spot !== 'arms' || b.holder !== pid) continue;
+      if (stayed && stayed.where === 'house' && stayed.houseId === h.id) continue;
+      let room = b.room;
+      let x = b.x;
+      let y = b.y;
+      if (prev && prev.where === 'house' && prev.houseId === h.id && prev.room && h.state.rooms[prev.room]) {
+        room = prev.room;
+        x = prev.x;
+        y = prev.y;
+      }
+      if (!h.state.rooms[room]) room = h.state.rooms.nursery ? 'nursery' : 'living';
+      const a: Action = { type: 'baby/hold', holder: null, room, x, y, now: Date.now() };
+      const next = reduce(ensureRooms(h.state), a);
+      if (next === h.state) continue;
+      h.state = next;
+      this.save(h.id);
+      this.broadcastAct(h.id, pid, -1, a, RELEASE_SENDER, false, false);
+    }
+  }
+
   /** Furniture moved, flipped, deleted, or held. She stands on the floor beside where it was. */
   private dropPresenceSeats(houseId: string, room: string, item: { id: string; x: number; kind: string; scale: number; size?: number }) {
     const w = pieceWidth(item.kind) * drawnScale(item);
@@ -367,10 +403,14 @@ export class Neighborhood {
     if (!this.conns.has(c)) return;
     this.conns.delete(c);
     if (c.pid && ![...this.conns].some(x => x.pid === c.pid)) {
-      this.presence.delete(c.pid); this.noteAway(c.pid);
-      this.tables.forEach((t, i) => { if (t.seats.includes(c.pid!)) this.sendTable(i); }); // friends see she's away
-      this.broadcast({ t: 'pres', pid: c.pid, p: null });
+      const pid = c.pid;
+      const last = this.presence.get(pid) ?? null;
+      this.presence.delete(pid); this.noteAway(pid);
+      this.tables.forEach((t, i) => { if (t.seats.includes(pid)) this.sendTable(i); }); // friends see she's away
+      this.broadcast({ t: 'pres', pid, p: null });
       this.broadcast({ t: 'players', players: this.players() });
+      // After any act already in flight, so a pickup and a disconnect cannot interleave.
+      this.queue = this.queue.then(() => { this.releaseHeldBaby(pid, last); }).catch(() => {});
     }
   }
 
@@ -477,8 +517,11 @@ export class Neighborhood {
           if ((a.type === 'baby/name' || a.type === 'baby/place' || a.type === 'baby/meet') && h.ownerId !== me.pid) return nack('notyours');
           if (a.type === 'baby/hold') {
             const cur = h.state.baby;
-            if (a.holder && cur?.holder && cur.spot === 'arms' && cur.holder !== me.pid) return nack('cuddling');
-            if (a.holder === null && cur?.holder && cur.spot === 'arms' && cur.holder !== me.pid && h.ownerId !== me.pid) return nack('notyours');
+            const heldBy = cur?.spot === 'arms' ? cur.holder : '';
+            // A holder who disconnected or left the house is not cuddling. Anyone may take her.
+            const gone = !!heldBy && !this.babyHolderHere(heldBy, h.id);
+            if (a.holder && heldBy && heldBy !== me.pid && !gone) return nack('cuddling');
+            if (a.holder === null && heldBy && heldBy !== me.pid && h.ownerId !== me.pid) return nack('notyours');
             a = { ...a, holder: a.holder ? me.pid : null, now: Date.now() };
           } else if (a.type === 'baby/care' || a.type === 'baby/ease' || a.type === 'baby/meet' || a.type === 'baby/place') {
             a = { ...a, now: Date.now() };
@@ -533,8 +576,10 @@ export class Neighborhood {
           }
         }
         const wasIn = this.presence.get(me.pid)?.where === 'gameroom';
+        const prevPres = this.presence.get(me.pid) ?? null;
         this.presence.set(me.pid, pres);
         this.broadcastPresence(me.pid, pres, me.pid);
+        this.releaseHeldBaby(me.pid, prevPres, pres);
         if (wasIn !== (p.where === 'gameroom')) {
           if (p.where === 'gameroom') this.clearAway(me.pid); else this.noteAway(me.pid);
           // walking out of the Game Room gives up a seat at a table that isn't playing; mid-game she keeps it and can come back
@@ -717,7 +762,10 @@ export class Neighborhood {
       }
       case 'unclaim': { // sign this name out of its device; the next device to pick the name gets her house back
         const p = Object.values(meta.players).find(p => p.nickname === m.name && (meta.roster ?? []).includes(p.nickname)); if (!p) break;
-        p.tokenHash = ''; this.save('meta'); kick(p.pid);
+        p.tokenHash = ''; this.save('meta');
+        const last = this.presence.get(p.pid) ?? null;
+        this.releaseHeldBaby(p.pid, last, null);
+        kick(p.pid);
         this.presence.delete(p.pid); this.broadcast({ t: 'pres', pid: p.pid, p: null }); this.broadcast({ t: 'players', players: this.players() });
         break;
       }
@@ -765,6 +813,8 @@ export class Neighborhood {
           this.save(h.id);
           this.pushMail(h, [p.pid]);
         }
+        const last = this.presence.get(p.pid) ?? null;
+        this.releaseHeldBaby(p.pid, last, null);
         delete meta.players[p.pid]; this.houses.delete(p.houseId); meta.houseOrder = meta.houseOrder.filter(id => id !== p.houseId);
         meta.houseOrder.forEach((id, i) => { const h = this.houses.get(id); if (h && h.slot !== i) { h.slot = i; this.save(id); } });
         this.presence.delete(p.pid); this.save('meta'); this.save(p.houseId);

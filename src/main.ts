@@ -217,9 +217,10 @@ let inBarn = false; // inside Rainbow Ranch: the yard, or the barn (petting zoo)
 let currentHouseId = '';
 let houseStores = new Map<string, ReturnType<typeof houseStore>>();
 let modeFit = false;
+let pokeBaby = () => {};
 const play = installPlayMode($('modeToggle'), {
   ownHouse: () => !hood || !currentHouseId || currentHouseId === hood.myHouseId(),
-  onChange: () => { if (modeFit) { if (phoneMQ.matches) fitPhone(); else fit(); } },
+  onChange: () => { if (modeFit) { if (phoneMQ.matches) fitPhone(); else fit(); } pokeBaby(); },
 });
 const mailUI = installMail({
   send: (houseId, text, color, sticker) => hood?.sendMail(houseId, text, color, sticker),
@@ -4332,9 +4333,10 @@ renderBaby = installBaby({
     return { id: it.id, kind: it.kind, x: it.x, footY: drawY(def, it.y), flip: !!it.flip, scale: drawnScale(it), w: def.w, h: hOf(def), z: it.z };
   },
   holderId: () => (hood && inner !== local && hood.pid) ? hood.pid : (activeChar || store.get().characters[0]?.id || 'c1'),
-  holderSpot: () => {
-    const id = (hood && inner !== local && hood.pid) ? hood.pid : (activeChar || store.get().characters[0]?.id || '');
+  holderSpot: (who?: string) => {
     const s = store.get();
+    const self = (hood && inner !== local && hood.pid) ? hood.pid : (activeChar || s.characters[0]?.id || '');
+    const id = who || self;
     const doll = s.characters.find(c => c.id === id && c.room === s.currentRoom);
     if (doll) {
       const at = seatedAt(s.currentRoom, dollSeat(doll), doll);
@@ -4350,10 +4352,19 @@ renderBaby = installBaby({
     }
     return null;
   },
+  holderHere: (id: string) => {
+    if (!id) return false;
+    const s = store.get();
+    if (s.characters.some(c => c.id === id)) return true;
+    if (!hood || inner === local) return false;
+    const p = id === hood.pid ? myPres() : hood.presence.get(id);
+    return !!(p && p.where === 'house' && p.houseId === currentHouseId);
+  },
   occupied: () => takenSeats(undefined, hood?.pid, true),
   locked: () => lockedNudge(null),
   seatAt: (room, seat, at) => seatedAt(room, seat, at),
 }).render;
+pokeBaby = () => renderBaby();
 renderAll(); renderDrawer(); fit();
 bootYardPreview();
 

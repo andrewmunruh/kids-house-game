@@ -24,9 +24,9 @@
 .babyBurp { position: absolute; left: 68%; top: 8%; width: 28px; height: 20px; border-radius: 50%; background: #e7f6ff; border: 3px solid #5a3d5c; pointer-events: none; }
 .babyBurp i { position: absolute; left: 16px; top: 10px; width: 14px; height: 12px; border-radius: 50%; background: #e7f6ff; border: 3px solid #5a3d5c; }
 
-.babyCare { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); width: min(560px, 86%); z-index: 40; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; background: #fff6fb; border: 3px solid #5a3d5c; border-radius: 18px; box-sizing: border-box; pointer-events: auto; }
+.babyCare { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); width: min(680px, 94%); z-index: 40; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; background: #fff6fb; border: 3px solid #5a3d5c; border-radius: 18px; box-sizing: border-box; pointer-events: auto; }
 .babyCare[hidden] { display: none; }
-.babyCare button { min-width: 44px; min-height: 44px; padding: 6px 12px; font: inherit; font-size: 15px; font-weight: 800; color: #5a3d5c; background: #fff; border: 3px solid #5a3d5c; border-radius: 14px; }
+.babyCare button { min-width: 44px; min-height: 44px; padding: 6px 12px; font: inherit; font-size: 15px; font-weight: 800; color: #5a3d5c; background: #fff; border: 3px solid #5a3d5c; border-radius: 14px; white-space: nowrap; flex: 0 0 auto; }
 .babyCare button[data-care="rock"] { background: #ffe0ec; }
 .babyCare input { font-size: 16px; min-height: 44px; min-width: 120px; border: 3px solid #5a3d5c; border-radius: 12px; padding: 4px 8px; }
 .babyWord { margin: 0; font-weight: 800; font-size: 16px; color: #ff7aa8; }

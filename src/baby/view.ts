@@ -34,7 +34,10 @@ export interface BabyHost {
   toRoom: (cx: number, cy: number) => { x: number; y: number };
   box: (it: PlacedItem) => BabyBox | null;
   holderId: () => string;
-  holderSpot: () => { x: number; y: number; flip: boolean } | null;
+  /** Pass a player or doll id to draw her on that avatar. Omit it for the viewer. */
+  holderSpot: (id?: string) => { x: number; y: number; flip: boolean } | null;
+  /** False once that holder has left the house or disconnected. */
+  holderHere: (id: string) => boolean;
   occupied: () => { item: string; n: 0 | 1 }[];
   locked: () => void;
   seatAt: (room: RoomId, seat: DollSeat, at: { x: number; y: number }) => { x: number; y: number };
@@ -124,7 +127,7 @@ export function installBaby(host: BabyHost): { render: () => void } {
       if (!b) return;
       e.preventDefault();
       e.stopPropagation();
-      if (b.spot === 'arms' && b.holder && b.holder !== host.holderId()) {
+      if (b.spot === 'arms' && b.holder && b.holder !== host.holderId() && host.holderHere(b.holder)) {
         toast('Someone is cuddling!');
         return;
       }
@@ -278,6 +281,7 @@ export function installBaby(host: BabyHost): { render: () => void } {
   }
 
   function syncCard(b: Baby, owner: boolean) {
+    if (!host.play()) { hideCard(); return; }
     const focused = card && document.activeElement && card.contains(document.activeElement);
     if (!card || !card.isConnected) buildCard(b);
     if (!card) return;
@@ -335,7 +339,7 @@ export function installBaby(host: BabyHost): { render: () => void } {
       }
     }
     if (b.spot === 'arms') {
-      const h = host.holderSpot();
+      const h = b.holder ? host.holderSpot(b.holder) : null;
       const x = h ? h.x + (h.flip ? -28 : 28) : b.x;
       const y = h ? h.y - 110 : b.y;
       place(node, x, y, BW, BH);
@@ -374,7 +378,9 @@ export function installBaby(host: BabyHost): { render: () => void } {
   function render() {
     const s = host.get();
     const b = s.baby;
-    const here = !!(b && host.inHouse() && (b.room === s.currentRoom || (b.spot === 'arms' && b.holder === host.holderId() && host.holderSpot())));
+    const onHolder = !!b && b.spot === 'arms' && !!b.holder && !!host.holderSpot(b.holder);
+    const carriedHere = !!b && b.spot === 'arms' && b.holder === host.holderId() && !!host.holderSpot();
+    const here = !!(b && host.inHouse() && (b.room === s.currentRoom || onHolder || carriedHere));
     if (!b || !here) {
       if (el) { el.remove(); el = null; }
       dragging = false;

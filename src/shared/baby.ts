@@ -170,9 +170,8 @@ export function easeBaby(baby: Baby, now: number): Baby | null {
   return packBaby({ ...baby, mood, since: baby.since + drop * EASE_MS });
 }
 
-/** One holder. Someone else already cuddling returns null so the server can nack. */
+/** One holder. The server refuses a second hold while the first holder is still in the house. */
 export function holdBaby(baby: Baby, holder: string | null, room: BabyRoom, x: number, y: number): Baby | null {
-  if (holder && baby.spot === 'arms' && baby.holder && baby.holder !== holder) return null;
   const next = holder
     ? packBaby({ ...baby, spot: 'arms', holder, room, x, y, bed: undefined, seat: undefined })
     : packBaby({ ...baby, spot: 'mat', room, x, y, bed: undefined, seat: undefined, holder: undefined });
