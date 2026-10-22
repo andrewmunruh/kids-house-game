@@ -89,14 +89,22 @@ try {
 }
 check('winter paintings are exact 3x under 60KB', winterOk);
 
-const py = ['/tmp/pwvenv/bin/python', '/workspace/.pwvenv/bin/python'].find(p => { try { execSync(`test -x ${p}`); return true; } catch { return false; } });
+const py = ['/tmp/pwvenv/bin/python', '/workspace/.pwvenv/bin/python', 'python3'].find(p => {
+  try { execSync(`${p} -c "import playwright"`, { stdio: 'ignore' }); return true; } catch { return false; }
+});
 check('placement measurer is available', !!py, 'playwright python');
 if (py) {
-  const measured = JSON.parse(execSync(`${py} tests/measure_place.py`, {
-    input: JSON.stringify(dumped.pairs),
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  })) as { checked: number; bad: { kind: string; dax: number; day: number; dw: number; dh: number; out: boolean; bad?: boolean }[] };
+  let raw = '';
+  try {
+    raw = execSync(`${py} tests/measure_place.py`, {
+      input: JSON.stringify(dumped.pairs),
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  } catch (err) {
+    raw = (err as { stdout?: string }).stdout || '';
+  }
+  const measured = JSON.parse(raw) as { checked: number; bad: { kind: string; dax: number; day: number; dw: number; dh: number; out: boolean; bad?: boolean }[] };
   const bad = measured.bad;
   const drift = bad.filter(r => r.bad || r.dax > 0.04 || r.day > 0.04 || r.dw > 0.12 || r.dh > 0.12);
   const spilled = bad.filter(r => r.out);
