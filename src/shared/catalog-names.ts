@@ -1,4 +1,5 @@
 // Display names of catalog items and pack items. Letters may name the furniture.
+import { WINTER_CATALOG_NAMES } from './catalog-winter';
 export const CATALOG_NAMES: readonly string[] = [
   "A-Frame Swing",
   "Acorn Friend",
@@ -372,4 +373,5 @@ export const CATALOG_NAMES: readonly string[] = [
   "Wood Wall Clock",
   "Wooden Bed",
   "Yard Sign",
+  ...WINTER_CATALOG_NAMES,
 ];

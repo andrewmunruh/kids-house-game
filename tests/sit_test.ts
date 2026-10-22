@@ -96,6 +96,7 @@ async function main() {
   check('crib, high chair, and pet beds are not seats', !seatFractions('crib') && !seatFractions('high-chair') && !seatFractions('cat-bed') && !seatFractions('pet-bed') && !seatFractions('dog-bed') && !seatFractions('tulip-bed') && !seatFractions('bedtime-snack'));
   check('a bunk lies on one anchor', seatFractions('bunk-bed')?.pose === 'lie' && seatFractions('bunk-bed')?.spots.length === 1);
   check('a daybed lies down', seatFractions('pack:cc-canopy-daybed')?.pose === 'lie');
+  check('the winter bed lies down and the window seat and ottoman sit', seatFractions('pack:wc-plaid-bed')?.pose === 'lie' && seatFractions('pack:wc-window-seat')?.spots.length === 2 && seatFractions('pack:wc-mitten-ottoman')?.spots.length === 1 && seatFractions('pack:wc-plaid-sofa')?.spots.length === 2 && seatFractions('pack:wc-knit-armchair')?.spots.length === 1 && seatFractions('pack:wc-penguin-chair')?.pose === 'sit' && seatFractions('pack:wc-log-bench')?.spots.length === 2);
   for (const kind of lieBedKinds()) {
     const def = ITEM_MAP[kind];
     const art = bedArt(kind)!;

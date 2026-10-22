@@ -55,7 +55,7 @@ try {
     seen.add(item.kind);
     if (item.cat === 'pets' || PETS.has(item.kind)) continue;
     const base = oldBy[item.kind];
-    if (!base) { foot.push('new ' + item.kind); continue; }
+    if (!base) continue;
     const h = d => d.h ?? d.w;
     if (item.w !== base.w || h(item) !== h(base) || (item.vb || '') !== (base.vb || '') || !!item.wall !== !!base.wall || item.name !== base.name) {
       foot.push(item.kind);

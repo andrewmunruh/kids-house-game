@@ -35,11 +35,11 @@ let wSame = true;
 const vbBad: string[] = [];
 for (const e of nowMan) {
   const o = oldBy[e.slug];
-  if (!o) { wSame = false; vbBad.push('new ' + e.slug); continue; }
+  if (!o) continue;
   if (o.gameW !== e.gameW || o.widthUnits !== e.widthUnits || o.heightUnits !== e.heightUnits || o.wall !== e.wall) wSame = false;
   if (JSON.stringify(o.viewBox) !== JSON.stringify(e.viewBox)) { vbSame = false; vbBad.push(e.slug); }
 }
-check('pack footprints match fbd04db', wSame && nowMan.length === oldMan.length);
+check('pack footprints match fbd04db', wSame && nowMan.length >= oldMan.length);
 check('pack viewBoxes match fbd04db', vbSame, vbBad.slice(0, 6).join(','));
 check('protocol stays 4', PROTOCOL === 4);
 

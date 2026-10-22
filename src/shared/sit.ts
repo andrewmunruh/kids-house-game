@@ -76,9 +76,16 @@ const BED_ART: Record<string, BedArt> = {
     mattress: { x: 0.48, y: 0.54, w: 0.30, h: 0.16 },
     clip: 'daybed',
   },
+  // Side view, same pillow-left layout as the wooden bed. The painting puts the pillow there.
+  'wc-plaid-bed': {
+    head: { x: 0.22, y: 0.53 },
+    pillow: { x: 0.12, y: 0.36, w: 0.24, h: 0.18 },
+    mattress: { x: 0.38, y: 0.46, w: 0.32, h: 0.16 },
+    clip: 'wooden',
+  },
 };
 
-const LIE_KINDS = ['bed', 'pack:wooden-bed', 'pack:checker-bed', 'pack:bunk-bed', 'pack:canopy-bed', 'pack:cc-heart-bed', 'pack:cc-canopy-daybed'];
+const LIE_KINDS = ['bed', 'pack:wooden-bed', 'pack:checker-bed', 'pack:bunk-bed', 'pack:canopy-bed', 'pack:cc-heart-bed', 'pack:cc-canopy-daybed', 'pack:wc-plaid-bed'];
 
 function isLieBed(k: string): boolean {
   if (k === 'bed' || /bunk/.test(k) || /daybed/.test(k)) return true;
@@ -155,7 +162,8 @@ export function seatFractions(kind: string): SeatFractions | null {
   if (isLieBed(k)) return { pose: 'lie', spots: [{ dx: 0, dy: 0 }] };
   if (/sofa|couch|loveseat/.test(k)) return { pose: 'sit', spots: [{ dx: -0.18, dy: -0.33 }, { dx: 0.18, dy: -0.33 }] };
   if (/armchair/.test(k)) return { pose: 'sit', spots: [{ dx: 0, dy: -0.32 }] };
-  if (/bench/.test(k)) return { pose: 'sit', spots: [{ dx: -0.22, dy: -0.30 }, { dx: 0.22, dy: -0.30 }] };
+  if (/bench|window-seat/.test(k)) return { pose: 'sit', spots: [{ dx: -0.22, dy: -0.30 }, { dx: 0.22, dy: -0.30 }] };
+  if (/ottoman/.test(k)) return { pose: 'sit', spots: [{ dx: 0, dy: -0.32 }] };
   if (/stool|rocker/.test(k)) return { pose: 'sit', spots: [{ dx: 0, dy: -0.38 }] };
   if (/chair/.test(k)) return { pose: 'sit', spots: [{ dx: 0, dy: -0.48 }] };
   return null;
