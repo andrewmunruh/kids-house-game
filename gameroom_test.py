@@ -297,12 +297,17 @@ async def polish_pass(b):
           str(data))
     moved = False
     tap = data.get('tap')
+    after = None
     if tap and data.get('me'):
         await pg.mouse.click(tap['x'], tap['y'])
-        await pg.wait_for_timeout(700)
-        after = await pg.evaluate("() => { const m = __ranch().me; return m && {x: m.x, ride: m.ride == null ? null : m.ride}; }")
-        moved = bool(after) and abs(after['x'] - data['me']['x']) > 12 and after['ride'] is None
-    check(f'{tag} a ground tap near a horse walks the kid', moved, str({'tap': tap, 'from': data.get('me')}))
+        # WebKit can take a moment to run the walk when several iPads are open.
+        for _ in range(16):
+            await pg.wait_for_timeout(150)
+            after = await pg.evaluate("() => { const m = __ranch().me; return m && {x: m.x, ride: m.ride == null ? null : m.ride}; }")
+            if after and abs(after['x'] - data['me']['x']) > 12 and after['ride'] is None:
+                moved = True
+                break
+    check(f'{tag} a ground tap near a horse walks the kid', moved, str({'tap': tap, 'from': data.get('me'), 'after': after}))
     await check_wait_fade(pg, tag)
     await check_long_hand(pg, tag, two_row=False)
     await ctx.close()
