@@ -771,11 +771,24 @@ async def check_baby_tab(pg, tag):
 
 async def check_dog_bubble(pg, tag):
     """One pop while the park dog walks up. A later stand or sit does not play it again."""
-    await pg.evaluate("""() => { __store.dispatch({type:'dog/set', dog:{name:'Pip', breed:0}}); }""")
+    await pg.evaluate("""() => {
+      __store.dispatch({type:'dog/kennel', item:null});
+      __store.dispatch({type:'dog/set', dog:{name:'Pip', breed:0}});
+    }""")
     await pg.click('#btnMap')
     await pg.wait_for_selector('[data-go="park"]', timeout=5000)
     await pg.click('[data-go="park"]')
-    await pg.wait_for_selector('.pet-dog', timeout=5000)
+    try:
+        await pg.wait_for_selector('.pet-dog', timeout=5000)
+    except Exception:
+        state = await pg.evaluate("""() => ({
+          view: __ui().view,
+          kennel: __store.get().dogKennel || null,
+          dog: !!__store.get().dog,
+          parkHidden: document.getElementById('park').classList.contains('hidden'),
+        })""")
+        fail(f'{tag} park dog missing {state}')
+        return
     await pg.wait_for_timeout(400)
     await pg.locator('.pet-dog').click()
     await pg.wait_for_timeout(40)
