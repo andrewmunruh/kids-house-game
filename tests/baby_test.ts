@@ -4,6 +4,8 @@ import { NICKNAMES, PROTOCOL, cleanAction, cleanHouseState, cleanPetName } from 
 import { babyAfterFurniture, babyBedKind, babyDragAllowed, babyOccupant, babyTabDrop, careBaby, easeBaby, EASE_MS, meetBaby, resolveBabyDrop } from '../src/shared/baby';
 import { drawnScale, initialState, MAX_CHARS, migrate, newCharacter, reduce } from '../src/shared/state';
 import { pieceWidth, seatFractions, standBeside, STAND_Y, type SeatPiece } from '../src/shared/sit';
+import { characterSVG, cradleFrontSVG } from '../src/character';
+import { look2FromLegacy } from '../src/shared/avatar';
 
 let pass = 0;
 const check = (name: string, ok: boolean, extra = '') => { console.log((ok ? 'PASS ' : 'FAIL ') + name, extra); if (ok) pass++; else process.exitCode = 1; };
@@ -259,6 +261,15 @@ async function main() {
   A.inbox.length = 0;
   await msg(hood, A, { t: 'act', houseId: hid, cid: 12, action: { type: 'baby/hold', holder: pidA, room: 'nursery', x: 700, y: 430, now: 1 } });
   check('a holder who is already gone is not cuddling', !A.last('nack') && hood.houses.get(hid)!.state.baby!.holder === pidA);
+
+  const armCount = (svg: string, cls: string) => (svg.match(new RegExp('class="' + cls + '"', 'g')) || []).length;
+  const heldSvg = characterSVG(look, null, true);
+  const front = cradleFrontSVG(look, null);
+  check('a holding classic doll draws one under arm and keeps both hanging arms', armCount(heldSvg, 'arm cradle') === 1 && armCount(heldSvg, 'arm hang') === 2 && armCount(front, 'arm cradle') === 1 && armCount(characterSVG(look), 'arm cradle') === 0);
+  const chibiLook = { ...look, look2: look2FromLegacy(look) };
+  const heldChibi = characterSVG(chibiLook, 'sit', true);
+  const chibiFront = cradleFrontSVG(chibiLook, 'sit');
+  check('a holding chibi draws one under arm and keeps the hanging arms in the picture', armCount(heldChibi, 'arm cradle') === 1 && armCount(heldChibi, 'arm l hang') >= 1 && armCount(heldChibi, 'arm r hang') >= 1 && armCount(chibiFront, 'arm cradle') === 1 && chibiFront.indexOf('class="arm l') < 0);
 
   console.log(pass + ' passed');
 }

@@ -102,5 +102,6 @@ export function limb(cls: 'arm' | 'leg', side: 'l' | 'r', inner: string, pose: P
   const ang = cls === 'arm' ? (side === 'l' ? pose.armL : pose.armR) : (side === 'l' ? pose.legL : pose.legR);
   const lift = cls === 'leg' ? (side === 'l' ? pose.legLLift : pose.legRLift) : 0;
   const attr = ang || lift ? ` transform="translate(0 ${f(-lift)}) rotate(${f(ang)} ${piv[0]} ${piv[1]})"` : '';
-  return `<g class="${cls} ${side}"${attr} style="transform-box:view-box;transform-origin:${piv[0]}px ${piv[1]}px">${inner}</g>`;
+  const hang = cls === 'arm' ? ' hang' : '';
+  return `<g class="${cls} ${side}${hang}"${attr} style="transform-box:view-box;transform-origin:${piv[0]}px ${piv[1]}px">${inner}</g>`;
 }

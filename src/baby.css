@@ -17,13 +17,23 @@
 .baby.baby-cradle.flipped .babySpin { transform: translate(-50%, -50%) rotate(90deg) scaleX(-1); }
 /* Lying holders are already turned. The same turn keeps her across that chest. */
 .baby.baby-cradle.cradle-lie { transform: rotate(-90deg); transform-origin: 50% 50%; }
-.baby .babyArms { display: none; }
-.baby.baby-cradle .babyArms {
-  display: block; position: absolute; inset: 0; width: 100%; height: 100%;
-  overflow: visible; pointer-events: none; z-index: 3;
-}
-.babyArms .holdArm { fill: var(--hold-skin, #f1c27d); stroke: #5a3d5c; stroke-width: 2.4; stroke-linejoin: round; }
-.baby.baby-cradle.flipped .babyArms { transform: scaleX(-1); }
+/* Hanging arms stay in the drawing. They hide only while she is cradling. */
+.char.holding .arm.hang,
+.char.holding .hand.hang,
+.avatar.holding .arm.hang,
+.avatar.holding .hand.hang { display: none; }
+.arm.cradle { animation: none; pointer-events: none; }
+.char.holding > .inner,
+.char.avatar.holding > .inner { animation: none; }
+/* The over arm sits above the baby. It copies the doll's sit, lie, and flip. */
+.cradle-front { position: absolute; pointer-events: none; }
+.cradle-front > .inner { position: relative; width: 100%; height: 100%; transform-origin: 50% 100%; }
+.cradle-front.flipped > .inner svg { transform: scaleX(-1); }
+.cradle-front.pose-sit > .inner { transform: translateY(26%); }
+.cradle-front.pose-lie > .inner { transform: rotate(-90deg); transform-origin: 40% 72%; }
+.cradle-front.pose-lie.pose-lie-r > .inner { transform: matrix(0, -1, -1, 0, 210.24, 186.24); transform-origin: 0 0; }
+.cradle-front.pose-lie > .inner svg,
+.cradle-front.pose-lie.flipped > .inner svg { transform: none; }
 .baby.is-rock .babyRock { animation: babyRock 0.8s ease-in-out; transform-origin: 50% 55%; }
 .baby.is-feed .babyInner { animation: babyWiggle 0.6s ease-in-out; }
 @keyframes babyRock {

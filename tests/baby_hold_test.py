@@ -245,15 +245,27 @@ CRADLE_JS = """(sel) => {
   for (const p of corners) if (pip(hp, p[0], p[1])) overlap = true;
   for (const p of hp) if (pip(corners, p[0], p[1])) overlap = true;
   for (let i = 0; i < 4 && !overlap; i++) for (let k = 0; k < 4; k++) if (hit(corners[i], corners[(i + 1) % 4], hp[k], hp[(k + 1) % 4])) overlap = true;
-  const arms = baby.querySelector('.babyArms');
-  const armCss = arms ? getComputedStyle(arms) : null;
-  const hand = arms ? arms.querySelector('.holdArm') : null;
-  const handCss = hand ? getComputedStyle(hand) : null;
-  const ar = arms ? arms.getBoundingClientRect() : null;
   const xs = corners.map(p => p[0]), ys = corners.map(p => p[1]);
   const artL = Math.min.apply(null, xs), artR = Math.max.apply(null, xs), artT = Math.min.apply(null, ys), artB = Math.max.apply(null, ys);
-  const armOverlap = !!(ar && ar.width > 4 && ar.left < artR - 2 && ar.right > artL + 2 && ar.top < artB - 2 && ar.bottom > artT + 2);
-  const armsOk = !!(armCss && armCss.display !== 'none' && handCss && handCss.fill && handCss.fill !== 'none' && handCss.fill !== 'rgba(0, 0, 0, 0)' && armOverlap);
+  const id = holder.dataset.cid || holder.dataset.pid || '';
+  const front = id ? document.querySelector('.cradle-front[data-for="' + id + '"]') : null;
+  function shown(node) {
+    if (!node) return false;
+    const st = getComputedStyle(node);
+    if (st.display === 'none' || st.visibility === 'hidden') return false;
+    const r = node.getBoundingClientRect();
+    return r.width > 1 && r.height > 1;
+  }
+  const inDoll = [...holder.querySelectorAll('.arm')];
+  const inFront = front ? [...front.querySelectorAll('.arm')] : [];
+  const visible = inDoll.concat(inFront).filter(shown);
+  const hanging = [...holder.querySelectorAll('.arm.hang, .hand.hang')];
+  const hangingHidden = hanging.length >= 2 && hanging.every(function (n) { return !shown(n); });
+  const under = visible.filter(function (n) { return holder.contains(n); });
+  const over = visible.filter(function (n) { return front && front.contains(n); });
+  const overR = over[0] ? over[0].getBoundingClientRect() : null;
+  const overOn = !!(overR && overR.width > 4 && overR.left < artR - 2 && overR.right > artL + 2 && overR.top < artB - 2 && overR.bottom > artT + 2);
+  const armsOk = visible.length === 2 && under.length === 1 && over.length === 1 && hangingHidden && overOn && visible.every(function (n) { return n.classList.contains('cradle'); });
   const sizeOk = frac >= 0.80 && frac <= 0.90;
   const cradle = baby.classList.contains('baby-cradle');
   let why = '';
@@ -265,6 +277,7 @@ CRADLE_JS = """(sel) => {
   return {
     ok: outside.length === 0 && !overlap && sizeOk && cradle && armsOk,
     why, pose, lieFlip, doll: Math.round(doll * 100) / 100,
+    arms: visible.length, hang: hanging.length, under: under.length, over: over.length,
     frac: Math.round(frac * 1000) / 1000,
     px: Math.round(extent * 10) / 10,
     torso: Math.round(alen * 10) / 10,
@@ -283,6 +296,29 @@ async def frame_holder(pg, sel):
       const sc = ss.width / stage.offsetWidth || 1;
       __cam.set(__cam.get() + ((hs.left + hs.width / 2) - ss.left) / sc - stage.offsetWidth / 2);
     }""", sel)
+
+async def closeup(pg, name):
+    box = await pg.evaluate("""() => {
+      const nodes = [...document.querySelectorAll('#stage .char.holding, #stage .baby.baby-cradle, #stage .cradle-front')];
+      let l = 1e9, t = 1e9, r = -1e9, b = -1e9, n = 0;
+      for (const el of nodes) {
+        const q = el.getBoundingClientRect();
+        if (q.width < 2 || q.height < 2) continue;
+        l = Math.min(l, q.left); t = Math.min(t, q.top); r = Math.max(r, q.right); b = Math.max(b, q.bottom);
+        n += 1;
+      }
+      if (!n) return null;
+      const pad = 18;
+      const x = Math.max(0, Math.floor(l - pad));
+      const y = Math.max(0, Math.floor(t - pad));
+      return {
+        x, y,
+        width: Math.max(1, Math.min(window.innerWidth - x, Math.ceil(r - l + pad * 2))),
+        height: Math.max(1, Math.min(window.innerHeight - y, Math.ceil(b - t + pad * 2))),
+      };
+    }""")
+    if box and box['width'] > 24 and box['height'] > 24:
+        await pg.screenshot(path=os.path.join(OUT, name), clip=box)
 
 async def cradle_check(pg, browser_name, sel='#stage .char'):
     await pg.evaluate("""() => {
@@ -341,12 +377,43 @@ async def cradle_check(pg, browser_name, sel='#stage .char'):
             if browser_name == 'chromium' and size == 'kid' and not face_left and not bed_flip and not chibi and (pose == 'stand' or (w, h) == (820, 1180) or (w, h) == (1180, 820)):
                 name = {'stand': 'held', 'sit': 'sit', 'lie': 'lie'}[pose]
                 await pg.screenshot(path=os.path.join(OUT, f'after-{w}x{h}-{name}.png'))
-            if browser_name == 'chromium' and (w, h) == (1180, 820) and size == 'kid' and chibi and pose == 'stand' and not face_left:
-                await pg.screenshot(path=os.path.join(OUT, 'after-1180x820-chibi.png'))
+                if (w, h) == (1180, 820):
+                    await closeup(pg, f'arms-1180x820-{pose}.png')
+            if browser_name == 'chromium' and (w, h) == (1180, 820) and size == 'kid' and chibi and not face_left and not bed_flip:
+                if pose == 'stand':
+                    await pg.screenshot(path=os.path.join(OUT, 'after-1180x820-chibi.png'))
+                await closeup(pg, f'arms-1180x820-chibi-{pose}.png')
+            if browser_name == 'chromium' and (w, h) == (1180, 820) and size == 'kid' and face_left and pose == 'stand' and not chibi:
+                await closeup(pg, 'arms-1180x820-flipped.png')
             if browser_name == 'chromium' and (w, h) == (820, 1180) and size == 'kid' and bed_flip and not chibi:
                 await pg.screenshot(path=os.path.join(OUT, 'after-820x1180-lie-flip.png'))
             if browser_name == 'chromium' and (w, h) == (820, 1180) and pose == 'stand' and size in ('little', 'adult') and not face_left and not chibi:
                 await pg.screenshot(path=os.path.join(OUT, f'after-820x1180-{size}.png'))
+    if browser_name == 'chromium':
+        await pg.set_viewport_size({'width': 1180, 'height': 820})
+        await pg.wait_for_timeout(200)
+    released = await pg.evaluate("""() => {
+      const s = __store;
+      const kid = s.get().characters[0];
+      s.dispatch({ type: 'char/update', id: kid.id, patch: { size: 'kid', flip: false, look2: null } });
+      s.dispatch({ type: 'char/move', id: kid.id, room: 'nursery', x: 700, y: 540, seat: null });
+      s.dispatch({ type: 'baby/hold', holder: null, room: 'nursery', x: 700, y: 540, now: Date.now() });
+      const holder = document.querySelector('#stage .char');
+      const shown = (n) => {
+        const st = getComputedStyle(n);
+        if (st.display === 'none' || st.visibility === 'hidden') return false;
+        const r = n.getBoundingClientRect();
+        return r.width > 1 && r.height > 1;
+      };
+      const hang = holder ? [...holder.querySelectorAll('.arm.hang')] : [];
+      return {
+        hang: hang.length,
+        hangShown: hang.filter(shown).length,
+        cradle: document.querySelectorAll('.arm.cradle, .cradle-front').length,
+        holding: !!(holder && holder.classList.contains('holding')),
+      };
+    }""")
+    check(browser_name + ' letting go brings the hanging arms back', released and released['hang'] == 2 and released['hangShown'] == 2 and released['cradle'] == 0 and not released['holding'], str(released))
 
 async def buttons(pg):
     return await pg.evaluate("""() => {
@@ -661,11 +728,57 @@ async def main():
             await frame_holder(B, '#stage .char.avatar.other')
             await B.wait_for_timeout(80)
             await B.screenshot(path=os.path.join(OUT, 'baby-b-sees-a-holding-1180x820.png'))
+            await closeup(B, 'arms-1180x820-guest.png')
             await B.set_viewport_size({'width': 820, 'height': 1180})
             await B.wait_for_timeout(200)
             await frame_holder(B, '#stage .char.avatar.other')
             await B.wait_for_timeout(80)
             await B.screenshot(path=os.path.join(OUT, 'baby-b-sees-a-holding-820x1180.png'))
+            await B.set_viewport_size({'width': 1180, 'height': 820})
+            await B.wait_for_timeout(200)
+            for label, pose, flip in (('sit', 'sit', False), ('lie', 'lie', False), ('flipped', 'stand', True)):
+                await A.evaluate("""(arg) => {
+                  const h = __hood();
+                  const room = __store.get().rooms.nursery;
+                  let x = 600, y = 540, seat = null;
+                  if (arg.pose === 'sit') {
+                    const rocker = room.items.find(i => i.kind === 'rocker');
+                    seat = { id: rocker.id, pose: 'sit', n: 0 };
+                    x = rocker.x; y = rocker.y;
+                  } else if (arg.pose === 'lie') {
+                    if (!room.items.some(i => i.id === 'qa-bed'))
+                      __store.dispatch({ type: 'item/add', room: 'nursery', item: { id: 'qa-bed', kind: 'bed', x: 1400, y: 540, flip: false, z: 8, scale: 1 } });
+                    const bed = __store.get().rooms.nursery.items.find(i => i.id === 'qa-bed');
+                    seat = { id: bed.id, pose: 'lie', n: 0 };
+                    x = bed.x; y = bed.y;
+                  }
+                  h.setPresence({ where: 'house', houseId: h.myHouseId(), room: 'nursery', x, y, flip: !!arg.flip, seat });
+                }""", {'pose': pose, 'flip': flip})
+                if pose == 'sit':
+                    await B.wait_for_selector('#stage .char.avatar.other.holding.pose-sit', timeout=8000)
+                elif pose == 'lie':
+                    await B.wait_for_selector('#stage .char.avatar.other.holding.pose-lie', timeout=8000)
+                else:
+                    await B.wait_for_function("""(flip) => {
+                      const el = document.querySelector('#stage .char.avatar.other.holding');
+                      return !!(el && !el.classList.contains('pose-sit') && !el.classList.contains('pose-lie') && el.classList.contains('flipped') === flip);
+                    }""", arg=flip, timeout=8000)
+                await frame_holder(B, '#stage .char.avatar.other')
+                await B.wait_for_timeout(120)
+                guest_pose = await B.evaluate(CRADLE_JS, '#stage .char.avatar.other')
+                check(f'B sees A {label} with two cradle arms', bool(guest_pose and guest_pose.get('ok')), str(guest_pose))
+                await closeup(B, f'arms-1180x820-guest-{label}.png')
+            await A.evaluate("""() => {
+              const h = __hood();
+              h.setPresence({ where: 'house', houseId: h.myHouseId(), room: 'nursery', x: 600, y: 540, flip: false });
+            }""")
+            try:
+                await B.wait_for_function("""() => {
+                  const el = document.querySelector('#stage .char.avatar.other');
+                  return !!(el && el.classList.contains('holding') && !el.classList.contains('pose-sit') && !el.classList.contains('pose-lie'));
+                }""", timeout=8000)
+            except Exception:
+                pass
             await A.evaluate("""() => {
               const h = __hood();
               const look = h.players.get(h.pid).look;
@@ -682,6 +795,36 @@ async def main():
             guest_chibi = await B.evaluate(CRADLE_JS, '#stage .char.avatar.other')
             check('B 1180x820 sees a chibi cradle on A, on the torso and off the head', bool(guest_chibi and guest_chibi.get('ok')), str(guest_chibi))
             await B.screenshot(path=os.path.join(OUT, 'baby-b-sees-a-chibi-1180x820.png'))
+            await closeup(B, 'arms-1180x820-guest-chibi.png')
+            for label, pose in (('chibi-sit', 'sit'), ('chibi-lie', 'lie')):
+                await A.evaluate("""(pose) => {
+                  const h = __hood();
+                  const room = __store.get().rooms.nursery;
+                  let x = 600, y = 540, seat = null;
+                  if (pose === 'sit') {
+                    const rocker = room.items.find(i => i.kind === 'rocker');
+                    seat = { id: rocker.id, pose: 'sit', n: 0 };
+                    x = rocker.x; y = rocker.y;
+                  } else {
+                    const bed = __store.get().rooms.nursery.items.find(i => i.id === 'qa-bed');
+                    seat = { id: bed.id, pose: 'lie', n: 0 };
+                    x = bed.x; y = bed.y;
+                  }
+                  h.setPresence({ where: 'house', houseId: h.myHouseId(), room: 'nursery', x, y, flip: false, seat });
+                }""", pose)
+                try:
+                    await B.wait_for_selector('#stage .char.avatar.other.holding' + ('.pose-sit' if pose == 'sit' else '.pose-lie'), timeout=8000)
+                except Exception:
+                    pass
+                await frame_holder(B, '#stage .char.avatar.other')
+                await B.wait_for_timeout(120)
+                guest_more = await B.evaluate(CRADLE_JS, '#stage .char.avatar.other')
+                check(f'B sees A {label} with two cradle arms', bool(guest_more and guest_more.get('ok')), str(guest_more))
+                await closeup(B, f'arms-1180x820-guest-{label}.png')
+            await A.evaluate("""() => {
+              const h = __hood();
+              h.setPresence({ where: 'house', houseId: h.myHouseId(), room: 'nursery', x: 600, y: 540, flip: false });
+            }""")
             word = await B.evaluate("() => (document.querySelector('.babyWord') || {}).textContent || ''")
             check('B sees the care card in Play', word in ('Cozy', 'Happy'))
             await A.click('#btnMap')

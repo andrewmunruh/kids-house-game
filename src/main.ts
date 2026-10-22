@@ -23,7 +23,7 @@ import { ITEMS, ITEM_MAP, svgOf, shelfThumb, hOf, installArtFallback, type Categ
 import { rasterOn, rasterUrl } from './art/cache';
 import { artSolid, topHit } from './art/hit';
 import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
-import { characterSVG, handsFor, SIZE_SCALE } from './character';
+import { characterSVG, cradleFrontSVG, handsFor, SIZE_SCALE } from './character';
 import { lookStamp, look2FromLegacy, legacyFromLook2, randomLook2, patchFromLook2, sanitizeLook2, type Look2 } from './shared/avatar';
 import { stampAvatar, richAvatars } from './avatar/motion';
 import { avatarSheetHTML, avatarAct, avatarIntroPending, markAvatarIntro } from './avatar/sheet';
@@ -1146,6 +1146,48 @@ function syncSkyPuddles() {
 }
 
 let renderBaby = () => {};
+function babyHolderId(s: GameState): string {
+  const b = s.baby;
+  return b && b.spot === 'arms' && b.holder ? b.holder : '';
+}
+const cradleFronts = new Map<string, HTMLElement>();
+function clearCradleSlot(slot: string) {
+  for (const [key, node] of cradleFronts) {
+    if (key.indexOf(slot + ':') !== 0) continue;
+    node.remove();
+    cradleFronts.delete(key);
+  }
+}
+/** The hand on the blanket. A child of the doll cannot paint above the baby. */
+function paintCradleFront(slot: string, id: string, host: HTMLElement, svg: string, feetY: number) {
+  const key = slot + ':' + id;
+  for (const [k, old] of cradleFronts) {
+    if (k.indexOf(slot + ':') === 0 && k !== key) { old.remove(); cradleFronts.delete(k); }
+  }
+  let node = cradleFronts.get(key);
+  if (!node || !node.isConnected) {
+    node = document.createElement('div');
+    node.className = 'cradle-front';
+    node.dataset.for = id;
+    node.innerHTML = '<div class="inner"></div>';
+    layer.appendChild(node);
+    cradleFronts.set(key, node);
+  }
+  if (node.dataset.arm !== svg) {
+    const inner = node.querySelector('.inner');
+    if (inner) inner.innerHTML = svg;
+    node.dataset.arm = svg;
+  }
+  node.style.left = host.style.left;
+  node.style.top = host.style.top;
+  node.style.width = host.style.width;
+  node.style.height = host.style.height;
+  node.style.zIndex = String(5000 + Math.round(feetY) + 4);
+  node.classList.toggle('flipped', host.classList.contains('flipped'));
+  node.classList.toggle('pose-sit', host.classList.contains('pose-sit'));
+  node.classList.toggle('pose-lie', host.classList.contains('pose-lie'));
+  node.classList.toggle('pose-lie-r', host.classList.contains('pose-lie-r'));
+}
 function renderChars(s: GameState) {
   const here = s.characters.filter(c => c.room === s.currentRoom);
   for (const [id, el] of charEls) if (!here.some(c => c.id === id)) { el.remove(); charEls.delete(id); }
@@ -1158,8 +1200,10 @@ function renderChars(s: GameState) {
     }
     const seat = dollSeat(c);
     const pose = seat?.pose ?? null;
-    const look = lookStamp(c) + (pose || '');
-    if (el.dataset.look !== look) { el.querySelector('.inner')!.innerHTML = characterSVG(c, pose); el.dataset.look = look; }
+    const holding = babyHolderId(s) === c.id;
+    const look = lookStamp(c) + (pose || '') + (holding ? 'h' : '');
+    if (el.dataset.look !== look) { el.querySelector('.inner')!.innerHTML = characterSVG(c, pose, holding); el.dataset.look = look; }
+    el.classList.toggle('holding', holding);
     const heldKey = JSON.stringify([c.held.left?.id, c.held.left?.flip, c.held.right?.id, c.held.right?.flip, c.size, pose]);
     if (el.dataset.held !== heldKey) { el.querySelector('.hands')!.innerHTML = heldHTML(c); el.dataset.held = heldKey; }
     const sc = charScale(c);
@@ -1173,10 +1217,12 @@ function renderChars(s: GameState) {
     el.classList.toggle('active', c.id === activeChar);
     stampAvatar(el, c, c.id === activeChar);
     el.classList.toggle('pose-swing', swingPose?.id === c.id);
+    if (holding) paintCradleFront('doll', c.id, el, cradleFrontSVG(c, pose), at.y);
     const pts = handsFor(c);
     el.style.setProperty('--hx-l', pts.left.x + '%');
     el.style.setProperty('--hx-r', pts.right.x + '%');
   }
+  if (babyHolderId(s) === '' || !here.some(c => c.id === babyHolderId(s))) clearCradleSlot('doll');
   renderMinimap(s);
   renderBaby();
 }
@@ -1479,7 +1525,7 @@ store.subscribe((s, a) => {
       renderChars(s); syncSeatFronts(); syncSwingPose(); if (view === 'ranch') renderRanchAvatars(); else if (view === 'park') renderParkAvatars(); break;
     case 'char/add': case 'char/delete': case 'char/hold': case 'char/release': renderItems(s); renderChars(s); renderAvatars(); if (currentTab === '__people') renderDrawer(); break;
     case 'item/move': case 'item/flip': case 'item/delete': case 'item/size': renderItems(s); renderChars(s); renderAvatars(); break;
-    case 'baby/meet': case 'baby/name': case 'baby/care': case 'baby/hold': case 'baby/place': case 'baby/ease': renderChars(s); break;
+    case 'baby/meet': case 'baby/name': case 'baby/care': case 'baby/hold': case 'baby/place': case 'baby/ease': renderChars(s); renderAvatars(); break;
     case 'settings/sound': renderSoundBtn(s); break;
     default: renderItems(s);
   }
@@ -2047,8 +2093,8 @@ function useStore(next: AnyStore) {
 }
 
 // ---------- avatars (other kids, and me) inside a house ----------
-function avatarHTML(look: Look, name: string, pose?: 'sit' | 'lie' | null) {
-  return `<div class="inner">${characterSVG(look, pose)}</div><div class="nametag">${esc(name)}</div>`;
+function avatarHTML(look: Look, name: string, pose?: 'sit' | 'lie' | null, holding?: boolean) {
+  return `<div class="inner">${characterSVG(look, pose, holding)}</div><div class="nametag">${esc(name)}</div>`;
 }
 function renderAvatars() {
   const keep = new Set<string>();
@@ -2070,8 +2116,10 @@ function renderAvatars() {
       const look = pl.look;
       const seat = presSeat(pid, p);
       const pose = seat?.pose ?? null;
-      const key = JSON.stringify(look) + pl.nickname + (pose || '');
-      if (el.dataset.look !== key) { const b = el.querySelector('.bubble'); el.innerHTML = avatarHTML(look, pl.nickname, pose); if (b) el.appendChild(b); el.dataset.look = key; }
+      const holding = babyHolderId(store.get()) === pid;
+      const key = JSON.stringify(look) + pl.nickname + (pose || '') + (holding ? 'h' : '');
+      if (el.dataset.look !== key) { const b = el.querySelector('.bubble'); el.innerHTML = avatarHTML(look, pl.nickname, pose, holding); if (b) el.appendChild(b); el.dataset.look = key; }
+      el.classList.toggle('holding', holding);
       const sc = SIZE_SCALE[look.size] ?? 1;
       const at = seatedAt(room, seat, p);
       placeEl(el, at.x, at.y, CHAR_W * sc, CHAR_H * sc);
@@ -2082,8 +2130,11 @@ function renderAvatars() {
       el.classList.toggle('pose-lie', pose === 'lie');
       el.classList.toggle('pose-lie-r', pose === 'lie' && !!piece?.flip);
       stampAvatar(el, look, pid === hood.pid);
+      if (holding) paintCradleFront('avatar', pid, el, cradleFrontSVG(look, pose), at.y);
     }
   }
+  const hid = babyHolderId(store.get());
+  if (!(hood && view === 'house' && hid && keep.has(hid))) clearCradleSlot('avatar');
   for (const [pid, el] of avatarEls) if (!keep.has(pid) || !el.isConnected) { if (!keep.has(pid)) el.remove(); avatarEls.delete(pid); }
   syncSeatFronts();
   updateNear();

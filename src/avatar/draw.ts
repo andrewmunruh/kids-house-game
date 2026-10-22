@@ -5,6 +5,8 @@ import { fillLook2 } from '../shared/avatar';
 import { S, SH, SH2, f, taper, limb, rot, darken, lighten, HAND, SHOULDER, type Pose } from './geom';
 import { hairBack, hairFront } from './hair';
 import { topLayer, bottomLayer, bottomOverLayer, dressLayer, shoesLayer, accessoryLayer, hatHairMask } from './wardrobe';
+import { cradleArm } from '../baby/arms';
+import { poseNamed } from './sit';
 
 const PRESETS: Pose[] = [
   { hip: 1.5, head: 4, armL: 3, armR: -2, legL: 0, legR: -3, legLLift: 0, legRLift: 0 },
@@ -185,7 +187,7 @@ function torso(): string {
     + `<path d="M70 168 Q74 160 92 160 H108 Q126 160 130 168 L134 236 Q100 244 66 236 Z" fill="var(--skin)" ${S(3)}/>`;
 }
 
-export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean; pose?: Pose; poseName?: string }): string {
+export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean; pose?: Pose; poseName?: string; holding?: boolean }): string {
   const L = fillLook2(look);
   const pose = opt?.pose ?? poseFor(L);
   const rich = opt?.rich !== false;
@@ -233,8 +235,17 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean; pose
     `<g data-layer="face">${wrapHead(face(L, u, rich, opt?.poseName === 'lie'), pose)}</g>`,
     `<g data-layer="hair-front">${wrapHead(`<g${clip}>${hairFront(L.hair, u, rich)}</g>`, pose)}</g>`,
     wrapHead(accessoryLayer(L), pose),
-  ].join('');
+  ];
+  if (opt?.holding) layers.splice(6, 0, wrapHip(cradleArm('under', true, L.skin), pose));
+  const layersHtml = layers.join('');
   const shownTop = L.dress || L.top;
   const poseAttr = opt?.poseName ? ` data-pose="${opt.poseName}"` : '';
-  return `<svg${poseAttr} data-chibi="1" data-hair="${L.hair}" data-top="${shownTop}" viewBox="0 0 200 320" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg" style="${style}">${defs(u, rich, mask)}${shadow}${layers}</svg>`;
+  return `<svg${poseAttr} data-chibi="1" data-hair="${L.hair}" data-top="${shownTop}" viewBox="0 0 200 320" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg" style="${style}">${defs(u, rich, mask)}${shadow}${layersHtml}</svg>`;
+}
+
+/** The arm that rests on the blanket. Same viewBox and hip tilt as the doll. */
+export function chibiCradleFront(look: Look2, poseName?: 'sit' | 'lie' | null): string {
+  const L = fillLook2(look);
+  const pose = poseNamed(poseName) ?? poseFor(L);
+  return `<svg viewBox="0 0 200 320" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg">${wrapHip(cradleArm('over', true, L.skin), pose)}</svg>`;
 }

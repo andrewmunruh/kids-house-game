@@ -40,7 +40,7 @@ export interface HolderSpot {
   pose?: 'sit' | 'lie' | null;
   /** The bed is flipped, so the body uses the pose-lie-r matrix. */
   lieFlip?: boolean;
-  /** The holder's skin, so the hands drawn over the bundle match the doll. */
+  /** The holder's skin. The cradle arms use it so they match her sleeves. */
   skin?: string;
 }
 
@@ -250,13 +250,6 @@ export function installBaby(host: BabyHost): { render: () => void } {
     el.className = 'baby';
     el.dataset.baby = '1';
     el.innerHTML = '<div class="hit"></div><div class="babySpin"><div class="babyRock"><div class="babyInner"></div></div></div>'
-      + `<svg class="babyArms" viewBox="0 0 ${CRADLE_W} ${CRADLE_H}" aria-hidden="true">`
-      + '<g class="holdArm">'
-      + '<rect x="16" y="-4" width="15" height="30" rx="7.5"/>'
-      + '<circle cx="23.5" cy="24" r="8.5"/>'
-      + '<rect x="40" y="32" width="42" height="14" rx="7" transform="rotate(-14 61 39)"/>'
-      + '<circle cx="44" cy="33" r="8.5"/>'
-      + '</g></svg>'
       + '<div class="babyZzz" hidden>z z z</div><div class="babyBurp" hidden><i></i></div>';
     host.layer.appendChild(el);
     bindDrag(el);
@@ -413,7 +406,6 @@ export function installBaby(host: BabyHost): { render: () => void } {
       place(node, x, y, at ? at.w : CRADLE_W, at ? at.h : CRADLE_H);
       node.style.zIndex = String(5000 + Math.round(h ? h.y : b.y) + 2);
       node.classList.add('baby-cradle');
-      node.style.setProperty('--hold-skin', h && h.skin ? h.skin : '#f1c27d');
       node.style.setProperty('--spin-w', (CRADLE_H / CRADLE_W * 100).toFixed(4) + '%');
       node.style.setProperty('--spin-h', (CRADLE_W / CRADLE_H * 100).toFixed(4) + '%');
       if (h && h.pose === 'lie') node.classList.add('cradle-lie');
