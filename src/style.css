@@ -30,6 +30,25 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .item, .char { position: absolute; touch-action: none; cursor: grab; }
 .item .inner, .char .inner { position: relative; width: 100%; height: 100%; transform-origin: 50% 100%; transition: transform .18s, filter .18s; }
 .item.flipped .inner svg, .char.flipped > .inner svg { transform: scaleX(-1); }
+/* Paint-only front of an occupied seat: arms, blanket lip. The saved z does not change. */
+.seatFront { position: absolute; pointer-events: none; }
+.seatFront .inner { position: relative; width: 100%; height: 100%; }
+.seatFront .inner svg, .seatFront .artimg, .seatFront .packimg { display: block; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; }
+.seatFront.flipped .inner svg, .seatFront.flipped .artimg, .seatFront.flipped .packimg { transform: scaleX(-1); }
+.seatFront .artshade, .seatFront .artnight { display: none; }
+.seatFront.k-sofa { clip-path: polygon(0 38%, 18% 38%, 18% 72%, 82% 72%, 82% 38%, 100% 38%, 100% 100%, 0 100%); }
+.seatFront.k-chair { clip-path: inset(64% 12% 0 12%); }
+.seatFront.k-bench { clip-path: inset(72% 0 0 0); }
+.seatFront.k-bed { clip-path: polygon(82% 34%, 100% 34%, 100% 100%, 0 100%, 0 78%, 82% 78%); }
+.seatFront.k-bed.flipped { clip-path: polygon(0 34%, 18% 34%, 18% 78%, 100% 78%, 100% 100%, 0 100%); }
+.seatFront.k-bed-bunk { clip-path: polygon(82% 52%, 100% 52%, 100% 100%, 0 100%, 0 84%, 82% 84%); }
+.seatFront.k-bed-bunk.flipped { clip-path: polygon(0 52%, 18% 52%, 18% 84%, 100% 84%, 100% 100%, 0 100%); }
+.seatFront.k-bed-canopy,
+.seatFront.k-bed-heart,
+.seatFront.k-bed-daybed,
+.seatFront.k-bed-canopy.flipped,
+.seatFront.k-bed-heart.flipped,
+.seatFront.k-bed-daybed.flipped { clip-path: inset(78% 0 0 0); }
 .item.sel .inner { filter: drop-shadow(0 0 0 #fff) drop-shadow(0 0 6px #fff) drop-shadow(0 0 3px #ffd166); }
 .lifted .inner { transform: scale(1.1) translateY(-6px); filter: drop-shadow(0 14px 8px rgba(0,0,0,.18)); }
 .bounce { animation: bounce .45s cubic-bezier(.3,1.8,.5,1); }
@@ -217,6 +236,19 @@ body.reconnecting::after { content: 'Reconnecting…'; position: fixed; top: 70p
 .char.avatar { pointer-events: none; }
 .char.avatar.other { transition: left .12s linear, top .12s linear; }
 .char.avatar.mine .inner svg > * { pointer-events: visiblePainted; }
+/* A seated body lets the furniture through. Only the head starts a drag. No face chip. */
+.char.pose-sit .inner svg *,
+.char.pose-lie .inner svg *,
+.char.avatar.mine.pose-sit .inner svg *,
+.char.avatar.mine.pose-lie .inner svg * { pointer-events: none; }
+.char.pose-sit .inner svg .dollhead,
+.char.pose-sit .inner svg .dollhead *,
+.char.pose-lie .inner svg .dollhead,
+.char.pose-lie .inner svg .dollhead *,
+.char.avatar.mine.pose-sit .inner svg .dollhead,
+.char.avatar.mine.pose-sit .inner svg .dollhead *,
+.char.avatar.mine.pose-lie .inner svg .dollhead,
+.char.avatar.mine.pose-lie .inner svg .dollhead * { pointer-events: visiblePainted; }
 .char.avatar.flipped > .inner svg, .savatar.flipped > .inner svg { transform: scaleX(-1); }
 .bubble { position: absolute; left: 50%; bottom: calc(100% + 34px); transform: translateX(-50%); background: #fff; border: 4px solid var(--ink); border-radius: 22px; padding: 8px 14px;
   font-size: 19px; font-weight: 800; max-width: 260px; width: max-content; text-align: center; line-height: 1.15; z-index: 3; pointer-events: none; animation: bub .35s cubic-bezier(.3,1.8,.5,1); overflow-wrap: anywhere; }

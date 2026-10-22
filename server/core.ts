@@ -3,7 +3,8 @@
 // Privacy: no emails, last names, or IP addresses are stored. Chat bubbles are relayed to nearby players only and never logged.
 // Letters are kept on the server for up to 30 days: filtered more strictly than chat, first names only.
 // A kid can leave three unread letters in one mailbox. A grown-up can clear them, or limit new letters to preset phrases.
-import { reduce, initialState, ensureRooms, type GameState, type Dog } from '../src/shared/state';
+import { reduce, initialState, ensureRooms, type GameState, type Dog, type Action } from '../src/shared/state';
+import { pieceWidth, standBeside } from '../src/shared/sit';
 import { withRandomStarter } from '../src/shared/avatar';
 import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, applyLook, cleanPresence, cleanHouseName,
@@ -16,7 +17,7 @@ import { cleanBasket, cleanPlots, cleanRanchOp, ranchApply, BASKET_ITEM, type Ba
 export interface KV { get<T>(k: string): Promise<T | undefined>; put(k: string, v: unknown): Promise<void>; delete(k: string): Promise<void> }
 /** Maps invite codes (case-insensitive, unique across streets) to permanent street ids. */
 export interface CodeRegistry { claim(code: string, id: string): Promise<boolean>; release(code: string, id: string): Promise<void> }
-export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number }
+export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number }
 
 interface Player { pid: string; nickname: string; houseId: string; tokenHash: string; look: Look; joinedAt: number; dog?: Dog | null; basket?: Basket }
 /** One table in the Game Room. Seats are kept by player id, so a kid who reconnects is still sitting there with her cards. */
@@ -108,8 +109,23 @@ export class Neighborhood {
   private send(c: Conn, m: ServerMsg) { try { c.send(JSON.stringify(m)); } catch { /* socket gone */ } }
   private broadcast(m: ServerMsg, filter: (c: Conn) => boolean = c => !!c.pid) { const s = JSON.stringify(m); for (const c of this.conns) if (filter(c)) try { c.send(s); } catch { } }
   private welcome(c: Conn) {
-    const presence: Record<string, Presence> = {}; this.presence.forEach((p, k) => { presence[k] = p; });
-    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean).map(h => this.wireHouse(h, c)), presence, ranch: { plots: cleanPlots(this.meta!.ranch?.plots), now: Date.now() }, ...((c.v ?? 1) >= PROTO_GAMES ? { tables: this.tables.map((_, i) => this.tablePub(i, c.pid!)) } : {}) });
+    const presence: Record<string, Presence> = {};
+    this.presence.forEach((p, k) => { presence[k] = this.viewPresence(p, c); });
+    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean).map(h => this.wireHouse(h, c)), presence, sit: 1, ranch: { plots: cleanPlots(this.meta!.ranch?.plots), now: Date.now() }, ...((c.v ?? 1) >= PROTO_GAMES ? { tables: this.tables.map((_, i) => this.tablePub(i, c.pid!)) } : {}) });
+  }
+  /** Clients that did not say sit:1 draw her standing. The seat field stays off their copy. */
+  private viewPresence(p: Presence, c: Conn): Presence {
+    if ((c.sit ?? 0) >= 1 || !p.seat) return p;
+    const { seat: _drop, ...rest } = p;
+    return rest;
+  }
+  private stripSeats(state: GameState): GameState {
+    if (!state.characters.some(ch => ch.seat)) return state;
+    return { ...state, characters: state.characters.map(ch => {
+      if (!ch.seat) return ch;
+      const { seat: _drop, ...rest } = ch;
+      return rest;
+    }) };
   }
   /** Drop expired letters in memory. A house with no mailbox is left byte-for-byte alone. */
   private storedMailbox(state: GameState): GameState {
@@ -135,18 +151,57 @@ export class Neighborhood {
   /** Old clients (no mail:1) never receive the field. Other kids never receive someone else's words. */
   private wireState(state: GameState, c: Conn, ownerId: string): GameState {
     const box = keepMailbox(state.mailbox);
+    let view: GameState;
     if ((c.mail ?? 0) < 1 || !c.pid) {
-      if (!state.mailbox) return state;
-      const { mailbox: _drop, ...rest } = state;
+      if (!state.mailbox) view = state;
+      else { const { mailbox: _drop, ...rest } = state; view = rest; }
+    } else {
+      const mail = c.pid === ownerId ? box : projectMailbox(box, c.pid, ownerId);
+      if (!mail) {
+        if (!state.mailbox) view = state;
+        else { const { mailbox: _drop, ...rest } = state; view = rest; }
+      } else view = { ...state, mailbox: mail };
+    }
+    return (c.sit ?? 0) >= 1 ? view : this.stripSeats(view);
+  }
+  /** seat is forwarded only to sit:1 clients. The sender always gets the action she sent. */
+  private broadcastAct(houseId: string, by: string, cid: number, a: Action, sender: Conn, catAct: boolean, kennelAct: boolean) {
+    for (const x of this.conns) {
+      if (!x.pid) continue;
+      if (catAct && (x.v ?? 1) < PROTO_PETS && x !== sender) continue;
+      if (kennelAct && (x.pet ?? 0) < 1 && x !== sender) continue;
+      const action = x === sender || (x.sit ?? 0) >= 1 ? a : this.withoutSeat(a);
+      this.send(x, { t: 'act', houseId, by, cid, action });
+    }
+  }
+  private withoutSeat(a: Action): Action {
+    if (a.type === 'char/move' && 'seat' in a) {
+      const { seat: _drop, ...rest } = a;
       return rest;
     }
-    const view = c.pid === ownerId ? box : projectMailbox(box, c.pid, ownerId);
-    if (!view) {
-      if (!state.mailbox) return state;
-      const { mailbox: _drop, ...rest } = state;
+    if (a.type === 'item/move' && a.stand) {
+      const { stand: _drop, ...rest } = a;
       return rest;
     }
-    return { ...state, mailbox: view };
+    return a;
+  }
+  private broadcastPresence(pid: string, p: Presence | null, except?: string) {
+    for (const x of this.conns) {
+      if (!x.pid || x.pid === except) continue;
+      this.send(x, { t: 'pres', pid, p: p ? this.viewPresence(p, x) : null });
+    }
+  }
+  /** Furniture moved, flipped, deleted, or held. She stands on the floor beside where it was. */
+  private dropPresenceSeats(houseId: string, room: string, item: { id: string; x: number; kind: string; scale: number }) {
+    const w = pieceWidth(item.kind) * (item.scale || 1);
+    for (const [pid, p] of this.presence) {
+      if (p.where !== 'house' || p.houseId !== houseId || p.room !== room || p.seat?.id !== item.id) continue;
+      const spot = standBeside(item.x, w, p.x);
+      const { seat: _drop, ...rest } = p;
+      const next = { ...rest, x: spot.x, y: spot.y };
+      this.presence.set(pid, next);
+      this.broadcastPresence(pid, next);
+    }
   }
   private wireHouse(h: HouseFull, c: Conn): HouseFull {
     return { ...h, state: this.wireState(h.state, c, h.ownerId) };
@@ -327,6 +382,7 @@ export class Neighborhood {
         c.v = typeof m.v === 'number' ? m.v : 1;
         c.pet = m.pet === 1 ? 1 : 0;
         c.mail = m.mail === 1 ? 1 : 0;
+        c.sit = m.sit === 1 ? 1 : 0;
         const h = typeof m.token === 'string' ? await sha256(m.token) : '';
         const p = h ? Object.values(meta.players).find(p => p.tokenHash === h) : undefined;
         if (!p) { this.send(c, { t: 'error', code: 'badtoken' }); return; }
@@ -338,6 +394,7 @@ export class Neighborhood {
         c.v = typeof m.v === 'number' ? m.v : 1;
         c.pet = m.pet === 1 ? 1 : 0;
         c.mail = m.mail === 1 ? 1 : 0;
+        c.sit = m.sit === 1 ? 1 : 0;
         const roster = meta.roster ?? [];
         let nickname: string;
         if (roster.length) {
@@ -384,32 +441,62 @@ export class Neighborhood {
         const nack = (reason: string, withState = true) => this.send(c, { t: 'nack', houseId: String(m.houseId).slice(0, 40), cid, reason, state: withState && h ? this.wireState(h.state, c, h.ownerId) : undefined });
         if (!h) return nack('nohouse', false);
         if (h.locked && h.ownerId !== me.pid) return nack('locked');
-        const a = cleanAction(m.action); if (!a) return nack('invalid');
+        let a = cleanAction(m.action); if (!a) return nack('invalid');
         const catAct = a.type.startsWith('cat/');
         const kennelAct = a.type === 'dog/kennel';
         if ((catAct || kennelAct) && h.ownerId !== me.pid) return nack('notyours'); // only she can adopt her cat, or kennel her own dog
+        // A forged move of another girl's avatar never lands. Player ids are not doll ids.
+        if (a.type === 'char/move' && meta.players[a.id]) return nack('notyours');
+        // A seat object is the house owner's. A visitor may still place a doll, with no seat.
+        if (a.type === 'char/move' && a.seat && typeof a.seat === 'object' && h.ownerId !== me.pid) return nack('notyours');
+        if (a.type === 'char/move' && a.seat && typeof a.seat === 'object') {
+          const seat = a.seat;
+          const taken = h.state.characters.some(ch => ch.id !== a.id && ch.room === a.room && ch.seat?.item === seat.item && ch.seat.n === seat.n)
+            || [...this.presence].some(([, q]) => q.where === 'house' && q.houseId === h.id && q.room === a.room && q.seat?.id === seat.item && q.seat.n === seat.n);
+          if (taken) a = { ...a, seat: null };
+        }
         // An old stored house may still be missing a room if it was loaded before this process filled it.
         // Fill first so reduce never throws, and so a living-room edit cannot save a copy that dropped the nursery.
         const ready = ensureRooms(h.state);
+        const standId = a.type === 'item/flip' || a.type === 'item/delete' || (a.type === 'item/move' && a.stand) ? a.id
+          : a.type === 'char/hold' ? a.itemId : '';
+        const stoodOn = standId ? ready.rooms[a.room]?.items.find(i => i.id === standId) : undefined;
         const next: GameState = reduce(ready, a);
         if (next === h.state) return nack('noop');
         if (JSON.stringify(next).length > MAX_HOUSE_JSON) return nack('toobig');
         h.state = next; this.save(h.id);
         // Cat acts stay off clients older than pets. dog/kennel stays off clients that did not say pet:1:
         // an old reducer has no default and would wipe the house if it saw an unknown action.
-        this.broadcast({ t: 'act', houseId: h.id, by: me.pid, cid, action: a }, x => !!x.pid
-          && (!catAct || (x.v ?? 1) >= PROTO_PETS || x === c)
-          && (!kennelAct || (x.pet ?? 0) >= 1 || x === c));
+        // seat rides only to clients that said sit:1. Everyone else gets the same x and y.
+        this.broadcastAct(h.id, me.pid, cid, a, c, catAct, kennelAct);
+        if (stoodOn) this.dropPresenceSeats(h.id, a.room, stoodOn);
         return;
       }
       case 'pres': {
-        const p = cleanPresence(m.p, id => this.houses.has(id)); if (!p) return;
+        // A pres that names another pid is rejected. Her place, and the sender's, stay as they were.
+        const named = (m as { pid?: unknown }).pid;
+        if (typeof named === 'string' && named !== me.pid) return;
+        const p = cleanPresence(m.p, id => this.houses.has(id), (houseId, room, itemId) => {
+          const house = this.houses.get(houseId);
+          return !!house?.state.rooms[room]?.items.some(i => i.id === itemId);
+        }); if (!p) return;
         if (p.ride !== undefined && [...this.presence].some(([pid, q]) => pid !== me.pid && q.where === 'ranch' && q.ride === p.ride)) {
           this.send(c, { t: 'noride', ride: p.ride }); delete p.ride; // one rider per horse
         }
+        let pres = p;
+        if (pres.seat && pres.where === 'house') {
+          const house = this.houses.get(pres.houseId);
+          const seat = pres.seat;
+          const dollThere = !!house?.state.characters.some(ch => ch.room === pres.room && ch.seat?.item === seat.id && ch.seat.n === seat.n);
+          const kidThere = [...this.presence].some(([pid, q]) => pid !== me.pid && q.where === 'house' && q.houseId === pres.houseId && q.room === pres.room && q.seat?.id === seat.id && q.seat.n === seat.n);
+          if (dollThere || kidThere) {
+            const { seat: _drop, ...rest } = pres;
+            pres = rest;
+          }
+        }
         const wasIn = this.presence.get(me.pid)?.where === 'gameroom';
-        this.presence.set(me.pid, p);
-        this.broadcast({ t: 'pres', pid: me.pid, p }, x => !!x.pid && x.pid !== me.pid);
+        this.presence.set(me.pid, pres);
+        this.broadcastPresence(me.pid, pres, me.pid);
         if (wasIn !== (p.where === 'gameroom')) {
           if (p.where === 'gameroom') this.clearAway(me.pid); else this.noteAway(me.pid);
           // walking out of the Game Room gives up a seat at a table that isn't playing; mid-game she keeps it and can come back

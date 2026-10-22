@@ -70,9 +70,10 @@ function nextUid(): string {
 function wrapHip(inner: string, pose: Pose): string {
   return pose.hip ? `<g transform="rotate(${f(pose.hip)} 100 238)">${inner}</g>` : inner;
 }
-function wrapHead(inner: string, pose: Pose): string {
-  const head = pose.head ? `<g transform="rotate(${f(pose.head)} 100 158)">${inner}</g>` : inner;
-  return wrapHip(head, pose);
+function wrapHead(inner: string, pose: Pose, skull = false): string {
+  const turned = pose.head ? `<g transform="rotate(${f(pose.head)} 100 158)">${inner}</g>` : inner;
+  const mark = skull ? ' class="dollhead" data-dollhead="1"' : ' class="dollhead"';
+  return wrapHip(`<g${mark}>${turned}</g>`, pose);
 }
 
 function defs(u: string, rich: boolean, mask: string): string {
@@ -152,7 +153,7 @@ function eye(cx: number, cy: number, flip: boolean, u: string, style: string, ri
     + `<path d="M${P(-5, 20.5)} Q${cx} ${f(cy + 22 * sc)} ${P(5, 20.5)}" fill="none" stroke="var(--lash)" stroke-width="1.3" stroke-linecap="round" opacity=".28"/>`;
 }
 
-function face(look: ReturnType<typeof fillLook2>, u: string, rich: boolean): string {
+function face(look: ReturnType<typeof fillLook2>, u: string, rich: boolean, sleepy = false): string {
   const blush = look.blush
     ? `<ellipse cx="64" cy="135" rx="16" ry="10" fill="url(#${u}b)"/><ellipse cx="136" cy="135" rx="16" ry="10" fill="url(#${u}b)"/>`
       + '<path d="M60 133 l3 -3 M66 134 l3 -3 M132 133 l3 -3 M138 134 l3 -3" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".75"/>'
@@ -165,7 +166,7 @@ function face(look: ReturnType<typeof fillLook2>, u: string, rich: boolean): str
   return blush + fr
     + '<path data-brow="l" d="M64 86 Q74 80 85 84" fill="none" stroke="var(--brow)" stroke-width="3.2" stroke-linecap="round"/>'
     + '<path data-brow="r" d="M115 84 Q126 80 136 86" fill="none" stroke="var(--brow)" stroke-width="3.2" stroke-linecap="round"/>'
-    + eye(76, 112, false, u, look.eyes, rich) + eye(124, 112, true, u, look.eyes, rich)
+    + eye(76, 112, false, u, sleepy ? 'sleepy' : look.eyes, rich) + eye(124, 112, true, u, sleepy ? 'sleepy' : look.eyes, rich)
     + '<path d="M98 131 q2 1.8 4 0" fill="none" stroke="var(--line)" stroke-width="2" stroke-linecap="round" opacity=".55"/>'
     + '<ellipse cx="101.5" cy="128.5" rx="1.6" ry="1" fill="#fff" opacity=".6"/>'
     + '<path d="M92 140 Q100 147.5 108 140" fill="none" stroke="var(--line)" stroke-width="2.8" stroke-linecap="round"/>'
@@ -184,9 +185,9 @@ function torso(): string {
     + `<path d="M70 168 Q74 160 92 160 H108 Q126 160 130 168 L134 236 Q100 244 66 236 Z" fill="var(--skin)" ${S(3)}/>`;
 }
 
-export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean }): string {
+export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean; pose?: Pose; poseName?: string }): string {
   const L = fillLook2(look);
-  const pose = poseFor(L);
+  const pose = opt?.pose ?? poseFor(L);
   const rich = opt?.rich !== false;
   const u = opt?.uid ?? nextUid();
   const hem = hemOf(pose);
@@ -217,7 +218,7 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean }): s
   ].join(';');
   const legs = limb('leg', 'l', legPart('l'), pose) + limb('leg', 'r', legPart('r'), pose);
   const arms = limb('arm', 'l', `<g class="hand">${armPart('l')}</g>`, pose) + limb('arm', 'r', `<g class="hand">${armPart('r')}</g>`, pose);
-  const body = `<g data-layer="body">${legs}${wrapHip(torso() + arms, pose)}${wrapHead(headShape(u), pose)}</g>`;
+  const body = `<g data-layer="body">${legs}${wrapHip(torso() + arms, pose)}${wrapHead(headShape(u), pose, true)}</g>`;
   const top = L.dress ? dressLayer(pose, L, u, rich, hem) : topLayer(pose, L, u, rich, hem);
   const shadow = `<g class="shadow"><ellipse cx="100" cy="308" rx="52" ry="9" fill="url(#${u}s)"/><ellipse cx="87" cy="307" rx="15" ry="3.6" fill="#3a1d3c" opacity=".16"/><ellipse cx="113" cy="307" rx="15" ry="3.6" fill="#3a1d3c" opacity=".16"/></g>`;
   const mask = hatHairMask(u, L.hair, L.acc);
@@ -229,10 +230,11 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean }): s
     wrapHip(bottomLayer(pose, L, u, rich), pose),
     wrapHip(top, pose),
     wrapHip(bottomOverLayer(pose, L, u, rich), pose),
-    `<g data-layer="face">${wrapHead(face(L, u, rich), pose)}</g>`,
+    `<g data-layer="face">${wrapHead(face(L, u, rich, opt?.poseName === 'lie'), pose)}</g>`,
     `<g data-layer="hair-front">${wrapHead(`<g${clip}>${hairFront(L.hair, u, rich)}</g>`, pose)}</g>`,
     wrapHead(accessoryLayer(L), pose),
   ].join('');
   const shownTop = L.dress || L.top;
-  return `<svg data-chibi="1" data-hair="${L.hair}" data-top="${shownTop}" viewBox="0 0 200 320" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg" style="${style}">${defs(u, rich, mask)}${shadow}${layers}</svg>`;
+  const poseAttr = opt?.poseName ? ` data-pose="${opt.poseName}"` : '';
+  return `<svg${poseAttr} data-chibi="1" data-hair="${L.hair}" data-top="${shownTop}" viewBox="0 0 200 320" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg" style="${style}">${defs(u, rich, mask)}${shadow}${layers}</svg>`;
 }

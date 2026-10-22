@@ -1,5 +1,6 @@
 // Play vs Decorate. Remembered on this iPad only (never sent to the street).
 import { storeKey } from './shared/storekey';
+import { seatFractions } from './shared/sit';
 
 export type HouseMode = 'play' | 'decorate';
 
@@ -25,8 +26,8 @@ export function playGesture(kind: string): PlayGesture {
   if (kind === 'lamp' || /(^|:)lamp|starlamp|light/.test(kind)) return 'lamp';
   if (kind === 'fridge' || kind === 'stove' || kind === 'vanity' || kind === 'bookshelf' || kind === 'window' || kind === 'mirror' || kind === 'tv'
     || /fridge|stove|cabinet|drawer|vanity/.test(kind)) return 'open';
-  if (kind === 'sofa' || kind === 'armchair' || kind === 'chair' || kind === 'stool' || kind === 'bed' || kind === 'crib'
-    || /(sofa|armchair|chair|stool|bench)/.test(kind)) return 'sit';
+  // Crib, bassinet, high chair, and pet beds are not kid seats. A bed lies down; the gesture name stays sit.
+  if (seatFractions(kind)) return 'sit';
   return 'wiggle';
 }
 

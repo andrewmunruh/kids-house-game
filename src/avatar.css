@@ -55,6 +55,45 @@
 .chibi-bob > .inner { animation: chibiBob 1.8s ease-in-out infinite alternate; }
 @keyframes chibiBob { from { transform: translateY(0); } to { transform: translateY(-4px); } }
 
+/* Seated kids do not walk. The sit pose lifts the drawing so her hips land on the anchor. */
+.char.pose-sit .leg, .char.pose-sit .arm,
+.avatar.pose-sit .leg, .avatar.pose-sit .arm,
+.char.pose-lie .leg, .char.pose-lie .arm,
+.avatar.pose-lie .leg, .avatar.pose-lie .arm { animation: none; }
+.char.pose-sit > .inner, .avatar.pose-sit > .inner { animation: none; transform: translateY(26%); }
+/* One turn, flat on the mattress. The SVG stays upright; this class is the only rotation. A flipped bed uses the mirror matrix. */
+.layer .char.pose-lie > .inner,
+.char.avatar.pose-lie > .inner,
+.char.chibi.pose-lie > .inner,
+.char.chibi-move.pose-lie > .inner,
+.char.chibi-bob.pose-lie > .inner,
+.char.pose-lie.pose-swing > .inner,
+.avatar.pose-lie > .inner {
+  animation: none; transform: rotate(-90deg); transform-origin: 40% 72%;
+}
+.layer .char.pose-lie.pose-lie-r > .inner,
+.char.avatar.pose-lie.pose-lie-r > .inner,
+.char.chibi.pose-lie.pose-lie-r > .inner,
+.char.chibi-move.pose-lie.pose-lie-r > .inner,
+.char.pose-lie.pose-lie-r > .inner,
+.avatar.pose-lie.pose-lie-r > .inner {
+  animation: none;
+  transform: matrix(0, -1, -1, 0, 210.24, 186.24);
+  transform-origin: 0 0;
+}
+/* The standing tag sits above the box. A lying head is lower, so the tag comes down with her. */
+.char.pose-lie > .nametag,
+.avatar.pose-lie > .nametag { top: 54%; }
+.char.pose-lie > .inner svg,
+.char.avatar.pose-lie > .inner svg,
+.avatar.pose-lie > .inner svg { transform: none; }
+.char.pose-lie::after, .avatar.pose-lie::after {
+  content: 'z z'; position: absolute; left: -16%; top: 42%; font-weight: 800; font-size: 15px; color: #7a5b86;
+  pointer-events: none; letter-spacing: 1px;
+}
+.char.pose-lie.pose-lie-r::after, .avatar.pose-lie.pose-lie-r::after { left: auto; right: -16%; }
+.char.pose-sit .leg, .avatar.pose-sit .leg { animation: none; }
+
 .char.chibi.hold-target::after { top: 72%; }
 .char.chibi.hold-target[data-hand="left"]::after { left: var(--hx-l); }
 .char.chibi.hold-target[data-hand="right"]::after { left: var(--hx-r); }
