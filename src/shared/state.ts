@@ -5,6 +5,7 @@ import { sanitizeLook2, withRandomStarter, type Look2 } from './avatar';
 import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plot, type RanchOp } from './ranch';
 import { keepMailbox, type Mailbox } from './mail';
 import { cleanDollSeat, pieceWidth, seatStillThere, standBeside, type DollSeat } from './sit';
+import { babyAfterFurniture, careBaby, cleanBaby, easeBaby, holdBaby, meetBaby, packBaby, placeBaby, type Baby } from './baby';
 export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon' | 'nursery' | 'bathroom' | 'backyard';
 /** Display order is the client's tab list. The backyard is a room, not a tab. */
 export const ROOM_IDS: RoomId[] = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'bathroom', 'backyard'];
@@ -111,6 +112,8 @@ export interface GameState {
   dogKennel?: DogKennel | null;
   /** Letters in the mailbox out front. Absent when empty so older saves stay identical. */
   mailbox?: Mailbox | null;
+  /** Nursery baby. Absent until someone meets her, so an older save stays identical. */
+  baby?: Baby;
   basket?: Basket;           // Rainbow Ranch (solo play): her basket, garden plots, last egg time
   garden?: (Plot | null)[];
   lastEgg?: number;
@@ -147,7 +150,13 @@ export type Action =
   | { type: 'dog/kennel'; item: string | null }
   | { type: 'settings/sound'; on: boolean }
   | { type: 'game/reset' }
-  | { type: 'ranch/op'; op: RanchOp; now: number };
+  | { type: 'ranch/op'; op: RanchOp; now: number }
+  | { type: 'baby/meet'; now: number }
+  | { type: 'baby/name'; name: string }
+  | { type: 'baby/care'; care: 'feed' | 'burp' | 'change' | 'rock'; now: number }
+  | { type: 'baby/hold'; holder: string | null; room: RoomId; x: number; y: number; now: number }
+  | { type: 'baby/place'; room: RoomId; x: number; y: number; spot: 'crib' | 'bassinet' | 'mat'; bed: string | null; seat: DollSeat | null; now: number }
+  | { type: 'baby/ease'; now: number };
 
 const it = (kind: string, x: number, y: number, z: number, scale = 1): PlacedItem =>
   ({ id: kind + '-' + z, kind, x: x + V1_OFFSET, y, flip: false, z, scale });
@@ -216,6 +225,15 @@ export function takeClearedFurniture(): ClearedPiece | null {
   const v = clearedFurniture;
   clearedFurniture = null;
   return v;
+}
+
+/** A seat on this piece stands her. Deleting or holding her crib does too. Moving the crib does not. */
+function settleBaby(s: GameState, id: string, evictBed: boolean, item: { x: number; kind: string; scale?: number; size?: number } | null): GameState {
+  if (!s.baby) return s;
+  const beside = item ? standBeside(item.x, pieceWidth(item.kind) * drawnScale(item), s.baby.x) : null;
+  const next = babyAfterFurniture(s.baby, id, evictBed, beside);
+  if (next === s.baby) return s;
+  return { ...s, baby: next };
 }
 
 /** She is not carried. She stands on the floor beside where the piece was. */
@@ -317,11 +335,11 @@ export function reduce(s: GameState, a: Action): GameState {
     case 'item/move': {
       const prev = s.rooms[a.room]?.items.find(i => i.id === a.id) ?? null;
       const moved = mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, x: clamp(a.x, 0, ROOM_W), y: clamp(a.y, 40, ROOM_H) } : i) }));
-      return a.stand ? clearSeatsOn(moved, a.id, prev) : moved;
+      return a.stand ? settleBaby(clearSeatsOn(moved, a.id, prev), a.id, false, prev) : moved;
     }
     case 'item/flip': {
       const prev = s.rooms[a.room]?.items.find(i => i.id === a.id) ?? null;
-      return clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, flip: !i.flip } : i) })), a.id, prev);
+      return settleBaby(clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, flip: !i.flip } : i) })), a.id, prev), a.id, false, prev);
     }
     case 'item/size': {
       // Size only. A kid already in the seat stays there; the seat is a fraction of the piece, so it draws at the new scale.
@@ -334,8 +352,9 @@ export function reduce(s: GameState, a: Action): GameState {
     case 'item/delete': {
       const prev = s.rooms[a.room]?.items.find(i => i.id === a.id) ?? null;
       const gone = prev?.kind === 'kennel';
-      const next = clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.filter(i => i.id !== a.id) })), a.id, prev);
-      return gone && s.dogKennel?.item === a.id ? { ...next, dogKennel: null } : next;
+      const cleared = clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.filter(i => i.id !== a.id) })), a.id, prev);
+      const next = gone && s.dogKennel?.item === a.id ? { ...cleared, dogKennel: null } : cleared;
+      return settleBaby(next, a.id, true, prev);
     }
     case 'room/wallpaper': return mapItems(s, a.room, r => ({ ...r, wallpaper: a.color }));
     case 'room/floor': return mapItems(s, a.room, r => ({ ...r, floor: a.color }));
@@ -359,6 +378,10 @@ export function reduce(s: GameState, a: Action): GameState {
       // anything the character was holding is put down where they stood
       let next: GameState = { ...s, characters: s.characters.filter(x => x.id !== a.id) };
       (['left', 'right'] as Hand[]).forEach((h, i) => { const it = c.held[h]; if (it) next = mapItems(next, c.room, r => ({ ...r, items: [...r.items, { ...it, x: c.x + (i ? 40 : -40), y: c.y, z: maxZ(r) + 1 }] })); });
+      if (next.baby?.spot === 'arms' && next.baby.holder === a.id) {
+        const down = holdBaby(next.baby, null, next.baby.room, next.baby.x, next.baby.y);
+        if (down && down !== next.baby) next = { ...next, baby: down };
+      }
       return next;
     }
     case 'char/hold': {
@@ -366,7 +389,8 @@ export function reduce(s: GameState, a: Action): GameState {
       if (!c || !it || c.held[a.hand] || c.room !== a.room) return s;
       const next = clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.filter(i => i.id !== a.itemId) })), a.itemId, it);
       const held = mapChar(next, a.id, ch => ({ ...ch, held: { ...ch.held, [a.hand]: it } }));
-      return it.kind === 'kennel' && s.dogKennel?.item === a.itemId ? { ...held, dogKennel: null } : held;
+      const kennel = it.kind === 'kennel' && s.dogKennel?.item === a.itemId ? { ...held, dogKennel: null } : held;
+      return settleBaby(kennel, a.itemId, true, it);
     }
     case 'char/release': {
       const c = s.characters.find(c => c.id === a.id); const it = c?.held[a.hand]; if (!c || !it) return s;
@@ -395,6 +419,35 @@ export function reduce(s: GameState, a: Action): GameState {
     }
     case 'settings/sound': return { ...s, soundOn: a.on };
     case 'game/reset': return initialState();
+    case 'baby/meet': return s.baby ? s : { ...s, baby: meetBaby(s.rooms, a.now) };
+    case 'baby/name': {
+      if (!s.baby || !a.name || a.name === s.baby.name) return s;
+      return { ...s, baby: packBaby({ ...s.baby, name: a.name }) };
+    }
+    case 'baby/care': {
+      if (!s.baby) return s;
+      const next = careBaby(s.baby, a.care, a.now);
+      return next === s.baby ? s : { ...s, baby: next };
+    }
+    case 'baby/hold': {
+      if (!s.baby) return s;
+      const next = holdBaby(s.baby, a.holder, a.room, a.x, a.y);
+      if (!next || next === s.baby) return s;
+      return { ...s, baby: next };
+    }
+    case 'baby/place': {
+      if (!s.baby || !s.rooms[a.room]) return s;
+      const occupied = s.characters.filter(c => c.room === a.room && c.seat).map(c => ({ item: c.seat!.item, n: c.seat!.n }));
+      const next = placeBaby(s.baby, a, s.rooms[a.room].items, occupied);
+      if (next === s.baby) return s;
+      return { ...s, baby: next };
+    }
+    case 'baby/ease': {
+      if (!s.baby) return s;
+      const next = easeBaby(s.baby, a.now);
+      if (!next) return s;
+      return { ...s, baby: next };
+    }
   }
 }
 
@@ -440,6 +493,12 @@ export function migrate(raw: any): GameState {
     const { mailbox: _drop, ...rest } = kept;
     kept = rest;
   }
+  const cleanedBaby = cleanBaby((kept as { baby?: unknown }).baby, kept.rooms);
+  if (cleanedBaby) kept = { ...kept, baby: cleanedBaby };
+  else if ('baby' in kept) {
+    const { baby: _drop, ...rest } = kept;
+    kept = rest;
+  }
   return keepSeats(showKnownRoom(kept));
 }
 
@@ -478,10 +537,15 @@ type Listener = (s: GameState, a: Action) => void;
 
 export function createStore() {
   let state: GameState;
+  let born = false;
   try {
     const raw = localStorage.getItem(KEY) ?? localStorage.getItem(V1_KEY);
-    state = raw ? migrate(JSON.parse(raw)) : initialState();
-    if (!raw && typeof navigator !== 'undefined' && !navigator.webdriver) state = withRandomStarter(state);
+    if (raw) state = migrate(JSON.parse(raw));
+    else {
+      born = true;
+      state = initialState();
+      if (typeof navigator !== 'undefined' && !navigator.webdriver) state = withRandomStarter(state);
+    }
   } catch { state = initialState(); }
   const listeners: Listener[] = [];
   let t: number | undefined;
@@ -493,6 +557,7 @@ export function createStore() {
       listeners.forEach(l => l(state, a));
       clearTimeout(t); t = window.setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} }, 250);
     },
+    born,
   };
 }
 export type Store = ReturnType<typeof createStore>;

@@ -5,6 +5,7 @@ import { GAMEROOM_W, type TablePub, type TableOp } from './games/index';
 import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, validKennel, itemSizeOf, ROOM_W, ROOM_H, MAX_CHARS, ROOM_IDS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
 import { sanitizeLook2, type Look2 } from './avatar';
 import { cleanDollSeat, cleanPresSeat, seatStillThere, type DollSeat, type PresSeat } from './sit';
+import { cleanBaby, packBaby } from './baby';
 import { CATALOG_NAMES } from './catalog-names';
 import { MAIL_COLORS, MAIL_MAX, MAIL_STICKERS, keepMailbox, type Mailbox } from './mail';
 
@@ -663,7 +664,7 @@ function cleanCharacter(c: any): Character | null {
 }
 
 // ---------- pets ----------
-export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, bathroom, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1. A seat rides on char/move and on house presence, and is forwarded only to clients that say sit:1. item/size is forwarded only to clients that say fit:1. A missing item size is 1, and old clients ignore the field. There is no PROTOCOL 5. A grown-up mailbox listing is an optional field on parentInfo; old clients ignore it. settings.freeMail is optional too: missing means letters follow freeChat.
+export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, bathroom, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1. A seat rides on char/move and on house presence, and is forwarded only to clients that say sit:1. item/size is forwarded only to clients that say fit:1. A missing item size is 1, and old clients ignore the field. Baby actions are forwarded only to clients that say baby:1. A missing baby means an older save. There is no PROTOCOL 5. A grown-up mailbox listing is an optional field on parentInfo; old clients ignore it. settings.freeMail is optional too: missing means letters follow freeChat.
 export const PROTO_PETS = 2, PROTO_RANCH = 3, PROTO_GAMES = 4;
 export const CAT_NAMES = ['Mittens', 'Luna', 'Biscuit', 'Pumpkin', 'Whiskers', 'Mochi', 'Pepper', 'Noodle', 'Ginger', 'Socks'];
 export const DOG_NAMES = ['Buddy', 'Coco', 'Max', 'Daisy', 'Peanut', 'Rocket', 'Bella', 'Waffles', 'Scout', 'Honey'];
@@ -687,6 +688,9 @@ export function cleanDog(d: any): Dog | null {
 }
 
 /** Turn an untrusted action into a safe one, or null to reject. UI-only actions are never accepted over the network. */
+function finiteNow(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : 0;
+}
 export function cleanAction(a: any): Action | null {
   if (!a || typeof a !== 'object' || typeof a.type !== 'string') return null;
   const room = a.room;
@@ -716,6 +720,32 @@ export function cleanAction(a: any): Action | null {
     case 'cat/set': { if (a.cat === null) return { type: a.type, cat: null }; const cat = cleanCat(a.cat); return cat ? { type: a.type, cat } : null; }
     case 'cat/move': { const x = num(a.x, 100, ROOM_W - 100); return isRoom(room) && x !== null ? { type: a.type, room, x } : null; }
     case 'dog/kennel': { if (a.item === null) return { type: 'dog/kennel', item: null }; const id = str(a.item, ID_RE); return id ? { type: 'dog/kennel', item: id } : null; }
+    case 'baby/meet': return { type: 'baby/meet', now: finiteNow(a.now) };
+    case 'baby/ease': return { type: 'baby/ease', now: finiteNow(a.now) };
+    case 'baby/name': { const name = cleanPetName(a.name); return name ? { type: 'baby/name', name } : null; }
+    case 'baby/care': {
+      if (a.care !== 'feed' && a.care !== 'burp' && a.care !== 'change' && a.care !== 'rock') return null;
+      return { type: 'baby/care', care: a.care, now: finiteNow(a.now) };
+    }
+    case 'baby/hold': {
+      if (!isRoom(room)) return null;
+      const x = num(a.x, 0, ROOM_W), y = num(a.y, 0, ROOM_H);
+      if (x === null || y === null) return null;
+      let holder: string | null;
+      if (a.holder === null) holder = null;
+      else { const id = str(a.holder, ID_RE); if (!id) return null; holder = id; }
+      return { type: 'baby/hold', holder, room, x, y, now: finiteNow(a.now) };
+    }
+    case 'baby/place': {
+      if (!isRoom(room)) return null;
+      const x = num(a.x, 0, ROOM_W), y = num(a.y, 0, ROOM_H);
+      if (x === null || y === null) return null;
+      if (a.spot !== 'crib' && a.spot !== 'bassinet' && a.spot !== 'mat') return null;
+      const bed = a.bed == null ? null : str(a.bed, ID_RE);
+      if (a.bed != null && !bed) return null;
+      const seat = a.seat == null ? null : cleanDollSeat(a.seat);
+      return { type: 'baby/place', room, x, y, spot: a.spot, bed, seat, now: finiteNow(a.now) };
+    }
     default: return null; // room/switch, settings/sound, game/reset, dog/set (dogs live on the player) are local-only
   }
 }
@@ -745,7 +775,9 @@ export function cleanHouseState(raw: any): GameState {
   const cat = (s as any).cat ? cleanCat((s as any).cat) : null;
   const dogKennel = validKennel({ dogKennel: (s as any).dogKennel, rooms });
   const mailbox = filterMailbox((s as any).mailbox);
-  const house: GameState = { ...base, rooms, characters, currentRoom: 'living', soundOn: true, cat, dog: null, dogKennel };
+  const cleaned = cleanBaby((s as any).baby, rooms);
+  const baby = cleaned ? packBaby({ ...cleaned, name: cleanPetName(cleaned.name) || 'Bean' }) : null;
+  const house: GameState = { ...base, rooms, characters, currentRoom: 'living', soundOn: true, cat, dog: null, dogKennel, ...(baby ? { baby } : {}) };
   return mailbox ? { ...house, mailbox } : house;
 }
 
@@ -854,8 +886,8 @@ export interface HouseFull extends HouseMeta { state: GameState }
 export type Bubble = { kind: 'phrase' | 'emote'; v: number } | { kind: 'text'; v: string };
 
 export type ClientMsg =
-  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number; fit?: number }
-  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number; fit?: number }
+  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number }
+  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number }
   | { t: 'dog'; dog: Dog | null }
   | { t: 'fx'; fx: Fx }
   | { t: 'ranch'; o: RanchOp }
@@ -874,7 +906,7 @@ export type ClientMsg =
 
 export type ServerMsg =
   | { t: 'joined'; token: string; pid: string }
-  | { t: 'welcome'; pid: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[]; sit?: 1 }
+  | { t: 'welcome'; pid: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[]; sit?: 1; baby?: 1 }
   | { t: 'act'; houseId: string; by: string; cid: number; action: Action }
   | { t: 'nack'; houseId: string; cid: number; reason: string; state?: GameState }
   | { t: 'pres'; pid: string; p: Presence | null }

@@ -5,6 +5,7 @@
 // A kid can leave three unread letters in one mailbox. A grown-up can clear them, or limit new letters to preset phrases.
 import { reduce, initialState, ensureRooms, drawnScale, type GameState, type Dog, type Action } from '../src/shared/state';
 import { pieceWidth, standBeside } from '../src/shared/sit';
+import { babyOccupant } from '../src/shared/baby';
 import { withRandomStarter } from '../src/shared/avatar';
 import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, applyLook, cleanPresence, cleanHouseName,
@@ -17,7 +18,7 @@ import { cleanBasket, cleanPlots, cleanRanchOp, ranchApply, BASKET_ITEM, type Ba
 export interface KV { get<T>(k: string): Promise<T | undefined>; put(k: string, v: unknown): Promise<void>; delete(k: string): Promise<void> }
 /** Maps invite codes (case-insensitive, unique across streets) to permanent street ids. */
 export interface CodeRegistry { claim(code: string, id: string): Promise<boolean>; release(code: string, id: string): Promise<void> }
-export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number }
+export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number }
 
 interface Player { pid: string; nickname: string; houseId: string; tokenHash: string; look: Look; joinedAt: number; dog?: Dog | null; basket?: Basket }
 /** One table in the Game Room. Seats are kept by player id, so a kid who reconnects is still sitting there with her cards. */
@@ -111,7 +112,7 @@ export class Neighborhood {
   private welcome(c: Conn) {
     const presence: Record<string, Presence> = {};
     this.presence.forEach((p, k) => { presence[k] = this.viewPresence(p, c); });
-    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean).map(h => this.wireHouse(h, c)), presence, sit: 1, ranch: { plots: cleanPlots(this.meta!.ranch?.plots), now: Date.now() }, ...((c.v ?? 1) >= PROTO_GAMES ? { tables: this.tables.map((_, i) => this.tablePub(i, c.pid!)) } : {}) });
+    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean).map(h => this.wireHouse(h, c)), presence, sit: 1, baby: 1, ranch: { plots: cleanPlots(this.meta!.ranch?.plots), now: Date.now() }, ...((c.v ?? 1) >= PROTO_GAMES ? { tables: this.tables.map((_, i) => this.tablePub(i, c.pid!)) } : {}) });
   }
   /** Clients that did not say sit:1 draw her standing. The seat field stays off their copy. */
   private viewPresence(p: Presence, c: Conn): Presence {
@@ -148,7 +149,7 @@ export class Neighborhood {
     }
     return h.state.mailbox ?? null;
   }
-  /** Old clients (no mail:1) never receive the field. Other kids never receive someone else's words. */
+  /** Old clients (no mail:1) never receive the field. Other kids never receive someone else's words. Clients that did not say baby:1 never receive the baby. */
   private wireState(state: GameState, c: Conn, ownerId: string): GameState {
     const box = keepMailbox(state.mailbox);
     let view: GameState;
@@ -162,16 +163,23 @@ export class Neighborhood {
         else { const { mailbox: _drop, ...rest } = state; view = rest; }
       } else view = { ...state, mailbox: mail };
     }
-    return (c.sit ?? 0) >= 1 ? view : this.stripSeats(view);
+    return (c.sit ?? 0) >= 1 ? this.withBaby(view, c) : this.withBaby(this.stripSeats(view), c);
   }
-  /** seat is forwarded only to sit:1 clients. The sender always gets the action she sent. */
+  private withBaby(state: GameState, c: Conn): GameState {
+    if ((c.baby ?? 0) >= 1 || !state.baby) return state;
+    const { baby: _drop, ...rest } = state;
+    return rest;
+  }
+  /** seat is forwarded only to sit:1 clients. item/size only to fit:1. Baby actions only to baby:1, including the sender: a client that did not ask is nacked and must not see an action its reducer does not know. */
   private broadcastAct(houseId: string, by: string, cid: number, a: Action, sender: Conn, catAct: boolean, kennelAct: boolean) {
     const sizeAct = a.type === 'item/size';
+    const babyAct = a.type.startsWith('baby/');
     for (const x of this.conns) {
       if (!x.pid) continue;
       if (catAct && (x.v ?? 1) < PROTO_PETS && x !== sender) continue;
       if (kennelAct && (x.pet ?? 0) < 1 && x !== sender) continue;
       if (sizeAct && (x.fit ?? 0) < 1 && x !== sender) continue;
+      if (babyAct && (x.baby ?? 0) < 1) continue;
       const action = x === sender || (x.sit ?? 0) >= 1 ? a : this.withoutSeat(a);
       this.send(x, { t: 'act', houseId, by, cid, action });
     }
@@ -386,6 +394,7 @@ export class Neighborhood {
         c.mail = m.mail === 1 ? 1 : 0;
         c.sit = m.sit === 1 ? 1 : 0;
         c.fit = m.fit === 1 ? 1 : 0;
+        c.baby = m.baby === 1 ? 1 : 0;
         const h = typeof m.token === 'string' ? await sha256(m.token) : '';
         const p = h ? Object.values(meta.players).find(p => p.tokenHash === h) : undefined;
         if (!p) { this.send(c, { t: 'error', code: 'badtoken' }); return; }
@@ -399,6 +408,7 @@ export class Neighborhood {
         c.mail = m.mail === 1 ? 1 : 0;
         c.sit = m.sit === 1 ? 1 : 0;
         c.fit = m.fit === 1 ? 1 : 0;
+        c.baby = m.baby === 1 ? 1 : 0;
         const roster = meta.roster ?? [];
         let nickname: string;
         if (roster.length) {
@@ -455,9 +465,29 @@ export class Neighborhood {
         if (a.type === 'char/move' && a.seat && typeof a.seat === 'object' && h.ownerId !== me.pid) return nack('notyours');
         if (a.type === 'char/move' && a.seat && typeof a.seat === 'object') {
           const seat = a.seat;
+          const babyOn = babyOccupant(h.state.baby, a.room);
           const taken = h.state.characters.some(ch => ch.id !== a.id && ch.room === a.room && ch.seat?.item === seat.item && ch.seat.n === seat.n)
-            || [...this.presence].some(([, q]) => q.where === 'house' && q.houseId === h.id && q.room === a.room && q.seat?.id === seat.item && q.seat.n === seat.n);
+            || [...this.presence].some(([, q]) => q.where === 'house' && q.houseId === h.id && q.room === a.room && q.seat?.id === seat.item && q.seat.n === seat.n)
+            || (!!babyOn && babyOn.item === seat.item && babyOn.n === seat.n);
           if (taken) a = { ...a, seat: null };
+        }
+        if (a.type.startsWith('baby/')) {
+          if ((c.baby ?? 0) < 1) return nack('invalid');
+          if (!h.state.baby && a.type !== 'baby/meet') return nack('noop');
+          if ((a.type === 'baby/name' || a.type === 'baby/place' || a.type === 'baby/meet') && h.ownerId !== me.pid) return nack('notyours');
+          if (a.type === 'baby/hold') {
+            const cur = h.state.baby;
+            if (a.holder && cur?.holder && cur.spot === 'arms' && cur.holder !== me.pid) return nack('cuddling');
+            if (a.holder === null && cur?.holder && cur.spot === 'arms' && cur.holder !== me.pid && h.ownerId !== me.pid) return nack('notyours');
+            a = { ...a, holder: a.holder ? me.pid : null, now: Date.now() };
+          } else if (a.type === 'baby/care' || a.type === 'baby/ease' || a.type === 'baby/meet' || a.type === 'baby/place') {
+            a = { ...a, now: Date.now() };
+          }
+          if (a.type === 'baby/place' && a.seat) {
+            const seat = a.seat;
+            const taken = [...this.presence].some(([, q]) => q.where === 'house' && q.houseId === h.id && q.room === a.room && q.seat?.id === seat.item && q.seat.n === seat.n);
+            if (taken) a = { ...a, seat: null, spot: 'mat' };
+          }
         }
         // An old stored house may still be missing a room if it was loaded before this process filled it.
         // Fill first so reduce never throws, and so a living-room edit cannot save a copy that dropped the nursery.
@@ -473,7 +503,8 @@ export class Neighborhood {
         // Cat acts stay off clients older than pets. dog/kennel stays off clients that did not say pet:1:
         // an old reducer has no default and would wipe the house if it saw an unknown action.
         // seat rides only to clients that said sit:1. Everyone else gets the same x and y.
-        // item/size rides only to clients that said fit:1. An old reducer has no default and would wipe the house.
+        // item/size rides only to clients that said fit:1. Baby actions ride only to clients that said baby:1.
+        // An old reducer has no default and would wipe the house.
         this.broadcastAct(h.id, me.pid, cid, a, c, catAct, kennelAct);
         if (stoodOn) this.dropPresenceSeats(h.id, a.room, stoodOn);
         return;
@@ -495,7 +526,8 @@ export class Neighborhood {
           const seat = pres.seat;
           const dollThere = !!house?.state.characters.some(ch => ch.room === pres.room && ch.seat?.item === seat.id && ch.seat.n === seat.n);
           const kidThere = [...this.presence].some(([pid, q]) => pid !== me.pid && q.where === 'house' && q.houseId === pres.houseId && q.room === pres.room && q.seat?.id === seat.id && q.seat.n === seat.n);
-          if (dollThere || kidThere) {
+          const babyOn = babyOccupant(house?.state.baby, pres.room || '');
+          if (dollThere || kidThere || (!!babyOn && babyOn.item === seat.id && babyOn.n === seat.n)) {
             const { seat: _drop, ...rest } = pres;
             pres = rest;
           }

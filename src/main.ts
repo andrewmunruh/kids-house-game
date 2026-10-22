@@ -3,6 +3,7 @@ import './juice.css';
 import './scenery.css';
 import './mail.css';
 import './avatar.css';
+import './baby.css';
 import { MAP_W, MAP_H, PARK, RANCH, SQUARE, CLUB, mapBgSVG, mapPortraitBgSVG, mapTreesSVG, portraitMeadowSVG, mapSkySVG, mapMeadowSVG, parkMiniSVG, ranchMiniSVG, clubhouseMiniSVG, mapIcon, faceSVG } from './map';
 import { createStore, newCharacter, takeClearedFurniture, drawnScale, itemSizeOf, ITEM_SIZE_STEPS, ROOM_W, ROOM_H, V1_OFFSET, MAX_CHARS, type RoomId, type PlacedItem, type GameState, type Character, type Hand, type Action, type Cat, type Dog } from './shared/state';
 import { HoodClient, houseStore, loadHoodConfig, saveHoodConfig, hoodServerUrl, createNeighborhood, lookupNeighborhood, type HoodConfig } from './net';
@@ -11,6 +12,8 @@ import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } 
 import { mailboxArt, installMail } from './mail';
 import { installPlayMode, playGesture } from './playmode';
 import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, standBeside, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
+import { babyOccupant } from './shared/baby';
+import { installBaby } from './baby/view';
 import { poseNamed } from './avatar/sit';
 import { unreadCount } from './shared/mail';
 import { parkSceneSVG, swingSVG, ballSVG, treeIcon, pawIcon, gateIcon, streetGateSVG, PARK_H, SWING_BAR } from './park';
@@ -45,6 +48,9 @@ import { bindGameRoom, renderGameRoom, renderGamePeople, tickGameRoom, mySeat, g
 type AnyStore = { get(): GameState; dispatch(a: Action): void; subscribe(l: (s: GameState, a: Action) => void): void };
 const firstRun = whatsNewCheck(); // must run before the store loads/saves
 const local = createStore();
+if (local.born && typeof navigator !== 'undefined' && !navigator.webdriver && !local.get().baby) {
+  local.dispatch({ type: 'baby/meet', now: Date.now() });
+}
 let inner: AnyStore = local;
 const storeListeners: ((s: GameState, a: Action) => void)[] = [];
 const hooked = new WeakSet<AnyStore>();
@@ -726,7 +732,7 @@ function seatedAt(room: RoomId, seat: DollSeat | null, at: { x: number; y: numbe
   const spot = anchorsOf(piece).find(a => a.n === seat.n);
   return spot ? { x: spot.x, y: spot.y } : at;
 }
-function takenSeats(skipChar?: string, skipPid?: string): { item: string; n: 0 | 1 }[] {
+function takenSeats(skipChar?: string, skipPid?: string, skipBaby = false): { item: string; n: 0 | 1 }[] {
   const s = store.get();
   const out: { item: string; n: 0 | 1 }[] = [];
   for (const c of s.characters) {
@@ -734,6 +740,10 @@ function takenSeats(skipChar?: string, skipPid?: string): { item: string; n: 0 |
     const seat = dollSeat(c);
     if (!seat) continue;
     out.push({ item: seat.item, n: seat.n });
+  }
+  if (!skipBaby) {
+    const occ = babyOccupant(s.baby, s.currentRoom);
+    if (occ) out.push(occ);
   }
   if (hood && view === 'house') {
     const add = (pid: string, p: Presence) => {
@@ -1117,6 +1127,7 @@ function syncSkyPuddles() {
   });
 }
 
+let renderBaby = () => {};
 function renderChars(s: GameState) {
   const here = s.characters.filter(c => c.room === s.currentRoom);
   for (const [id, el] of charEls) if (!here.some(c => c.id === id)) { el.remove(); charEls.delete(id); }
@@ -1149,6 +1160,7 @@ function renderChars(s: GameState) {
     el.style.setProperty('--hx-r', pts.right.x + '%');
   }
   renderMinimap(s);
+  renderBaby();
 }
 
 /** Screen box of the toolbar's resting transform (the pop animation is not part of this). */
@@ -1449,6 +1461,7 @@ store.subscribe((s, a) => {
       renderChars(s); syncSeatFronts(); syncSwingPose(); if (view === 'ranch') renderRanchAvatars(); else if (view === 'park') renderParkAvatars(); break;
     case 'char/add': case 'char/delete': case 'char/hold': case 'char/release': renderItems(s); renderChars(s); renderAvatars(); if (currentTab === '__people') renderDrawer(); break;
     case 'item/move': case 'item/flip': case 'item/delete': case 'item/size': renderItems(s); renderChars(s); renderAvatars(); break;
+    case 'baby/meet': case 'baby/name': case 'baby/care': case 'baby/hold': case 'baby/place': case 'baby/ease': renderChars(s); break;
     case 'settings/sound': renderSoundBtn(s); break;
     default: renderItems(s);
   }
@@ -2056,6 +2069,7 @@ function renderAvatars() {
   for (const [pid, el] of avatarEls) if (!keep.has(pid) || !el.isConnected) { if (!keep.has(pid)) el.remove(); avatarEls.delete(pid); }
   syncSeatFronts();
   updateNear();
+  renderBaby();
 }
 function attachMyAvatarDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
@@ -2734,6 +2748,7 @@ function enterNeighborhood(client: HoodClient) {
   });
   client.on('tblFail', (tb: number, reason: string) => { if (hood === client) tableApi()?.fail(tb, reason); });
   client.on('welcome', () => { if (hood !== client) return; if (view === 'street') renderMap(true); else if (view === 'park' || view === 'ranch') { const p = myPres(); if (p) setMyPres(p); view === 'park' ? renderPark() : renderRanch(); phoneShowKids(); } else if (view === 'gameroom') { const p = myPres(); if (p) setMyPres(p); renderGameRoom(); phoneShowKids(); tableApi()?.refresh(); } else if (client.houses.has(currentHouseId)) renderAll(); else goMap(); });
+  client.on('reset', (_hid: string, reason: string) => { if (hood === client && reason === 'cuddling') toast('Someone is cuddling!'); });
   goMap();
 }
 async function initHood() {
@@ -4249,6 +4264,7 @@ function artKinds(s: GameState): string[] {
     if (c.held.left) kinds.add(c.held.left.kind);
     if (c.held.right) kinds.add(c.held.right.kind);
   }
+  if (s.baby) kinds.add('baby');
   return [...kinds];
 }
 let artBoot: Promise<void> | null = null;
@@ -4298,6 +4314,46 @@ $('scenery').addEventListener('click', e => {
 });
 const skyHandle = mountSkyToggle($('skyMount'));
 (window as any).__sky = skyHandle;
+renderBaby = installBaby({
+  layer,
+  stageWrap: $('stageWrap'),
+  get: () => store.get(),
+  dispatch: a => store.dispatch(a),
+  clock: () => (hood && inner !== local ? hood.now() : Date.now()),
+  canSend: () => !hood || inner === local || !!hood.speaksBaby,
+  owner: () => ownsDolls(),
+  inHouse: () => view === 'house',
+  play: () => play.isPlay(),
+  editable: () => canEdit(),
+  toRoom,
+  box: (it) => {
+    const def = ITEM_MAP[it.kind];
+    if (!def) return null;
+    return { id: it.id, kind: it.kind, x: it.x, footY: drawY(def, it.y), flip: !!it.flip, scale: drawnScale(it), w: def.w, h: hOf(def), z: it.z };
+  },
+  holderId: () => (hood && inner !== local && hood.pid) ? hood.pid : (activeChar || store.get().characters[0]?.id || 'c1'),
+  holderSpot: () => {
+    const id = (hood && inner !== local && hood.pid) ? hood.pid : (activeChar || store.get().characters[0]?.id || '');
+    const s = store.get();
+    const doll = s.characters.find(c => c.id === id && c.room === s.currentRoom);
+    if (doll) {
+      const at = seatedAt(s.currentRoom, dollSeat(doll), doll);
+      return { x: at.x, y: at.y, flip: doll.flip };
+    }
+    if (hood && view === 'house') {
+      const p = id === hood.pid ? myPres() : hood.presence.get(id);
+      if (p && p.where === 'house' && p.houseId === currentHouseId && p.room === s.currentRoom) {
+        const seat = presSeat(id, p);
+        const at = seatedAt(s.currentRoom, seat, p);
+        return { x: at.x, y: at.y, flip: p.flip };
+      }
+    }
+    return null;
+  },
+  occupied: () => takenSeats(undefined, hood?.pid, true),
+  locked: () => lockedNudge(null),
+  seatAt: (room, seat, at) => seatedAt(room, seat, at),
+}).render;
 renderAll(); renderDrawer(); fit();
 bootYardPreview();
 
