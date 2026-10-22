@@ -520,6 +520,130 @@ async def check_toolbar(pg, tag, touch=False):
     if abs(d - 88) > 0.6:
         fail(f'{tag} toolbar moved {d:.1f} between y=500 and y=600, want 88 (drawn y)')
     await pg.evaluate("() => { const s = __store; const seat = s.get().rooms.living.items.find(i => i.id === 'qa-seat'); if (seat) s.dispatch({type:'item/move', room:'living', id:'qa-seat', x:seat.x, y:600}); }")
+    await check_toolbar_edges(pg, tag, touch)
+
+
+def overlap(a, b):
+    return a['left'] < b['right'] - 0.5 and a['right'] > b['left'] + 0.5 and a['top'] < b['bottom'] - 0.5 and a['bottom'] > b['top'] + 0.5
+
+
+async def check_toolbar_edges(pg, tag, touch=False):
+    """Edge pieces: every Decorate button is fully on screen, at least 44px, and clear of the room arrows.
+    A high towel bar flips the bar below the piece when there is no room above."""
+    cases = [
+        ('tub-left', 'soaking-tub', 'left', False),
+        ('piece-right', 'chair', 'right', False),
+        ('towel-high', 'towel-bar', 'high', True),
+    ]
+    for name, kind, place, want_below in cases:
+        hit = await pg.evaluate("""([name, kind, place]) => {
+          const s = __store;
+          document.querySelector('#modeDecorate')?.click();
+          s.dispatch({type:'room/switch', room:'living'});
+          const viewW = parseFloat(document.querySelector('.stage').style.width) || 1000;
+          const cam = __cam.get();
+          const kid = s.get().characters[0];
+          if (kid) s.dispatch({type:'char/move', id:kid.id, room:'living', x: Math.round(cam + viewW * 0.5), y: 280});
+          const prev = s.get().rooms.living.items.find(i => i.id === 'qa-edge');
+          if (prev) s.dispatch({type:'item/delete', room:'living', id:'qa-edge'});
+          // Close enough to an arrow that a centered bar would sit under it, and still tappable itself.
+          const x = place === 'left' ? Math.round(cam + 170) : place === 'right' ? Math.round(cam + viewW - 170) : Math.round(cam + viewW * 0.5);
+          const y = place === 'high' ? 150 : 560;
+          s.dispatch({type:'item/add', room:'living', item:{id:'qa-edge', kind, x, y, flip:false, z:40, scale:1}});
+          s.dispatch({type:'item/front', room:'living', id:'qa-edge'});
+          const el = document.querySelector('.item[data-id="qa-edge"]');
+          if (!el) return null;
+          const img = el.querySelector('img.artimg');
+          const r = (img || el).getBoundingClientRect();
+          let data = null, nw = 0, nh = 0;
+          if (img && img.complete && img.naturalWidth) {
+            nw = img.naturalWidth; nh = img.naturalHeight;
+            const canvas = document.createElement('canvas');
+            canvas.width = nw; canvas.height = nh;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            try { ctx.drawImage(img, 0, 0); data = ctx.getImageData(0, 0, nw, nh).data; } catch (e) { data = null; }
+          }
+          const solid = (px, py) => {
+            if (!data || !img) return true;
+            const rect = img.getBoundingClientRect();
+            let u = (px - rect.left) / rect.width;
+            const v = (py - rect.top) / rect.height;
+            const scale = Math.min(rect.width / nw, rect.height / nh);
+            const dw = nw * scale, dh = nh * scale;
+            const ox = (rect.width - dw) * 0.5, oy = rect.height - dh;
+            const x = Math.floor((u * rect.width - ox) / scale);
+            const y = Math.floor((v * rect.height - oy) / scale);
+            if (x < 0 || y < 0 || x >= nw || y >= nh) return false;
+            return data[(y * nw + x) * 4 + 3] > 24;
+          };
+          for (let fy = 0.35; fy < 0.95; fy += 0.07) for (let fx = 0.5; fx > 0.08; fx -= 0.07) for (const sx of [fx, 1 - fx]) {
+            const px = r.left + r.width * sx, py = r.top + r.height * fy;
+            const h = document.elementFromPoint(px, py);
+            if (h && h.closest && h.closest('.item') === el && solid(px, py)) return { x: px, y: py };
+          }
+          return null;
+        }""", [name, kind, place])
+        if not hit:
+            fail(f'{tag} {name} piece missing')
+            continue
+        if touch:
+            await pg.touchscreen.tap(hit['x'], hit['y'])
+        else:
+            await pg.mouse.click(hit['x'], hit['y'])
+        await pg.wait_for_timeout(400)
+        shown = await pg.evaluate("() => { const t = document.getElementById('toolbar'); return !!(t && !t.classList.contains('hidden')); }")
+        if not shown:
+            if touch:
+                await pg.touchscreen.tap(hit['x'], hit['y'])
+            else:
+                await pg.mouse.click(hit['x'], hit['y'])
+            await pg.wait_for_timeout(400)
+        report = await pg.evaluate("""() => {
+          const t = document.getElementById('toolbar');
+          if (!t || t.classList.contains('hidden')) return { missing: true };
+          const stage = document.querySelector('.stage').getBoundingClientRect();
+          const arrows = ['nudgeL', 'nudgeR'].map(id => {
+            const n = document.getElementById(id);
+            if (!n || n.classList.contains('off')) return null;
+            const r = n.getBoundingClientRect();
+            if (r.width < 2 || r.height < 2) return null;
+            return { id, left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+          }).filter(Boolean);
+          const buttons = [...t.querySelectorAll('button')].map(b => {
+            const r = b.getBoundingClientRect();
+            return { label: b.getAttribute('aria-label'), left: r.left, top: r.top, right: r.right, bottom: r.bottom, w: r.width, h: r.height };
+          });
+          return {
+            below: t.classList.contains('below'),
+            buttons, arrows,
+            vw: window.innerWidth, vh: window.innerHeight,
+            stage: { left: stage.left, top: stage.top, right: stage.right, bottom: stage.bottom },
+          };
+        }""")
+        if not report or report.get('missing'):
+            fail(f'{tag} {name} toolbar hidden')
+            continue
+        if want_below and not report['below']:
+            fail(f'{tag} {name} toolbar stayed above the piece')
+        labels = [b['label'] for b in report['buttons']]
+        if labels != ['Smaller', 'Bigger', 'Flip', 'Bring forward', 'Send back', 'Put away']:
+            fail(f'{tag} {name} buttons {labels}')
+        for b in report['buttons']:
+            if b['w'] < 43.5 or b['h'] < 43.5:
+                fail(f"{tag} {name} {b['label']} is {b['w']:.1f}x{b['h']:.1f}, want >= 44")
+            if b['left'] < -0.5 or b['top'] < -0.5 or b['right'] > report['vw'] + 0.5 or b['bottom'] > report['vh'] + 0.5:
+                fail(f"{tag} {name} {b['label']} off the screen")
+            st = report['stage']
+            if b['left'] < st['left'] - 0.5 or b['top'] < st['top'] - 0.5 or b['right'] > st['right'] + 0.5 or b['bottom'] > st['bottom'] + 0.5:
+                fail(f"{tag} {name} {b['label']} clipped by the room")
+            for arrow in report['arrows']:
+                if overlap(b, arrow):
+                    fail(f"{tag} {name} {b['label']} is under {arrow['id']}")
+    await pg.evaluate("""() => {
+      const s = __store;
+      if (s.get().rooms.living.items.some(i => i.id === 'qa-edge'))
+        s.dispatch({type:'item/delete', room:'living', id:'qa-edge'});
+    }""")
 
 async def check_door(pg, tag):
     await pg.evaluate("""() => {
@@ -531,7 +655,8 @@ async def check_door(pg, tag):
       const sofa = s.get().rooms.living.items.find(i => i.kind === 'sofa');
       const rug = s.get().rooms.living.items.find(i => i.kind === 'rug');
       const kid = s.get().characters[0];
-      s.dispatch({type:'char/move', id:kid.id, room:'living', x:1100, y:540});
+      // A seat draws on the piece, so a bare move would leave her on the chair and the portrait frame would follow that chair, sliding the door off the sofa.
+      s.dispatch({type:'char/move', id:kid.id, room:'living', x:1100, y:540, seat: null});
       // Moves repaint the door after the camera is in place, so a hint slide from the old view does not stick.
       s.dispatch({type:'item/move', room:'living', id:sofa.id, x:824, y:470});
       s.dispatch({type:'item/move', room:'living', id:rug.id, x:824, y:530});

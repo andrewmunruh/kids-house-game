@@ -4,6 +4,7 @@
 import { Neighborhood, type KV, type Conn } from '../server/core';
 import { NICKNAMES, PROTOCOL, cleanAction, cleanHouseState, cleanItem } from '../src/shared/hood';
 import { applyItemSize, drawnScale, ensureRooms, initialState, itemSizeOf, ITEM_SIZE_STEPS, migrate, reduce, type GameState, type PlacedItem } from '../src/shared/state';
+import { anchorsOf } from '../src/shared/sit';
 
 const store = new Map<string, unknown>();
 const kv: KV = {
@@ -119,6 +120,46 @@ async function main() {
   const disk = store.get('house:' + hid) as { state: GameState };
   const diskTub = disk.state.rooms.bathroom.items.find(i => i.id === tub.id)!;
   check('the size is on the saved house', diskTub.size === 0.75 && disk.state.rooms.bathroom.items.map(i => i.kind).join(',') === BATH);
+
+  // A resize changes only the scale. She stays in the seat, and the anchor moves with the piece.
+  const stoolAt = (size: number) => anchorsOf({ id: 'seat-stool', kind: 'bath-stool', x: 1200, footY: 520, flip: false, scale: size, w: 110, h: 110 })[0];
+  const y1 = stoolAt(1).y, y15 = stoolAt(1.5).y, y075 = stoolAt(0.75).y;
+  check('the stool seat rises at 1.5x and drops at 0.75x', y15 < y1 && y1 < y075 && stoolAt(1).pose === 'sit');
+  const pidA = (fitA as { pid?: string }).pid || '';
+  const doll = hood.houses.get(hid)!.state.characters[0];
+  const seat = { item: 'seat-stool', pose: 'sit' as const, n: 0 as const };
+  await hood.onMessage(fitA, JSON.stringify({ t: 'act', houseId: hid, cid: 21, action: { type: 'item/add', room: 'bathroom', item: { id: 'seat-stool', kind: 'bath-stool', x: 1200, y: 520, flip: false, z: 9, scale: 1 } } }));
+  await hood.onMessage(fitA, JSON.stringify({ t: 'act', houseId: hid, cid: 22, action: { type: 'char/move', id: doll.id, room: 'bathroom', x: 1200, y: 470, seat } }));
+  const seated = JSON.parse(JSON.stringify(hood.houses.get(hid)!.state)) as GameState;
+  const sitting = seated.characters.find(c => c.id === doll.id)!;
+  check('she is seated on the stool before the resize', sitting.seat?.item === 'seat-stool' && sitting.seat.pose === 'sit' && sitting.seat.n === 0);
+  const sitB = mk();
+  await hood.onConnect(sitB);
+  await hood.onMessage(sitB, JSON.stringify({ t: 'join', nickname: NICKNAMES[4], look, v: 4, fit: 1, sit: 1 }));
+  fitA.inbox.length = 0; sitB.inbox.length = 0;
+  await hood.onMessage(fitA, JSON.stringify({ t: 'act', houseId: hid, cid: 23, action: { type: 'item/size', room: 'bathroom', id: 'seat-stool', size: 1.5 } }));
+  await hood.onMessage(fitA, JSON.stringify({ t: 'act', houseId: hid, cid: 24, action: { type: 'item/size', room: 'bathroom', id: 'seat-stool', size: 0.75 } }));
+  const replay = (inbox: any[]) => {
+    let s = seated;
+    for (const m of inbox) if (m.t === 'act' && m.houseId === hid) s = reduce(s, m.action);
+    return s;
+  };
+  const stillSeated = (s: GameState) => {
+    const c = s.characters.find(x => x.id === doll.id);
+    const piece = s.rooms.bathroom.items.find(i => i.id === 'seat-stool');
+    return !!c && c.seat?.item === 'seat-stool' && c.seat.pose === 'sit' && c.seat.n === 0 && c.x === sitting.x && c.y === sitting.y && piece?.size === 0.75 && piece.scale === 1;
+  };
+  const viewA = replay(fitA.inbox), viewB = replay(sitB.inbox);
+  const sizes = (c: C) => c.inbox.filter(m => m.t === 'act' && m.action?.type === 'item/size' && m.action.id === 'seat-stool').map(m => m.action.size);
+  check('she stays seated on both clients at 1.5x and 0.75x', stillSeated(viewA) && stillSeated(viewB) && stillSeated(hood.houses.get(hid)!.state) && sizes(fitA).join(',') === '1.5,0.75' && sizes(sitB).join(',') === '1.5,0.75');
+  await hood.onMessage(fitA, JSON.stringify({ t: 'act', houseId: hid, cid: 25, action: { type: 'item/add', room: 'bathroom', item: { id: 'player-stool', kind: 'bath-stool', x: 1500, y: 520, flip: false, z: 10, scale: 1 } } }));
+  await hood.onMessage(fitA, JSON.stringify({ t: 'pres', p: { where: 'house', houseId: hid, room: 'bathroom', x: 1500, y: 470, flip: false, seat: { id: 'player-stool', pose: 'sit', n: 0 } } }));
+  fitA.inbox.length = 0; sitB.inbox.length = 0;
+  await hood.onMessage(fitA, JSON.stringify({ t: 'act', houseId: hid, cid: 26, action: { type: 'item/size', room: 'bathroom', id: 'player-stool', size: 1.5 } }));
+  await hood.onMessage(fitA, JSON.stringify({ t: 'act', houseId: hid, cid: 27, action: { type: 'item/size', room: 'bathroom', id: 'player-stool', size: 0.75 } }));
+  const pres = hood.presence.get(pidA);
+  const stood = sitB.inbox.some(m => m.t === 'pres' && m.pid === pidA && !m.p?.seat);
+  check('a seated player is not stood up by a resize', pres?.seat?.id === 'player-stool' && pres.seat.pose === 'sit' && pres.seat.n === 0 && pres.x === 1500 && pres.y === 470 && !stood);
 
   console.log(pass + ' passed');
 }

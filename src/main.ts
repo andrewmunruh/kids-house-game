@@ -10,7 +10,7 @@ import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROS
 import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } from './pets';
 import { mailboxArt, installMail } from './mail';
 import { installPlayMode, playGesture } from './playmode';
-import { bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, standBeside, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
+import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, standBeside, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
 import { poseNamed } from './avatar/sit';
 import { unreadCount } from './shared/mail';
 import { parkSceneSVG, swingSVG, ballSVG, treeIcon, pawIcon, gateIcon, streetGateSVG, PARK_H, SWING_BAR } from './park';
@@ -491,14 +491,14 @@ function playPairBounds(): { minX: number; maxX: number } | null {
   if (hood && inner !== local) {
     const me = myPres();
     if (me && me.where === 'house' && me.room === s.currentRoom) {
-      dollX = me.x;
+      dollX = seatedAt(s.currentRoom, presSeat(hood.pid, me), me).x;
       if (!targetId) targetId = presSeat(hood.pid, me)?.item ?? null;
     }
   }
   if (dollX === null) {
     const c = s.characters.find(ch => ch.id === activeChar && ch.room === s.currentRoom) ?? s.characters.find(ch => ch.room === s.currentRoom);
     if (!c) return null;
-    dollX = c.x;
+    dollX = seatedAt(s.currentRoom, dollSeat(c), c).x;
     if (!targetId) targetId = dollSeat(c)?.item ?? null;
   }
   if (!targetId) return null;
@@ -717,6 +717,15 @@ function seatPieceOf(it: PlacedItem): SeatPiece | null {
   if (!def || !seatFractions(it.kind)) return null;
   return { id: it.id, kind: it.kind, x: it.x, footY: drawY(def, it.y), flip: !!it.flip, scale: drawnScale(it), w: def.w, h: hOf(def) };
 }
+/** Where a saved seat draws. The anchor is a fraction of the piece, so a resize moves her with it. */
+function seatedAt(room: RoomId, seat: DollSeat | null, at: { x: number; y: number }): { x: number; y: number } {
+  if (!seat) return at;
+  const it = store.get().rooms[room]?.items.find(i => i.id === seat.item);
+  const piece = it && seatPieceOf(it);
+  if (!piece) return at;
+  const spot = anchorsOf(piece).find(a => a.n === seat.n);
+  return spot ? { x: spot.x, y: spot.y } : at;
+}
 function takenSeats(skipChar?: string, skipPid?: string): { item: string; n: 0 | 1 }[] {
   const s = store.get();
   const out: { item: string; n: 0 | 1 }[] = [];
@@ -816,7 +825,8 @@ function seatedHere(): Map<string, number> {
 }
 function handWorld(c: Character, hand: Hand) {
   const sc = charScale(c); const pt = handsFor(c, poseNamed(dollSeat(c)?.pose))[hand]; let hx = pt.x; if (c.flip) hx = 100 - hx;
-  return { x: c.x + (hx - 50) / 100 * CHAR_W * sc, y: c.y - CHAR_H * sc + pt.y / 160 * CHAR_H * sc };
+  const at = seatedAt(c.room, dollSeat(c), c);
+  return { x: at.x + (hx - 50) / 100 * CHAR_W * sc, y: at.y - CHAR_H * sc + pt.y / 160 * CHAR_H * sc };
 }
 /** Which character hand (if any) would catch a holdable item dropped at world point p. */
 function holdTarget(p: { x: number; y: number }): { c: Character; hand: Hand } | null {
@@ -824,7 +834,8 @@ function holdTarget(p: { x: number; y: number }): { c: Character; hand: Hand } |
   for (const c of s.characters) {
     if (c.room !== s.currentRoom) continue;
     const sc = charScale(c);
-    const onBody = Math.abs(p.x - c.x) < CHAR_W * sc / 2 + 25 && p.y > c.y - CHAR_H * sc - 25 && p.y < c.y + 20;
+    const at = seatedAt(c.room, dollSeat(c), c);
+    const onBody = Math.abs(p.x - at.x) < CHAR_W * sc / 2 + 25 && p.y > at.y - CHAR_H * sc - 25 && p.y < at.y + 20;
     for (const hand of ['left', 'right'] as Hand[]) {
       if (c.held[hand]) continue;
       const h = handWorld(c, hand), d = Math.hypot(p.x - h.x, p.y - h.y);
@@ -868,7 +879,10 @@ function renderMinimap(s: GameState) {
     const def = ITEM_MAP[i.kind];
     return `<i style="left:${i.x / W * 100}%;top:${(drawY(def, i.y) - hOf(def) * drawnScale(i) / 2) / H * 100}%"></i>`;
   }).join('');
-  const me = s.characters.filter(c => c.room === s.currentRoom).map(c => `<b style="left:${c.x / W * 100}%;top:${(c.y - 90) / H * 100}%;background:${c.shirt}"></b>`).join('');
+  const me = s.characters.filter(c => c.room === s.currentRoom).map(c => {
+    const at = seatedAt(s.currentRoom, dollSeat(c), c);
+    return `<b style="left:${at.x / W * 100}%;top:${(at.y - 90) / H * 100}%;background:${c.shirt}"></b>`;
+  }).join('');
   $('mmDots').innerHTML = dots + me;
 }
 function renderTabs(s: GameState) {
@@ -1120,7 +1134,8 @@ function renderChars(s: GameState) {
     const heldKey = JSON.stringify([c.held.left?.id, c.held.left?.flip, c.held.right?.id, c.held.right?.flip, c.size, pose]);
     if (el.dataset.held !== heldKey) { el.querySelector('.hands')!.innerHTML = heldHTML(c); el.dataset.held = heldKey; }
     const sc = charScale(c);
-    placeEl(el, c.x, c.y, CHAR_W * sc, CHAR_H * sc);
+    const at = seatedAt(s.currentRoom, seat, c);
+    placeEl(el, at.x, at.y, CHAR_W * sc, CHAR_H * sc);
     el.style.zIndex = seat ? String(1000 + (s.rooms[s.currentRoom].items.find(i => i.id === seat.item)?.z ?? 0) + 1 + seat.n) : String(5000 + Math.round(c.y));
     el.classList.toggle('flipped', c.flip);
     el.classList.toggle('pose-sit', pose === 'sit');
@@ -1136,15 +1151,98 @@ function renderChars(s: GameState) {
   renderMinimap(s);
 }
 
+/** Screen box of the toolbar's resting transform (the pop animation is not part of this). */
+function toolbarScreenBox() {
+  const stageR = stage.getBoundingClientRect();
+  const sc = stageR.width / Math.max(1, VIEW_W);
+  const border = 6;
+  const phone = document.body.classList.contains('phone');
+  const k = phone ? 1 / Math.max(0.2, sc) : 1;
+  const Lw = toolbar.offsetWidth;
+  const Lh = toolbar.offsetHeight;
+  const anchorX = parseFloat(toolbar.style.left) / 100 * W;
+  const anchorY = parseFloat(toolbar.style.top) / 100 * H;
+  const below = toolbar.classList.contains('below');
+  const cx = anchorX;
+  const cy = below ? anchorY + Lh / 2 : anchorY - Lh / 2;
+  const hw = k * Lw / 2;
+  const hh = k * Lh / 2;
+  const sx = (wx: number) => stageR.left + (border + wx - camX) * sc;
+  const sy = (wy: number) => stageR.top + (border + wy) * sc;
+  const left = sx(cx - hw), right = sx(cx + hw), top = sy(cy - hh), bottom = sy(cy + hh);
+  return { left, right, top, bottom, width: right - left, height: bottom - top };
+}
+/** Visible stage, pulled in so the bar sits between the room arrows. */
+function toolbarLimits() {
+  const stageR = stage.getBoundingClientRect();
+  const pad = 4;
+  let left = Math.max(stageR.left, 0) + pad;
+  let right = Math.min(stageR.right, window.innerWidth) - pad;
+  let top = Math.max(stageR.top, 0) + pad;
+  let bottom = Math.min(stageR.bottom, window.innerHeight) - pad;
+  for (const id of ['nudgeL', 'nudgeR'] as const) {
+    const n = $(id);
+    if (!n || n.classList.contains('off') || n.offsetParent === null) continue;
+    const r = n.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) continue;
+    if (id === 'nudgeL') left = Math.max(left, r.right + 4);
+    else right = Math.min(right, r.left - 4);
+  }
+  if (right - left < 48) {
+    left = Math.max(stageR.left, 0) + pad;
+    right = Math.min(stageR.right, window.innerWidth) - pad;
+  }
+  return { left, right, top, bottom };
+}
+function placeToolbarAnchor(x: number, y: number) {
+  toolbar.style.left = (x / W) * 100 + '%';
+  toolbar.style.top = (y / H) * 100 + '%';
+}
 function renderToolbar(s: GameState) {
   const it = selected && s.rooms[s.currentRoom].items.find(i => i.id === selected);
-  if (play.isPlay() || !it || !ITEM_MAP[it.kind]) { toolbar.classList.add('hidden'); return; }
+  if (play.isPlay() || !it || !ITEM_MAP[it.kind]) {
+    toolbar.classList.add('hidden');
+    toolbar.classList.remove('below');
+    toolbar.style.maxWidth = '';
+    return;
+  }
   const def = ITEM_MAP[it.kind];
-  const top = drawY(def, it.y) - hOf(def) * drawnScale(it) - 20;
+  const foot = drawY(def, it.y);
+  const pieceTop = foot - hOf(def) * drawnScale(it);
+  const gap = 12;
   toolbar.classList.remove('hidden');
-  // Half of a one-row toolbar (six 58px buttons) so the bar stays inside the window.
-  toolbar.style.left = Math.max(camX + 210, Math.min(camX + VIEW_W - 210, it.x)) / W * 100 + '%';
-  toolbar.style.top = Math.max(40, top) / H * 100 + '%';
+  toolbar.style.maxWidth = '';
+  toolbar.classList.remove('below');
+  placeToolbarAnchor(it.x, pieceTop - gap);
+  const limits = toolbarLimits();
+  // No room above the piece: hang the bar under it (a high towel bar, a two-row phone bar).
+  if (toolbarScreenBox().top < limits.top) {
+    toolbar.classList.add('below');
+    placeToolbarAnchor(it.x, foot + gap);
+  }
+  let box = toolbarScreenBox();
+  const gapW = limits.right - limits.left;
+  if (box.width > gapW - 2 && gapW > 60) {
+    const next = toolbar.offsetWidth * ((gapW - 8) / Math.max(1, box.width));
+    toolbar.style.maxWidth = Math.max(76, next) + 'px';
+    if (!toolbar.classList.contains('below') && toolbarScreenBox().top < limits.top) {
+      toolbar.classList.add('below');
+      placeToolbarAnchor(it.x, foot + gap);
+    }
+    box = toolbarScreenBox();
+  }
+  let dx = 0, dy = 0;
+  if (box.left < limits.left) dx = limits.left - box.left;
+  if (box.right + dx > limits.right) dx = limits.right - box.right;
+  if (box.width > limits.right - limits.left) dx = (limits.left + limits.right) / 2 - (box.left + box.right) / 2;
+  if (box.top < limits.top) dy = limits.top - box.top;
+  if (box.bottom + dy > limits.bottom) dy = limits.bottom - box.bottom;
+  if (Math.abs(dx) >= 0.5 || Math.abs(dy) >= 0.5) {
+    const sc = stage.getBoundingClientRect().width / Math.max(1, VIEW_W) || 1;
+    const ax = parseFloat(toolbar.style.left) / 100 * W + dx / sc;
+    const ay = parseFloat(toolbar.style.top) / 100 * H + dy / sc;
+    placeToolbarAnchor(ax, ay);
+  }
   const step = itemSizeOf(it.size);
   const at = ITEM_SIZE_STEPS.indexOf(step);
   const smaller = toolbar.querySelector<HTMLButtonElement>('[data-a="smaller"]');
@@ -1319,7 +1417,7 @@ function clearMySeatIfFurniture(a: Action) {
   const me = myPres();
   if (!me || me.where !== 'house' || !me.seat) return;
   let id = '';
-  if (a.type === 'item/flip' || a.type === 'item/delete' || a.type === 'item/size') id = a.id;
+  if (a.type === 'item/flip' || a.type === 'item/delete') id = a.id;
   else if (a.type === 'item/move' && a.stand) id = a.id;
   else if (a.type === 'char/hold') id = a.itemId;
   else return;
@@ -1518,8 +1616,10 @@ function attachCharDrag(el: HTMLElement) {
     selected = null; renderItems(store.get());
     const id = el.dataset.cid!; activeChar = id;
     const s = store.get(); const c = s.characters.find(c => c.id === id); if (!c) return;
-    const p0 = toRoom(e.clientX, e.clientY); const off = { x: c.x - p0.x, y: c.y - p0.y };
-    let lastX = c.x, moved = false;
+    const p0 = toRoom(e.clientX, e.clientY);
+    const at0 = seatedAt(s.currentRoom, dollSeat(c), c);
+    const off = { x: at0.x - p0.x, y: at0.y - p0.y };
+    let lastX = at0.x, moved = false;
     el.classList.add('lifted'); sfx.pick(); renderChars(store.get());
     charDrag = true;
     startDrag(e, {
@@ -1942,7 +2042,8 @@ function renderAvatars() {
       const key = JSON.stringify(look) + pl.nickname + (pose || '');
       if (el.dataset.look !== key) { const b = el.querySelector('.bubble'); el.innerHTML = avatarHTML(look, pl.nickname, pose); if (b) el.appendChild(b); el.dataset.look = key; }
       const sc = SIZE_SCALE[look.size] ?? 1;
-      placeEl(el, p.x, p.y, CHAR_W * sc, CHAR_H * sc);
+      const at = seatedAt(room, seat, p);
+      placeEl(el, at.x, at.y, CHAR_W * sc, CHAR_H * sc);
       const piece = seat && store.get().rooms[room].items.find(i => i.id === seat.item);
       el.style.zIndex = piece ? String(1000 + piece.z + 1 + seat.n) : String(5000 + Math.round(p.y));
       el.classList.toggle('flipped', p.flip);
@@ -1960,8 +2061,10 @@ function attachMyAvatarDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
     e.preventDefault(); e.stopPropagation(); if (twoFinger || !hood) return;
     const p0 = myPres(); if (!p0 || p0.where !== 'house') return;
-    const q0 = toRoom(e.clientX, e.clientY), off = { x: p0.x - q0.x, y: p0.y - q0.y };
-    let lastX = p0.x, moved = false; el.classList.add('lifted'); sfx.pick();
+    const q0 = toRoom(e.clientX, e.clientY);
+    const at0 = seatedAt(store.get().currentRoom, presSeat(hood.pid, p0), p0);
+    const off = { x: at0.x - q0.x, y: at0.y - q0.y };
+    let lastX = at0.x, moved = false; el.classList.add('lifted'); sfx.pick();
     charDrag = true;
     startDrag(e, {
       onMove(ev) {
@@ -2993,10 +3096,19 @@ function dogOwners(): DogOwner[] {
     const house = { box: layer, place: placeEl, z: (y: number) => String(4000 + Math.round(y)), scale: 1 };
     if (hood && inner !== local) {
       const entries: [string, Presence][] = [...hood.presence.entries()]; const mine = myPres(); if (mine) entries.push([hood.pid, mine]);
-      for (const [pid, p] of entries) { const d = hood.players.get(pid)?.dog; if (d && p.where === 'house' && p.houseId === currentHouseId && p.room === s.currentRoom) out.push({ key: pid, dog: d, x: p.x, y: p.y, flip: p.flip, ...house }); }
+      for (const [pid, p] of entries) {
+        const d = hood.players.get(pid)?.dog;
+        if (d && p.where === 'house' && p.houseId === currentHouseId && p.room === s.currentRoom) {
+          const at = seatedAt(s.currentRoom, presSeat(pid, p), p);
+          out.push({ key: pid, dog: d, x: at.x, y: at.y, flip: p.flip, ...house });
+        }
+      }
     } else if (s.dog) {
       const c = s.characters.find(c => c.id === s.dog!.owner) ?? s.characters[0];
-      if (c && c.room === s.currentRoom) out.push({ key: 'solo', dog: s.dog, x: c.x, y: c.y, flip: c.flip, ...house });
+      if (c && c.room === s.currentRoom) {
+        const at = seatedAt(c.room, dollSeat(c), c);
+        out.push({ key: 'solo', dog: s.dog, x: at.x, y: at.y, flip: c.flip, ...house });
+      }
     }
   } else if (view === 'park') {
     const box = document.getElementById('pavatars'); if (!box) return out; const sc = parkScale();

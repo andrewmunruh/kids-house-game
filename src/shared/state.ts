@@ -324,10 +324,10 @@ export function reduce(s: GameState, a: Action): GameState {
       return clearSeatsOn(mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, flip: !i.flip } : i) })), a.id, prev);
     }
     case 'item/size': {
+      // Size only. A kid already in the seat stays there; the seat is a fraction of the piece, so it draws at the new scale.
       const prev = s.rooms[a.room]?.items.find(i => i.id === a.id) ?? null;
       if (!prev || itemSizeOf(prev.size) === itemSizeOf(a.size)) return s;
-      const next = mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? applyItemSize(i, a.size) : i) }));
-      return clearSeatsOn(next, a.id, prev);
+      return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? applyItemSize(i, a.size) : i) }));
     }
     case 'item/front': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, z: maxZ(r) + 1 } : i) }));
     case 'item/back': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, z: minZ(r) - 1 } : i) }));
