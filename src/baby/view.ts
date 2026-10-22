@@ -5,7 +5,7 @@ import { rasterOn, rasterUrl } from '../art/cache';
 import { toast } from '../hood-ui';
 import { sfx } from '../sound';
 import { cleanPetName } from '../shared/hood';
-import type { DollSeat, SeatPiece } from '../shared/sit';
+import { STAND_Y, type DollSeat, type SeatPiece } from '../shared/sit';
 import { ROOM_W, ROOM_H, type Action, type GameState, type PlacedItem, type RoomId } from '../shared/state';
 import {
   EASE_MS, babyBedKind, babyDragAllowed, bedLieCenter, blossomsFilled, moodLabel, resolveBabyDrop,
@@ -362,8 +362,24 @@ export function installBaby(host: BabyHost): { render: () => void } {
     node.style.zIndex = String(5000 + Math.round(b.y));
   }
 
+  /** A house doll, not a player id. Missing means the holder is someone on the street. */
+  function dollLeftRoom(b: Baby): boolean {
+    if (b.spot !== 'arms' || !b.holder) return false;
+    const doll = host.get().characters.find(c => c.id === b.holder);
+    return !!doll && doll.room !== b.room;
+  }
+
+  function dropIfDollLeft(b: Baby) {
+    if (dragging || !dollLeftRoom(b)) return;
+    if (!host.canSend() || !host.editable()) return;
+    host.dispatch({
+      type: 'baby/hold', holder: null, room: b.room,
+      x: b.x, y: STAND_Y, now: host.clock(),
+    });
+  }
+
   function maybeFollow(b: Baby) {
-    if (dragging || b.spot !== 'arms' || b.holder !== host.holderId()) return;
+    if (dragging || dollLeftRoom(b) || b.spot !== 'arms' || b.holder !== host.holderId()) return;
     if (!host.canSend() || !host.editable()) return;
     const spot = host.holderSpot();
     if (!spot) return;
@@ -423,6 +439,7 @@ export function installBaby(host: BabyHost): { render: () => void } {
     syncCard(b, host.owner());
     armEase(b);
     armReact(b, now);
+    dropIfDollLeft(b);
     maybeFollow(b);
   }
 

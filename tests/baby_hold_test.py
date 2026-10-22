@@ -115,6 +115,26 @@ async def center(pg, sel):
       return { x: r.x + r.width / 2, y: r.y + Math.min(24, r.height * 0.25), top: r.y };
     }""", sel)
 
+async def card_layout(pg):
+    return await pg.evaluate("""() => {
+      const card = document.querySelector('.babyCare');
+      const floor = document.querySelector('#stage .floor');
+      if (!card || !floor || card.hidden) return null;
+      const c = card.getBoundingClientRect();
+      const f = floor.getBoundingClientRect();
+      const buttons = [...card.querySelectorAll('button')].filter(b => !b.hidden && b.offsetParent);
+      const small = buttons.some(b => { const r = b.getBoundingClientRect(); return r.width < 43.5 || r.height < 43.5; });
+      const overFloor = c.bottom > f.top + 1 && c.top < f.bottom && c.right > f.left && c.left < f.right;
+      let overLegs = false;
+      document.querySelectorAll('#stage .char').forEach(el => {
+        const r = el.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) return;
+        const legTop = r.top + r.height * 0.55;
+        if (c.bottom > legTop && c.top < r.bottom && c.right > r.left && c.left < r.right) overLegs = true;
+      });
+      return { overFloor, overLegs, small, n: buttons.length, cardTop: Math.round(c.top), floorTop: Math.round(f.top) };
+    }""")
+
 async def buttons(pg):
     return await pg.evaluate("""() => {
       const card = document.querySelector('.babyCare');
@@ -269,6 +289,30 @@ async def solo_card(pg, browser_name):
         burp = next((b for b in (info or []) if b['t'] == 'Burp'), None)
         wrapped = bool(name and burp and name['h'] > burp['h'] + 8)
         check(f'{browser_name} {w}x{h} care buttons are at least 44px', bool(info) and len(info) >= 4 and not small and not wrapped, str(info))
+        if (w, h) == (844, 390):
+            lay = await card_layout(pg)
+            check(browser_name + ' 844x390 care card stays off the floor and her legs', lay and not lay['overFloor'] and not lay['overLegs'] and not lay['small'], str(lay))
+        if (w, h) == (390, 844):
+            hit = await pg.evaluate("""() => {
+              const el = document.querySelector('.item[data-kind="crib-mobile"]');
+              if (!el) return null;
+              const cs = getComputedStyle(el, '::after');
+              const stage = document.getElementById('stage');
+              const sc = stage.getBoundingClientRect().width / stage.offsetWidth;
+              return { w: parseFloat(cs.width) * sc, h: parseFloat(cs.height) * sc, pe: cs.pointerEvents, on: cs.content !== 'none' };
+            }""")
+            check(browser_name + ' portrait crib mobile hit is at least 44px', hit and hit['on'] and hit['pe'] == 'auto' and hit['w'] >= 44 and hit['h'] >= 44, str(hit))
+    left = await pg.evaluate("""() => {
+      const s = __store;
+      const kid = s.get().characters[0];
+      s.dispatch({ type: 'room/switch', room: 'nursery' });
+      s.dispatch({ type: 'char/move', id: kid.id, room: 'nursery', x: 500, y: 540, seat: null });
+      s.dispatch({ type: 'baby/hold', holder: kid.id, room: 'nursery', x: 528, y: 430, now: Date.now() });
+      s.dispatch({ type: 'char/move', id: kid.id, room: 'living', x: 800, y: 540, seat: null });
+      const b = s.get().baby;
+      return b && { spot: b.spot, holder: b.holder || '', room: b.room, x: Math.round(b.x), y: Math.round(b.y) };
+    }""")
+    check(browser_name + ' solo doll leaving the room puts her on the mat', left and left['spot'] == 'mat' and not left['holder'] and left['room'] == 'nursery' and left['x'] == 500 and left['y'] == 540, str(left))
 
 async def main():
     check('this test does not point at the production Worker', not hits_prod(HOOD) and not hits_prod(WEB) and 'workers.dev' not in HOOD)
@@ -345,6 +389,8 @@ async def main():
             }""")
             await B.wait_for_function("""(pid) => { const b = __store.get().baby; return b && b.spot === 'arms' && b.holder === pid; }""", arg=pid_a, timeout=8000)
             await B.wait_for_selector('.char.avatar.other', timeout=8000)
+            guest = await card_layout(B)
+            check('desktop guest care card stays off the floor and her legs', guest and not guest['overFloor'] and not guest['overLegs'] and not guest['small'] and guest['n'] >= 4, str(guest))
             await B.set_viewport_size({'width': 820, 'height': 1180})
             await B.wait_for_timeout(400)
             await B.evaluate("""() => {

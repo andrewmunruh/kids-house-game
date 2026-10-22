@@ -4,7 +4,7 @@ import { sanitizeLook2, withRandomStarter, type Look2 } from './avatar';
 // so a future multiplayer server can validate/relay the same actions.
 import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plot, type RanchOp } from './ranch';
 import { keepMailbox, type Mailbox } from './mail';
-import { cleanDollSeat, pieceWidth, seatStillThere, standBeside, type DollSeat } from './sit';
+import { STAND_Y, cleanDollSeat, pieceWidth, seatStillThere, standBeside, type DollSeat } from './sit';
 import { babyAfterFurniture, careBaby, cleanBaby, easeBaby, holdBaby, meetBaby, packBaby, placeBaby, type Baby } from './baby';
 export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon' | 'nursery' | 'bathroom' | 'backyard';
 /** Display order is the client's tab list. The backyard is a room, not a tab. */
@@ -211,6 +211,21 @@ function mapChar(s: GameState, id: string, f: (c: Character) => Character): Game
   return { ...s, characters: s.characters.map(c => c.id === id ? f(c) : c) };
 }
 
+/**
+ * Solo play: dragging the doll onto another room tab moves her and leaves the baby
+ * in the old room with no arms. She stands on the mat where that doll was.
+ * A neighborhood holder is a player id, so a doll walking does not drop her.
+ */
+function releaseBabyIfDollLeft(s: GameState, prev: Character | undefined, room: RoomId): GameState {
+  const b = s.baby;
+  if (!prev || !b || b.spot !== 'arms' || b.holder !== prev.id || room === b.room) return s;
+  const x = prev.room === b.room ? prev.x : b.x;
+  const y = prev.room === b.room ? prev.y : STAND_Y;
+  const down = holdBaby(b, null, b.room, x, y);
+  if (!down || down === b) return s;
+  return { ...s, baby: down };
+}
+
 /** Drop `seat` so a standing kid's JSON matches an old save. */
 export function standChar(c: Character): Character {
   if (!c.seat) return c;
@@ -368,11 +383,16 @@ export function reduce(s: GameState, a: Action): GameState {
       if ('look2' in a.patch) { if (look2) next.look2 = look2; else delete next.look2; }
       return next;
     });
-    case 'char/move': return s.rooms[a.room] ? mapChar(s, a.id, c => {
-      const next: Character = { ...c, room: a.room, x: clamp(a.x, 0, ROOM_W), y: clamp(a.y, 60, ROOM_H) };
-      // An old char/move has no seat field and only copies x and y.
-      return withSeat(next, s.rooms[a.room].items, a.seat, 'seat' in a);
-    }) : s;
+    case 'char/move': {
+      if (!s.rooms[a.room]) return s;
+      const prev = s.characters.find(c => c.id === a.id);
+      const moved = mapChar(s, a.id, c => {
+        const next: Character = { ...c, room: a.room, x: clamp(a.x, 0, ROOM_W), y: clamp(a.y, 60, ROOM_H) };
+        // An old char/move has no seat field and only copies x and y.
+        return withSeat(next, s.rooms[a.room].items, a.seat, 'seat' in a);
+      });
+      return releaseBabyIfDollLeft(moved, prev, a.room);
+    }
     case 'char/delete': {
       const c = s.characters.find(c => c.id === a.id); if (!c) return s;
       // anything the character was holding is put down where they stood
