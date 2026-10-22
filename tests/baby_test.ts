@@ -2,7 +2,7 @@
 import { Neighborhood, type KV, type Conn } from '../server/core';
 import { NICKNAMES, PROTOCOL, cleanAction, cleanHouseState, cleanPetName } from '../src/shared/hood';
 import { babyAfterFurniture, babyBedKind, babyDragAllowed, babyOccupant, careBaby, easeBaby, EASE_MS, meetBaby, resolveBabyDrop } from '../src/shared/baby';
-import { drawnScale, initialState, MAX_CHARS, migrate, reduce } from '../src/shared/state';
+import { drawnScale, initialState, MAX_CHARS, migrate, newCharacter, reduce } from '../src/shared/state';
 import { pieceWidth, seatFractions, standBeside, STAND_Y, type SeatPiece } from '../src/shared/sit';
 
 let pass = 0;
@@ -138,6 +138,15 @@ async function main() {
   check('moving the crib while she is held keeps the cuddle', heldMove.baby?.spot === 'arms' && heldMove.baby?.holder === 'c1');
   check('resizing the crib while she is held keeps the cuddle', heldSize.baby?.spot === 'arms' && heldSize.baby?.holder === 'c1' && heldSize.rooms.nursery.items.find(i => i.id === 'crib-1')!.size === 0.75);
   check('deleting the crib while she is held keeps the cuddle', heldDel.baby?.spot === 'arms' && heldDel.baby?.holder === 'c1' && !heldDel.rooms.nursery.items.some(i => i.id === 'crib-1'));
+  const withDoll = reduce(heldBaby, { type: 'char/move', id: 'c1', room: 'nursery', x: 500, y: 540 });
+  const heldHere = reduce(withDoll, { type: 'baby/hold', holder: 'c1', room: 'nursery', x: 528, y: 430, now: 4 });
+  const dollLeft = reduce(heldHere, { type: 'char/move', id: 'c1', room: 'living', x: 800, y: 540 });
+  check('the doll leaving the room puts her on the mat where the doll stood', dollLeft.baby?.spot === 'mat' && !dollLeft.baby?.holder && dollLeft.baby?.room === 'nursery' && dollLeft.baby?.x === 500 && dollLeft.baby?.y === 540 && dollLeft.characters.find(c => c.id === 'c1')?.room === 'living');
+  const sameRoom = reduce(heldHere, { type: 'char/move', id: 'c1', room: 'nursery', x: 700, y: 540 });
+  check('walking in the same room keeps the cuddle', sameRoom.baby?.spot === 'arms' && sameRoom.baby?.holder === 'c1');
+  const withC2 = reduce(heldHere, { type: 'char/add', char: newCharacter({ id: 'c2', room: 'nursery', x: 900, y: 540 }) });
+  const otherDoll = reduce(withC2, { type: 'char/move', id: 'c2', room: 'living', x: 400, y: 540 });
+  check('another doll leaving does not drop her', otherDoll.baby?.spot === 'arms' && otherDoll.baby?.holder === 'c1' && otherDoll.characters.find(c => c.id === 'c2')?.room === 'living');
 
   const hood = new Neighborhood(kv, { flushMs: 5 });
   await hood.init('BABYTEST');

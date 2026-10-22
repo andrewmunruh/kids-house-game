@@ -42,6 +42,22 @@
 body.phone .baby .hit { min-width: calc(44px / var(--fit, 1)); min-height: calc(44px / var(--fit, 1)); width: calc(44px / var(--fit, 1)); height: calc(44px / var(--fit, 1)); }
 body.phone .babyCare { width: calc(100% - 12px); bottom: 4px; }
 body.phone .babyCare button { font-size: 13px; }
+/* Landscape phone Play hides the drawer, so a bottom card sits on the floor and her legs. The sky has room. */
+body.phone:not(.phone-portrait).mode-play .babyCare { top: 8px; bottom: auto; }
+/* A visit keeps the house name at the top. Desktop guests are always in Play, so the card sits under that tag. */
+body.mode-hood.mode-play:not(.own-house):not(.phone) .babyCare { top: 56px; bottom: auto; }
+/* The mobile's strings are a few pixels wide. Portrait phones grow a clear pad; the drawing stays the same size.
+   45px leaves at least 44 screen pixels after the stage scale rounds. */
+body.phone.phone-portrait .item[data-kind="crib-mobile"]::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: calc(45px / var(--fit, 1));
+  height: calc(45px / var(--fit, 1));
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .baby.is-rock .babyRock { animation: none; }
