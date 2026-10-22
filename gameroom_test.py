@@ -364,10 +364,10 @@ async def polish_pass(b):
     await pg.wait_for_selector('body.view-map .mapSpot')
     await pg.click('[data-go="gameroom"]')
     await pg.wait_for_selector('.grTable')
-    await pg.wait_for_timeout(300)
+    # The clubhouse pops in (sceneIn: scale .94 -> 1 over .45s). Measure the settled box, not mid-pop.
+    await pg.wait_for_function("() => { const g = document.getElementById('gameroom'); return g && !g.getAnimations({subtree: true}).some(a => a.animationName === 'sceneIn'); }", timeout=3000)
     table = await pg.locator('.grTable').first.bounding_box()
-    # WebKit can report a 44px target as 43.999, so allow half a pixel.
-    check(f'{tag} clubhouse table is a tap target', table is not None and table['width'] >= 43.5 and table['height'] >= 43.5, str(table))
+    check(f'{tag} clubhouse table is a tap target', table is not None and table['width'] >= 44 and table['height'] >= 44, str(table))
     await ctx.close()
 
     for w, h in ((844, 300), (667, 280)):
