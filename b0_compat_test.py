@@ -84,6 +84,30 @@ SNAP = """(() => { const h = __hood(); if (!h) return null;
 def body(view):
     return {k: v for k, v in (view or {}).items() if k != 'rooms'}
 
+# The bathroom rides in like the nursery: an old save gains this starter, and nothing else.
+BATH_KINDS = ['bath-mat', 'shower-curtain', 'soaking-tub', 'rubber-ducky', 'bath-toilet', 'sink-vanity', 'bath-mirror', 'towel-bar']
+
+def rooms_match(ra, rb):
+    """Shared rooms stay byte-for-byte. The only new key allowed is a starter bathroom."""
+    if not isinstance(ra, dict) or not isinstance(rb, dict):
+        return False
+    extra = set(rb) - set(ra)
+    missing = set(ra) - set(rb)
+    if missing or extra - {'bathroom'}:
+        return False
+    for k in ra:
+        if ra[k] != rb[k]:
+            return False
+    if 'bathroom' not in extra:
+        return True
+    bath = rb.get('bathroom') or {}
+    items = bath.get('items') or []
+    kinds = [i.get('kind') for i in items]
+    if kinds != BATH_KINDS:
+        return False
+    # A filled bathroom is still 1x: no size field, so an old client ignores nothing new on these pieces.
+    return all('size' not in i for i in items)
+
 def strict(a, b):
     bad = []
     ha, hb = a.get('houses') or {}, b.get('houses') or {}
@@ -96,7 +120,7 @@ def strict(a, b):
         if body(va) != body(vb):
             bad.append('body:' + hid[-4:])
         ra, rb = (va.get('rooms') or {}), (vb.get('rooms') or {})
-        if ra != rb:
+        if not rooms_match(ra, rb):
             bad.append('rooms:' + hid[-4:])
     return bad
 
@@ -289,7 +313,10 @@ async def main():
             check('the mailbox works for the old client and the new one', True)
             await B0.evaluate("""(id) => { const h = __hood(); const kind = Object.keys(__items)[0]; h.dispatch(id, {type:'item/add', room:'living', item:{id:'b0-keep', kind, x:420, y:520, flip:false}}); }""", b1house)
             await B0.evaluate("""() => { const L = __hood().players.get(__hood().pid).look; __hood().setLook({ skin:L.skin, hair:L.hair, hairStyle:L.hairStyle, shirt:'#80ed99', pants:L.pants, size:L.size, acc:L.acc }); }""")
-            await B1.wait_for_timeout(900)
+            try:
+                await B1.wait_for_function("(id) => ((__hood().view(id).rooms.living || {}).items || []).some(i => i.id === 'b0-keep')", arg=b1house, timeout=8000)
+            except Exception:
+                pass
             kept_mix = await B1.evaluate("""(id) => {
               const me = __hood().players.get(__hood().pid).look || {};
               const L = ((__hood().view(id).mailbox || {}).letters || []).map(x => x.text);

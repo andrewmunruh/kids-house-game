@@ -601,10 +601,10 @@ function syncMinimap() {
 }
 const TAB_ICO = `<svg class="tabIco" width="14" height="12" viewBox="0 0 16 12" aria-hidden="true"><path d="M1 6 L8 1 L15 6 V11 H1 Z" fill="currentColor"/></svg>`;
 function tabsCompact() {
-  // Phones narrower than 700px use the short names so six tabs, Menu, and Map share one row at 13px.
-  // iPad keeps the full names: the Menu freed the row, and 12px type is below the floor.
-  if (!document.body.classList.contains('phone')) return false;
-  return window.matchMedia('(max-width: 700px)').matches;
+  // Every phone uses the short names so six tabs, Menu, Map, and Chat share one row.
+  // A wide landscape phone (844×390) still has body.phone; full names overlap the minimap once Chat is up.
+  // iPad never has body.phone, so it keeps the full names at 14px.
+  return document.body.classList.contains('phone');
 }
 function syncTabMode() {
   const next = tabsCompact() ? 'c' : 'f';
@@ -1142,7 +1142,8 @@ function renderToolbar(s: GameState) {
   const def = ITEM_MAP[it.kind];
   const top = drawY(def, it.y) - hOf(def) * drawnScale(it) - 20;
   toolbar.classList.remove('hidden');
-  toolbar.style.left = Math.max(camX + 160, Math.min(camX + VIEW_W - 160, it.x)) / W * 100 + '%';
+  // Half of a one-row toolbar (six 58px buttons) so the bar stays inside the window.
+  toolbar.style.left = Math.max(camX + 210, Math.min(camX + VIEW_W - 210, it.x)) / W * 100 + '%';
   toolbar.style.top = Math.max(40, top) / H * 100 + '%';
   const step = itemSizeOf(it.size);
   const at = ITEM_SIZE_STEPS.indexOf(step);

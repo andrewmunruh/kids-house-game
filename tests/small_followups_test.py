@@ -538,7 +538,15 @@ async def check_door(pg, tag):
       s.dispatch({type:'item/front', room:'living', id:rug.id});
       s.dispatch({type:'item/front', room:'living', id:sofa.id});
     }""")
-    await pg.wait_for_timeout(250)
+    await pg.wait_for_timeout(200)
+    # The chair check leaves Decorate's toolbar up. On a narrow phone that bar
+    # can sit on the door, which is not what this layering check is measuring.
+    wall = await pg.evaluate("""() => {
+      const s = document.querySelector('.stage').getBoundingClientRect();
+      return { x: s.left + 28, y: s.top + 28 };
+    }""")
+    await pg.mouse.click(wall['x'], wall['y'])
+    await pg.wait_for_timeout(200)
     hit = await pg.evaluate("""() => {
       const door = document.querySelector('.yardDoor');
       const art = door && door.querySelector('.doorArt');
