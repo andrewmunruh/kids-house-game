@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120"><!-- Winter Cheer: Decorated Holiday Tree. Trunk, pot, and a star that sits inside the frame. -->
+<ellipse cx="50" cy="116" rx="26" ry="3" fill="#000" opacity=".12"/>
+<path d="M34 100 H66 L60 116 H40 Z" fill="#c44558" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="30" y="94" width="40" height="10" rx="4" fill="#e25d6c" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="44" y="76" width="12" height="22" rx="3" fill="#b5835a" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M50 52 L18 80 H82 Z" fill="#2d6b4c" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M50 40 L26 64 H74 Z" fill="#3e9a6d" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M50 30 L36 48 H64 Z" fill="#2d6b4c" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="38" cy="70" r="4" fill="#e25d6c" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="64" cy="66" r="4" fill="#ffd166" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="48" cy="74" r="3.6" fill="#8ecae6" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="60" cy="56" r="3.4" fill="#ff8fab" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="44" cy="46" r="3.2" fill="#fff6ea" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/>
+<path d="M50 8 L52.9 16 L61.4 16.3 L54.8 21.5 L57.1 29.7 L50 25 L42.9 29.7 L45.2 21.5 L38.6 16.3 L47.1 16 Z" fill="#ffd166" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

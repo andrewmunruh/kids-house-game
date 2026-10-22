@@ -134,6 +134,7 @@ app.innerHTML = `
       </div>
       <div class="rooms" id="roomFilter"></div>
       <div class="cats" id="cats"></div>
+      <div class="packShelves" id="packShelves"></div>
     </div>
     <div class="chipCue" id="chipCue" aria-hidden="true">›</div>
   </div>
@@ -160,6 +161,7 @@ let selected: string | null = null;          // selected room item (UI only)
 let activeChar: string | null = store.get().characters[0]?.id ?? null; // character being edited (UI only)
 let currentTab = 'furniture';
 let roomFilter = ''; // '' follows the room you're in; 'all' shows every room's things
+let packShelf = ''; // which group of a shelved pack is on the drawer shelf
 let tabMode = '';
 let uid = Date.now() % 100000;
 const newId = (p: string) => `${p}-${Date.now().toString(36)}${(++uid).toString(36)}${Math.random().toString(36).slice(2, 5)}`;
@@ -669,7 +671,7 @@ function renderAll() {
 
 store.subscribe((s, a) => {
   switch (a.type) {
-    case 'room/switch': if (hood && inner !== local) moveMeToRoom(a.room); renderAll(); renderDrawer(); break;
+    case 'room/switch': packShelf = ''; if (hood && inner !== local) moveMeToRoom(a.room); renderAll(); renderDrawer(); break;
     case 'game/reset': renderAll(); break;
     case 'room/wallpaper': case 'room/floor': case 'room/pattern': case 'room/wallTile': case 'room/floorTile': renderRoomBg(s); break;
     case 'char/update': case 'char/move': renderChars(s); if (view === 'ranch') renderRanchAvatars(); else if (view === 'park') renderParkAvatars(); break;
@@ -924,6 +926,8 @@ function renderDrawer() {
   $('cats').innerHTML = visible.map(t => `<button class="cat ${t.kind} ${t.id === currentTab ? 'on' : ''}" data-cat="${t.id}" aria-label="${t.name}" title="${t.name}">${t.kind === 'people' ? PEOPLE_ICON : t.kind === 'pack' ? `<span class="packicon">${svgOf(ITEM_MAP[t.icon])}</span><span class="packname">${t.name}</span>` : svgOf(ITEM_MAP[t.icon])}</button>`).join('')
     + (hasSecrets ? `<button class="cat secretTab ${currentTab === 'secrets' ? 'on' : ''}" data-cat="secrets" aria-label="Secrets" title="Secrets">🎁</button>` : '');
   const shelf = $('shelf'); shelf.innerHTML = '';
+  $('packShelves').classList.remove('on'); $('packShelves').innerHTML = '';
+  document.body.classList.remove('pack-shelved');
   if (!canEdit()) { shelf.innerHTML = `<div class="empty locked">🔒 This house is look-only right now</div>`; return; }
   if (currentTab === '__people') {
     const s = store.get();
@@ -946,10 +950,27 @@ function renderDrawer() {
     return;
   }
   const list = tabItems(currentTab);
-  if (!list.length) shelf.innerHTML = `<div class="empty">Nothing here yet!</div>`;
-  for (const d of list) {
-    const b = document.createElement('button'); b.className = 'thing'; b.setAttribute('aria-label', d.name);
-    b.innerHTML = svgOf(d); shelf.appendChild(b); attachShelfDrag(b, d);
+  const shelves: string[] = [];
+  if (currentTab.startsWith('pack:')) for (const d of list) if (d.shelf && !shelves.includes(d.shelf)) shelves.push(d.shelf);
+  const shelfOrder = ['Living', 'Bedroom', 'Kitchen', 'Cozy', 'Trim', 'Holiday'];
+  shelves.sort((a, b) => (shelfOrder.indexOf(a) < 0 ? 99 : shelfOrder.indexOf(a)) - (shelfOrder.indexOf(b) < 0 ? 99 : shelfOrder.indexOf(b)));
+  const host = $('packShelves');
+  if (!shelves.length) { host.classList.remove('on'); host.innerHTML = ''; }
+  else {
+    if (!shelves.includes(packShelf)) {
+      const prefer = room === 'living' ? 'Living' : room === 'bedroom' ? 'Bedroom' : room === 'kitchen' ? 'Kitchen' : shelves[0];
+      packShelf = shelves.includes(prefer) ? prefer : shelves[0];
+    }
+    host.classList.add('on');
+    document.body.classList.add('pack-shelved');
+    host.innerHTML = shelves.map(n => `<button type="button" class="packShelf${n === packShelf ? ' on' : ''}" data-shelf="${esc(n)}">${esc(n)}</button>`).join('');
+  }
+  const shown = shelves.length ? list.filter(d => d.shelf === packShelf) : list;
+  if (!shown.length) shelf.innerHTML = `<div class="empty">Nothing here yet!</div>`;
+  for (const d of shown) {
+    const b = document.createElement('button'); b.className = 'thing' + (d.shelf ? ' named' : ''); b.setAttribute('aria-label', d.name);
+    b.innerHTML = d.shelf ? `<span class="thingArt">${svgOf(d)}</span><span class="thingName">${esc(d.name)}</span>` : svgOf(d);
+    shelf.appendChild(b); attachShelfDrag(b, d);
   }
   shelf.scrollLeft = 0;
   updateChipCue();
@@ -1066,6 +1087,10 @@ $('tabs').addEventListener('click', e => {
 $('cats').addEventListener('click', e => {
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-cat]'); if (!b) return;
   currentTab = b.dataset.cat!; sfx.click(); renderDrawer();
+});
+$('packShelves').addEventListener('click', e => {
+  const b = (e.target as HTMLElement).closest<HTMLElement>('[data-shelf]'); if (!b) return;
+  packShelf = b.dataset.shelf || ''; sfx.click(); renderDrawer();
 });
 $('roomFilter').addEventListener('click', e => {
   const sec = (e.target as HTMLElement).closest<HTMLElement>('[data-cat]'); if (sec) { currentTab = sec.dataset.cat!; sfx.click(); renderDrawer(); return; }

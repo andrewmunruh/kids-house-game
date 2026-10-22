@@ -58,10 +58,15 @@ const server = createServer(async (req, res) => {
   }
   const m = url.pathname.match(/^\/api\/hood\/([^/]+)$/);
   if (m) {
-    // 20 lookups / 10 min, and at most 8 wrong codes / 10 min, per IP
-    if (peek(ip + ':miss', 8, 600_000) || limited(ip + ':look', 20, 600_000)) return json(429, { error: 'slow down' });
+    // Wrong codes: 8 per 10 min, then more guesses are refused. A real code still opens
+    // the street, so one device's typos don't lock the rest of the family out.
+    // Real lookups: 120 per 10 min per IP. Still far too slow to guess a 6-letter code.
     const code = normCode(decodeURIComponent(m[1])); const id = validInvite(code) ? codes[code] : undefined;
-    if (!id || !existsId(id)) { limited(ip + ':miss', 99, 600_000); return json(200, { exists: false }); }
+    if (!id || !existsId(id)) {
+      if (peek(ip + ':miss', 8, 600_000)) return json(429, { error: 'slow down' });
+      limited(ip + ':miss', 99, 600_000); return json(200, { exists: false });
+    }
+    if (limited(ip + ':look', 120, 600_000)) return json(429, { error: 'slow down' });
     const h = hood(id); await h.load();
     return json(200, { exists: true, id, roster: h.roster() });
   }

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="6 10 96 86"><!-- Winter Cheer: LED Candle Trio. Warm bulbs, no open flame. --><ellipse cx="54" cy="94" rx="34" ry="3" fill="#000" opacity=".12"/>
+<rect x="12" y="70" width="84" height="18" rx="8" fill="#d4a373" stroke="#5a3d5c" stroke-width="3.5" stroke-linejoin="round"/>
+<rect x="18" y="74" width="72" height="6" rx="3" fill="#e7c4a4"/>
+<rect x="22" y="42" width="16" height="30" rx="6" fill="#fff6ea" stroke="#5a3d5c" stroke-width="3.5"/>
+<path d="M24 50 Q30 54 36 48" fill="none" stroke="#f3d7c4" stroke-width="2" stroke-linecap="round"/>
+<rect x="46" y="30" width="16" height="42" rx="6" fill="#d7f3ff" stroke="#5a3d5c" stroke-width="3.5"/>
+<path d="M48 42 Q54 46 60 40" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+<rect x="70" y="48" width="16" height="24" rx="6" fill="#ffd0dc" stroke="#5a3d5c" stroke-width="3.5"/>
+<path d="M72 56 Q78 60 84 54" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+<g>
+<rect x="26" y="36" width="8" height="8" rx="2" fill="#c9b8a8" stroke="#5a3d5c" stroke-width="2"/>
+<circle cx="30" cy="34" r="5" fill="#ffe08a" stroke="#5a3d5c" stroke-width="2.5"/>
+<circle cx="30" cy="34" r="2" fill="#fff6c8"/>
+<rect x="50" y="24" width="8" height="8" rx="2" fill="#c9b8a8" stroke="#5a3d5c" stroke-width="2"/>
+<circle cx="54" cy="22" r="5.5" fill="#ffe08a" stroke="#5a3d5c" stroke-width="2.5"/>
+<circle cx="54" cy="22" r="2.2" fill="#fff6c8"/>
+<rect x="74" y="42" width="8" height="8" rx="2" fill="#c9b8a8" stroke="#5a3d5c" stroke-width="2"/>
+<circle cx="78" cy="40" r="5" fill="#ffe08a" stroke="#5a3d5c" stroke-width="2.5"/>
+<circle cx="78" cy="40" r="2" fill="#fff6c8"/>
+</g>
+</svg>

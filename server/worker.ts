@@ -108,12 +108,17 @@ export class CodeRegistryDO {
       case '/release': { const code = normCode(b.code); if ((await st.get('c:' + code)) === b.id) await st.delete('c:' + code); return Response.json({ ok: true }); }
       case '/limit': return Response.json({ limited: this.limited(String(b.key), Number(b.max) || 5, Number(b.win) || 60_000) });
       case '/resolve': {
-        // 20 lookups / 10 min and at most 8 wrong codes / 10 min, per IP
+        // Wrong codes: 8 per 10 min, then more guesses are refused. A real code still resolves.
+        // Real lookups: 120 per 10 min per IP, still far too slow to guess a 6-letter code.
         const ip = String(b.ip ?? '');
-        if (this.limited(ip + ':miss', 8, 600_000, false) || this.limited(ip + ':look', 20, 600_000)) return Response.json({ error: 'slow down' }, { status: 429 });
         const code = normCode(b.code); const id = validInvite(code) ? await st.get('c:' + code) : undefined;
-        if (!id) this.limited(ip + ':miss', 99, 600_000);
-        return Response.json({ id: id ?? null });
+        if (!id) {
+          if (this.limited(ip + ':miss', 8, 600_000, false)) return Response.json({ error: 'slow down' }, { status: 429 });
+          this.limited(ip + ':miss', 99, 600_000);
+          return Response.json({ id: null });
+        }
+        if (this.limited(ip + ':look', 120, 600_000)) return Response.json({ error: 'slow down' }, { status: 429 });
+        return Response.json({ id });
       }
     }
     return new Response('not found', { status: 404 });

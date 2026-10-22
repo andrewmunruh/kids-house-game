@@ -5,6 +5,8 @@ import { Neighborhood, type KV, type Conn } from '../server/core';
 import { NICKNAMES, PROTOCOL, cleanAction, cleanFx, cleanHouseState, cleanLook, cleanLookPatch, cleanPresence } from '../src/shared/hood';
 import { ensureRooms, initialState, migrate, reduce, type GameState } from '../src/shared/state';
 import { patchFromLook2, sanitizeLook2 } from '../src/shared/avatar';
+import { catalogShows } from '../src/roomfilter';
+import { WINTER_NURSERY_SKIP } from '../src/shared/catalog-winter';
 
 const store = new Map<string, any>();
 const puts: string[] = [];
@@ -209,7 +211,15 @@ async function main() {
   };
   const packItems = manifest.filter(e => e.type !== 'wallpaper' && e.type !== 'floor');
   const nurseryShelf = packItems.filter(e => !e.room || e.room === 'any' || e.room === 'nursery');
-  const leaked = nurseryShelf.filter(e => e.room !== 'nursery' && !genericDecor(e));
+  const holiday = new Set(WINTER_NURSERY_SKIP);
+  // Winter Cheer tags cozy decor "any" so it waits for All rooms. That is not the nursery shelf:
+  // the drawer hides it, and the holiday kinds stay off the pack tab too.
+  const leaked = nurseryShelf.filter(e => {
+    if (e.pack !== 'winter') return e.room !== 'nursery' && !genericDecor(e);
+    const item = { name: e.name, kind: 'pack:' + e.slug, rooms: [(e.room || 'any').toLowerCase()], cat: String(e.category || 'decor').toLowerCase(), pack: 'winter' };
+    if (holiday.has(item.kind)) return catalogShows(item, item.cat, 'nursery', false) || catalogShows(item, 'pack:winter', 'nursery', true);
+    return catalogShows(item, item.cat, 'nursery', false) && !genericDecor(e);
+  });
   check('nursery shelf is nursery items plus generic decor', leaked.length === 0 && nurseryShelf.length > 0, leaked.map(e => e.name).join(', '));
   const banned = ['Kitchen Counter', 'Mini Fridge', 'Bubble Bath', 'Fire Pit', 'Gaming Chair'];
   check('room-specific pack items stay off the nursery shelf', banned.every(n => !nurseryShelf.some(e => e.name === n)));
