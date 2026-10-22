@@ -268,6 +268,16 @@ export function resolveBabyDrop(opts: {
   return mat(opts.releaseX, opts.releaseY);
 }
 
+/** A drop on a room tab stands her on that room's floor, in from either wall. */
+export function babyTabDrop(x: number, roomW = 2400): { x: number; y: number } {
+  const edge = 40;
+  const max = roomW - edge > edge ? roomW - edge : edge;
+  let nx = x;
+  if (!(nx >= edge)) nx = edge;
+  if (nx > max) nx = max;
+  return { x: nx, y: STAND_Y };
+}
+
 /** She counts as sitting only on a kid seat, so a sofa's other cushion stays free. */
 export function babyOccupant(baby: Baby | null | undefined, room: string): { item: string; n: 0 | 1 } | null {
   if (!baby || baby.spot !== 'mat' || !baby.seat || baby.room !== room) return null;

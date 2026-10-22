@@ -893,6 +893,12 @@ body.view-street .stage { visibility: hidden; }
   /* The ranch label scales with the short scene. Keep it at least 13px. */
   body.phone .barnDoor .doorHint { font-size: max(13px, min(24px, calc(19px * var(--sc)))); }
 }
+/* 844×390 had a 48px map pinched between the tabs and the tools. A wider map stays a tap.
+   Tabs do not shrink below their names, so 112px is as wide as the row can spare.
+   667×375 keeps the 44px map in the rule below. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) and (min-width: 780px) {
+  body.phone .minimap { flex: 0 0 112px; width: 112px; min-width: 96px; height: 48px; margin: 0 4px; }
+}
 /* Very short phone landscape letterboxes the room. A centred Surprises pill covers the
    top of the wall, so it moves into the right gutter. Taller landscape phones keep it centred.
    When that gutter is narrower than the label, .compact is a 44px stack that fits beside

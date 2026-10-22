@@ -432,6 +432,29 @@ async def solo_card(pg, browser_name):
         if (w, h) == (844, 390):
             lay = await card_layout(pg)
             check(browser_name + ' 844x390 care card stays off the floor and her legs', lay and not lay['overFloor'] and not lay['overLegs'] and not lay['small'], str(lay))
+            await pg.evaluate("""() => {
+              __store.dispatch({ type: 'room/switch', room: 'nursery' });
+              const vw = parseFloat(document.querySelector('.stage').style.width) || 800;
+              __cam.set(470 - vw / 2);
+            }""")
+            await pg.wait_for_timeout(200)
+            mobile = await pg.evaluate("""() => {
+              const card = document.querySelector('.babyCare');
+              const el = document.querySelector('.item[data-kind="crib-mobile"]');
+              if (!card || card.hidden || !el) return null;
+              const c = card.getBoundingClientRect();
+              const m = el.getBoundingClientRect();
+              const overlap = m.right > c.left + 1 && m.left < c.right - 1 && m.bottom > c.top + 1 && m.top < c.bottom - 1;
+              const stage = document.getElementById('stage').getBoundingClientRect();
+              return {
+                overlap, mw: Math.round(m.width), mh: Math.round(m.height),
+                mt: Math.round(m.top), mb: Math.round(m.bottom),
+                ct: Math.round(c.top), cb: Math.round(c.bottom),
+                stageTop: Math.round(stage.top),
+                on: m.width > 20 && m.height > 20 && m.left < innerWidth && m.right > 0,
+              };
+            }""")
+            check(browser_name + ' 844x390 crib mobile stays clear of the care card', mobile and mobile['on'] and not mobile['overlap'] and mobile['mt'] >= mobile['cb'] - 1, str(mobile))
         if (w, h) == (390, 844):
             hit = await pg.evaluate("""() => {
               const el = document.querySelector('.item[data-kind="crib-mobile"]');

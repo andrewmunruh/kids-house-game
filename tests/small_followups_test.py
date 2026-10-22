@@ -714,6 +714,164 @@ async def check_door(pg, tag):
     if room != 'backyard':
         fail(f'{tag} tap on the covered door stayed in {room}')
 
+def check_berry():
+    """The handle crest is not a 1px dark speck. The alpha box stays put."""
+    path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'art', 'kitchen', 'berry-basket.webp')
+    im = Image.open(path).convert('RGBA')
+    if im.size != (300, 300):
+        fail(f'berry basket size {im.size}')
+        return
+    def lum(p):
+        return 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2]
+    crest = im.getpixel((166, 121))
+    crest2 = im.getpixel((167, 121))
+    above = im.getpixel((166, 120))
+    above2 = im.getpixel((167, 120))
+    if crest[3] != 255 or crest2[3] != 255:
+        fail(f'berry handle crest alpha {crest} {crest2}')
+    if abs(lum(crest) - lum(above)) > 28 or abs(lum(crest2) - lum(above2)) > 28:
+        fail(f'berry handle speck {crest} {crest2} above {above} {above2}')
+    xs, ys = [], []
+    w, h = im.size
+    for y in range(h):
+        for x in range(w):
+            if im.getpixel((x, y))[3] >= 40:
+                xs.append(x); ys.append(y)
+    box = (min(xs), min(ys), max(xs), max(ys))
+    if box != (60, 72, 239, 269):
+        fail(f'berry basket alpha box moved {box}')
+
+async def check_baby_tab(pg, tag):
+    """Dragging her onto a room tab stands her on that room's floor."""
+    await pg.evaluate("""() => {
+      document.querySelector('#modePlay')?.click();
+      __store.dispatch({type:'room/switch', room:'nursery'});
+      if (!__store.get().baby) __store.dispatch({type:'baby/meet', now: Date.now()});
+      __store.dispatch({type:'baby/place', room:'nursery', x:700, y:540, spot:'mat', bed:null, seat:null, now: Date.now()});
+      const vw = parseFloat(document.querySelector('.stage').style.width) || 1000;
+      __cam.set(700 - vw / 2);
+    }""")
+    await pg.wait_for_timeout(250)
+    baby = await pg.locator('.baby').bounding_box()
+    tab = await pg.locator('.tab[data-room="kitchen"]').bounding_box()
+    if not baby or not tab:
+        fail(f'{tag} baby tab drag missing baby or kitchen tab')
+        return
+    await pg.mouse.move(baby['x'] + baby['width'] / 2, baby['y'] + baby['height'] * 0.45)
+    await pg.mouse.down()
+    await pg.mouse.move(tab['x'] + tab['width'] / 2, tab['y'] + tab['height'] / 2, steps=14)
+    await pg.mouse.up()
+    await pg.wait_for_timeout(250)
+    got = await pg.evaluate("""() => {
+      const b = __store.get().baby;
+      return b && { room: __store.get().currentRoom, babyRoom: b.room, x: Math.round(b.x), y: b.y, spot: b.spot, seat: !!b.seat };
+    }""")
+    if not got or got['room'] != 'kitchen' or got['babyRoom'] != 'kitchen' or got['y'] != 540 or got['spot'] != 'mat' or got['seat'] or got['x'] < 40 or got['x'] > 2360:
+        fail(f'{tag} baby tab drop {got}')
+
+async def check_dog_bubble(pg, tag):
+    """One pop while the park dog walks up. A later stand or sit does not play it again."""
+    await pg.evaluate("""() => { __store.dispatch({type:'dog/set', dog:{name:'Pip', breed:0}}); }""")
+    await pg.click('#btnMap')
+    await pg.wait_for_selector('[data-go="park"]', timeout=5000)
+    await pg.click('[data-go="park"]')
+    await pg.wait_for_selector('.pet-dog', timeout=5000)
+    await pg.wait_for_timeout(400)
+    await pg.locator('.pet-dog').click()
+    await pg.wait_for_timeout(40)
+    started = await pg.evaluate("""() => {
+      const b = document.querySelector('.pet-dog .bubble');
+      if (!b) return false;
+      b.dataset.once = '1';
+      const watch = { restarted: false, seenLate: false, sawWalking: false, samples: 0, t0: performance.now() };
+      window.__bubbleWatch = watch;
+      const step = () => {
+        const node = document.querySelector('.pet-dog .bubble');
+        const dog = document.querySelector('.pet-dog');
+        watch.samples++;
+        if (node && node.dataset.once === '1' && dog && dog.classList.contains('walking')) watch.sawWalking = true;
+        if (node) {
+          const anims = node.getAnimations ? node.getAnimations() : [];
+          for (const a of anims) {
+            if (a.animationName !== 'bub') continue;
+            const t = a.currentTime || 0;
+            if (t > 220) watch.seenLate = true;
+            if (watch.seenLate && a.playState === 'running' && t < 60) watch.restarted = true;
+          }
+        }
+        if (performance.now() - watch.t0 < 1900) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+      return true;
+    }""")
+    if not started:
+        fail(f'{tag} park dog bubble did not show')
+        return
+    avatar = await pg.locator('#pavatars .savatar.mine').bounding_box()
+    if avatar:
+        await pg.mouse.move(avatar['x'] + avatar['width'] / 2, avatar['y'] + avatar['height'] * 0.7)
+        await pg.mouse.down()
+        await pg.mouse.move(pg.viewport_size['width'] - 24, avatar['y'] + 30, steps=8)
+        await pg.wait_for_timeout(700)
+        await pg.mouse.up()
+    await pg.wait_for_timeout(1300)
+    watch = await pg.evaluate("() => window.__bubbleWatch")
+    if not watch or watch['restarted'] or not watch['seenLate'] or not watch['sawWalking']:
+        fail(f'{tag} dog bubble replay {watch}')
+
+async def check_phone_landscape(pg, tag):
+    """844×390: the crib mobile clears the care card, and the minimap is a real tap."""
+    await pg.evaluate("""() => {
+      document.querySelector('#modePlay')?.click();
+      __store.dispatch({type:'room/switch', room:'nursery'});
+      if (!__store.get().baby) __store.dispatch({type:'baby/meet', now: Date.now()});
+      const vw = parseFloat(document.querySelector('.stage').style.width) || 800;
+      __cam.set(470 - vw / 2);
+    }""")
+    await pg.wait_for_timeout(300)
+    mobile = await pg.evaluate("""() => {
+      const card = document.querySelector('.babyCare');
+      const el = document.querySelector('.item[data-kind="crib-mobile"]');
+      if (!card || card.hidden || !el) return null;
+      const c = card.getBoundingClientRect();
+      const m = el.getBoundingClientRect();
+      const overlap = m.right > c.left + 1 && m.left < c.right - 1 && m.bottom > c.top + 1 && m.top < c.bottom - 1;
+      return { overlap, mw: Math.round(m.width), mh: Math.round(m.height), mt: Math.round(m.top), cb: Math.round(c.bottom), on: m.width > 20 && m.left < innerWidth && m.right > 0 };
+    }""")
+    if not mobile or not mobile['on'] or mobile['overlap'] or mobile['mt'] < mobile['cb'] - 1:
+        fail(f'{tag} crib mobile under the care card {mobile}')
+    mm = await minimap_box(pg)
+    if not mm or mm['mw'] < 96 or mm['mh'] < 44 or mm['gapL'] < 2 or mm['gapR'] < 2 or mm['smallTab'] or mm['smallTool']:
+        fail(f'{tag} minimap {mm}')
+    await pg.set_viewport_size({'width': 667, 'height': 375})
+    await pg.wait_for_timeout(300)
+    narrow = await minimap_box(pg)
+    if not narrow or narrow['mw'] > 52 or narrow['mw'] < 40 or narrow['gapL'] < 1:
+        fail(f'{tag} narrow minimap grew {narrow}')
+
+async def minimap_box(pg):
+    return await pg.evaluate("""() => {
+      const mm = document.querySelector('.minimap');
+      if (!mm) return null;
+      const m = mm.getBoundingClientRect();
+      const tabs = [...document.querySelectorAll('.tab')];
+      const tools = [...document.querySelectorAll('.tools button')].filter(b => {
+        const r = b.getBoundingClientRect();
+        return r.width > 2 && r.height > 2 && getComputedStyle(b).visibility !== 'hidden';
+      });
+      const last = tabs.length ? tabs[tabs.length - 1].getBoundingClientRect() : null;
+      const tool = tools.length ? tools[0].getBoundingClientRect() : null;
+      const small = (r) => r.width < 43.5 || r.height < 43.5;
+      return {
+        mw: Math.round(m.width), mh: Math.round(m.height),
+        gapL: last ? Math.round(m.x - last.right) : -1,
+        gapR: tool ? Math.round(tool.x - m.right) : -1,
+        smallTab: tabs.some(t => small(t.getBoundingClientRect())),
+        smallTool: tools.some(t => small(t.getBoundingClientRect())),
+        phone: document.body.classList.contains('phone'),
+      };
+    }""")
+
 async def run_engine(p, name):
     try:
         browser = await getattr(p, name).launch()
@@ -737,6 +895,11 @@ async def run_engine(p, name):
             await check_anchors(pg, tag)
             await check_toolbar(pg, tag, phone)
             await check_door(pg, tag)
+            if (w, h) == (1180, 820):
+                await check_baby_tab(pg, tag)
+                await check_dog_bubble(pg, tag)
+            if (w, h) == (844, 390):
+                await check_phone_landscape(pg, tag)
             await ctx.close()
             print(f'{tag} checked', flush=True)
     finally:
@@ -744,6 +907,7 @@ async def run_engine(p, name):
     return True
 
 async def main():
+    check_berry()
     async with async_playwright() as p:
         saw = False
         for name in ('chromium', 'webkit'):

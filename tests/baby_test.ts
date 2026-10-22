@@ -1,7 +1,7 @@
 // Nursery baby. Migration, two-client sync, and owner-only rules. Never talks to production.
 import { Neighborhood, type KV, type Conn } from '../server/core';
 import { NICKNAMES, PROTOCOL, cleanAction, cleanHouseState, cleanPetName } from '../src/shared/hood';
-import { babyAfterFurniture, babyBedKind, babyDragAllowed, babyOccupant, careBaby, easeBaby, EASE_MS, meetBaby, resolveBabyDrop } from '../src/shared/baby';
+import { babyAfterFurniture, babyBedKind, babyDragAllowed, babyOccupant, babyTabDrop, careBaby, easeBaby, EASE_MS, meetBaby, resolveBabyDrop } from '../src/shared/baby';
 import { drawnScale, initialState, MAX_CHARS, migrate, newCharacter, reduce } from '../src/shared/state';
 import { pieceWidth, seatFractions, standBeside, STAND_Y, type SeatPiece } from '../src/shared/sit';
 
@@ -108,6 +108,11 @@ async function main() {
   check('a taken chair leaves her on the mat', taken.spot === 'mat' && taken.seat === null && taken.x === 20 && taken.y === 30);
   check('decorate does not seat her', deco.spot === 'mat' && deco.seat === null && deco.x === 15);
   check('decorate does not lie her on a bed', decoBed.spot === 'mat' && decoBed.seat === null && decoBed.bed === null);
+  const tabDrop = babyTabDrop(460);
+  const tabEdge = babyTabDrop(-20);
+  const tabFar = babyTabDrop(9000);
+  check('a room tab stands her on the floor', tabDrop.y === STAND_Y && tabDrop.y !== 0 && tabDrop.y !== 390 && tabDrop.x === 460);
+  check('a room tab keeps her in from the wall', tabEdge.x === 40 && tabEdge.y === STAND_Y && tabFar.x === 2360 && tabFar.y === STAND_Y);
   check('only the owner may drag her', babyDragAllowed(false) === false && babyDragAllowed(true) === true);
 
   let s = reduce(initialState(), { type: 'baby/meet', now: 1000 });

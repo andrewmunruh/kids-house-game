@@ -8,7 +8,7 @@ import { cleanPetName } from '../shared/hood';
 import { dollAnchorOffset, STAND_Y, type DollSeat, type SeatPiece } from '../shared/sit';
 import { ROOM_W, ROOM_H, type Action, type GameState, type PlacedItem, type RoomId } from '../shared/state';
 import {
-  EASE_MS, babyBedKind, babyDragAllowed, bedLieCenter, blossomsFilled, moodLabel, resolveBabyDrop,
+  EASE_MS, babyBedKind, babyDragAllowed, babyTabDrop, bedLieCenter, blossomsFilled, moodLabel, resolveBabyDrop,
   type Baby, type BabyCare,
 } from '../shared/baby';
 import { babySVG } from './draw';
@@ -184,6 +184,19 @@ export function installBaby(host: BabyHost): { render: () => void } {
         dragging = false;
         if (ev.type === 'pointercancel') { render(); return; }
         if (wasDrag) {
+          const tab = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest('.tab[data-room]') as HTMLElement | null;
+          if (tab && tab.dataset.room) {
+            const room = tab.dataset.room as RoomId;
+            const p = host.toRoom(ev.clientX, ev.clientY);
+            const spot = babyTabDrop(p.x, ROOM_W);
+            if (room !== host.get().currentRoom) host.dispatch({ type: 'room/switch', room });
+            host.dispatch({
+              type: 'baby/place', room, x: spot.x, y: spot.y,
+              spot: 'mat', bed: null, seat: null, now: host.clock(),
+            });
+            sfx.drop();
+            return;
+          }
           const p = host.toRoom(ev.clientX, ev.clientY);
           const hit = pieceUnder(ev.clientX, ev.clientY);
           const piece = hit ? host.box(hit) : null;
@@ -324,11 +337,21 @@ export function installBaby(host: BabyHost): { render: () => void } {
     if (box) box.hidden = !owner || !namesOpen;
     const input = card.querySelector('input') as HTMLInputElement | null;
     if (input && !focused) input.value = b.name;
+    syncCareChrome();
   }
 
   function hideCard() {
     namesOpen = false;
     if (card) { card.remove(); card = null; }
+    syncCareChrome();
+  }
+
+  /** Landscape phones park this card over the wall. fit() reads the class and lowers the stage. */
+  function syncCareChrome() {
+    const on = !!(card && card.isConnected && !card.hidden);
+    const was = document.body.classList.contains('baby-card');
+    document.body.classList.toggle('baby-card', on);
+    if (was !== on) window.dispatchEvent(new Event('resize'));
   }
 
   function syncMeet(show: boolean) {

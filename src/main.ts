@@ -320,6 +320,7 @@ function fit() {
   const phone = document.body.classList.contains('phone');
   const boxW = wrap.clientWidth;
   const boxH = wrap.clientHeight;
+  const frameH = Math.max(1, boxH - careTopReserve());
   // Portrait uses the whole wrap. iPad keeps the original test. On a phone, a tall
   // tool row can make the stage almost square; still frame it as portrait so the room fills the screen.
   const portrait = phone ? boxH > boxW * 0.85 : boxH > boxW + 40;
@@ -327,16 +328,14 @@ function fit() {
     const aspect = boxW / Math.max(1, boxH);
     VIEW_W = Math.round(Math.max(480, Math.min(860, H * aspect)));
   } else if (phone) {
-    const aspect = boxW / Math.max(1, boxH);
+    const aspect = boxW / Math.max(1, frameH);
     VIEW_W = Math.round(Math.max(480, Math.min(W, H * aspect)));
   } else VIEW_W = 1000;
   VIEW_W = withPlayZoomFloor(VIEW_W);
   stage.style.width = VIEW_W + 'px';
   stage.style.height = H + 'px';
-  const sc = Math.min(boxW / VIEW_W, boxH / H);
-  stage.style.left = '';
-  stage.style.top = '';
-  stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
+  const sc = Math.min(boxW / VIEW_W, frameH / H);
+  placeStage(sc);
   stage.style.setProperty('--yard-sc', String(sc || 1));
   if (phone) stage.style.setProperty('--fit', String(stageScale()));
   placePhoneNudges();
@@ -478,8 +477,9 @@ function raisePlayZoom() {
   VIEW_W = next;
   stage.style.width = VIEW_W + 'px';
   const wrap = $('stageWrap');
-  const sc = Math.min(wrap.clientWidth / VIEW_W, wrap.clientHeight / H);
-  stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
+  const frameH = Math.max(1, wrap.clientHeight - careTopReserve());
+  const sc = Math.min(wrap.clientWidth / VIEW_W, frameH / H);
+  placeStage(sc);
   if (document.body.classList.contains('phone')) stage.style.setProperty('--fit', String(sc));
   if (camX > maxCam()) setCam(camX);
   else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
@@ -635,7 +635,24 @@ function phoneFitSnapshot() {
   const box = (el: Element | null) => el ? el.clientWidth + 'x' + el.clientHeight : '0';
   const vv = window.visualViewport;
   const vvKey = vv ? Math.round(vv.offsetTop) + 'x' + Math.round(vv.height) + 'x' + Math.round(vv.width) : '';
-  return vvKey + ' ' + box(wrap) + ' ' + box(topBar) + ' ' + box(toolRow);
+  const card = document.body.classList.contains('baby-card') ? 'c' : '';
+  return vvKey + ' ' + box(wrap) + ' ' + box(topBar) + ' ' + box(toolRow) + card;
+}
+/** Landscape phone Play draws the care card over the sky. The stage starts below it, so wall art stays visible. */
+function careTopReserve(): number {
+  const body = document.body;
+  if (!body.classList.contains('baby-card') || !body.classList.contains('phone') || body.classList.contains('phone-portrait')) return 0;
+  const card = document.querySelector('.babyCare') as HTMLElement | null;
+  const h = card && !card.hidden ? card.getBoundingClientRect().height : 0;
+  return Math.ceil(8 + (h > 8 ? h : 72) + 8);
+}
+function placeStage(sc: number) {
+  const reserve = careTopReserve();
+  const wrapH = $('stageWrap').clientHeight;
+  stage.style.left = '';
+  if (reserve > 0) stage.style.top = (reserve + Math.max(0, wrapH - reserve) / 2) + 'px';
+  else stage.style.top = '';
+  stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
 }
 /** Phone landscape parks Play/Decorate in the top row. Phone portrait keeps them in the
  *  dock beside the scrolling chips. iPad leads the chip row with them, the way the
@@ -3175,9 +3192,10 @@ function tickDogs(now: number, dt: number) {
     const pose = tricking && r.sitTrick ? 'sit' : moving ? 'stand' : r.idle > 0.9 ? 'sit' : 'stand';
     const look = pose + o.dog.breed;
     if (r.pose + r.look !== pose + look) {
-      const keep = [...r.el.querySelectorAll('.bubble, .kennelBtn')];
-      r.el.innerHTML = `<div class="inner">${dogSVG(o.dog.breed, pose as 'stand' | 'sit')}</div>`;
-      for (const node of keep) r.el.appendChild(node);
+      // Leave the speech bubble where it is. Detaching it restarted the pop, so one
+      // approach played the bubble again each time the dog stood or sat.
+      for (const node of [...r.el.children]) if (!node.matches('.bubble, .kennelBtn')) node.remove();
+      r.el.insertAdjacentHTML('afterbegin', `<div class="inner">${dogSVG(o.dog.breed, pose as 'stand' | 'sit')}</div>`);
       r.pose = pose; r.look = look;
     }
     r.el.dataset.name = o.dog.name;
