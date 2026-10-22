@@ -76,11 +76,11 @@ const BED_ART: Record<string, BedArt> = {
     mattress: { x: 0.48, y: 0.54, w: 0.30, h: 0.16 },
     clip: 'daybed',
   },
-  // Side view, same pillow-left layout as the wooden bed. The painting puts the pillow there.
+  // The white pillow sits at the top-left of the painting. She lies along it, head on that pillow.
   'wc-plaid-bed': {
-    head: { x: 0.22, y: 0.53 },
-    pillow: { x: 0.12, y: 0.36, w: 0.24, h: 0.18 },
-    mattress: { x: 0.38, y: 0.46, w: 0.32, h: 0.16 },
+    head: { x: 0.24, y: 0.26 },
+    pillow: { x: 0.08, y: 0.14, w: 0.30, h: 0.20 },
+    mattress: { x: 0.36, y: 0.18, w: 0.30, h: 0.18 },
     clip: 'wooden',
   },
 };

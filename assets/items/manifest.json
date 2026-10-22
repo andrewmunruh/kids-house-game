@@ -6445,7 +6445,7 @@
     "pack": "winter",
     "png": "packs/winter/wc-twinkle-string.webp",
     "widthUnits": 720,
-    "heightUnits": 121,
+    "heightUnits": 144,
     "gameW": 180,
     "holdable": false,
     "wall": true
