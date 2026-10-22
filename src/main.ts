@@ -4355,22 +4355,24 @@ renderBaby = installBaby({
     const s = store.get();
     const self = (hood && inner !== local && hood.pid) ? hood.pid : (activeChar || s.characters[0]?.id || '');
     const id = who || self;
-    const spot = (at: { x: number; y: number }, flip: boolean, scale: number, seat: DollSeat | null) => {
+    const spot = (at: { x: number; y: number }, flip: boolean, scale: number, seat: DollSeat | null, skin?: string) => {
       const pose = seat?.pose === 'sit' || seat?.pose === 'lie' ? seat.pose : null;
       const piece = pose === 'lie' ? s.rooms[s.currentRoom]?.items.find(i => i.id === seat?.item) : undefined;
-      return { x: at.x, y: at.y, flip, scale: scale > 0 ? scale : 1, pose, lieFlip: !!(pose === 'lie' && piece?.flip) };
+      const tone = skin && /^#[0-9a-fA-F]{6}$/.test(skin) ? skin : '#f1c27d';
+      return { x: at.x, y: at.y, flip, scale: scale > 0 ? scale : 1, pose, lieFlip: !!(pose === 'lie' && piece?.flip), skin: tone };
     };
     const doll = s.characters.find(c => c.id === id && c.room === s.currentRoom);
     if (doll) {
       const seat = dollSeat(doll);
-      return spot(seatedAt(s.currentRoom, seat, doll), doll.flip, SIZE_SCALE[doll.size] ?? 1, seat);
+      return spot(seatedAt(s.currentRoom, seat, doll), doll.flip, SIZE_SCALE[doll.size] ?? 1, seat, (doll.look2 && doll.look2.skin) || doll.skin);
     }
     if (hood && view === 'house') {
       const p = id === hood.pid ? myPres() : hood.presence.get(id);
       if (p && p.where === 'house' && p.houseId === currentHouseId && p.room === s.currentRoom) {
         const seat = presSeat(id, p);
-        const size = hood.players.get(id)?.look?.size ?? 'kid';
-        return spot(seatedAt(s.currentRoom, seat, p), p.flip, SIZE_SCALE[size] ?? 1, seat);
+        const look = hood.players.get(id)?.look;
+        const size = look?.size ?? 'kid';
+        return spot(seatedAt(s.currentRoom, seat, p), p.flip, SIZE_SCALE[size] ?? 1, seat, (look?.look2 && look.look2.skin) || look?.skin || '#f1c27d');
       }
     }
     return null;

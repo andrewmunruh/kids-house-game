@@ -16,13 +16,16 @@ import { babySVG } from './draw';
 const BW = 110;
 const BH = 148;
 /**
- * Chest slot in the 120×192 doll box. 46 is about 80% of the classic shirt,
- * so she fills the torso and rests on the arms. 52 keeps her under the chin.
+ * Chest slot in the 120×192 doll box. The arm span used by the cradle check
+ * runs from x 16 to 104 (width 88) and from y 98 to 168, under the chin.
+ * The portrait is turned on its side inside this slot, so the painted pixels
+ * are about 85% of that width (~75×53) and stay inside the band.
+ * (CRADLE_X, CRADLE_Y) is the center of the slot.
  */
-const CRADLE_W = 46;
-const CRADLE_H = 52;
+const CRADLE_W = 76;
+const CRADLE_H = 54;
 const CRADLE_X = 60;
-const CRADLE_Y = 126;
+const CRADLE_Y = 133;
 const CARES: BabyCare[] = ['feed', 'burp', 'change', 'rock'];
 const PRESETS = ['Bean', 'Pip', 'Mochi', 'Bunny', 'Dot', 'Sunny'];
 
@@ -37,6 +40,8 @@ export interface HolderSpot {
   pose?: 'sit' | 'lie' | null;
   /** The bed is flipped, so the body uses the pose-lie-r matrix. */
   lieFlip?: boolean;
+  /** The holder's skin, so the hands drawn over the bundle match the doll. */
+  skin?: string;
 }
 
 export interface BabyHost {
@@ -244,7 +249,15 @@ export function installBaby(host: BabyHost): { render: () => void } {
     el = document.createElement('div');
     el.className = 'baby';
     el.dataset.baby = '1';
-    el.innerHTML = '<div class="hit"></div><div class="babySpin"><div class="babyRock"><div class="babyInner"></div></div></div><div class="babyZzz" hidden>z z z</div><div class="babyBurp" hidden><i></i></div>';
+    el.innerHTML = '<div class="hit"></div><div class="babySpin"><div class="babyRock"><div class="babyInner"></div></div></div>'
+      + `<svg class="babyArms" viewBox="0 0 ${CRADLE_W} ${CRADLE_H}" aria-hidden="true">`
+      + '<g class="holdArm">'
+      + '<rect x="16" y="-4" width="15" height="30" rx="7.5"/>'
+      + '<circle cx="23.5" cy="24" r="8.5"/>'
+      + '<rect x="40" y="32" width="42" height="14" rx="7" transform="rotate(-14 61 39)"/>'
+      + '<circle cx="44" cy="33" r="8.5"/>'
+      + '</g></svg>'
+      + '<div class="babyZzz" hidden>z z z</div><div class="babyBurp" hidden><i></i></div>';
     host.layer.appendChild(el);
     bindDrag(el);
     return el;
@@ -378,7 +391,7 @@ export function installBaby(host: BabyHost): { render: () => void } {
   }
 
   function position(node: HTMLElement, b: Baby) {
-    node.classList.remove('baby-lie', 'baby-lie-r', 'baby-cradle', 'flipped');
+    node.classList.remove('baby-lie', 'baby-lie-r', 'baby-cradle', 'cradle-lie', 'flipped');
     const room = host.get().currentRoom;
     if ((b.spot === 'crib' || b.spot === 'bassinet') && b.bed) {
       const it = host.get().rooms[b.room]?.items.find(i => i.id === b.bed) ?? null;
@@ -400,6 +413,10 @@ export function installBaby(host: BabyHost): { render: () => void } {
       place(node, x, y, at ? at.w : CRADLE_W, at ? at.h : CRADLE_H);
       node.style.zIndex = String(5000 + Math.round(h ? h.y : b.y) + 2);
       node.classList.add('baby-cradle');
+      node.style.setProperty('--hold-skin', h && h.skin ? h.skin : '#f1c27d');
+      node.style.setProperty('--spin-w', (CRADLE_H / CRADLE_W * 100).toFixed(4) + '%');
+      node.style.setProperty('--spin-h', (CRADLE_W / CRADLE_H * 100).toFixed(4) + '%');
+      if (h && h.pose === 'lie') node.classList.add('cradle-lie');
       if (h && (h.pose === 'lie' ? h.lieFlip : h.flip)) node.classList.add('flipped');
       return;
     }

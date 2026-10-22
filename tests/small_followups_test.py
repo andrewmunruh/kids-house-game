@@ -740,6 +740,9 @@ def check_berry():
     box = (min(xs), min(ys), max(xs), max(ys))
     if box != (60, 72, 239, 269):
         fail(f'berry basket alpha box moved {box}')
+    n = os.path.getsize(path)
+    if n < 7000 or n > 16000:
+        fail(f'berry basket file is {n} bytes, want it near the original 10154')
 
 async def check_baby_tab(pg, tag):
     """Dragging her onto a room tab stands her on that room's floor."""
@@ -759,14 +762,38 @@ async def check_baby_tab(pg, tag):
         return
     await pg.mouse.move(baby['x'] + baby['width'] / 2, baby['y'] + baby['height'] * 0.45)
     await pg.mouse.down()
-    await pg.mouse.move(tab['x'] + tab['width'] / 2, tab['y'] + tab['height'] / 2, steps=14)
+    drop_x = tab['x'] + tab['width'] / 2
+    drop_y = tab['y'] + tab['height'] / 2
+    await pg.mouse.move(drop_x, drop_y, steps=14)
+    want = await pg.evaluate("""(pt) => {
+      const stage = document.getElementById('stage');
+      const r = stage.getBoundingClientRect();
+      const viewW = parseFloat(stage.style.width) || r.width;
+      let x = (pt.x - r.left) / r.width * viewW + __cam.get();
+      if (!(x >= 40)) x = 40;
+      if (x > 2360) x = 2360;
+      return x;
+    }""", {'x': drop_x, 'y': drop_y})
     await pg.mouse.up()
     await pg.wait_for_timeout(250)
-    got = await pg.evaluate("""() => {
+    got = await pg.evaluate("""(want) => {
       const b = __store.get().baby;
-      return b && { room: __store.get().currentRoom, babyRoom: b.room, x: Math.round(b.x), y: b.y, spot: b.spot, seat: !!b.seat };
-    }""")
-    if not got or got['room'] != 'kitchen' or got['babyRoom'] != 'kitchen' or got['y'] != 540 or got['spot'] != 'mat' or got['seat'] or got['x'] < 40 or got['x'] > 2360:
+      const stage = document.getElementById('stage');
+      const el = document.querySelector('#stage .baby');
+      if (!b || !stage || !el) return null;
+      const r = stage.getBoundingClientRect();
+      const box = el.getBoundingClientRect();
+      const viewW = parseFloat(stage.style.width) || r.width;
+      const roomX = (box.left + box.width / 2 - r.left) / r.width * viewW + __cam.get();
+      const roomY = (box.bottom - r.top) / r.height * 600;
+      return {
+        room: __store.get().currentRoom, babyRoom: b.room, x: b.x, y: b.y, spot: b.spot, seat: !!b.seat,
+        roomX, roomY, want,
+      };
+    }""", want)
+    near = got and abs(got['x'] - want) <= 1.5 and abs(got['roomX'] - want) <= 8
+    on_floor = got and got['y'] == 540 and abs(got['roomY'] - 540) <= 8
+    if not got or got['room'] != 'kitchen' or got['babyRoom'] != 'kitchen' or got['spot'] != 'mat' or got['seat'] or not near or not on_floor:
         fail(f'{tag} baby tab drop {got}')
 
 async def check_dog_bubble(pg, tag):

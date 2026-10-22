@@ -7,12 +7,23 @@
 .baby .babyInner { width: 100%; height: 100%; }
 .baby .babyInner svg, .baby .babyInner img { width: 100%; height: 100%; display: block; pointer-events: none; }
 .baby.flipped .babySpin { transform: scaleX(-1); }
-/* Held: the slot is the chest. The same portrait turns inside it, so the art is not redrawn. */
+/* Held: the portrait lies across the chest. --spin-w/h swap the box so a quarter-turn fills the slot. */
+.baby.baby-cradle .babyRock, .baby.baby-cradle .babyInner { width: 100%; height: 100%; }
 .baby.baby-cradle .babySpin {
-  position: absolute; left: 50%; top: 50%; width: 63%; height: 77%;
-  transform: translate(-50%, -50%) rotate(-30deg);
+  position: absolute; left: 50%; top: 50%;
+  width: var(--spin-w, 71.0526%); height: var(--spin-h, 140.7407%);
+  transform: translate(-50%, -50%) rotate(-90deg); transform-origin: 50% 50%;
 }
-.baby.baby-cradle.flipped .babySpin { transform: translate(-50%, -50%) rotate(30deg) scaleX(-1); }
+.baby.baby-cradle.flipped .babySpin { transform: translate(-50%, -50%) rotate(90deg) scaleX(-1); }
+/* Lying holders are already turned. The same turn keeps her across that chest. */
+.baby.baby-cradle.cradle-lie { transform: rotate(-90deg); transform-origin: 50% 50%; }
+.baby .babyArms { display: none; }
+.baby.baby-cradle .babyArms {
+  display: block; position: absolute; inset: 0; width: 100%; height: 100%;
+  overflow: visible; pointer-events: none; z-index: 3;
+}
+.babyArms .holdArm { fill: var(--hold-skin, #f1c27d); stroke: #5a3d5c; stroke-width: 2.4; stroke-linejoin: round; }
+.baby.baby-cradle.flipped .babyArms { transform: scaleX(-1); }
 .baby.is-rock .babyRock { animation: babyRock 0.8s ease-in-out; transform-origin: 50% 55%; }
 .baby.is-feed .babyInner { animation: babyWiggle 0.6s ease-in-out; }
 @keyframes babyRock {

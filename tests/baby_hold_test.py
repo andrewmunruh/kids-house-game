@@ -135,16 +135,17 @@ async def card_layout(pg):
       return { overFloor, overLegs, small, n: buttons.length, cardTop: Math.round(c.top), floorTop: Math.round(f.top) };
     }""")
 
-CRADLE_VIEWS = [(820, 1180), (390, 844), (844, 390)]
+CRADLE_VIEWS = [(1180, 820), (820, 1180), (390, 844), (844, 390)]
 # Hold band in the 120×192 doll box: below the chin, across the torso and the arms.
-# The bundle may overlap the arms. It may not overlap the head.
+# Visible painted pixels, not the slot: 80–90% of that width, inside the band, off the head.
 CRADLE_JS = """(sel) => {
   const holder = document.querySelector(sel);
   const baby = document.querySelector('#stage .baby');
   if (!holder || !baby) return { ok: false, why: 'missing' };
+  const img = baby.querySelector('img.artimg');
+  if (!img || !img.complete || !img.naturalWidth) return { ok: false, why: 'art' };
   const b = holder.getBoundingClientRect();
-  const babyR = baby.getBoundingClientRect();
-  if (b.width < 2 || babyR.width < 2) return { ok: false, why: 'offscreen' };
+  if (b.width < 2) return { ok: false, why: 'offscreen' };
   const stage = document.getElementById('stage');
   const sc = stage.getBoundingClientRect().height / stage.offsetHeight;
   const pose = holder.classList.contains('pose-lie') ? 'lie' : (holder.classList.contains('pose-sit') ? 'sit' : 'stand');
@@ -191,25 +192,83 @@ CRADLE_JS = """(sel) => {
     const d1 = cross(a, bq, c), d2 = cross(a, bq, d), d3 = cross(c, d, a), d4 = cross(c, d, bq);
     return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
   }
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0);
+  let data;
+  try { data = ctx.getImageData(0, 0, canvas.width, canvas.height).data; }
+  catch (e) { return { ok: false, why: 'canvas' }; }
+  const iw = canvas.width, ih = canvas.height;
+  let minx = iw, miny = ih, maxx = -1, maxy = -1;
+  for (let y = 0; y < ih; y++) {
+    const row = y * iw * 4;
+    for (let x = 0; x < iw; x++) {
+      if (data[row + x * 4 + 3] >= 40) {
+        if (x < minx) minx = x;
+        if (y < miny) miny = y;
+        if (x > maxx) maxx = x;
+        if (y > maxy) maxy = y;
+      }
+    }
+  }
+  if (maxx < 0) return { ok: false, why: 'empty' };
+  const spin = baby.querySelector('.babySpin');
+  if (!spin) return { ok: false, why: 'spin' };
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:absolute;width:0;height:0;margin:0;padding:0;border:0;pointer-events:none';
+  spin.appendChild(probe);
+  function at(u, v) {
+    probe.style.left = (u * 100) + '%';
+    probe.style.top = (v * 100) + '%';
+    const r = probe.getBoundingClientRect();
+    return [r.left, r.top];
+  }
+  const corners = [at(minx / iw, miny / ih), at((maxx + 1) / iw, miny / ih), at((maxx + 1) / iw, (maxy + 1) / ih), at(minx / iw, (maxy + 1) / ih)];
+  probe.remove();
   const tp = torso.map(p => map(p[0], p[1]));
   const hp = head.map(p => map(p[0], p[1]));
-  const corners = [[babyR.left, babyR.top], [babyR.right, babyR.top], [babyR.right, babyR.bottom], [babyR.left, babyR.bottom]];
-  const outside = corners.filter(p => !pip(tp, p[0], p[1]) && distEdge(tp, p[0], p[1]) > 1);
-  const L = babyR.left + 1, R = babyR.right - 1, T = babyR.top + 1, Bm = babyR.bottom - 1;
-  const box = [[L, T], [R, T], [R, Bm], [L, Bm]];
-  let overlap = false;
-  if (R > L && Bm > T) {
-    for (const p of box) if (pip(hp, p[0], p[1])) overlap = true;
-    for (const p of hp) if (p[0] >= L && p[0] <= R && p[1] >= T && p[1] <= Bm) overlap = true;
-    for (let i = 0; i < 4 && !overlap; i++) for (let k = 0; k < 4; k++) if (hit(box[i], box[(i + 1) % 4], hp[k], hp[(k + 1) % 4])) overlap = true;
+  const axisA = map(16, 98), axisB = map(104, 98);
+  const ax = axisB[0] - axisA[0], ay = axisB[1] - axisA[1];
+  const alen = Math.hypot(ax, ay) || 1;
+  let lo = 1e9, hi = -1e9;
+  for (const p of corners) {
+    const t = ((p[0] - axisA[0]) * ax + (p[1] - axisA[1]) * ay) / (alen * alen);
+    if (t < lo) lo = t;
+    if (t > hi) hi = t;
   }
-  const fracW = babyR.width / b.width, fracH = babyR.height / b.height;
-  const sizeOk = fracW >= 0.34 && fracW <= 0.7 && fracH >= 0.22;
+  const extent = (hi - lo) * alen;
+  const frac = extent / alen;
+  const outside = corners.filter(p => !pip(tp, p[0], p[1]) && distEdge(tp, p[0], p[1]) > 2.5);
+  let overlap = false;
+  for (const p of corners) if (pip(hp, p[0], p[1])) overlap = true;
+  for (const p of hp) if (pip(corners, p[0], p[1])) overlap = true;
+  for (let i = 0; i < 4 && !overlap; i++) for (let k = 0; k < 4; k++) if (hit(corners[i], corners[(i + 1) % 4], hp[k], hp[(k + 1) % 4])) overlap = true;
+  const arms = baby.querySelector('.babyArms');
+  const armCss = arms ? getComputedStyle(arms) : null;
+  const hand = arms ? arms.querySelector('.holdArm') : null;
+  const handCss = hand ? getComputedStyle(hand) : null;
+  const ar = arms ? arms.getBoundingClientRect() : null;
+  const xs = corners.map(p => p[0]), ys = corners.map(p => p[1]);
+  const artL = Math.min.apply(null, xs), artR = Math.max.apply(null, xs), artT = Math.min.apply(null, ys), artB = Math.max.apply(null, ys);
+  const armOverlap = !!(ar && ar.width > 4 && ar.left < artR - 2 && ar.right > artL + 2 && ar.top < artB - 2 && ar.bottom > artT + 2);
+  const armsOk = !!(armCss && armCss.display !== 'none' && handCss && handCss.fill && handCss.fill !== 'none' && handCss.fill !== 'rgba(0, 0, 0, 0)' && armOverlap);
+  const sizeOk = frac >= 0.80 && frac <= 0.90;
+  const cradle = baby.classList.contains('baby-cradle');
+  let why = '';
+  if (outside.length) why = 'torso';
+  else if (overlap) why = 'head';
+  else if (!sizeOk) why = 'size';
+  else if (!cradle) why = 'class';
+  else if (!armsOk) why = 'arms';
   return {
-    ok: outside.length === 0 && !overlap && sizeOk && baby.classList.contains('baby-cradle'),
-    why: outside.length ? 'torso' : (overlap ? 'head' : (!sizeOk ? 'size' : (baby.classList.contains('baby-cradle') ? '' : 'class'))),
-    pose, lieFlip, doll: Math.round(doll * 100) / 100,
-    baby: { w: Math.round(babyR.width * 10) / 10, h: Math.round(babyR.height * 10) / 10 },
+    ok: outside.length === 0 && !overlap && sizeOk && cradle && armsOk,
+    why, pose, lieFlip, doll: Math.round(doll * 100) / 100,
+    frac: Math.round(frac * 1000) / 1000,
+    px: Math.round(extent * 10) / 10,
+    torso: Math.round(alen * 10) / 10,
+    art: { w: Math.round((artR - artL) * 10) / 10, h: Math.round((artB - artT) * 10) / 10 },
     holder: { w: Math.round(b.width), h: Math.round(b.height) },
   };
 }"""
@@ -241,38 +300,52 @@ async def cradle_check(pg, browser_name, sel='#stage .char'):
         await dismiss(pg)
         cases = []
         for size in ('little', 'kid', 'adult'):
-            cases.append((size, 'stand', None, False, False))
-            cases.append((size, 'sit', 'rocker-3', False, False))
-            cases.append((size, 'lie', 'qa-bed', False, False))
-        cases.append(('kid', 'stand', None, False, True))
-        cases.append(('kid', 'lie', 'qa-bed', True, False))
-        for size, pose, item, bed_flip, face_left in cases:
+            cases.append((size, 'stand', None, False, False, False))
+            cases.append((size, 'sit', 'rocker-3', False, False, False))
+            cases.append((size, 'lie', 'qa-bed', False, False, False))
+        cases.append(('kid', 'stand', None, False, True, False))
+        cases.append(('kid', 'lie', 'qa-bed', True, False, False))
+        cases.append(('kid', 'stand', None, False, False, True))
+        cases.append(('kid', 'sit', 'rocker-3', False, False, True))
+        cases.append(('kid', 'lie', 'qa-bed', False, False, True))
+        cases.append(('kid', 'stand', None, False, True, True))
+        for size, pose, item, bed_flip, face_left, chibi in cases:
             await pg.evaluate("""(arg) => {
               const s = __store;
               const kid = s.get().characters[0];
               const bed = s.get().rooms.nursery.items.find(i => i.id === 'qa-bed');
               if (bed && !!bed.flip !== arg.bedFlip) s.dispatch({ type: 'item/flip', room: 'nursery', id: 'qa-bed' });
-              s.dispatch({ type: 'char/update', id: kid.id, patch: { size: arg.size, flip: arg.faceLeft } });
+              const look2 = arg.chibi ? __avatar.look2FromLegacy(kid) : null;
+              s.dispatch({ type: 'char/update', id: kid.id, patch: { size: arg.size, flip: arg.faceLeft, look2 } });
               const seat = arg.item ? { item: arg.item, pose: arg.pose, n: 0 } : null;
               s.dispatch({ type: 'char/move', id: kid.id, room: 'nursery', x: 700, y: 540, seat });
               s.dispatch({ type: 'baby/hold', holder: kid.id, room: 'nursery', x: 700, y: 480, now: Date.now() });
               const play = document.getElementById('modePlay');
               if (play) play.click();
-            }""", {'size': size, 'pose': pose, 'item': item, 'bedFlip': bed_flip, 'faceLeft': face_left})
-            await pg.wait_for_timeout(60)
+            }""", {'size': size, 'pose': pose, 'item': item, 'bedFlip': bed_flip, 'faceLeft': face_left, 'chibi': chibi})
+            try:
+                await pg.wait_for_function("""() => {
+                  const img = document.querySelector('#stage .baby img.artimg');
+                  return !!(img && img.complete && img.naturalWidth > 0);
+                }""", timeout=8000)
+            except Exception:
+                pass
             await frame_holder(pg, sel)
-            await pg.wait_for_timeout(60)
+            await pg.wait_for_timeout(40)
             info = await pg.evaluate(CRADLE_JS, sel)
             tag = f'{browser_name} {w}x{h} {size} {pose}'
+            if chibi: tag += ' chibi'
             if bed_flip: tag += ' flipped bed'
             if face_left: tag += ' facing left'
             check(tag + ' cradle stays on the torso and off the head', bool(info and info.get('ok')), str(info))
-            if browser_name == 'chromium' and size == 'kid' and not face_left and not bed_flip and (pose == 'stand' or (w, h) == (820, 1180)):
+            if browser_name == 'chromium' and size == 'kid' and not face_left and not bed_flip and not chibi and (pose == 'stand' or (w, h) == (820, 1180) or (w, h) == (1180, 820)):
                 name = {'stand': 'held', 'sit': 'sit', 'lie': 'lie'}[pose]
                 await pg.screenshot(path=os.path.join(OUT, f'after-{w}x{h}-{name}.png'))
-            if browser_name == 'chromium' and (w, h) == (820, 1180) and size == 'kid' and bed_flip:
+            if browser_name == 'chromium' and (w, h) == (1180, 820) and size == 'kid' and chibi and pose == 'stand' and not face_left:
+                await pg.screenshot(path=os.path.join(OUT, 'after-1180x820-chibi.png'))
+            if browser_name == 'chromium' and (w, h) == (820, 1180) and size == 'kid' and bed_flip and not chibi:
                 await pg.screenshot(path=os.path.join(OUT, 'after-820x1180-lie-flip.png'))
-            if browser_name == 'chromium' and (w, h) == (820, 1180) and pose == 'stand' and size in ('little', 'adult') and not face_left:
+            if browser_name == 'chromium' and (w, h) == (820, 1180) and pose == 'stand' and size in ('little', 'adult') and not face_left and not chibi:
                 await pg.screenshot(path=os.path.join(OUT, f'after-820x1180-{size}.png'))
 
 async def buttons(pg):
@@ -574,14 +647,41 @@ async def main():
                 await B.set_viewport_size({'width': w, 'height': h})
                 await B.wait_for_timeout(300)
                 await frame_holder(B, '#stage .char.avatar.other')
-                await B.wait_for_timeout(80)
+                try:
+                    await B.wait_for_function("""() => {
+                      const img = document.querySelector('#stage .baby img.artimg');
+                      return !!(img && img.complete && img.naturalWidth > 0);
+                    }""", timeout=8000)
+                except Exception:
+                    pass
                 guest_hold = await B.evaluate(CRADLE_JS, '#stage .char.avatar.other')
                 check(f'B {w}x{h} sees the cradle on A, on the torso and off the head', bool(guest_hold and guest_hold.get('ok')), str(guest_hold))
+            await B.set_viewport_size({'width': 1180, 'height': 820})
+            await B.wait_for_timeout(200)
+            await frame_holder(B, '#stage .char.avatar.other')
+            await B.wait_for_timeout(80)
+            await B.screenshot(path=os.path.join(OUT, 'baby-b-sees-a-holding-1180x820.png'))
             await B.set_viewport_size({'width': 820, 'height': 1180})
             await B.wait_for_timeout(200)
             await frame_holder(B, '#stage .char.avatar.other')
             await B.wait_for_timeout(80)
             await B.screenshot(path=os.path.join(OUT, 'baby-b-sees-a-holding-820x1180.png'))
+            await A.evaluate("""() => {
+              const h = __hood();
+              const look = h.players.get(h.pid).look;
+              h.setLook(Object.assign({}, look, { look2: __avatar.look2FromLegacy(look) }));
+            }""")
+            try:
+                await B.wait_for_selector('.char.avatar.other svg[data-chibi="1"]', timeout=8000)
+            except Exception:
+                pass
+            await B.set_viewport_size({'width': 1180, 'height': 820})
+            await B.wait_for_timeout(250)
+            await frame_holder(B, '#stage .char.avatar.other')
+            await B.wait_for_timeout(80)
+            guest_chibi = await B.evaluate(CRADLE_JS, '#stage .char.avatar.other')
+            check('B 1180x820 sees a chibi cradle on A, on the torso and off the head', bool(guest_chibi and guest_chibi.get('ok')), str(guest_chibi))
+            await B.screenshot(path=os.path.join(OUT, 'baby-b-sees-a-chibi-1180x820.png'))
             word = await B.evaluate("() => (document.querySelector('.babyWord') || {}).textContent || ''")
             check('B sees the care card in Play', word in ('Cozy', 'Happy'))
             await A.click('#btnMap')
