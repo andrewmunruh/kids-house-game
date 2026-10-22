@@ -736,6 +736,11 @@ async def main():
             await B.screenshot(path=os.path.join(OUT, 'baby-b-sees-a-holding-820x1180.png'))
             await B.set_viewport_size({'width': 1180, 'height': 820})
             await B.wait_for_timeout(200)
+            await A.evaluate("""() => {
+              if (!__store.get().rooms.nursery.items.some(i => i.id === 'qa-bed'))
+                __store.dispatch({ type: 'item/add', room: 'nursery', item: { id: 'qa-bed', kind: 'bed', x: 1400, y: 540, flip: false, z: 8, scale: 1 } });
+            }""")
+            await B.wait_for_function("() => __store.get().rooms.nursery.items.some(i => i.id === 'qa-bed')", timeout=8000)
             for label, pose, flip in (('sit', 'sit', False), ('lie', 'lie', False), ('flipped', 'stand', True)):
                 await A.evaluate("""(arg) => {
                   const h = __hood();
@@ -746,9 +751,7 @@ async def main():
                     seat = { id: rocker.id, pose: 'sit', n: 0 };
                     x = rocker.x; y = rocker.y;
                   } else if (arg.pose === 'lie') {
-                    if (!room.items.some(i => i.id === 'qa-bed'))
-                      __store.dispatch({ type: 'item/add', room: 'nursery', item: { id: 'qa-bed', kind: 'bed', x: 1400, y: 540, flip: false, z: 8, scale: 1 } });
-                    const bed = __store.get().rooms.nursery.items.find(i => i.id === 'qa-bed');
+                    const bed = room.items.find(i => i.id === 'qa-bed');
                     seat = { id: bed.id, pose: 'lie', n: 0 };
                     x = bed.x; y = bed.y;
                   }
@@ -764,7 +767,7 @@ async def main():
                       return !!(el && !el.classList.contains('pose-sit') && !el.classList.contains('pose-lie') && el.classList.contains('flipped') === flip);
                     }""", arg=flip, timeout=8000)
                 await frame_holder(B, '#stage .char.avatar.other')
-                await B.wait_for_timeout(120)
+                await B.wait_for_timeout(280)
                 guest_pose = await B.evaluate(CRADLE_JS, '#stage .char.avatar.other')
                 check(f'B sees A {label} with two cradle arms', bool(guest_pose and guest_pose.get('ok')), str(guest_pose))
                 await closeup(B, f'arms-1180x820-guest-{label}.png')
@@ -817,7 +820,7 @@ async def main():
                 except Exception:
                     pass
                 await frame_holder(B, '#stage .char.avatar.other')
-                await B.wait_for_timeout(120)
+                await B.wait_for_timeout(280)
                 guest_more = await B.evaluate(CRADLE_JS, '#stage .char.avatar.other')
                 check(f'B sees A {label} with two cradle arms', bool(guest_more and guest_more.get('ok')), str(guest_more))
                 await closeup(B, f'arms-1180x820-guest-{label}.png')

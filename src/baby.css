@@ -24,7 +24,9 @@
 .avatar.holding .hand.hang { display: none; }
 .arm.cradle { animation: none; pointer-events: none; }
 .char.holding > .inner,
-.char.avatar.holding > .inner { animation: none; }
+.char.avatar.holding > .inner { animation: none; transition: none; }
+/* The baby jumps with the holder. A sliding avatar would leave her behind for a moment. */
+.char.avatar.other.holding { transition: none; }
 /* The over arm sits above the baby. It copies the doll's sit, lie, and flip. */
 .cradle-front { position: absolute; pointer-events: none; }
 .cradle-front > .inner { position: relative; width: 100%; height: 100%; transform-origin: 50% 100%; }
