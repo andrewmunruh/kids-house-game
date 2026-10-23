@@ -1158,6 +1158,13 @@ function clearCradleSlot(slot: string) {
     cradleFronts.delete(key);
   }
 }
+function dropCradleFront(slot: string, id: string) {
+  const key = slot + ':' + id;
+  const node = cradleFronts.get(key);
+  if (!node) return;
+  node.remove();
+  cradleFronts.delete(key);
+}
 /** The hand on the blanket. A child of the doll cannot paint above the baby. */
 function paintCradleFront(slot: string, id: string, host: HTMLElement, svg: string, feetY: number) {
   const key = slot + ':' + id;
@@ -1217,7 +1224,11 @@ function renderChars(s: GameState) {
     el.classList.toggle('active', c.id === activeChar);
     stampAvatar(el, c, c.id === activeChar);
     el.classList.toggle('pose-swing', swingPose?.id === c.id);
-    if (holding) paintCradleFront('doll', c.id, el, cradleFrontSVG(c, pose), at.y);
+    if (holding) {
+      const arm = cradleFrontSVG(c, pose);
+      if (arm) paintCradleFront('doll', c.id, el, arm, at.y);
+      else dropCradleFront('doll', c.id);
+    }
     const pts = handsFor(c);
     el.style.setProperty('--hx-l', pts.left.x + '%');
     el.style.setProperty('--hx-r', pts.right.x + '%');
@@ -2130,7 +2141,11 @@ function renderAvatars() {
       el.classList.toggle('pose-lie', pose === 'lie');
       el.classList.toggle('pose-lie-r', pose === 'lie' && !!piece?.flip);
       stampAvatar(el, look, pid === hood.pid);
-      if (holding) paintCradleFront('avatar', pid, el, cradleFrontSVG(look, pose), at.y);
+      if (holding) {
+        const arm = cradleFrontSVG(look, pose);
+        if (arm) paintCradleFront('avatar', pid, el, arm, at.y);
+        else dropCradleFront('avatar', pid);
+      }
     }
   }
   const hid = babyHolderId(store.get());
@@ -4406,16 +4421,16 @@ renderBaby = installBaby({
     const s = store.get();
     const self = (hood && inner !== local && hood.pid) ? hood.pid : (activeChar || s.characters[0]?.id || '');
     const id = who || self;
-    const spot = (at: { x: number; y: number }, flip: boolean, scale: number, seat: DollSeat | null, skin?: string) => {
+    const spot = (at: { x: number; y: number }, flip: boolean, scale: number, seat: DollSeat | null, skin?: string, chibi?: boolean) => {
       const pose = seat?.pose === 'sit' || seat?.pose === 'lie' ? seat.pose : null;
       const piece = pose === 'lie' ? s.rooms[s.currentRoom]?.items.find(i => i.id === seat?.item) : undefined;
       const tone = skin && /^#[0-9a-fA-F]{6}$/.test(skin) ? skin : '#f1c27d';
-      return { x: at.x, y: at.y, flip, scale: scale > 0 ? scale : 1, pose, lieFlip: !!(pose === 'lie' && piece?.flip), skin: tone };
+      return { x: at.x, y: at.y, flip, scale: scale > 0 ? scale : 1, pose, lieFlip: !!(pose === 'lie' && piece?.flip), skin: tone, chibi: !!chibi };
     };
     const doll = s.characters.find(c => c.id === id && c.room === s.currentRoom);
     if (doll) {
       const seat = dollSeat(doll);
-      return spot(seatedAt(s.currentRoom, seat, doll), doll.flip, SIZE_SCALE[doll.size] ?? 1, seat, (doll.look2 && doll.look2.skin) || doll.skin);
+      return spot(seatedAt(s.currentRoom, seat, doll), doll.flip, SIZE_SCALE[doll.size] ?? 1, seat, (doll.look2 && doll.look2.skin) || doll.skin, !!doll.look2);
     }
     if (hood && view === 'house') {
       const p = id === hood.pid ? myPres() : hood.presence.get(id);
@@ -4423,7 +4438,7 @@ renderBaby = installBaby({
         const seat = presSeat(id, p);
         const look = hood.players.get(id)?.look;
         const size = look?.size ?? 'kid';
-        return spot(seatedAt(s.currentRoom, seat, p), p.flip, SIZE_SCALE[size] ?? 1, seat, (look?.look2 && look.look2.skin) || look?.skin || '#f1c27d');
+        return spot(seatedAt(s.currentRoom, seat, p), p.flip, SIZE_SCALE[size] ?? 1, seat, (look?.look2 && look.look2.skin) || look?.skin || '#f1c27d', !!look?.look2);
       }
     }
     return null;

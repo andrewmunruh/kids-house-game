@@ -44,6 +44,10 @@
 /* Full-quality walk: arms swing outward only. Right arm uses a negative angle. */
 .chibi-move .arm.l { animation: armOutL .76s ease-in-out infinite alternate; animation-delay: -.38s; }
 .chibi-move .arm.r { animation: armOutR .76s ease-in-out infinite alternate; }
+/* The swing is a CSS transform on the arm group. On a short sleeve that transform-origin
+   is read in CSS pixels once the stage is scaled down, and the sleeve leaves her shoulder.
+   The sleeve keeps the SVG pose instead, so it stays on the arm after she puts the baby down. */
+.chibi-move .arm.sleeve { animation: none; }
 .chibi-move .leg.l { animation: legStepL .76s ease-in-out infinite alternate; }
 .chibi-move .leg.r { animation: legStepR .76s ease-in-out infinite alternate; animation-delay: -.38s; }
 @keyframes armOutL { from { transform: rotate(2deg); } to { transform: rotate(16deg); } }

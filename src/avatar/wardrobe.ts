@@ -24,7 +24,7 @@ function clothTube(d: string, color: string, w: number): string {
 }
 
 function sleeve(side: 'l' | 'r', inner: string, pose: Pose): string {
-  return limb('arm', side, inner, pose);
+  return limb('arm', side, inner, pose).replace('class="arm ', 'class="arm sleeve ');
 }
 
 function shortSleeve(side: 'l' | 'r', pose: Pose, trim = false): string {

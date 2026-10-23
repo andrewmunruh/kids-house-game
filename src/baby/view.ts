@@ -26,6 +26,14 @@ const CRADLE_W = 80;
 const CRADLE_H = 57;
 const CRADLE_X = 60;
 const CRADLE_Y = 133;
+/**
+ * Chibi's shirt is about x 40–80 in the same doll box, and her shoulders sit higher.
+ * The classic slot is twice that shirt and hangs to her hip, so chibi uses her own.
+ */
+const CHIBI_W = 42;
+const CHIBI_H = 30;
+const CHIBI_X = 60;
+const CHIBI_Y = 129;
 const CARES: BabyCare[] = ['feed', 'burp', 'change', 'rock'];
 const PRESETS = ['Bean', 'Pip', 'Mochi', 'Bunny', 'Dot', 'Sunny'];
 
@@ -42,6 +50,8 @@ export interface HolderSpot {
   lieFlip?: boolean;
   /** The holder's skin. The cradle arms use it so they match her sleeves. */
   skin?: string;
+  /** Chibi's chest is narrower and higher, so her slot is not the classic one. */
+  chibi?: boolean;
 }
 
 export interface BabyHost {
@@ -91,10 +101,14 @@ export function installBaby(host: BabyHost): { render: () => void } {
   function cradleSpot(h: HolderSpot): { x: number; y: number; w: number; h: number } {
     const scale = h.scale && h.scale > 0 ? h.scale : 1;
     const pose = h.pose === 'sit' || h.pose === 'lie' ? h.pose : null;
-    const off = dollAnchorOffset(CRADLE_X, CRADLE_Y, pose, !!h.lieFlip, scale);
+    const cx = h.chibi ? CHIBI_X : CRADLE_X;
+    const cy = h.chibi ? CHIBI_Y : CRADLE_Y;
+    const cw = h.chibi ? CHIBI_W : CRADLE_W;
+    const ch = h.chibi ? CHIBI_H : CRADLE_H;
+    const off = dollAnchorOffset(cx, cy, pose, !!h.lieFlip, scale);
     const dx = pose === 'lie' ? off.x : (h.flip ? -off.x : off.x);
-    const w = CRADLE_W * scale;
-    const hh = CRADLE_H * scale;
+    const w = cw * scale;
+    const hh = ch * scale;
     return { x: h.x + dx, y: h.y + off.y + hh / 2, w, h: hh };
   }
 
@@ -403,11 +417,13 @@ export function installBaby(host: BabyHost): { render: () => void } {
       const at = h ? cradleSpot(h) : null;
       const x = at ? at.x : b.x;
       const y = at ? at.y : b.y;
-      place(node, x, y, at ? at.w : CRADLE_W, at ? at.h : CRADLE_H);
+      const bw = at ? at.w : CRADLE_W;
+      const bh = at ? at.h : CRADLE_H;
+      place(node, x, y, bw, bh);
       node.style.zIndex = String(5000 + Math.round(h ? h.y : b.y) + 2);
       node.classList.add('baby-cradle');
-      node.style.setProperty('--spin-w', (CRADLE_H / CRADLE_W * 100).toFixed(4) + '%');
-      node.style.setProperty('--spin-h', (CRADLE_W / CRADLE_H * 100).toFixed(4) + '%');
+      node.style.setProperty('--spin-w', (bh / bw * 100).toFixed(4) + '%');
+      node.style.setProperty('--spin-h', (bw / bh * 100).toFixed(4) + '%');
       if (h && h.pose === 'lie') node.classList.add('cradle-lie');
       if (h && (h.pose === 'lie' ? h.lieFlip : h.flip)) node.classList.add('flipped');
       return;

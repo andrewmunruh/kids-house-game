@@ -21,11 +21,13 @@
 .baby.baby-cradle.cradle-lie .babySpin,
 .baby.baby-cradle.cradle-lie.flipped .babySpin { transform: translate(-50%, -50%) rotate(90deg); }
 .baby.baby-cradle.cradle-lie.flipped { transform: matrix(0, -1, -1, 0, 0, 0); transform-origin: 50% 50%; }
-/* Hanging arms stay in the drawing. They hide only while she is cradling. */
+/* Hanging arms stay in the drawing. They hide only while she is cradling.
+   visibility keeps the sleeve strokes in layout, so putting her down shows all four
+   arm parts in the same frame. display:none dropped the stroke boxes in Chromium. */
 .char.holding .arm.hang,
 .char.holding .hand.hang,
 .avatar.holding .arm.hang,
-.avatar.holding .hand.hang { display: none; }
+.avatar.holding .hand.hang { visibility: hidden; }
 .arm.cradle { animation: none; pointer-events: none; }
 .char.holding > .inner,
 .char.avatar.holding > .inner { animation: none; transition: none; }

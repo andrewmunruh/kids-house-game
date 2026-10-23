@@ -70,8 +70,10 @@ export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 
 
 /** The arm that rests on the blanket, in a layer above the baby. */
 export function cradleFrontSVG(c: Pick<Character, 'skin'> & { look2?: Look2 | null }, poseName?: 'sit' | 'lie' | null): string {
-  if (c.look2) return chibiCradleFront(c.look2, poseName);
   const pose = poseName === 'sit' || poseName === 'lie' ? poseName : null;
+  // Lying: the far arm crosses her face. Only the near arm and hand stay.
+  if (pose === 'lie') return '';
+  if (c.look2) return chibiCradleFront(c.look2, poseName);
   return `<svg viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">${cradleArm('over', false, cradleSkin(c.skin), pose)}</svg>`;
 }
 

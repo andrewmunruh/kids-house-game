@@ -273,13 +273,16 @@ async function main() {
   const handPts = (svg: string) => [...svg.matchAll(/class="cradle-hand" data-cx="([\d.]+)" data-cy="([\d.]+)"/g)].map(m => [Number(m[1]), Number(m[2])]);
   const inBox = (pts: number[][], x0: number, y0: number, x1: number, y1: number) => pts.length === 2 && pts.every(p => p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1);
   const classicBox = [20, 90, 80, 132];
-  const chibiBox = [40, 180, 160, 262];
+  const chibiBox = [60, 185, 140, 242];
+  const oneIn = (pts: number[][], x0: number, y0: number, x1: number, y1: number) => pts.length === 1 && pts.every(p => p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1);
   check('classic cradle hands sit on the bundle', inBox(handPts(heldSvg + front), classicBox[0], classicBox[1], classicBox[2], classicBox[3]));
   const classicLie = characterSVG(look, 'lie', true) + cradleFrontSVG(look, 'lie');
-  check('classic lying hands sit on the bundle', inBox(handPts(classicLie), classicBox[0], classicBox[1], classicBox[2], classicBox[3]));
+  check('classic lying keeps the near hand and hides the arm across her face', cradleFrontSVG(look, 'lie') === '' && oneIn(handPts(classicLie), classicBox[0], classicBox[1], classicBox[2], classicBox[3]));
   check('chibi cradle hands sit on the bundle and she wears her sleeves', inBox(handPts(heldChibi + chibiFront), chibiBox[0], chibiBox[1], chibiBox[2], chibiBox[3]) && heldChibi.indexOf('stroke="#ff7aa8"') >= 0 && chibiFront.indexOf('stroke="#ff7aa8"') >= 0 && heldChibi.indexOf('<path class="cradle-hand"') >= 0);
   const chibiLie = characterSVG(chibiLook, 'lie', true) + cradleFrontSVG(chibiLook, 'lie');
-  check('chibi lying hands sit on the bundle', inBox(handPts(chibiLie), chibiBox[0], chibiBox[1], chibiBox[2], chibiBox[3]));
+  check('chibi lying keeps the near hand and hides the arm across her face', cradleFrontSVG(chibiLook, 'lie') === '' && oneIn(handPts(chibiLie), chibiBox[0], chibiBox[1], chibiBox[2], chibiBox[3]));
+  const down = characterSVG(chibiLook, null, false);
+  check('a chibi who is not holding has both sleeves and both mittens', armCount(down, 'arm sleeve l hang') === 1 && armCount(down, 'arm sleeve r hang') === 1 && (down.match(/class="hand"/g) || []).length >= 2);
 
   console.log(pass + ' passed');
 }

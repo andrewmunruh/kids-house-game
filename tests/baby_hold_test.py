@@ -265,17 +265,67 @@ CRADLE_JS = """(sel) => {
   const over = visible.filter(function (n) { return front && front.contains(n); });
   const overR = over[0] ? over[0].getBoundingClientRect() : null;
   const overOn = !!(overR && overR.width > 4 && overR.left < artR - 2 && overR.right > artL + 2 && overR.top < artB - 2 && overR.bottom > artT + 2);
-  const armsOk = visible.length === 2 && under.length === 1 && over.length === 1 && hangingHidden && overOn && visible.every(function (n) { return n.classList.contains('cradle'); });
+  const lying = pose === 'lie';
+  const armsOk = lying
+    ? visible.length === 1 && under.length === 1 && over.length === 0 && hangingHidden && visible.every(function (n) { return n.classList.contains('cradle'); })
+    : visible.length === 2 && under.length === 1 && over.length === 1 && hangingHidden && overOn && visible.every(function (n) { return n.classList.contains('cradle'); });
   const handNodes = [...holder.querySelectorAll('.cradle-hand')].concat(front ? [...front.querySelectorAll('.cradle-hand')] : []);
   const handPts = handNodes.map(function (n) {
     const r = n.getBoundingClientRect();
     return [(r.left + r.right) / 2, (r.top + r.bottom) / 2];
   });
-  const handsIn = handPts.length === 2 && handPts.every(function (p) { return pip(corners, p[0], p[1]); });
+  const handsIn = handPts.length === (lying ? 1 : 2) && handPts.every(function (p) { return pip(corners, p[0], p[1]); });
   const crown = at((minx + maxx) / 2 / iw, miny / ih);
   const soles = at((minx + maxx) / 2 / iw, (maxy + 1) / ih);
   const headUp = crown[1] <= soles[1] + 8;
-  const sizeOk = frac >= 0.80 && frac <= 0.90;
+  const chibi = !!holder.querySelector('svg[data-chibi]');
+  let sizeRatio = frac;
+  let sizeOk = frac >= 0.80 && frac <= 0.90;
+  if (chibi) {
+    const cA = map(39.6, 129), cB = map(80.4, 129);
+    const chest = Math.hypot(cB[0] - cA[0], cB[1] - cA[1]) || 1;
+    sizeRatio = extent / chest;
+    const mid = [(artL + artR) / 2, (artT + artB) / 2];
+    const chestBox = [[36, 108], [84, 108], [84, 148], [36, 148]].map(function (p) { return map(p[0], p[1]); });
+    const onChest = pip(chestBox, mid[0], mid[1]) || distEdge(chestBox, mid[0], mid[1]) < 6;
+    sizeOk = sizeRatio >= 0.82 && sizeRatio <= 1.12 && onChest;
+  }
+  const spanX = Math.max(1, maxx - minx), spanY = Math.max(1, maxy - miny);
+  const face = [
+    at((minx + spanX * 0.18) / iw, (miny + spanY * 0.04) / ih),
+    at((minx + spanX * 0.82) / iw, (miny + spanY * 0.04) / ih),
+    at((minx + spanX * 0.82) / iw, (miny + spanY * 0.26) / ih),
+    at((minx + spanX * 0.18) / iw, (miny + spanY * 0.26) / ih),
+  ];
+  function nearFace(x, y, pad) {
+    if (pip(face, x, y)) return true;
+    return distEdge(face, x, y) <= pad;
+  }
+  let armFace = false;
+  for (let ai = 0; ai < visible.length && !armFace; ai++) {
+    const shapes = [...visible[ai].querySelectorAll('path, circle, ellipse')];
+    for (let si = 0; si < shapes.length && !armFace; si++) {
+      const sh = shapes[si];
+      const sw = parseFloat(sh.getAttribute('stroke-width') || '0');
+      const m = sh.getScreenCTM();
+      const sc = m ? Math.hypot(m.a, m.c) : 1;
+      const pad = Math.max(1.5, sw * sc * 0.35);
+      if (sh.tagName === 'circle' || sh.tagName === 'ellipse') {
+        const r = sh.getBoundingClientRect();
+        if (nearFace((r.left + r.right) / 2, (r.top + r.bottom) / 2, Math.max(pad, Math.min(r.width, r.height) / 2))) armFace = true;
+      } else if (sh.getTotalLength) {
+        const len = sh.getTotalLength();
+        const steps = 12;
+        for (let i = 0; i <= steps && !armFace; i++) {
+          const p = sh.getPointAtLength(len * i / steps);
+          if (!m) continue;
+          const x = m.a * p.x + m.c * p.y + m.e;
+          const y = m.b * p.x + m.d * p.y + m.f;
+          if (nearFace(x, y, pad)) armFace = true;
+        }
+      }
+    }
+  }
   const cradle = baby.classList.contains('baby-cradle');
   let why = '';
   if (outside.length) why = 'torso';
@@ -285,12 +335,14 @@ CRADLE_JS = """(sel) => {
   else if (!armsOk) why = 'arms';
   else if (!handsIn) why = 'hands';
   else if (!headUp) why = 'headup';
+  else if (armFace) why = 'face';
   return {
-    ok: outside.length === 0 && !overlap && sizeOk && cradle && armsOk && handsIn && headUp,
-    why, pose, lieFlip, doll: Math.round(doll * 100) / 100,
+    ok: outside.length === 0 && !overlap && sizeOk && cradle && armsOk && handsIn && headUp && !armFace,
+    why, pose, lieFlip, doll: Math.round(doll * 100) / 100, chibi,
     arms: visible.length, hang: hanging.length, under: under.length, over: over.length,
-    hands: handPts.length, headUp,
+    hands: handPts.length, headUp, armFace,
     frac: Math.round(frac * 1000) / 1000,
+    chest: Math.round(sizeRatio * 1000) / 1000,
     px: Math.round(extent * 10) / 10,
     torso: Math.round(alen * 10) / 10,
     art: { w: Math.round((artR - artL) * 10) / 10, h: Math.round((artB - artT) * 10) / 10 },
@@ -336,6 +388,51 @@ async def closeup(pg, name):
     }""")
     if box and box['width'] > 24 and box['height'] > 24:
         await pg.screenshot(path=os.path.join(OUT, name), clip=box)
+
+async def chibi_putdown(pg, browser_name):
+    """Hold and release a chibi at the phone size where sleeves used to vanish."""
+    await pg.set_viewport_size({'width': 430, 'height': 932})
+    await pg.wait_for_timeout(280)
+    await dismiss(pg)
+    info = await pg.evaluate("""() => {
+      const s = __store;
+      const kid = s.get().characters[0];
+      const look2 = __avatar.look2FromLegacy(kid);
+      s.dispatch({ type: 'room/switch', room: 'nursery' });
+      s.dispatch({ type: 'char/update', id: kid.id, patch: { size: 'kid', flip: false, look2 } });
+      s.dispatch({ type: 'char/move', id: kid.id, room: 'nursery', x: 700, y: 540, seat: null });
+      if (!s.get().baby) s.dispatch({ type: 'baby/meet', now: Date.now() });
+      const shown = (n) => {
+        const st = getComputedStyle(n);
+        if (st.display === 'none' || st.visibility === 'hidden' || parseFloat(st.opacity) === 0) return false;
+        const r = n.getBoundingClientRect();
+        return r.width > 1 && r.height > 1;
+      };
+      let bad = 0;
+      let last = null;
+      for (let i = 0; i < 8; i++) {
+        s.dispatch({ type: 'baby/hold', holder: kid.id, room: 'nursery', x: 700, y: 480, now: Date.now() });
+        s.dispatch({ type: 'baby/hold', holder: null, room: 'nursery', x: 700, y: 540, now: Date.now() });
+        const holder = document.querySelector('#stage .char');
+        const hang = holder ? [...holder.querySelectorAll('.arm.hang')] : [];
+        const sleeves = holder ? [...holder.querySelectorAll('.arm.sleeve')] : [];
+        const mittens = holder ? [...holder.querySelectorAll('.arm.hang path.hand')] : [];
+        last = {
+          hang: hang.length,
+          hangShown: hang.filter(shown).length,
+          sleeves: sleeves.length,
+          sleevesShown: sleeves.filter(shown).length,
+          mittens: mittens.length,
+          mittensShown: mittens.filter(shown).length,
+          cradle: document.querySelectorAll('.arm.cradle, .cradle-front').length,
+          holding: !!(holder && holder.classList.contains('holding')),
+          chibi: !!(holder && holder.querySelector('svg[data-chibi]')),
+        };
+        if (last.hang !== 4 || last.hangShown !== 4 || last.sleeves !== 2 || last.sleevesShown !== 2 || last.mittensShown < 2 || last.cradle !== 0 || last.holding || !last.chibi) bad++;
+      }
+      return { bad, last };
+    }""")
+    check(browser_name + ' 430x932 chibi put-down brings back 4 arms, sleeves, and mittens', bool(info) and info.get('bad') == 0, str(info))
 
 async def cradle_check(pg, browser_name, sel='#stage .char'):
     await pg.evaluate("""() => {
@@ -406,6 +503,7 @@ async def cradle_check(pg, browser_name, sel='#stage .char'):
                 await pg.screenshot(path=os.path.join(OUT, 'after-820x1180-lie-flip.png'))
             if browser_name == 'chromium' and (w, h) == (820, 1180) and pose == 'stand' and size in ('little', 'adult') and not face_left and not chibi:
                 await pg.screenshot(path=os.path.join(OUT, f'after-820x1180-{size}.png'))
+    await chibi_putdown(pg, browser_name)
     if browser_name == 'chromium':
         await pg.set_viewport_size({'width': 1180, 'height': 820})
         await pg.wait_for_timeout(200)
