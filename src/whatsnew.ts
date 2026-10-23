@@ -44,9 +44,13 @@ const padsArt = `<svg viewBox="0 0 120 100"><rect x="16" y="18" width="36" heigh
 const menuArt = `<svg viewBox="0 0 120 100"><rect x="28" y="16" width="64" height="72" rx="16" fill="#fff" stroke="${O}" stroke-width="4"/><path d="M40 36 H80 M40 52 H80 M40 68 H80" fill="none" stroke="${O}" stroke-width="5" stroke-linecap="round"/><circle cx="92" cy="24" r="12" fill="#ff6b9a" stroke="${O}" stroke-width="3"/><text x="92" y="29" text-anchor="middle" font-size="14" font-weight="900" fill="#fff" font-family="Nunito, ui-rounded, system-ui, sans-serif">1</text></svg>`;
 const skyArt = `<svg viewBox="0 0 120 100"><rect x="6" y="10" width="108" height="80" rx="18" fill="#2a2158" stroke="${O}" stroke-width="4"/><circle cx="34" cy="42" r="14" fill="#ffd166" stroke="${O}" stroke-width="3"/><path d="M78 28 a16 16 0 1 0 0 32 a12 12 0 1 1 0 -32z" fill="#fff6e4" stroke="${O}" stroke-width="3"/><circle cx="92" cy="30" r="2" fill="#fff"/><circle cx="70" cy="24" r="1.6" fill="#fff"/><circle cx="100" cy="48" r="1.6" fill="#fff"/></svg>`;
 const clockArt = `<svg viewBox="0 0 120 100"><circle cx="60" cy="52" r="34" fill="#fff6e4" stroke="${O}" stroke-width="4"/><path d="M60 52 V32 M60 52 L76 60" stroke="${O}" stroke-width="4" stroke-linecap="round"/><circle cx="60" cy="52" r="3" fill="${O}"/><path d="M28 22 l4 6 M92 22 l-4 6" stroke="#ffb15c" stroke-width="4" stroke-linecap="round"/></svg>`;
+const winterArt = `<svg viewBox="0 0 120 100"><path d="M60 18 L72 46 H96 L78 62 L84 90 L60 74 L36 90 L42 62 L24 46 H48 Z" fill="#ffd166" stroke="${O}" stroke-width="4" stroke-linejoin="round"/><path d="M60 48 L28 92 H92 Z" fill="#2f6b4f" stroke="${O}" stroke-width="4" stroke-linejoin="round"/><rect x="52" y="88" width="16" height="8" rx="2" fill="#c44558" stroke="${O}" stroke-width="3"/></svg>`;
 // Release B2 shares one v9 entry: the Menu, and the day/night clock.
 // Winter Cheer is v10. Critter Corner is v11.
 export const CHANGELOG: ChangeEntry[] = [
+  { v: 10, title: 'Winter Cheer!', lines: [
+    { art: wrap(winterArt), text: 'The <b>Winter Cheer</b> pack is in your drawer!' },
+  ] },
   { v: 9, title: "Everything's tidied into the Menu!", lines: [
     { art: wrap(menuArt), text: "Everything's tidied into the <b>Menu</b>!" },
     { art: wrap(skyArt), text: 'The world follows the <b>clock</b>: morning, day, golden evening, and night.' },
@@ -117,7 +121,7 @@ export function markSeen() { try { localStorage.setItem(SEEN_KEY, String(LATEST)
 export function whatsNewHTML(kind: 'welcome' | 'news', entries: ChangeEntry[]): string {
   const title = kind === 'welcome' ? WELCOME.title : entries[0].title;
   const lines = entries.flatMap(e => e.lines).slice(0, 5); // newest first, never a wall of text
-  return `<div class="wnBadge">${kind === 'welcome' ? pawIcon : entries[0].v >= 9 ? menuArt : entries[0].v >= 8 ? shirtArt : entries[0].v >= 7 ? cribArt : entries[0].v >= 6 ? clubIcon : entries[0].v >= 5 ? brushArt : entries[0].v >= 4 ? mapIcon : entries[0].v >= 3 ? rainbowIcon : treeIcon}</div>
+  return `<div class="wnBadge">${kind === 'welcome' ? pawIcon : entries[0].v >= 10 ? winterArt : entries[0].v >= 9 ? menuArt : entries[0].v >= 8 ? shirtArt : entries[0].v >= 7 ? cribArt : entries[0].v >= 6 ? clubIcon : entries[0].v >= 5 ? brushArt : entries[0].v >= 4 ? mapIcon : entries[0].v >= 3 ? rainbowIcon : treeIcon}</div>
     <h2 class="wnTitle">${title}</h2>
     <div class="wnList ${lines.length > 3 ? 'many' : ''}">${lines.map((l, i) => `<div class="wnLine" style="animation-delay:${0.15 + i * 0.18}s">${l.art}<p>${l.text}</p></div>`).join('')}</div>
     <button class="wnGo" id="wnGo">Let's play!</button>`;

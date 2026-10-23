@@ -26,6 +26,7 @@ ART = {
     'pack:canopy-bed': 'assets/art/bedroom/pack~canopy-bed.webp',
     'pack:cc-heart-bed': 'assets/art/bedroom/pack~cc-heart-bed.webp',
     'pack:cc-canopy-daybed': 'assets/art/bedroom/pack~cc-canopy-daybed.webp',
+    'pack:wc-plaid-bed': 'assets/art/winter/pack~wc-plaid-bed.webp',
 }
 problems = []
 
@@ -41,6 +42,8 @@ def pillow_ok(kind, c):
     if 'wooden' in kind: return r > 180 and g > 140 and L > 150
     if 'bunk' in kind: return L > 170 and r > 170
     if 'heart' in kind: return L > 150 and b > 140
+    # Red plaid quilt, cream pillow: the pillow is light but not the default red-white.
+    if 'wc-plaid' in kind: return L > 170 and r > 175 and g > 155
     return L > 160 and r > 190
 
 def sample_ok(kind, fx, fy, flip=False):

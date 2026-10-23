@@ -4341,7 +4341,8 @@ bindGameRoom({
 
 // Paintings for items already in the save (any room, or in a hand) load once,
 // after the SVG is already on screen. Shelf cards load the same painting when
-// they scroll near the tray, two at a time. ?art=v1 never asks for the files.
+// they scroll near the tray, two at a time. ?art=v1 never asks for the raster
+// files. Winter Cheer has no SVG, so v1 still loads those pack WebPs.
 function artKinds(s: GameState): string[] {
   const kinds = new Set<string>();
   for (const room of Object.values(s.rooms)) for (const item of room.items) kinds.add(item.kind);

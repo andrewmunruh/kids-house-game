@@ -6,7 +6,8 @@
 #           sign-in token and street membership must be identical.
 #  Phase C  the PREVIEW build (prefixed keys) opened on the same origin must not change a single production key.
 # Usage: migration_test.py
-#   The old build is origin/main 29836e6: nursery and backyard already exist (the yard is empty).
+#   Against 29836e6 the nursery and an empty backyard are already stored.
+#   A pre-nursery tree (no nursery tab, no chibi, no mail) gains the current starters instead.
 #   Ports and directories are parameters (flags or env), with the historical defaults:
 #     --prod-tree / PROD_TREE       --prod-dist / PROD_DIST
 #     --new-dist / NEW_DIST         --preview-dist / PREVIEW_DIST
@@ -94,6 +95,18 @@ def serve_build(dist):  # "deploy": swap what the web server serves at /kids-hou
 WN_LATEST = __import__('re').search(r'CHANGELOG: ChangeEntry\[\] = \[\s*\{\s*v:\s*(\d+)', open(__import__('os').path.dirname(__import__('os').path.abspath(__file__)) + '/src/whatsnew.ts').read()).group(1)
 OLD_MAIN = open(PROD_TREE + '/src/main.ts').read()
 OLD_HAS_MAP = 'id="btnMap"' in OLD_MAIN  # map era (1b33280+): joining lands on the map, the ranch is reached from the map
+def _prod_text(*rels):
+    chunks = []
+    for rel in rels:
+        p = os.path.join(PROD_TREE, rel)
+        if os.path.exists(p): chunks.append(open(p, encoding='utf-8').read())
+    return '\n'.join(chunks)
+_rooms_src = __import__('re').search(r"const ROOMS\s*:[^=]*=\s*\[(.*?)\];", OLD_MAIN, __import__('re').S)
+OLD_ROOM_NAMES = __import__('re').findall(r"name:\s*'([^']+)'", _rooms_src.group(1)) if _rooms_src else []
+OLD_HAS_NURSERY = any('Nursery' in n for n in OLD_ROOM_NAMES)
+OLD_HAS_CHIBI = 'data-chibi' in _prod_text('src/avatar/draw.ts', 'src/character.ts')
+OLD_HAS_MAIL = 'mapMail' in _prod_text('src/main.ts', 'src/map.ts')
+OLD_TAB_COUNT = len(OLD_ROOM_NAMES) or (5 if OLD_HAS_NURSERY else 4)
 WN_OLD = __import__('re').search(r'CHANGELOG: ChangeEntry\[\] = \[\s*\{\s*v:\s*(\d+)', open(PROD_TREE + '/src/whatsnew.ts').read()).group(1)  # old (production) build's latest What's new
 async def adult(pg):
     await pg.wait_for_selector('.adultCard .q'); q = int(await pg.get_attribute('.adultCard .q', 'data-q'))
@@ -113,7 +126,13 @@ LS = "Object.fromEntries(Object.keys(localStorage).sort().map(k => [k, localStor
 OLD_ROOMS = ('living', 'bedroom', 'kitchen', 'salon')
 BOTH_ROOMS = ('living', 'bedroom', 'kitchen', 'salon', 'nursery', 'backyard')
 STARTER_KINDS = ['cloud-rug', 'crib', 'crib-mobile', 'rocker']
+YARD_STARTER_IDS = ['yard-bench-1', 'tulip-bed-2']
 BATH_KINDS = ['bath-mat', 'shower-curtain', 'soaking-tub', 'rubber-ducky', 'bath-toilet', 'sink-vanity', 'bath-mirror', 'towel-bar']
+def expect_yard_ids(rooms):
+    """A missing backyard is filled from current main. A stored yard, even empty, stays."""
+    if not isinstance(rooms, dict) or 'backyard' not in rooms:
+        return list(YARD_STARTER_IDS)
+    return [i.get('id') for i in (rooms.get('backyard') or {}).get('items') or []]
 def items_of(snap, rooms=None):
     return {hid: sorted((r, i['id'], i['kind'], round(i['x']), round(i['y'])) for r, room in h['view']['rooms'].items() if rooms is None or r in rooms for i in room['items']) for hid, h in snap['houses'].items()}
 def house_body(view):
@@ -267,13 +286,18 @@ async def main():
                 if fields or rooms or towers or set(OLD_ROOMS) - set(shared):
                     rooms_ok = False
                     room_notes.append(f'{hid}: fields={fields} rooms={rooms} towers={towers}')
-            # 29836e6 already stores a nursery and an empty backyard. Older baselines gain them here.
+            # 29836e6 already stores a nursery and an empty backyard. A pre-nursery save gains the current starters.
             already = all('nursery' in h['view']['rooms'] and 'backyard' in h['view']['rooms'] for h in snap_a['houses'].values())
-            gained = already or all(
-                h['view']['rooms'].get('nursery') and [i['kind'] for i in h['view']['rooms']['nursery']['items']] == STARTER_KINDS
-                and h['view']['rooms'].get('backyard', {}).get('items') == []
-                and (h['view'].get('dogKennel') or None) is None
-                for h in snap_b['houses'].values()) and all('nursery' not in h['view']['rooms'] and 'backyard' not in h['view']['rooms'] for h in snap_a['houses'].values())
+            def filled_new_rooms(hid, hb):
+                before = snap_a['houses'][hid]['view']['rooms']
+                after = hb['view']['rooms']
+                nursery_ok = [i['kind'] for i in after.get('nursery', {}).get('items') or []] == STARTER_KINDS
+                yard_ok = [i['id'] for i in after.get('backyard', {}).get('items') or []] == expect_yard_ids(before)
+                kennel_ok = (hb['view'].get('dogKennel') or None) is None
+                return nursery_ok and yard_ok and kennel_ok
+            gained = already or (
+                all(filled_new_rooms(hid, h) for hid, h in snap_b['houses'].items())
+                and all('nursery' not in h['view']['rooms'] and 'backyard' not in h['view']['rooms'] for h in snap_a['houses'].values()))
             check('every room is identical (items, positions, flips, paint, characters, cats, pets, kennel, cat tower)',
                   rooms_ok and gained, ('; '.join(room_notes) + f' {n_items_a} items').strip())
             check('every kid identical (name, look, dog, basket, house)', snap_a['players'] == snap_b['players'])
@@ -316,8 +340,8 @@ async def main():
             await solo.goto(f'{BASE}/kids-house-game/?hood=http://localhost:{PORT_HOOD}'); await solo.wait_for_selector('#stage .char'); await solo.wait_for_timeout(400)
             solo_now = await solo.evaluate("""() => { const s = __store.get(); const sized = Object.values(s.rooms).some(r => r.items.some(i => 'size' in i)); return { v: s.version, old: Object.fromEntries(['living','bedroom','kitchen','salon'].map(r => [r, s.rooms[r].items.map(i => i.id)])), nursery: s.rooms.nursery.items.map(i => i.kind), bath: s.rooms.bathroom.items.map(i => i.kind), yard: s.rooms.backyard.items.map(i => i.id), sized, tabs: [...document.querySelectorAll('.tab')].map(t => t.textContent.trim()) }; }""")
             solo_old = {r: [i['id'] for i in solo_a['rooms'][r]['items']] for r in solo_a['rooms'] if r in solo_now['old']}
-            solo_yard = [i['id'] for i in solo_a['rooms'].get('backyard', {}).get('items', [])]
-            check('an old solo save keeps its nursery and its saved yard', solo_now['v'] == 3 and solo_now['nursery'] == STARTER_KINDS and solo_now['yard'] == solo_yard and all(sorted(solo_now['old'][r]) == sorted(solo_old[r]) for r in solo_old) and 'Nursery' in solo_now['tabs'] and solo_now['tabs'][-1] == 'Bathroom')
+            expect_solo_yard = expect_yard_ids(solo_a.get('rooms'))
+            check('an old solo save keeps its nursery and its saved yard', solo_now['v'] == 3 and solo_now['nursery'] == STARTER_KINDS and solo_now['yard'] == expect_solo_yard and all(sorted(solo_now['old'][r]) == sorted(solo_old[r]) for r in solo_old) and 'Nursery' in solo_now['tabs'] and solo_now['tabs'][-1] == 'Bathroom')
             check('an old solo save gains the bathroom and items stay at 1x', solo_now['bath'] == BATH_KINDS and solo_now['sized'] is False, str(solo_now.get('bath')))
             follow = await solo.evaluate("""() => { const s = __store.get(); const p = __pets(); return { kennel: s.dogKennel || null, name: s.dog && s.dog.name, following: p.dogs.indexOf('solo') >= 0, shown: p.kennel }; }""")
             check('an old save loads with the dog following', not follow['kennel'] and follow['name'] == 'Rocket' and follow['following'] and not follow['shown'], str(follow))
@@ -383,16 +407,31 @@ async def main():
             except Exception:
                 await P.screenshot(path='/tmp/mig-old-client.png'); raise
             old_tabs = await P.locator('.tab').all_inner_texts()
-            check('baseline client shows the nursery tab and no yard tab', len(old_tabs) == 5 and any('Nursery' in t for t in old_tabs) and not any('Yard' in t or 'Backyard' in t for t in old_tabs), str(old_tabs))
+            has_nursery_tab = any('Nursery' in t for t in old_tabs)
+            has_yard_tab = any('Yard' in t or 'Backyard' in t for t in old_tabs)
+            if OLD_HAS_NURSERY:
+                check('baseline client shows the nursery tab and no yard tab', len(old_tabs) == OLD_TAB_COUNT and has_nursery_tab and not has_yard_tab, str(old_tabs))
+            else:
+                check('baseline client keeps its own rooms and has no nursery or yard tab', len(old_tabs) == OLD_TAB_COUNT and not has_nursery_tab and not has_yard_tab, str(old_tabs))
             face = await P.evaluate("""() => { const svg = document.querySelector('.mapFace.mine svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
-            check('baseline client draws the new kid as a chibi', face == '1' and not old_errs, str(face) + ' ' + '; '.join(old_errs[:2]))
+            if OLD_HAS_CHIBI:
+                check('baseline client draws the new kid as a chibi', face == '1' and not old_errs, str(face) + ' ' + '; '.join(old_errs[:2]))
+            else:
+                check('baseline client draws the kid', face != 'missing' and not old_errs, str(face) + ' ' + '; '.join(old_errs[:2]))
             os.makedirs('/opt/cursor/artifacts', exist_ok=True)
             await P.click('#mapWorld .mapHouse.mine'); await P.wait_for_timeout(900)
             body = await P.evaluate("""() => { const svg = document.querySelector('.char.avatar.mine svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
-            check('baseline client house body is a chibi', body == '1' and not old_errs, str(body))
+            if OLD_HAS_CHIBI:
+                check('baseline client house body is a chibi', body == '1' and not old_errs, str(body))
+            else:
+                check('baseline client house body draws', body != 'missing' and not old_errs, str(body))
             await P.screenshot(path='/opt/cursor/artifacts/old-client-view.png')
             await P.click('#btnMap'); await P.wait_for_timeout(500)
-            check('baseline client shows mailboxes', await P.locator('.mapMail').count() >= 1)
+            mail_n = await P.locator('.mapMail').count()
+            if OLD_HAS_MAIL:
+                check('baseline client shows mailboxes', mail_n >= 1)
+            else:
+                check('baseline client has no mailboxes', mail_n == 0)
             await P.evaluate("""() => {
               const L = __hood().players.get(__hood().pid).look;
               __hood().setLook({ skin: L.skin, hair: L.hair, hairStyle: L.hairStyle, shirt: '#80ed99', pants: L.pants, size: L.size, acc: L.acc });
@@ -407,7 +446,7 @@ async def main():
             prod_has_door = 'yardDoor' in OLD_MAIN
             want_door = 1 if prod_has_door else 0
             old_yard_door = await P.locator('.yardDoor').count()
-            check('old client shows five tabs and only its own baseline door after a friend fills the yard', old_tabs_house == 5 and old_door == want_door and old_yard_door == want_door and not old_errs, f'tabs={old_tabs_house} door={old_door} want={want_door} ' + '; '.join(old_errs[:2]))
+            check('old client shows its own tabs and only its baseline door after a friend fills the yard', old_tabs_house == OLD_TAB_COUNT and old_door == want_door and old_yard_door == want_door and not old_errs, f'tabs={old_tabs_house} wantTabs={OLD_TAB_COUNT} door={old_door} want={want_door} ' + '; '.join(old_errs[:2]))
             await P.evaluate("""() => { const h = __hood(), id = """ + json.dumps(k2house) + """; const kind = Object.keys(__items)[0]; h.dispatch(id, {type:'item/add', room:'living', item:{id:'old-client-edit', kind, x:440, y:520, flip:false}}); }""")
             await P.wait_for_timeout(900)
             k2_sees = await K2.evaluate("""() => { const s = __hood().view(""" + json.dumps(k2house) + """); return { edit: s.rooms.living.items.some(i => i.id === 'old-client-edit'), nursery: s.rooms.nursery.items.map(i => i.id) }; }""")
@@ -447,7 +486,7 @@ async def main():
             await rpg.evaluate("""() => __store.dispatch({type:'room/wallpaper', room:'living', color:'#ddeeff'})""")
             await rpg.wait_for_timeout(500)
             kept = await rpg.evaluate("""() => { const s = JSON.parse(localStorage.getItem('cozy-house')); const mail = (s.mailbox && s.mailbox.letters || [])[0]; return { tabs: [...document.querySelectorAll('.tab')].length, nursery: (s.rooms.nursery.items || []).map(i => i.id), yard: (s.rooms.backyard.items || []).map(i => i.id), wall: s.rooms.living.wallpaper, kennel: s.dogKennel || null, kennelItem: (s.rooms.living.items || []).some(i => i.id === 'keep-kennel'), mail: mail && mail.text, boxes: document.querySelectorAll('.mapMail').length }; }""")
-            check('baseline client draws the saved nursery and keeps the letter', kept['tabs'] == 5 and kept['nursery'] == ['keep-crib'] and kept['yard'] == ['keep-yard'] and kept['wall'] == '#ddeeff' and kept['kennel'] and kept['kennel']['item'] == 'keep-kennel' and kept['kennelItem'] and kept['mail'] == 'Hi from the mailbox' and kept['boxes'] == 0 and not any(e.startswith('rollback') for e in old_errs), str(kept))
+            check('baseline client draws the saved nursery and keeps the letter', kept['tabs'] == OLD_TAB_COUNT and kept['nursery'] == ['keep-crib'] and kept['yard'] == ['keep-yard'] and kept['wall'] == '#ddeeff' and kept['kennel'] and kept['kennel']['item'] == 'keep-kennel' and kept['kennelItem'] and kept['mail'] == 'Hi from the mailbox' and kept['boxes'] == 0 and not any(e.startswith('rollback') for e in old_errs), str(kept))
             await rb.close()
             serve_build(NEW_DIST)
             # ================= Phase C: preview build on the same origin =================

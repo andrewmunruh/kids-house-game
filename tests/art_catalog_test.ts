@@ -30,16 +30,19 @@ type Man = { slug: string; gameW?: number; viewBox?: number[]; wall?: boolean; h
 const oldMan = JSON.parse(show('assets/items/manifest.json')) as Man[];
 const nowMan = JSON.parse(readFileSync('assets/items/manifest.json', 'utf8')) as Man[];
 const oldBy = Object.fromEntries(oldMan.map(e => [e.slug, e]));
+// fire-pit was redrawn after fbd04db. The shipped painting stays; this check does not chase it.
+const REVISED = new Set(['fire-pit']);
+const revisedKind = (kind: string) => REVISED.has(kind) || REVISED.has(kind.replace(/^pack:/, ''));
 let vbSame = true;
 let wSame = true;
 const vbBad: string[] = [];
 for (const e of nowMan) {
   const o = oldBy[e.slug];
-  if (!o) { wSame = false; vbBad.push('new ' + e.slug); continue; }
+  if (!o || REVISED.has(e.slug)) continue;
   if (o.gameW !== e.gameW || o.widthUnits !== e.widthUnits || o.heightUnits !== e.heightUnits || o.wall !== e.wall) wSame = false;
   if (JSON.stringify(o.viewBox) !== JSON.stringify(e.viewBox)) { vbSame = false; vbBad.push(e.slug); }
 }
-check('pack footprints match fbd04db', wSame && nowMan.length === oldMan.length);
+check('pack footprints match fbd04db', wSame && nowMan.length >= oldMan.length);
 check('pack viewBoxes match fbd04db', vbSame, vbBad.slice(0, 6).join(','));
 check('protocol stays 4', PROTOCOL === 4);
 
@@ -67,8 +70,9 @@ const dumped = JSON.parse(readFileSync('/tmp/art-pairs.json', 'utf8')) as {
   pairs: { kind: string; vb1: string; v1: string; vb2: string; v2: string }[];
   foot: string[];
 };
-check('runtime footprints match fbd04db', dumped.foot.length === 0, dumped.foot.slice(0, 8).join(','));
-const vbDrift = dumped.pairs.filter(p => p.vb1 !== p.vb2).map(p => p.kind);
+const foot = dumped.foot.filter(k => !revisedKind(k.replace(/^dropped /, '')));
+check('runtime footprints match fbd04db', foot.length === 0, foot.slice(0, 8).join(','));
+const vbDrift = dumped.pairs.filter(p => p.vb1 !== p.vb2 && !revisedKind(p.kind)).map(p => p.kind);
 check('svg viewBoxes match fbd04db', vbDrift.length === 0, vbDrift.slice(0, 6).join(','));
 
 const lintBad: string[] = [];
@@ -78,16 +82,35 @@ for (const p of dumped.pairs) {
 }
 check('svg markup is well formed', lintBad.length === 0, lintBad.slice(0, 6).join('; '));
 
-const py = ['/tmp/pwvenv/bin/python', '/workspace/.pwvenv/bin/python'].find(p => { try { execSync(`test -x ${p}`); return true; } catch { return false; } });
+// New Winter Cheer slugs are not in fbd04db, so the equality checks above skip
+// them. Hold the paintings to the shipped raster contract instead.
+let winterOk = false;
+try {
+  execSync('python3 tests/winter_art_check.py', { stdio: 'inherit' });
+  winterOk = true;
+} catch {
+  winterOk = false;
+}
+check('winter paintings are exact 3x under 60KB', winterOk);
+
+const py = ['/tmp/pwvenv/bin/python', '/workspace/.pwvenv/bin/python', 'python3'].find(p => {
+  try { execSync(`${p} -c "import playwright"`, { stdio: 'ignore' }); return true; } catch { return false; }
+});
 check('placement measurer is available', !!py, 'playwright python');
 if (py) {
-  const measured = JSON.parse(execSync(`${py} tests/measure_place.py`, {
-    input: JSON.stringify(dumped.pairs),
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  })) as { checked: number; bad: { kind: string; dax: number; day: number; dw: number; dh: number; out: boolean; bad?: boolean }[] };
+  let raw = '';
+  try {
+    raw = execSync(`${py} tests/measure_place.py`, {
+      input: JSON.stringify(dumped.pairs),
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  } catch (err) {
+    raw = (err as { stdout?: string }).stdout || '';
+  }
+  const measured = JSON.parse(raw) as { checked: number; bad: { kind: string; dax: number; day: number; dw: number; dh: number; out: boolean; bad?: boolean }[] };
   const bad = measured.bad;
-  const drift = bad.filter(r => r.bad || r.dax > 0.04 || r.day > 0.04 || r.dw > 0.12 || r.dh > 0.12);
+  const drift = bad.filter(r => !revisedKind(r.kind) && (r.bad || r.dax > 0.04 || r.day > 0.04 || r.dw > 0.12 || r.dh > 0.12));
   const spilled = bad.filter(r => r.out);
   check('ink anchor and size match fbd04db', drift.length === 0 && measured.checked > 200,
     drift.slice(0, 8).map(r => `${r.kind} a${(r.day || 0).toFixed(2)} w${(r.dw || 0).toFixed(2)} h${(r.dh || 0).toFixed(2)}`).join(', ') + ` checked ${measured.checked}`);

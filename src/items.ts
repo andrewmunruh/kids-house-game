@@ -94,7 +94,8 @@ export const ITEM_MAP: Record<string, ItemDef> = Object.fromEntries(ITEMS.map(i 
 const esc = (t: string) => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 /** Height in room units (square unless the art says otherwise). */
 export const hOf = (d: ItemDef) => d.h ?? d.w;
-/** The drawing shipped before raster art: an inline SVG, or a pack image. */
+/** The drawing shipped before raster art: an inline SVG, or a pack image.
+ *  Winter Cheer is a pack WebP with no SVG, so ?art=v1 still loads that file. */
 export const svgMarkup = (d: ItemDef) => d.img
   ? `<img class="packimg" src="${esc(d.img)}" alt="${esc(d.name)}" draggable="false" />`
   : `<svg viewBox="${d.vb ?? '0 0 100 100'}" xmlns="http://www.w3.org/2000/svg">${d.svg}</svg>`;
@@ -110,6 +111,10 @@ export const svgOf = (d: ItemDef, shade = false) => {
   return `${shadow}${night}<img class="packimg artimg" data-kind="${esc(d.kind)}" src="${esc(url)}" alt="${esc(d.name)}" draggable="false" />`;
 };
 
+// A pack that ships only a painting has nothing to draw until that file decodes.
+// This tile is not item art. The painting replaces it, so the card never flashes empty.
+const PAINT_WAIT = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="22" y="22" width="56" height="56" rx="14" fill="#fff6ea" stroke="#5a3d5c" stroke-width="4"/></svg>`;
+
 /**
  * Shelf card markup: always the SVG first. When a painting exists, the shelf loads it
  * in a detached image and swaps it in only after it has loaded, so a card is never
@@ -117,6 +122,7 @@ export const svgOf = (d: ItemDef, shade = false) => {
  */
 export const shelfThumb = (d: ItemDef, painted: boolean) => {
   void painted;
+  if (d.img && /\.webp(?:$|\?)/i.test(d.img)) return PAINT_WAIT;
   return svgMarkup(d);
 };
 

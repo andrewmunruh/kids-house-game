@@ -5,7 +5,8 @@
 // Kinds already in the save, just placed, or scrolled onto the shelf are
 // fetched. The service worker serves /assets/art/ from its own cache, so the
 // page does not fetch a painting a second time. A missing file, a failed fetch,
-// or ?art=v1 leaves the item on its SVG.
+// or ?art=v1 leaves the item on its SVG. Winter Cheer has no SVG, so v1 still
+// requests that pack's WebP.
 import { setArtFromSearch } from './flag';
 import { rememberRaster } from './cache';
 

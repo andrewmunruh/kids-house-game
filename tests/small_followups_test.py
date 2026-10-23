@@ -182,8 +182,12 @@ async def check_window(pg, tag):
     await pg.evaluate("() => __sky.setChoice('day')")
 
 async def check_vase(pg, tag):
+    # Phone screenshots were sampling the wall beside the glass. Read the painted
+    # pixels from the image itself, and still require the vase to be on screen.
     await pg.evaluate("""() => {
       __store.dispatch({type:'room/switch', room:'salon'});
+      const kid = __store.get().characters[0];
+      if (kid) __store.dispatch({type:'char/move', id:kid.id, room:'bedroom', x:400, y:540, seat:null});
       if (!__store.get().rooms.salon.items.some(i => i.id === 'qa-vase'))
         __store.dispatch({type:'item/add', room:'salon', item:{id:'qa-vase', kind:'pack:bud-vase', x:1200, y:480, flip:false, z:1, scale:3}});
       const viewW = parseFloat(document.querySelector('.stage').style.width) || 1000;
@@ -194,20 +198,31 @@ async def check_vase(pg, tag):
       const img = document.querySelector('.item[data-id="qa-vase"] img');
       return img && img.complete && img.naturalWidth > 0;
     }""", timeout=5000)
+    await pg.wait_for_timeout(80)
     spot = await pg.evaluate("""() => {
-      const r = document.querySelector('.item[data-id="qa-vase"]').getBoundingClientRect();
+      const img = document.querySelector('.item[data-id="qa-vase"] img');
+      const r = img.getBoundingClientRect();
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      const g = c.getContext('2d');
+      g.drawImage(img, 0, 0);
+      const at = (fx, fy) => {
+        const x = Math.max(0, Math.min(c.width - 1, Math.round(fx * (c.width - 1))));
+        const y = Math.max(0, Math.min(c.height - 1, Math.round(fy * (c.height - 1))));
+        const d = g.getImageData(x, y, 1, 1).data;
+        return [d[0], d[1], d[2]];
+      };
       return {
-        lipX: r.left + r.width * 0.50, lipY: r.top + r.height * 0.55,
-        bodyX: r.left + r.width * 0.50, bodyY: r.top + r.height * 0.72,
-        bloomX: r.left + r.width * 0.38, bloomY: r.top + r.height * 0.14,
-        vw: innerWidth, vh: innerHeight,
+        lip: at(0.50, 0.62),
+        body: at(0.50, 0.72),
+        bloom: at(0.31, 0.10),
+        onScreen: r.width > 8 && r.height > 8 && r.right > 8 && r.bottom > 8 && r.left < innerWidth - 8 && r.top < innerHeight - 8,
       };
     }""")
-    if not (8 < spot['bodyX'] < spot['vw'] - 8):
+    if not spot or not spot['onScreen']:
         fail(f'{tag} bud vase off screen')
         return
-    png = await pg.screenshot()
-    lip, body, bloom = pixel(png, spot['lipX'], spot['lipY']), pixel(png, spot['bodyX'], spot['bodyY']), pixel(png, spot['bloomX'], spot['bloomY'])
+    lip, body, bloom = spot['lip'], spot['body'], spot['bloom']
     def blue_glass(rgb):
         r, g, b = rgb
         return b > r + 18 and b + 6 >= g and g > r
