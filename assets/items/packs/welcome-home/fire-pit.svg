@@ -1,4 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 112" width="126" height="100.8"><!-- Cozy House welcome-home pack: Fire Pit. Stone ring, logs, a gentle flame. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="5 25 90 76" width="126" height="106.4"><!-- Cozy House welcome-home pack: Fire Pit. Stone ring, logs, a gentle flame. -->
+<g transform="translate(4.769 -16.606) scale(0.64615 0.96970)">
   <ellipse cx="70" cy="106" rx="58" ry="3.4" fill="#5a3d5c" opacity=".08"/>
   <ellipse cx="70" cy="107.2" rx="36" ry="1.55" fill="#5a3d5c" opacity=".12"/>
   <ellipse cx="34" cy="68" rx="14" ry="10" fill="#d9cfc3" stroke="#5a3d5c" stroke-width="3.2"/>
@@ -43,4 +44,5 @@
   <path d="M28 94 q8 -4 12 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/>
   <path d="M58 100 q8 -3 12 1" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".55"/>
   <path d="M30 70 q2 4 0 8 M96 62 q2 3 0 7 M46 100 q3 2 1 6" fill="none" stroke="#5a3d5c" stroke-width="1.1" stroke-linecap="round" opacity=".22"/>
+</g>
 </svg>

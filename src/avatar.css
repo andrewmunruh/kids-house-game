@@ -88,6 +88,9 @@
 /* The standing tag sits above the box. A lying head is lower, so the tag comes down with her. */
 .char.pose-lie > .nametag,
 .avatar.pose-lie > .nametag { top: 54%; }
+/* A held baby fills the top of that lying box. Keep the tag above her in every size. */
+.char.holding.pose-lie > .nametag,
+.avatar.holding.pose-lie > .nametag { top: 37%; }
 .char.pose-lie > .inner svg,
 .char.avatar.pose-lie > .inner svg,
 .avatar.pose-lie > .inner svg { transform: none; }

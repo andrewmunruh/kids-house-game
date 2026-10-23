@@ -30,15 +30,12 @@ type Man = { slug: string; gameW?: number; viewBox?: number[]; wall?: boolean; h
 const oldMan = JSON.parse(show('assets/items/manifest.json')) as Man[];
 const nowMan = JSON.parse(readFileSync('assets/items/manifest.json', 'utf8')) as Man[];
 const oldBy = Object.fromEntries(oldMan.map(e => [e.slug, e]));
-// fire-pit was redrawn after fbd04db. The shipped painting stays; this check does not chase it.
-const REVISED = new Set(['fire-pit']);
-const revisedKind = (kind: string) => REVISED.has(kind) || REVISED.has(kind.replace(/^pack:/, ''));
 let vbSame = true;
 let wSame = true;
 const vbBad: string[] = [];
 for (const e of nowMan) {
   const o = oldBy[e.slug];
-  if (!o || REVISED.has(e.slug)) continue;
+  if (!o) continue;
   if (o.gameW !== e.gameW || o.widthUnits !== e.widthUnits || o.heightUnits !== e.heightUnits || o.wall !== e.wall) wSame = false;
   if (JSON.stringify(o.viewBox) !== JSON.stringify(e.viewBox)) { vbSame = false; vbBad.push(e.slug); }
 }
@@ -70,9 +67,9 @@ const dumped = JSON.parse(readFileSync('/tmp/art-pairs.json', 'utf8')) as {
   pairs: { kind: string; vb1: string; v1: string; vb2: string; v2: string }[];
   foot: string[];
 };
-const foot = dumped.foot.filter(k => !revisedKind(k.replace(/^dropped /, '')));
+const foot = dumped.foot;
 check('runtime footprints match fbd04db', foot.length === 0, foot.slice(0, 8).join(','));
-const vbDrift = dumped.pairs.filter(p => p.vb1 !== p.vb2 && !revisedKind(p.kind)).map(p => p.kind);
+const vbDrift = dumped.pairs.filter(p => p.vb1 !== p.vb2).map(p => p.kind);
 check('svg viewBoxes match fbd04db', vbDrift.length === 0, vbDrift.slice(0, 6).join(','));
 
 const lintBad: string[] = [];
@@ -110,7 +107,7 @@ if (py) {
   }
   const measured = JSON.parse(raw) as { checked: number; bad: { kind: string; dax: number; day: number; dw: number; dh: number; out: boolean; bad?: boolean }[] };
   const bad = measured.bad;
-  const drift = bad.filter(r => !revisedKind(r.kind) && (r.bad || r.dax > 0.04 || r.day > 0.04 || r.dw > 0.12 || r.dh > 0.12));
+  const drift = bad.filter(r => r.bad || r.dax > 0.04 || r.day > 0.04 || r.dw > 0.12 || r.dh > 0.12);
   const spilled = bad.filter(r => r.out);
   check('ink anchor and size match fbd04db', drift.length === 0 && measured.checked > 200,
     drift.slice(0, 8).map(r => `${r.kind} a${(r.day || 0).toFixed(2)} w${(r.dw || 0).toFixed(2)} h${(r.dh || 0).toFixed(2)}`).join(', ') + ` checked ${measured.checked}`);

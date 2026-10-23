@@ -182,8 +182,7 @@ async def check_window(pg, tag):
     await pg.evaluate("() => __sky.setChoice('day')")
 
 async def check_vase(pg, tag):
-    # Phone screenshots were sampling the wall beside the glass. Read the painted
-    # pixels from the image itself, and still require the vase to be on screen.
+    # Sample the pixels actually on screen, at the vase's painted spot.
     await pg.evaluate("""() => {
       __store.dispatch({type:'room/switch', room:'salon'});
       const kid = __store.get().characters[0];
@@ -202,16 +201,7 @@ async def check_vase(pg, tag):
     spot = await pg.evaluate("""() => {
       const img = document.querySelector('.item[data-id="qa-vase"] img');
       const r = img.getBoundingClientRect();
-      const c = document.createElement('canvas');
-      c.width = img.naturalWidth; c.height = img.naturalHeight;
-      const g = c.getContext('2d');
-      g.drawImage(img, 0, 0);
-      const at = (fx, fy) => {
-        const x = Math.max(0, Math.min(c.width - 1, Math.round(fx * (c.width - 1))));
-        const y = Math.max(0, Math.min(c.height - 1, Math.round(fy * (c.height - 1))));
-        const d = g.getImageData(x, y, 1, 1).data;
-        return [d[0], d[1], d[2]];
-      };
+      const at = (fx, fy) => ({ x: r.left + fx * r.width, y: r.top + fy * r.height });
       return {
         lip: at(0.50, 0.62),
         body: at(0.50, 0.72),
@@ -222,7 +212,10 @@ async def check_vase(pg, tag):
     if not spot or not spot['onScreen']:
         fail(f'{tag} bud vase off screen')
         return
-    lip, body, bloom = spot['lip'], spot['body'], spot['bloom']
+    shot = await pg.screenshot()
+    lip = pixel(shot, spot['lip']['x'], spot['lip']['y'])
+    body = pixel(shot, spot['body']['x'], spot['body']['y'])
+    bloom = pixel(shot, spot['bloom']['x'], spot['bloom']['y'])
     def blue_glass(rgb):
         r, g, b = rgb
         return b > r + 18 and b + 6 >= g and g > r
