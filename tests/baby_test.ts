@@ -5,6 +5,7 @@ import { babyAfterFurniture, babyBedKind, babyDragAllowed, babyOccupant, babyTab
 import { drawnScale, initialState, MAX_CHARS, migrate, newCharacter, reduce } from '../src/shared/state';
 import { pieceWidth, seatFractions, standBeside, STAND_Y, type SeatPiece } from '../src/shared/sit';
 import { characterSVG, cradleFrontSVG } from '../src/character';
+import { CHIBI_STAND_SLOT } from '../src/baby/arms';
 import { look2FromLegacy } from '../src/shared/avatar';
 
 let pass = 0;
@@ -281,6 +282,19 @@ async function main() {
   check('chibi cradle hands sit on the bundle and she wears her sleeves', inBox(handPts(heldChibi + chibiFront), chibiBox[0], chibiBox[1], chibiBox[2], chibiBox[3]) && heldChibi.indexOf('stroke="#ff7aa8"') >= 0 && chibiFront.indexOf('stroke="#ff7aa8"') >= 0 && heldChibi.indexOf('<path class="cradle-hand"') >= 0);
   const chibiLie = characterSVG(chibiLook, 'lie', true) + cradleFrontSVG(chibiLook, 'lie');
   check('chibi lying keeps the near hand and hides the arm across her face', cradleFrontSVG(chibiLook, 'lie') === '' && oneIn(handPts(chibiLie), chibiBox[0], chibiBox[1], chibiBox[2], chibiBox[3]));
+  const standChibi = characterSVG(chibiLook, null, true) + cradleFrontSVG(chibiLook, null);
+  const standBox = [
+    (CHIBI_STAND_SLOT.x - CHIBI_STAND_SLOT.w / 2) / 0.6,
+    (CHIBI_STAND_SLOT.y - CHIBI_STAND_SLOT.h / 2) / 0.6,
+    (CHIBI_STAND_SLOT.x + CHIBI_STAND_SLOT.w / 2) / 0.6,
+    (CHIBI_STAND_SLOT.y + CHIBI_STAND_SLOT.h / 2) / 0.6,
+  ];
+  const chestY = 114;
+  const waistY = 138;
+  check('chibi standing bundle sits on her chest above her waist', CHIBI_STAND_SLOT.y <= chestY + 4 && CHIBI_STAND_SLOT.y < waistY - 12 && CHIBI_STAND_SLOT.w > 46 && CHIBI_STAND_SLOT.h > 32);
+  check('chibi standing mitten centers sit inside the bundle', inBox(handPts(standChibi), standBox[0], standBox[1], standBox[2], standBox[3]));
+  check('chibi sitting and lying arms stay put', heldChibi.indexOf('M72 172 C40 190 46 220 108 228') >= 0 && chibiFront.indexOf('M128 172 C154 192 150 214 118 208') >= 0 && chibiLie.indexOf('M72 172 C36 200 40 228 88 220') >= 0 && cradleFrontSVG(chibiLook, 'lie') === '');
+  check('classic standing, sitting, and lying arms stay put', (heldSvg + front).indexOf('M22 84 C14 104 12 128 44 130') >= 0 && (heldSvg + front).indexOf('M78 84 C90 98 86 118 64 114') >= 0 && classicLie.indexOf('M22 84 C10 112 14 136 46 130') >= 0 && cradleFrontSVG(look, 'lie') === '');
   const down = characterSVG(chibiLook, null, false);
   check('a chibi who is not holding has both sleeves and both mittens', armCount(down, 'arm sleeve l hang') === 1 && armCount(down, 'arm sleeve r hang') === 1 && (down.match(/class="hand"/g) || []).length >= 2);
 

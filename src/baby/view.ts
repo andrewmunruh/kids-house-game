@@ -12,6 +12,7 @@ import {
   type Baby, type BabyCare,
 } from '../shared/baby';
 import { babySVG } from './draw';
+import { CHIBI_STAND_SLOT } from './arms';
 
 const BW = 110;
 const BH = 148;
@@ -27,8 +28,8 @@ const CRADLE_H = 57;
 const CRADLE_X = 60;
 const CRADLE_Y = 133;
 /**
- * Chibi's shirt is about x 40–80 in the same doll box, and her shoulders sit higher.
- * The classic slot is twice that shirt and hangs to her hip, so chibi uses her own.
+ * Chibi sit and lie. Her shirt is about x 40–80. Standing uses CHIBI_STAND_SLOT,
+ * which is a little larger and sits on the chest. Sit and lie stay on this slot.
  */
 const CHIBI_W = 42;
 const CHIBI_H = 30;
@@ -101,10 +102,11 @@ export function installBaby(host: BabyHost): { render: () => void } {
   function cradleSpot(h: HolderSpot): { x: number; y: number; w: number; h: number } {
     const scale = h.scale && h.scale > 0 ? h.scale : 1;
     const pose = h.pose === 'sit' || h.pose === 'lie' ? h.pose : null;
-    const cx = h.chibi ? CHIBI_X : CRADLE_X;
-    const cy = h.chibi ? CHIBI_Y : CRADLE_Y;
-    const cw = h.chibi ? CHIBI_W : CRADLE_W;
-    const ch = h.chibi ? CHIBI_H : CRADLE_H;
+    const standing = h.chibi && h.pose !== 'sit' && h.pose !== 'lie';
+    const cx = standing ? CHIBI_STAND_SLOT.x : h.chibi ? CHIBI_X : CRADLE_X;
+    const cy = standing ? CHIBI_STAND_SLOT.y : h.chibi ? CHIBI_Y : CRADLE_Y;
+    const cw = standing ? CHIBI_STAND_SLOT.w : h.chibi ? CHIBI_W : CRADLE_W;
+    const ch = standing ? CHIBI_STAND_SLOT.h : h.chibi ? CHIBI_H : CRADLE_H;
     const off = dollAnchorOffset(cx, cy, pose, !!h.lieFlip, scale);
     const dx = pose === 'lie' ? off.x : (h.flip ? -off.x : off.x);
     const w = cw * scale;

@@ -11,25 +11,37 @@ export function cradleSkin(hex: string | undefined | null): string {
 interface Bend { d: string; sleeve: string; hx: number; hy: number }
 
 /**
+ * Standing chibi only, in the 120×192 doll box. Her chest point is y 114 and her
+ * waist is y 138. This slot is a little larger than her shirt and centered on the chest.
+ * Sit and lie keep their own slot.
+ */
+export const CHIBI_STAND_SLOT = { x: 60, y: 118, w: 56, h: 40 };
+
+/**
  * Classic viewBox is 100×160. Stand and sit use the approved slot, about x 17–83, y 87–135.
- * Those two bends stay as they are.
- * Chibi viewBox is 200×320. Her slot is about x 66–134, y 190–240: chest width, on the chest.
- * Stand and sit lay the portrait with her head to the left, so the blanket is on the right.
- * Lie turns that slot head-up. The far arm would cross her eyes, so lie draws only the near arm.
+ * Those two bends stay as they are. Classic lying stays the near arm only.
+ * Chibi viewBox is 200×320. Sit keeps the chest-width slot. Lie keeps the near arm.
+ * Standing holds a slightly larger bundle on the chest, and both mittens land on it.
  * The elbow stays just outside the bundle. The hand center stays on it, off the face.
  */
-function bend(which: 'under' | 'over', chibi: boolean, lie: boolean): Bend | null {
+function bend(which: 'under' | 'over', chibi: boolean, pose?: 'sit' | 'lie' | null): Bend | null {
   // The shoulder beside her crown cannot reach the blanket without covering an eye.
-  if (lie && which === 'over') return null;
-  if (chibi) {
-    if (lie) {
-      return { d: 'M72 172 C36 200 40 228 88 220', sleeve: 'M72 172 C52 186 44 196 42 204', hx: 88, hy: 220 };
-    }
+  if (pose === 'lie' && which === 'over') return null;
+  if (chibi && pose === 'lie') {
+    return { d: 'M72 172 C36 200 40 228 88 220', sleeve: 'M72 172 C52 186 44 196 42 204', hx: 88, hy: 220 };
+  }
+  if (chibi && pose === 'sit') {
     return which === 'under'
       ? { d: 'M72 172 C40 190 46 220 108 228', sleeve: 'M72 172 C56 178 46 184 42 188', hx: 108, hy: 228 }
       : { d: 'M128 172 C154 192 150 214 118 208', sleeve: 'M128 172 C142 180 148 186 150 190', hx: 118, hy: 208 };
   }
-  if (lie) {
+  if (chibi) {
+    // The upper mitten sits on the blanket. The lower hand comes up onto the same bundle.
+    return which === 'under'
+      ? { d: 'M72 172 C40 196 48 222 112 214', sleeve: 'M72 172 C56 178 46 184 42 188', hx: 112, hy: 214 }
+      : { d: 'M128 172 C158 180 154 200 124 196', sleeve: 'M128 172 C144 178 150 184 154 188', hx: 124, hy: 196 };
+  }
+  if (pose === 'lie') {
     return { d: 'M22 84 C10 112 14 136 46 130', sleeve: '', hx: 46, hy: 130 };
   }
   return which === 'under'
@@ -45,7 +57,7 @@ function mitten(hx: number, hy: number, skin: string): string {
 
 /** One arm. No l/r class, so it does not swing. Chibi arms wear her sleeve and a mitten. */
 export function cradleArm(which: 'under' | 'over', chibi: boolean, skin: string, pose?: 'sit' | 'lie' | null, sleeve?: string): string {
-  const a = bend(which, chibi, pose === 'lie');
+  const a = bend(which, chibi, pose);
   if (!a) return '';
   const tone = cradleSkin(skin);
   const cloth = sleeve && /^#[0-9a-fA-F]{6}$/.test(sleeve) ? sleeve.toLowerCase() : '';

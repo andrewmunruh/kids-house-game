@@ -281,11 +281,24 @@ CRADLE_JS = """(sel) => {
   const chibi = !!holder.querySelector('svg[data-chibi]');
   let sizeRatio = frac;
   let sizeOk = frac >= 0.80 && frac <= 0.90;
-  if (chibi) {
+  let aboveWaist = true;
+  let atChest = true;
+  const mid = [(artL + artR) / 2, (artT + artB) / 2];
+  if (chibi && pose === 'stand') {
+    const cA = map(39.6, 116), cB = map(80.4, 116);
+    const chest = Math.hypot(cB[0] - cA[0], cB[1] - cA[1]) || 1;
+    sizeRatio = extent / chest;
+    const chestPt = map(60, 114);
+    const waistPt = map(60, 138);
+    const dy = waistPt[1] - chestPt[1] || 1;
+    const t = (mid[1] - chestPt[1]) / dy;
+    atChest = t > -0.35 && t < 0.42;
+    aboveWaist = mid[1] < waistPt[1] - Math.abs(dy) * 0.28;
+    sizeOk = sizeRatio >= 1.15 && sizeRatio <= 1.48 && atChest && aboveWaist;
+  } else if (chibi) {
     const cA = map(39.6, 129), cB = map(80.4, 129);
     const chest = Math.hypot(cB[0] - cA[0], cB[1] - cA[1]) || 1;
     sizeRatio = extent / chest;
-    const mid = [(artL + artR) / 2, (artT + artB) / 2];
     const chestBox = [[36, 108], [84, 108], [84, 148], [36, 148]].map(function (p) { return map(p[0], p[1]); });
     const onChest = pip(chestBox, mid[0], mid[1]) || distEdge(chestBox, mid[0], mid[1]) < 6;
     sizeOk = sizeRatio >= 0.82 && sizeRatio <= 1.12 && onChest;
@@ -340,7 +353,7 @@ CRADLE_JS = """(sel) => {
     ok: outside.length === 0 && !overlap && sizeOk && cradle && armsOk && handsIn && headUp && !armFace,
     why, pose, lieFlip, doll: Math.round(doll * 100) / 100, chibi,
     arms: visible.length, hang: hanging.length, under: under.length, over: over.length,
-    hands: handPts.length, headUp, armFace,
+    hands: handPts.length, headUp, armFace, aboveWaist, atChest,
     frac: Math.round(frac * 1000) / 1000,
     chest: Math.round(sizeRatio * 1000) / 1000,
     px: Math.round(extent * 10) / 10,
@@ -488,6 +501,8 @@ async def cradle_check(pg, browser_name, sel='#stage .char'):
             if bed_flip: tag += ' flipped bed'
             if face_left: tag += ' facing left'
             check(tag + ' cradle stays on the torso and off the head', bool(info and info.get('ok')), str(info))
+            if chibi and pose == 'stand':
+                check(tag + ' chibi mittens sit in the bundle and it rests on her chest above her waist', bool(info) and info.get('hands') == 2 and info.get('atChest') and info.get('aboveWaist') and info.get('ok'), str(info))
             if browser_name == 'chromium' and size == 'kid' and not face_left and not bed_flip and not chibi and (pose == 'stand' or (w, h) == (820, 1180) or (w, h) == (1180, 820)):
                 name = {'stand': 'held', 'sit': 'sit', 'lie': 'lie'}[pose]
                 await pg.screenshot(path=os.path.join(OUT, f'after-{w}x{h}-{name}.png'))
