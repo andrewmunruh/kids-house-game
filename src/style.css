@@ -40,20 +40,6 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .seatFront.k-chair { clip-path: inset(64% 12% 0 12%); }
 .seatFront.k-bench { clip-path: inset(72% 0 0 0); }
 .seatFront.k-bed { clip-path: polygon(82% 34%, 100% 34%, 100% 100%, 0 100%, 0 78%, 82% 78%); }
-/* The starter headboard's curved top leaves a corner of wallpaper beside the pillow.
-   Wood and a plum edge, in the painting's own outline, sit under the WebP and show
-   only in that corner. They stop at the crown, so nothing floats above the board. */
-.item[data-kind="bed"] > .inner::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='2.22' y='20.22' width='31' height='0.35' fill='%235b3d5c' opacity='0.35'/><rect x='2.22' y='20.22' width='0.35' height='11.4' fill='%235b3d5c' opacity='0.35'/><rect x='2.22' y='20.4' width='31' height='0.9' fill='%235b3d5c'/><rect x='2.22' y='20.4' width='1.15' height='11.2' fill='%235b3d5c'/><rect x='3.37' y='21.3' width='29.8' height='10.3' fill='%23d78d4e'/></svg>") 0 0 / 100% 100% no-repeat;
-  pointer-events: none;
-  z-index: 0;
-}
-.item.flipped[data-kind="bed"] > .inner::before { transform: scaleX(-1); }
-.item[data-kind="bed"] > .inner > .artimg,
-.item[data-kind="bed"] > .inner > .packimg { position: relative; z-index: 1; }
 .seatFront.k-bed.flipped { clip-path: polygon(0 34%, 18% 34%, 18% 78%, 100% 78%, 100% 100%, 0 100%); }
 .seatFront.k-bed-bunk { clip-path: polygon(82% 52%, 100% 52%, 100% 100%, 0 100%, 0 84%, 82% 84%); }
 .seatFront.k-bed-bunk.flipped { clip-path: polygon(0 52%, 18% 52%, 18% 84%, 100% 84%, 100% 100%, 0 100%); }

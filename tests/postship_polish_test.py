@@ -1,6 +1,10 @@
-# Name tag clears a held baby, and the starter-bed cap fills the headboard notch.
+# Name tag clears a held baby. The starter bed matches the shipped painting:
+# any pixel that differs from ee2d71b sits inside the painted silhouette,
+# and the sky corners above the posts stay clear.
 # Never talks to production.
-import asyncio, io, os, sys
+import asyncio, io, os, sys, threading
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from playwright.async_api import async_playwright
 from PIL import Image
@@ -89,59 +93,38 @@ async def nametags(pg):
         ok = bool(m) and not m['overlap'] and m['h'] > 40 and m['gap'] >= m['h'] * 0.05
         check(label, ok, '' if ok else str(m))
 
-def headboard_art():
-    """Headboard box and the wallpaper notch inside it, as fractions of the painting."""
-    im = Image.open(Path(__file__).resolve().parents[1] / 'assets/art/bedroom/bed.webp').convert('RGBA')
-    w, h = im.size
-    px = im.load()
-    prev = None
-    right = int(0.55 * w)
-    for x in range(int(0.2 * w), int(0.7 * w)):
-        y40 = next((y for y in range(h) if px[x, y][3] > 40), None)
-        if y40 is None:
-            continue
-        if prev is not None and (y40 - prev) / h > 0.08 and x / w > 0.4:
-            right = x - 1
-            break
-        prev = y40
-    top = min(y for y in range(h) for x in range(int(0.6 * w)) if px[x, y][3] > 40)
-    left = min(x for y in range(top, int(0.7 * h)) for x in range(w) if px[x, y][3] > 40)
-    bottom = int(0.68 * h)
-    for y in range(int(0.3 * h), int(0.9 * h)):
-        x40 = next((x for x in range(w) if px[x, y][3] > 40), None)
-        if x40 is not None and x40 > left + int(0.02 * w):
-            bottom = y - 1
-            break
-    # The notch is the clear corner inside that box, where the crown curves away
-    # from the left post. A one-pixel fringe down the post is the painting's own edge.
-    notch = []
-    gap = int(0.02 * w)
-    for y in range(top, bottom + 1):
-        sil = next((x for x in range(left, right + 1) if px[x, y][3] > 16), None)
-        if sil is None or sil - left < gap:
-            continue
-        for x in range(left, sil):
-            if px[x, y][3] < 16:
-                notch.append((x / w, y / h))
-    return {'left': left / w, 'top': top / h, 'right': right / w, 'bottom': bottom / h, 'notch': notch, 'px': px, 'w': w, 'h': h}
+BED = Image.open(Path(__file__).resolve().parents[1] / 'assets/art/bedroom/bed.webp').convert('RGBA')
+BED_PX = BED.load()
+BED_W, BED_H = BED.size
+# Clear paint outside the silhouette. The cut above each post is in this set.
+SKY = []
+for y in range(int(0.12 * BED_H), int(0.50 * BED_H)):
+    for x in range(BED_W):
+        if BED_PX[x, y][3] < 16:
+            SKY.append((x / BED_W, y / BED_H))
 
-ART = headboard_art()
+EE2_DIST = os.environ.get('EE2_DIST', '/tmp/prod-ee2-dist')
+EE2_PORT = int(os.environ.get('EE2_PORT', '4188'))
 
-CAP = """(arg) => {
+PLACE = """(arg) => {
   const s = __store;
   s.dispatch({ type: 'room/switch', room: 'nursery' });
   let st = document.getElementById('captest');
   if (!st) { st = document.createElement('style'); st.id = 'captest'; document.head.appendChild(st); }
-  st.textContent = '*, *::before, *::after { animation: none !important; transition: none !important; }'
-    + (arg.hide ? ' .item[data-kind="bed"] > .inner::before { background: none !important; }' : '');
+  st.textContent = '*, *::before, *::after { animation: none !important; transition: none !important; }';
   __sky.setChoice(arg.sky);
   const kid = s.get().characters[0];
   s.dispatch({ type: 'char/move', id: kid.id, room: 'nursery', x: 40, y: 40, seat: null });
   if (s.get().baby) s.dispatch({ type: 'baby/hold', holder: null, room: 'nursery', x: 80, y: 80, now: Date.now() });
-  if (!s.get().rooms.nursery.items.some(i => i.id === 'qa-bed'))
-    s.dispatch({ type: 'item/add', room: 'nursery', item: { id: 'qa-bed', kind: 'bed', x: 900, y: 520, flip: false, z: 40, scale: 1.6 } });
+  // Same spot and scale on both builds. The name-tag cases leave a smaller bed behind.
+  if (s.get().rooms.nursery.items.some(i => i.id === 'qa-bed'))
+    s.dispatch({ type: 'item/delete', room: 'nursery', id: 'qa-bed' });
+  s.dispatch({ type: 'item/add', room: 'nursery', item: { id: 'qa-bed', kind: 'bed', x: 900, y: 520, flip: false, z: 40, scale: 1.6 } });
   const bed = s.get().rooms.nursery.items.find(i => i.id === 'qa-bed');
   if (bed && !!bed.flip !== !!arg.flip) s.dispatch({ type: 'item/flip', room: 'nursery', id: 'qa-bed' });
+  document.querySelectorAll('#stage .item, #stage .char, #stage .baby, #stage .pet, #stage .seatFront').forEach(el => {
+    el.style.visibility = el.dataset.id === 'qa-bed' ? 'visible' : 'hidden';
+  });
   const stage = document.getElementById('stage');
   const el = document.querySelector('.item[data-id="qa-bed"]');
   const img = el && el.querySelector('img');
@@ -154,78 +137,92 @@ CAP = """(arg) => {
   return { x: r.x, y: r.y, w: r.width, h: r.height };
 }"""
 
-def changed(a, b, tol=18):
+def far(a, b, tol=12):
     return abs(a[0] - b[0]) > tol or abs(a[1] - b[1]) > tol or abs(a[2] - b[2]) > tol
 
-async def cap_case(pg, sky, flip, vw, vh):
+def serve_ee2():
+    root = Path('/tmp/ee2-www')
+    link = root / 'kids-house-game'
+    root.mkdir(parents=True, exist_ok=True)
+    if link.is_symlink() or link.exists():
+        if not link.is_symlink() or os.readlink(link) != EE2_DIST:
+            link.unlink()
+            link.symlink_to(EE2_DIST)
+    else:
+        link.symlink_to(EE2_DIST)
+    class Quiet(SimpleHTTPRequestHandler):
+        def log_message(self, fmt, *args):
+            pass
+    handler = partial(Quiet, directory=str(root))
+    httpd = ThreadingHTTPServer(('127.0.0.1', EE2_PORT), handler)
+    httpd.daemon_threads = True
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return f'http://127.0.0.1:{EE2_PORT}/kids-house-game/'
+
+async def place_bed(pg, sky, flip, vw, vh):
     await pg.set_viewport_size({'width': vw, 'height': vh})
-    label = f'{sky} {"flipped" if flip else "normal"} {vw}x{vh}'
     info = None
     for _ in range(8):
-        info = await pg.evaluate(CAP, {'sky': sky, 'flip': flip, 'hide': False})
+        info = await pg.evaluate(PLACE, {'sky': sky, 'flip': flip})
         if info and info['w'] > 80:
             break
         await pg.wait_for_timeout(80)
     if not info:
-        check(f'{label} cap is inside the headboard and covers the notch', False, 'missing bed')
-        return
-    await pg.wait_for_timeout(60)
-    on = Image.open(io.BytesIO(await pg.screenshot())).convert('RGB')
-    bare = await pg.evaluate(CAP, {'sky': sky, 'flip': flip, 'hide': True})
+        return None, None
     await pg.wait_for_timeout(40)
-    off = Image.open(io.BytesIO(await pg.screenshot())).convert('RGB')
-    if not bare or abs(bare['x'] - info['x']) > 1 or abs(bare['w'] - info['w']) > 1:
-        check(f'{label} cap is inside the headboard and covers the notch', False, 'bed moved')
-        return
-    bx, by, bw, bh = info['x'], info['y'], info['w'], info['h']
-    pon, poff = on.load(), off.load()
-    sp, sw, sh = ART['px'], ART['w'], ART['h']
-    def screen(fx, fy):
-        sfx = 1 - fx if flip else fx
-        return bx + sfx * bw, by + fy * bh
-    corners = [screen(ART['left'], ART['top']), screen(ART['right'], ART['top']),
-               screen(ART['left'], ART['bottom']), screen(ART['right'], ART['bottom'])]
-    hx0 = min(p[0] for p in corners); hy0 = min(p[1] for p in corners)
-    hx1 = max(p[0] for p in corners); hy1 = max(p[1] for p in corners)
-    minx = miny = 10 ** 9
-    maxx = maxy = -1
-    n = 0
-    x0, y0 = max(0, int(bx)), max(0, int(by))
-    x1, y1 = min(on.width, int(bx + bw) + 1), min(on.height, int(by + bh) + 1)
-    for sy in range(y0, y1):
-        for sx in range(x0, x1):
-            if not changed(pon[sx, sy], poff[sx, sy]):
-                continue
-            fx = (sx - bx) / bw
-            fy = (sy - by) / bh
-            if flip:
-                fx = 1 - fx
-            ix, iy = int(fx * sw), int(fy * sh)
-            if not (0 <= ix < sw and 0 <= iy < sh) or sp[ix, iy][3] >= 16:
-                continue
-            n += 1
-            if sx < minx: minx = sx
-            if sy < miny: miny = sy
-            if sx > maxx: maxx = sx
-            if sy > maxy: maxy = sy
-    tol = 2
-    inside = n > 50 and minx >= hx0 - tol and miny >= hy0 - tol and maxx <= hx1 + tol and maxy <= hy1 + tol
-    covered = 0
-    for fx, fy in ART['notch']:
-        sx, sy = screen(fx, fy)
-        sx, sy = int(round(sx)), int(round(sy))
-        if 0 <= sx < on.width and 0 <= sy < on.height and changed(pon[sx, sy], poff[sx, sy]):
-            covered += 1
-    frac = covered / len(ART['notch']) if ART['notch'] else 0
-    ok = inside and frac >= 0.90
-    extra = '' if ok else f'inside={inside} cover={frac:.2f} patch=({minx},{miny},{maxx},{maxy}) board=({hx0:.0f},{hy0:.0f},{hx1:.0f},{hy1:.0f})'
-    check(f'{label} cap is inside the headboard and covers the notch', ok, extra)
+    info = await pg.evaluate(PLACE, {'sky': sky, 'flip': flip})
+    shot = Image.open(io.BytesIO(await pg.screenshot())).convert('RGB')
+    return info, shot
 
-async def headboard(pg):
-    for vw, vh in ((1180, 820), (820, 1180)):
-        for sky in ('day', 'night'):
-            for flip in (False, True):
-                await cap_case(pg, sky, flip, vw, vh)
+async def bed_case(now, old, sky, flip, vw, vh):
+    label = f'{sky} {"flipped" if flip else "normal"} {vw}x{vh}'
+    name = f'{label} bed differs from ee2d71b only inside the painting'
+    cur, cur_im = await place_bed(now, sky, flip, vw, vh)
+    base, base_im = await place_bed(old, sky, flip, vw, vh)
+    if not cur or not base:
+        check(name, False, 'missing bed')
+        return
+    cp, bp = cur_im.load(), base_im.load()
+    outside = 0
+    sky_changed = 0
+    sky_n = 0
+    changed_n = 0
+    # Every rendered bed pixel. A change on clear paint is outside the silhouette.
+    x0, y0 = int(cur['x']), int(cur['y'])
+    x1, y1 = int(cur['x'] + cur['w']), int(cur['y'] + cur['h'])
+    for cy in range(max(0, y0), min(cur_im.height, y1)):
+        fy = (cy - cur['y']) / cur['h']
+        by = int(round(base['y'] + fy * base['h']))
+        if not (0 <= by < base_im.height) or not (0 <= fy < 1):
+            continue
+        for cx in range(max(0, x0), min(cur_im.width, x1)):
+            fx = (cx - cur['x']) / cur['w']
+            if not (0 <= fx < 1):
+                continue
+            sfx = 1 - fx if flip else fx
+            bx = int(round(base['x'] + fx * base['w']))
+            if not (0 <= bx < base_im.width):
+                continue
+            if not far(cp[cx, cy], bp[bx, by]):
+                continue
+            changed_n += 1
+            ix, iy = int(sfx * BED_W), int(fy * BED_H)
+            if ix >= BED_W: ix = BED_W - 1
+            if iy >= BED_H: iy = BED_H - 1
+            if BED_PX[ix, iy][3] < 16:
+                outside += 1
+    for fx, fy in SKY:
+        sfx = 1 - fx if flip else fx
+        cx, cy = int(round(cur['x'] + sfx * cur['w'])), int(round(cur['y'] + fy * cur['h']))
+        bx, by = int(round(base['x'] + sfx * base['w'])), int(round(base['y'] + fy * base['h']))
+        if not (0 <= cx < cur_im.width and 0 <= cy < cur_im.height and 0 <= bx < base_im.width and 0 <= by < base_im.height):
+            continue
+        sky_n += 1
+        if far(cp[cx, cy], bp[bx, by]):
+            sky_changed += 1
+    ok = outside == 0 and sky_changed == 0 and sky_n > 1000
+    extra = '' if ok else f'outside={outside} sky={sky_changed}/{sky_n} changed={changed_n}'
+    check(name, ok, extra)
 
 async def main():
     if PROD in WEB:
@@ -239,11 +236,23 @@ async def main():
         await pg.clock.set_fixed_time('2026-06-15T12:00:00Z')
         await pg.goto(WEB, wait_until='domcontentloaded')
         await ready(pg)
+        old_web = serve_ee2()
+        if PROD in old_web or not os.path.isdir(EE2_DIST):
+            print('refusing production or missing ee2d71b dist')
+            sys.exit(1)
+        old = await ctx.new_page()
+        await old.clock.set_fixed_time('2026-06-15T12:00:00Z')
+        await old.goto(old_web, wait_until='domcontentloaded')
+        await ready(old)
         await nametags(pg)
-        await headboard(pg)
+        for vw, vh in ((1180, 820), (820, 1180)):
+            for sky in ('day', 'night'):
+                for flip in (False, True):
+                    await bed_case(pg, old, sky, flip, vw, vh)
         await browser.close()
     print(f"\n{sum(res.values())}/{len(res)} passed")
     if not all(res.values()):
         sys.exit(1)
 
-asyncio.run(main())
+if __name__ == '__main__':
+    asyncio.run(main())
