@@ -677,6 +677,8 @@ body.view-ranch #btnHood, body.view-park #btnHood { display: none !important; }
 .mapFace .fname { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: 3px; background: var(--ink); color: #fff; font-weight: 800; font-size: 13px; padding: 0 6px; border-radius: 8px; white-space: nowrap; }
 .mapFace.other:active { transform: scale(.9); }
 .mapFace .bubble { bottom: 110%; }
+/* Portrait iPad uses the tall board: names under faces read at 16px like the signs. */
+body.map-tall .mapFace .fname { font-size: 16px; padding: 0 8px; }
 @keyframes facePop { from { transform: scale(0); } to { transform: scale(1); } }
 .mapBtn { background: #fff3b0 !important; }
 body.view-map #btnMap { display: none !important; }

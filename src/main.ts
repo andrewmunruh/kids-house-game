@@ -2363,11 +2363,19 @@ let mapKey = '';
 let fakeHouses = 0; // test hook only: draw a pretend street with this many houses
 /** iPad and phone landscape keep the 1000×700 street. Phone portrait uses a tall board. */
 let activeMap = { w: MAP_W, h: MAP_H, portrait: false };
-function phonePortraitMap() { return document.body.classList.contains('phone-portrait'); }
+/** Phone portrait, and portrait iPad (820×1180): the wide street letterboxes to about half the screen
+ * there, so the tall board fills the height and its signs read at ≥16px. */
+function phonePortraitMap() {
+  if (document.body.classList.contains('phone-portrait')) return true;
+  if (document.body.classList.contains('phone')) return false;
+  return window.innerHeight >= window.innerWidth * 1.25;
+}
 /** Fit the whole street in the window. Sky and grass around the card are scenery, never a crop. */
 function mapScale() {
   const r = $('street');
-  const w = Math.max(1, r.clientWidth), h = Math.max(1, r.clientHeight);
+  // Portrait iPad: a little breathing room so the card's outline clears the top bar.
+  const pad = activeMap.portrait && !document.body.classList.contains('phone') ? 24 : 0;
+  const w = Math.max(1, r.clientWidth - pad), h = Math.max(1, r.clientHeight - pad);
   return Math.min(w / activeMap.w, h / activeMap.h);
 }
 /** Center the fitted map. No panning: every house, the Ranch and the Clubhouse stay in view. */
@@ -2467,6 +2475,7 @@ function renderMap(force = false) {
     : fakeHouses ? Array.from({ length: fakeHouses }, (_, i) => ({ id: 'fake' + i, name: ['Reagan', 'Quinn', 'Chloe', 'Sloane', 'Cada', 'Emma', 'Olivia', 'Charlotte', 'Amelia', 'Sophia', 'Isabella', 'Mia'][i % 12] + "'s House", style: i, locked: i === 3, mine: i === 0, lit: i % 3 !== 1 })) : [null];
   const plan = phonePortraitMap() ? portraitPlan(Math.max(1, list.length)) : null;
   activeMap = plan ? { w: plan.w, h: plan.h, portrait: true } : { w: MAP_W, h: MAP_H, portrait: false };
+  document.body.classList.toggle('map-tall', !!plan && !document.body.classList.contains('phone'));
   const sc = mapScale();
   const key = (activeMap.portrait ? 'P' : 'L') + activeMap.w + 'x' + activeMap.h + ':' + sc.toFixed(3) + JSON.stringify(houses) + (hood ? houses.map(h => (hood!.players.get(h.ownerId)?.online ? 1 : 0) + (houseUnread(h.id) ? 'u' : '')).join('') + hood.pid : 'solo');
   if (!force && key === mapKey && w.querySelector('#mapFaces')) { renderMapFaces(); return; }
