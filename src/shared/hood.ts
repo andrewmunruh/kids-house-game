@@ -1,3 +1,4 @@
+import { isPowerable } from './ambient';
 // Shared between client and server: protocol, presets, validation and the chat filter.
 // Nothing here touches the DOM or Node APIs, so it runs in browsers, Node and Cloudflare Workers.
 import { RANCH_W, BARN_W, RANCH_Y0, RANCH_Y1, HORSES, ANIMALS, FOODS, type Basket, type Plot, type RanchOp } from './ranch';
@@ -621,10 +622,12 @@ export function cleanItem(i: any): PlacedItem | null {
   const id = str(i.id, ID_RE), kind = str(i.kind, KIND_RE, 100);
   if (!id || !kind) return null;
   const base: PlacedItem = { id, kind, x: num(i.x, 0, ROOM_W) ?? ROOM_W / 2, y: num(i.y, 0, ROOM_H) ?? 500, flip: i.flip === true, z: Math.round(num(i.z, -1e6, 1e6) ?? 0), scale: num(i.scale, 0.3, 3) ?? 1 };
+  // Play power: kept only as `true` on a powerable kind; off is the missing field.
+  const powered: PlacedItem = i.on === true && isPowerable(kind) ? { ...base, on: true } : base;
   // Missing size is 1 and is left off, so an old item's JSON does not grow a field.
-  if (!('size' in i) || i.size == null) return base;
+  if (!('size' in i) || i.size == null) return powered;
   const size = itemSizeOf(i.size);
-  return size === 1 ? base : { ...base, size };
+  return size === 1 ? powered : { ...powered, size };
 }
 export type Look = Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc'> & { look2?: Look2 };
 export function cleanLookPatch(p: any): Partial<Look & { flip: boolean; look2: Look2 | null }> | null {
@@ -664,7 +667,7 @@ function cleanCharacter(c: any): Character | null {
 }
 
 // ---------- pets ----------
-export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, bathroom, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1. A seat rides on char/move and on house presence, and is forwarded only to clients that say sit:1. item/size is forwarded only to clients that say fit:1. A missing item size is 1, and old clients ignore the field. Baby actions are forwarded only to clients that say baby:1. A missing baby means an older save. There is no PROTOCOL 5. A grown-up mailbox listing is an optional field on parentInfo; old clients ignore it. settings.freeMail is optional too: missing means letters follow freeChat.
+export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, bathroom, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1. A seat rides on char/move and on house presence, and is forwarded only to clients that say sit:1. item/size is forwarded only to clients that say fit:1. A missing item size is 1, and old clients ignore the field. Baby actions are forwarded only to clients that say baby:1. item/power (ambient M1) is forwarded only to clients that say amb:1, and an item's optional `on` flag rides along on the house; old clients keep it and ignore it. A missing baby means an older save. There is no PROTOCOL 5. A grown-up mailbox listing is an optional field on parentInfo; old clients ignore it. settings.freeMail is optional too: missing means letters follow freeChat.
 export const PROTO_PETS = 2, PROTO_RANCH = 3, PROTO_GAMES = 4;
 export const CAT_NAMES = ['Mittens', 'Luna', 'Biscuit', 'Pumpkin', 'Whiskers', 'Mochi', 'Pepper', 'Noodle', 'Ginger', 'Socks'];
 export const DOG_NAMES = ['Buddy', 'Coco', 'Max', 'Daisy', 'Peanut', 'Rocket', 'Bella', 'Waffles', 'Scout', 'Honey'];
@@ -698,6 +701,7 @@ export function cleanAction(a: any): Action | null {
     case 'item/add': { const item = cleanItem(a.item); return isRoom(room) && item ? { type: a.type, room, item } : null; }
     case 'item/move': { const id = str(a.id, ID_RE), x = num(a.x, 0, ROOM_W), y = num(a.y, 0, ROOM_H); return isRoom(room) && id && x !== null && y !== null ? { type: a.type, room, id, x, y, ...(a.stand === true ? { stand: true as const } : {}) } : null; }
     case 'item/flip': case 'item/front': case 'item/back': case 'item/delete': { const id = str(a.id, ID_RE); return isRoom(room) && id ? { type: a.type, room, id } : null; }
+    case 'item/power': { const id = str(a.id, ID_RE); if (!isRoom(room) || !id || typeof a.on !== 'boolean') return null; return { type: 'item/power', room, id, on: a.on }; }
     case 'item/size': { const id = str(a.id, ID_RE); if (!isRoom(room) || !id || typeof a.size !== 'number' || !Number.isFinite(a.size)) return null; return { type: 'item/size', room, id, size: itemSizeOf(a.size) }; }
     case 'room/wallpaper': case 'room/floor': { const color = str(a.color, COLOR_RE, 9); return isRoom(room) && color ? { type: a.type, room, color } : null; }
     case 'room/pattern': { const p = num(a.pattern, 0, 3); return isRoom(room) && p !== null ? { type: a.type, room, pattern: Math.round(p) } : null; }
@@ -886,8 +890,8 @@ export interface HouseFull extends HouseMeta { state: GameState }
 export type Bubble = { kind: 'phrase' | 'emote'; v: number } | { kind: 'text'; v: string };
 
 export type ClientMsg =
-  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number }
-  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number }
+  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number }
+  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number }
   | { t: 'dog'; dog: Dog | null }
   | { t: 'fx'; fx: Fx }
   | { t: 'ranch'; o: RanchOp }
@@ -906,7 +910,7 @@ export type ClientMsg =
 
 export type ServerMsg =
   | { t: 'joined'; token: string; pid: string }
-  | { t: 'welcome'; pid: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[]; sit?: 1; baby?: 1 }
+  | { t: 'welcome'; pid: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[]; sit?: 1; baby?: 1; amb?: 1 }
   | { t: 'act'; houseId: string; by: string; cid: number; action: Action }
   | { t: 'nack'; houseId: string; cid: number; reason: string; state?: GameState }
   | { t: 'pres'; pid: string; p: Presence | null }

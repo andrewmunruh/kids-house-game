@@ -29,6 +29,9 @@ import { stampAvatar, richAvatars } from './avatar/motion';
 import { avatarSheetHTML, avatarAct, avatarIntroPending, markAvatarIntro } from './avatar/sheet';
 import { chibiRideLeg } from './avatar/ride';
 import { sfx, setSound } from './sound';
+import { setAmbientMusic, primeAmbientMusic } from './ambientMusic';
+import { BEAT_MS, MUSIC_BOX_MS, isFridge, isPowerable, isTub, reactionsFor, roleOf, syncDelayMs, type AmbChar, type AmbItem, type Reaction, type ReactionKind } from './shared/ambient';
+import './ambient.css';
 import { catalogShows } from './roomfilter';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
@@ -971,6 +974,7 @@ function renderItems(s: GameState) {
   syncSkyPuddles();
   syncSeatFronts();
   renderToolbar(s); renderMinimap(s);
+  queueAmbient();
 }
 /** Paint-only front of an occupied seat. The saved item and its z stay one object. */
 function syncSeatFronts() {
@@ -1234,6 +1238,7 @@ function renderChars(s: GameState) {
     el.style.setProperty('--hx-r', pts.right.x + '%');
   }
   if (babyHolderId(s) === '' || !here.some(c => c.id === babyHolderId(s))) clearCradleSlot('doll');
+  queueAmbient();
   renderMinimap(s);
   renderBaby();
 }
@@ -2154,6 +2159,7 @@ function renderAvatars() {
   syncSeatFronts();
   updateNear();
   renderBaby();
+  queueAmbient();
 }
 function attachMyAvatarDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
@@ -3369,10 +3375,131 @@ function onPlayTap(el: HTMLElement, id: string) {
   el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle');
   sfx.click();
   if (g === 'kennel' || g === 'tower') { onPlaceTap(id); return; }
+  if (isPowerable(it.kind)) {
+    // Explicit on/off, so two kids tapping at once settle on the same state.
+    primeAmbientMusic();
+    const on = !it.on;
+    store.dispatch({ type: 'item/power', room: s.currentRoom, id, on });
+    if (on && roleOf(it.kind) === 'tv') tvSeat(it);
+    queueAmbient();
+    return;
+  }
+  if (g === 'open') { el.classList.toggle('opened'); queueAmbient(); return; }
   if (g === 'lamp') { el.classList.toggle('lamp-on'); return; }
-  if (g === 'open') { el.classList.toggle('opened'); return; }
   if (g === 'sit') sitAt(it);
   if (g === 'swing') swingAt(it);
+}
+// ---------- ambient reactions (M1) ----------
+// Only an item's `on` flag is synced. Every iPad derives the same reactions from the same state.
+const AMB_PERIOD: Record<ReactionKind, number> = { dance: BEAT_MS * 2, sway: BEAT_MS * 4, watch: BEAT_MS * 5, warm: BEAT_MS * 3, hug: BEAT_MS * 2, bounce: BEAT_MS, bathe: BEAT_MS * 3, nibble: BEAT_MS };
+const AMB_CHAR_FX: Partial<Record<ReactionKind, string>> = {
+  dance: '<span>♪</span><span>♫</span>', sway: '<span>♪</span>', hug: '<span>♥</span>',
+  bathe: '<span class="bub"></span><span class="bub"></span><span class="bub"></span>', nibble: '<span>✦</span>',
+};
+const AMB_ITEM_FX: Record<string, string> = {
+  stereo: '<span>♪</span><span>♫</span><span>♪</span>', musicbox: '<span>♪</span><span>♩</span>',
+  tv: '<span class="glow"></span>', fire: '<span class="glow"></span><span class="ember"></span><span class="ember"></span>',
+  tub: '<span class="bub"></span><span class="bub"></span><span class="bub"></span><span class="bub"></span>',
+  fridge: '<span class="food">🍓</span><span class="food">🧁</span>',
+};
+const musicBoxSince = new Map<string, number>();
+let ambRaf = 0;
+// A slow heartbeat catches a view change, a lifted kid, and the music box winding down.
+setInterval(() => queueAmbient(), 1000);
+function queueAmbient() { if (!ambRaf) ambRaf = requestAnimationFrame(() => { ambRaf = 0; syncAmbient(); }); }
+function setFx(el: HTMLElement, html: string | null, key: string) {
+  let fx = el.querySelector<HTMLElement>(':scope > .ambFx');
+  if (!html) { fx?.remove(); return; }
+  if (!fx) { fx = document.createElement('i'); fx.className = 'ambFx'; fx.setAttribute('aria-hidden', 'true'); el.appendChild(fx); }
+  if (fx.dataset.k !== key) { fx.innerHTML = html; fx.dataset.k = key; fx.className = 'ambFx fx-' + key; }
+}
+function applyReaction(el: HTMLElement, r: Reaction | undefined, now: number) {
+  const key = r ? r.kind + '|' + r.item : '';
+  const was = el.dataset.amb || '';
+  if (was === key) return;
+  if (was) el.classList.remove('amb-' + was.split('|')[0], 'amb-l', 'amb-r');
+  if (was.startsWith('bathe|') && !r) {
+    // One sparkle as she steps out of the bath.
+    el.classList.add('amb-sparkle');
+    setTimeout(() => el.classList.remove('amb-sparkle'), 1200);
+  }
+  if (!r) { delete el.dataset.amb; setFx(el, null, ''); return; }
+  el.dataset.amb = key;
+  el.style.setProperty('--amb-delay', syncDelayMs(r.phase, AMB_PERIOD[r.kind], now) + 'ms');
+  el.style.setProperty('--amb-period', AMB_PERIOD[r.kind] + 'ms');
+  el.classList.add('amb-' + r.kind, r.face < 0 ? 'amb-l' : 'amb-r');
+  setFx(el, AMB_CHAR_FX[r.kind] ?? null, r.kind);
+}
+function syncAmbient() {
+  const s = store.get();
+  const room = s.rooms[s.currentRoom];
+  if (view !== 'house' || !room) { setAmbientMusic(null); return; }
+  const now = Date.now();
+  const done = new Set<string>();
+  for (const it of room.items) {
+    if (roleOf(it.kind) !== 'musicbox') continue;
+    if (!it.on) { musicBoxSince.delete(it.id); continue; }
+    const t0 = musicBoxSince.get(it.id) ?? (musicBoxSince.set(it.id, now), setTimeout(queueAmbient, MUSIC_BOX_MS + 60), now);
+    if (now - t0 >= MUSIC_BOX_MS) done.add(it.id);
+  }
+  const fridgesOpen = new Set<string>();
+  layer.querySelectorAll<HTMLElement>('.item.opened').forEach(el => { if (el.dataset.id) fridgesOpen.add(el.dataset.id); });
+  const items: AmbItem[] = room.items.map(it => {
+    const def = ITEM_MAP[it.kind];
+    return { id: it.id, kind: it.kind, x: it.x, y: it.y, on: !!it.on, w: def ? placedBox(def, drawnScale(it)).w : 200 };
+  });
+  const chars: AmbChar[] = [];
+  const els = new Map<string, HTMLElement>();
+  for (const c of s.characters) {
+    const el = charEls.get(c.id);
+    if (c.room !== s.currentRoom || !el || el.classList.contains('lifted')) continue;
+    const pose = dollSeat(c)?.pose;
+    chars.push({ id: c.id, x: c.x, y: c.y, seated: pose === 'sit', lying: pose === 'lie' }); els.set(c.id, el);
+  }
+  if (hood && inner !== local) {
+    const entries: [string, Presence][] = [...hood.presence.entries()];
+    const mine = myPres(); if (mine) entries.push([hood.pid, mine]);
+    for (const [pid, p] of entries) {
+      const el = avatarEls.get(pid);
+      if (!el || !el.isConnected || p.where !== 'house' || p.houseId !== currentHouseId || p.room !== s.currentRoom || el.classList.contains('lifted')) continue;
+      const pose = presSeat(pid, p)?.pose;
+      chars.push({ id: 'p:' + pid, x: p.x, y: p.y, seated: pose === 'sit', lying: pose === 'lie' }); els.set('p:' + pid, el);
+    }
+  }
+  const rx = reactionsFor(items, chars, { fridgesOpen, musicBoxDone: done });
+  for (const el of [...charEls.values(), ...avatarEls.values()]) if (![...els.values()].includes(el)) applyReaction(el, undefined, now);
+  els.forEach((el, id) => applyReaction(el, rx.get(id), now));
+  const bathing = new Set([...rx.values()].filter(r => r.kind === 'bathe').map(r => r.item));
+  let music: 'stereo' | 'musicbox' | null = null;
+  for (const it of room.items) {
+    const el = layer.querySelector<HTMLElement>(`.item[data-id="${it.id}"]`);
+    if (!el) continue;
+    const role = roleOf(it.kind);
+    const live = !!it.on && !!role && !done.has(it.id);
+    el.classList.toggle('amb-on', live);
+    if (live) {
+      el.dataset.amb = role!;
+      if (!el.style.getPropertyValue('--amb-delay')) el.style.setProperty('--amb-delay', syncDelayMs(0, BEAT_MS, now) + 'ms');
+      if (role === 'stereo') music = 'stereo'; else if (role === 'musicbox' && !music) music = 'musicbox';
+      setFx(el, AMB_ITEM_FX[role!], role!);
+    } else if (isTub(it.kind) && bathing.has(it.id)) setFx(el, AMB_ITEM_FX.tub, 'tub');
+    else if (isFridge(it.kind) && fridgesOpen.has(it.id)) setFx(el, AMB_ITEM_FX.fridge, 'fridge');
+    else { delete el.dataset.amb; setFx(el, null, ''); }
+  }
+  setAmbientMusic(music);
+}
+/** TV on: the tapper's own kid sits on the nearest free seat if she may, otherwise everyone just stands and watches. */
+function tvSeat(tv: PlacedItem) {
+  const s = store.get();
+  if (hood && view === 'house') { const me = myPres(); if (!me || me.where !== 'house' || me.seat) return; }
+  else {
+    const c = s.characters.find(ch => ch.id === activeChar && ch.room === s.currentRoom) ?? s.characters.find(ch => ch.room === s.currentRoom);
+    if (!c || c.seat) return;
+  }
+  const seat = s.rooms[s.currentRoom].items
+    .filter(i => seatFractions(i.kind)?.pose === 'sit' && Math.abs(i.x - tv.x) < 520)
+    .sort((a, b) => Math.abs(a.x - tv.x) - Math.abs(b.x - tv.x))[0];
+  if (seat) sitAt(seat);
 }
 /** She is rocking on this swing. Local only: house presence does not carry a pose. */
 let swingPose: { id: string; item: string } | null = null;

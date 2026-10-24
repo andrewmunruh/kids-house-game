@@ -1,3 +1,4 @@
+import { isPowerable } from './ambient';
 import { storeKey } from './storekey';
 import { sanitizeLook2, withRandomStarter, type Look2 } from './avatar';
 // All game state is plain serializable JSON. All changes go through `Action`s
@@ -28,6 +29,8 @@ export interface PlacedItem {
   scale: number;
   /** Decorate-mode size. Omitted at 1 so an old save stays byte-for-byte the same. */
   size?: number;
+  /** Play-mode power (stereo, TV, fire, music box). Omitted when off so an old save stays identical. */
+  on?: true;
 }
 
 /** Kid steps from smaller to bigger. Missing, or anything that snaps to 1, is the old size. */
@@ -133,6 +136,7 @@ export type Action =
   | { type: 'item/front'; room: RoomId; id: string }
   | { type: 'item/back'; room: RoomId; id: string }
   | { type: 'item/delete'; room: RoomId; id: string }
+  | { type: 'item/power'; room: RoomId; id: string; on: boolean }
   | { type: 'room/wallpaper'; room: RoomId; color: string }
   | { type: 'room/floor'; room: RoomId; color: string }
   | { type: 'room/pattern'; room: RoomId; pattern: number }
@@ -361,6 +365,16 @@ export function reduce(s: GameState, a: Action): GameState {
       const prev = s.rooms[a.room]?.items.find(i => i.id === a.id) ?? null;
       if (!prev || itemSizeOf(prev.size) === itemSizeOf(a.size)) return s;
       return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? applyItemSize(i, a.size) : i) }));
+    }
+    case 'item/power': {
+      // Explicit target state, so two taps at once settle the same way (idempotent, last write wins).
+      const prev = s.rooms[a.room]?.items.find(i => i.id === a.id) ?? null;
+      if (!prev || !isPowerable(prev.kind) || !!prev.on === !!a.on) return s;
+      return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => {
+        if (i.id !== a.id) return i;
+        if (a.on) return { ...i, on: true as const };
+        const { on: _off, ...rest } = i; return rest;
+      }) }));
     }
     case 'item/front': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, z: maxZ(r) + 1 } : i) }));
     case 'item/back': return mapItems(s, a.room, r => ({ ...r, items: r.items.map(i => i.id === a.id ? { ...i, z: minZ(r) - 1 } : i) }));

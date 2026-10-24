@@ -22,7 +22,8 @@
     "test:ride": "/workspace/.pwvenv/bin/python ride_pose_test.py",
     "test:whatsnew": "/workspace/.pwvenv/bin/python whatsnew_test.py",
     "test:sit": "vite-node tests/sit_test.ts",
-    "test:baby": "vite-node tests/baby_test.ts"
+    "test:baby": "vite-node tests/baby_test.ts",
+    "test:ambient": "vite-node tests/ambient_test.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261016.1",

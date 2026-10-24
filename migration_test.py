@@ -418,14 +418,14 @@ async def main():
                 check('baseline client draws the new kid as a chibi', face == '1' and not old_errs, str(face) + ' ' + '; '.join(old_errs[:2]))
             else:
                 check('baseline client draws the kid', face != 'missing' and not old_errs, str(face) + ' ' + '; '.join(old_errs[:2]))
-            os.makedirs('/opt/cursor/artifacts', exist_ok=True)
+            ART = os.environ.get('ART_DIR', '/opt/cursor/artifacts'); os.makedirs(ART, exist_ok=True)
             await P.click('#mapWorld .mapHouse.mine'); await P.wait_for_timeout(900)
             body = await P.evaluate("""() => { const svg = document.querySelector('.char.avatar.mine svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
             if OLD_HAS_CHIBI:
                 check('baseline client house body is a chibi', body == '1' and not old_errs, str(body))
             else:
                 check('baseline client house body draws', body != 'missing' and not old_errs, str(body))
-            await P.screenshot(path='/opt/cursor/artifacts/old-client-view.png')
+            await P.screenshot(path=ART + '/old-client-view.png')
             await P.click('#btnMap'); await P.wait_for_timeout(500)
             mail_n = await P.locator('.mapMail').count()
             if OLD_HAS_MAIL:
