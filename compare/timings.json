@@ -1,0 +1,20 @@
+{
+ "before": {
+  "map_in": [],
+  "tap_to_park_ms": 431,
+  "park_anims": [],
+  "menu_transform_50ms": "matrix(0.930869, 0, 0, 0.930869, 0, 0)"
+ },
+ "after": {
+  "map_in": [],
+  "tap_to_park_ms": 70,
+  "park_anims": [],
+  "menu_transform_50ms": "matrix(0.904352, 0, 0, 0.904352, 0, 0)"
+ },
+ "after_reduced_motion": {
+  "map_in": [],
+  "tap_to_park_ms": 71,
+  "park_anims": [],
+  "menu_transform_50ms": "none"
+ }
+}

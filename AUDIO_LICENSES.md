@@ -10,3 +10,7 @@
 
 ## Existing sound effects
 Unchanged by M1. They are synthesized in code as before (`sfx`).
+
+## Polish batch 2
+
+No new audio files and no new third-party sounds. The map, park and ranch cues reuse the existing original WebAudio sfx (swish, pop, drop, boing) at their existing volume. They respect mute.

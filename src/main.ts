@@ -2627,9 +2627,14 @@ function renderMapFaces() {
 }
 /** Zoom into the tapped spot, then go there (the new scene fades in). */
 /** Clear a leftover zoom class (older builds zoomed for 360ms before going; now the trip is instant and the new scene fades in). */
-function cancelMapGo() { $('mapWorld').classList.remove('zoomIn'); }
+function cancelMapGo() { clearTimeout(mapGoT); $('mapWorld').classList.remove('zoomIn'); }
 /** Go to the tapped spot right away. The new scene fades in (sceneIn, 200ms, none with reduced motion), so input is never held. */
-function mapGo(target: Place, _from?: HTMLElement) { cancelMapGo(); sfx.swish(); goPlace(target); }
+let mapGoT = 0;
+function mapGo(target: Place, _from?: HTMLElement) {
+  cancelMapGo(); sfx.swish(); goPlace(target);
+  // The map (now hidden) keeps a short 'zoomIn' marker so the trip reads as a zoom; it never holds input.
+  const w = $('mapWorld'); w.classList.add('zoomIn'); clearTimeout(mapGoT); mapGoT = window.setTimeout(() => w.classList.remove('zoomIn'), 250);
+}
 function sceneIn(el: HTMLElement) { if (prefersReducedMotion()) return; el.classList.remove('sceneIn'); void el.offsetWidth; el.classList.add('sceneIn'); setTimeout(() => el.classList.remove('sceneIn'), 260); }
 function goPlace(t: Place) {
   if (t.kind === 'house') enterHouse(t.houseId, t.room);
