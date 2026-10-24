@@ -161,6 +161,9 @@ body.mode-play #toolbar { display: none !important; }
 }
 /* Soft contact shadow under a raster floor piece. The SVG shadow stays in the drawing for ?art=v1. */
 .item .artshade { position: absolute; left: 12%; width: 76%; bottom: 0; height: 8%; border-radius: 50%; background: rgba(70, 44, 62, .20); filter: blur(2px); pointer-events: none; }
+/* Kitchen refit: the contact shadow spans the table's legs and the cake's plate, like the fridge's spans its base. */
+.item .artshade:has(+ .artimg[data-kind="table"]) { left: 4%; width: 92%; }
+.item .artshade:has(+ .artimg[data-kind="cake"]) { left: 9%; width: 82%; height: 6%; }
 .item.flipped .inner .packimg, .item.flipped .inner .artnight, .ghost.flipped .packimg { transform: scaleX(-1); }
 .ghost .packimg, .thing .packimg { object-position: 50% 50%; }
 .empty { align-self: center; margin: auto; font-weight: 800; opacity: .5; font-size: 18px; }
