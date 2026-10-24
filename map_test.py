@@ -80,10 +80,25 @@ async def main():
         await wait_map_settled(P)
         check('map fits the screen (no sideways street scrolling)', await P.evaluate("(() => { const s = document.getElementById('street'), w = document.getElementById('mapWorld').getBoundingClientRect(); return s.scrollWidth <= s.clientWidth + 1 && w.left >= -1 && w.right <= innerWidth + 1 && w.bottom <= innerHeight + 1; })()"))
         await P.screenshot(path=SHOT + '01-solo-map.png')
-        await P.locator('[data-go="park"]').tap(); await P.wait_for_timeout(120)
-        zoom = await P.evaluate("document.getElementById('mapWorld').classList.contains('zoomIn')")
+        # Trips are instant: the scene shows within 300ms and fades in (sceneIn); input is never held.
+        t0 = await P.evaluate("performance.now()")
+        await P.locator('[data-go="park"]').tap()
+        await P.wait_for_function("!document.getElementById('park').classList.contains('hidden')", timeout=2000)
+        ms = await P.evaluate("performance.now()") - t0
+        fade = await P.evaluate("document.getElementById('park').classList.contains('sceneIn')")
         await P.wait_for_timeout(450)
-        check('tap a place (touch) -> quick zoom transition -> there', zoom and (await UI(P))['view'] == 'park' and await P.locator('#pavatars .savatar').count() == 1)
+        check('tap a place (touch) -> there within 300ms with a short fade-in', ms <= 300 and fade and (await UI(P))['view'] == 'park' and await P.locator('#pavatars .savatar').count() == 1, round(ms))
+        # Reduced motion: the same instant trip, with no animation at all.
+        rc = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=2, has_touch=True, reduced_motion='reduce')
+        await rc.add_init_script(SKIP_WN); R = await rc.new_page(); await R.goto(URL); await R.wait_for_timeout(600)
+        await R.click('#btnMap')
+        await R.wait_for_selector('[data-go="park"]', state='visible'); await R.wait_for_timeout(300)
+        t0 = await R.evaluate("performance.now()"); await R.locator('[data-go="park"]').tap()
+        await R.wait_for_function("!document.getElementById('park').classList.contains('hidden')", timeout=2000)
+        rms = await R.evaluate("performance.now()") - t0
+        ranim = await R.evaluate("({fade: document.getElementById('park').classList.contains('sceneIn'), anims: document.getAnimations().filter(a => { const t = a.effect && a.effect.target; return t && (t.closest('#park') || t.closest('#mapWorld')); }).length})")
+        check('reduced motion: instant trip, no animation', rms <= 300 and not ranim['fade'] and ranim['anims'] == 0, [round(rms), ranim])
+        await rc.close()
         check('map button visible in the park', await map_btn_ok(P))
         check('park hides room tabs and names the park', await place_bar(P, 'The Park'))
         await go(P, 'ranch'); check('map button visible at the ranch', await map_btn_ok(P))
