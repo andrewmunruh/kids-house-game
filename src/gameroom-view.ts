@@ -5,6 +5,9 @@ import { confetti } from './eggs';
 import { createTableUI, type TableApi } from './games/ui';
 import { GR_H, gameRoomSVG, gameRoomExtSVG, seatLayout } from './gameroom';
 import type { HoodClient } from './net';
+import rugUrl from '../assets/art/any/rug.webp?url';
+import beanUrl from '../assets/art/living/pack~bean-bag.webp?url';
+import bean2Url from '../assets/art/living/pack~sv-bean-bag.webp?url';
 import type { Look, Presence } from './shared/hood';
 import { GAMEROOM_W, GAMES, TABLES } from './shared/games/index';
 import type { Dog } from './shared/state';
@@ -80,7 +83,7 @@ export function renderGameRoom() {
   if (top) html += `<div class="grExtWrap" style="top:${-top}px;height:${top}px">${gameRoomExtSVG('top', top / sc)}</div>`;
   // The scroller stops 6px short of the bottom: keep that strip floor-coloured too.
   if (room) room.style.background = top ? 'linear-gradient(180deg, #ffe0f2 0 50%, #d27399 50%)' : '';
-  if (bot) html += `<div class="grExtWrap" style="top:100%;height:${bot}px">${gameRoomExtSVG('bottom', bot / sc)}</div>`;
+  if (bot) html += `<div class="grExtWrap" style="top:100%;height:${bot}px">${gameRoomExtSVG('bottom', bot / sc)}${lowerDecor(sc, bot, room?.clientWidth || 0)}</div>`;
   html += `<button class="grDoor" data-gr="map" aria-label="Back to the map" style="left:${px(78)};top:${px(268)};width:${px(86)};height:${px(170)}"></button>`;
   TABLES.forEach((t, tb) => {
     const tw = t.seats >= 6 ? 560 : t.seats >= 4 ? 440 : 340;
@@ -262,4 +265,18 @@ function attachDrag(el: HTMLElement) {
     };
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   });
+}
+
+// Decor on the tall-screen lower floor: a rug and two beanbags from the existing art.
+// Inside .grExtWrap (pointer-events: none), so nothing blocks a walk or catches a tap.
+function lowerDecor(sc: number, bot: number, vw: number): string {
+  if (bot < 120) return '';
+  const cx = vw ? Math.min(TABLES[0].x * sc, vw / 2) : TABLES[0].x * sc, rw = Math.min(560 * sc * 1.2, bot * 1.7), rh = rw * 306 / 960;
+  const ry = Math.max(8, (bot - rh) * 0.45);
+  const bw = rw * 0.26, bh = bw * 0.78;
+  const img = (u: string, l: number, t: number, w: number, flip = false) =>
+    `<img class="grDecor" src="${u}" alt="" aria-hidden="true" draggable="false" style="left:${l}px;top:${t}px;width:${w}px${flip ? ';transform:scaleX(-1)' : ''}">`;
+  return `<div class="grDecor grRug" aria-hidden="true" style="left:${cx - rw / 2}px;top:${ry}px;width:${rw}px;height:${rh}px"><img src="${rugUrl}" alt="" draggable="false" style="width:${rw}px;margin-top:${-rw * 634 / 960}px"></div>`
+    + img(beanUrl, cx - rw / 2 - bw * 0.35, ry + rh * 0.45 - bh * 0.6, bw)
+    + img(bean2Url, cx + rw / 2 - bw * 0.65, ry + rh * 0.45 - bh * 0.6, bw * 1.02, true);
 }
