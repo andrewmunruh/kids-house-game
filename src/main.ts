@@ -2626,16 +2626,18 @@ function renderMapFaces() {
   updateNear();
 }
 /** Zoom into the tapped spot, then go there (the new scene fades in). */
+let mapGoT = 0;
+/** Drop a pending map zoom (Home, Map or another tap wins; nothing is lost). */
+function cancelMapGo() { if (mapGoT) { clearTimeout(mapGoT); mapGoT = 0; } $('mapWorld').classList.remove('zoomIn'); }
 function mapGo(target: Place, from?: HTMLElement) {
   const w = $('mapWorld');
-  if (from && !w.classList.contains('zoomIn')) {
-    const r = from.getBoundingClientRect(), wr = w.getBoundingClientRect();
-    w.style.transformOrigin = `${r.left + r.width / 2 - wr.left}px ${r.top + r.height / 2 - wr.top}px`;
-    w.classList.remove('mapIn'); w.classList.add('zoomIn'); sfx.swish();
-    setTimeout(() => { w.classList.remove('zoomIn'); goPlace(target); }, 360);
-  } else goPlace(target);
+  if (mapGoT || !from || prefersReducedMotion()) { cancelMapGo(); sfx.swish(); goPlace(target); return; }
+  const r = from.getBoundingClientRect(), wr = w.getBoundingClientRect();
+  w.style.transformOrigin = `${r.left + r.width / 2 - wr.left}px ${r.top + r.height / 2 - wr.top}px`;
+  w.classList.remove('mapIn'); w.classList.add('zoomIn'); sfx.swish();
+  mapGoT = window.setTimeout(() => { mapGoT = 0; w.classList.remove('zoomIn'); if (view === 'street') goPlace(target); }, 180);
 }
-function sceneIn(el: HTMLElement) { el.classList.remove('sceneIn'); void el.offsetWidth; el.classList.add('sceneIn'); setTimeout(() => el.classList.remove('sceneIn'), 600); }
+function sceneIn(el: HTMLElement) { if (prefersReducedMotion()) return; el.classList.remove('sceneIn'); void el.offsetWidth; el.classList.add('sceneIn'); setTimeout(() => el.classList.remove('sceneIn'), 300); }
 function goPlace(t: Place) {
   if (t.kind === 'house') enterHouse(t.houseId, t.room);
   else if (t.kind === 'home') goHome();
@@ -2648,7 +2650,7 @@ function goPlace(t: Place) {
 function goToFriend(pid: string) {
   const p = hood?.presence.get(pid); if (!hood || !p) return;
   const pl = placeOf(p), name = hood.players.get(pid)?.nickname ?? 'your friend';
-  if (pl.kind === 'square') { toast(`${name} is on the map too! 👋`); return; }
+  if (pl.kind === 'square') { toast(`${name} is on the map too! 👋`); sfx.pop(); return; }
   const face = document.querySelector<HTMLElement>(`#mapFaces .mapFace[data-pid="${pid}"]`) ?? undefined;
   mapGo(pl, face);
   setTimeout(() => {
@@ -2771,14 +2773,14 @@ $('mapWorld').addEventListener('click', e => {
   const g = sp.dataset.go!;
   mapGo(g.startsWith('house:') ? { kind: 'house', houseId: g.slice(6) } : { kind: g as 'home' | 'park' | 'ranch' | 'gameroom' }, sp);
 });
-function hideScenes() { $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('ranch').classList.add('hidden'); $('gameroom').classList.add('hidden'); tableApi()?.close(); $('chatTray').classList.add('hidden'); $('sheet').classList.add('hidden'); }
+function hideScenes() { cancelMapGo(); $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('ranch').classList.add('hidden'); $('gameroom').classList.add('hidden'); tableApi()?.close(); $('chatTray').classList.add('hidden'); $('sheet').classList.add('hidden'); }
 function goMap() {
-  fetchSt = null; walkQueue = []; inBarn = false;
+  cancelMapGo(); fetchSt = null; walkQueue = []; inBarn = false;
   if (hood) setMyPres({ where: 'street', x: 600, y: 540, flip: false }); else soloPark = null;
   hideScenes(); view = 'street'; $('street').classList.remove('hidden');
   $('streetTitle').textContent = hood ? 'Our Neighborhood' : 'My Map';
   renderHoodChrome(); renderMap(true);
-  const w = $('mapWorld'); w.style.transformOrigin = '50% 50%'; w.classList.remove('zoomIn', 'mapIn'); void w.offsetWidth; w.classList.add('mapIn');
+  const w = $('mapWorld'); w.style.transformOrigin = '50% 50%'; w.classList.remove('zoomIn', 'mapIn'); if (!prefersReducedMotion()) { void w.offsetWidth; w.classList.add('mapIn'); }
   sfx.swish();
 }
 /** Back to her own house (solo: the local house; neighborhood: her house on the street). */
@@ -3129,12 +3131,12 @@ function attachParkDrag(el: HTMLElement) {
 $('parkWorld').addEventListener('pointerdown', e => { if ((e.target as HTMLElement).closest('.pspot, .ball, .pet')) e.stopPropagation(); });
 $('parkWorld').addEventListener('click', e => {
   const t = e.target as HTMLElement; const me = myParkPres(); if (!me) return;
-  if (t.closest('#ball')) { throwBall(); return; }
+  if (t.closest('#ball')) { if (!fetchSt) sfx.boing(); throwBall(); return; }
   const sp = t.closest<HTMLElement>('[data-spot]');
   if (sp) {
     const i = +sp.dataset.spot!, s = PARK_SPOTS[i];
-    if (me.spot === i && me.pose) { setParkPres({ where: 'park', x: s.x, y: Math.min(590, s.y + 40), flip: me.flip }); return; } // tap again to hop off
-    if (parkPeople().some(w => !w.mine && w.p.spot === i && w.p.pose)) { toast('Someone is already there!'); return; }
+    if (me.spot === i && me.pose) { setParkPres({ where: 'park', x: s.x, y: Math.min(590, s.y + 40), flip: me.flip }); sfx.drop(); return; } // tap again to hop off
+    if (parkPeople().some(w => !w.mine && w.p.spot === i && w.p.pose)) { toast('Someone is already there!'); sfx.pop(); return; }
     setParkPres({ where: 'park', x: s.x, y: s.y, flip: me.flip, pose: s.kind === 'swing' ? 'swing' : 'sit', spot: i }); s.kind === 'swing' ? sfx.boing() : sfx.drop(); return;
   }
   const act = t.closest<HTMLElement>('[data-act]')?.dataset.act;

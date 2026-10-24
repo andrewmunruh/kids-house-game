@@ -12,7 +12,18 @@ export function wiggleItem(el: HTMLElement | null | undefined) {
   window.setTimeout(() => el.classList.remove('wiggle'), 480);
 }
 
+/** Instant press feedback: a class on pointerdown (before click), so round header buttons and drawer cards react within a frame. */
+const PRESS_SEL = '.round, .thing';
 export function installJuice() {
+  let pressed: Element | null = null;
+  const release = () => { pressed?.classList.remove('pressing'); pressed = null; };
+  document.addEventListener('pointerdown', e => {
+    release();
+    const el = (e.target as HTMLElement | null)?.closest?.(PRESS_SEL);
+    if (!el) return;
+    el.classList.add('pressing'); pressed = el;
+  }, { capture: true, passive: true });
+  for (const t of ['pointerup', 'pointercancel', 'dragstart', 'blur'] as const) window.addEventListener(t, release, { capture: true, passive: true });
   document.addEventListener('pointerup', e => {
     if (prefersReducedMotion()) return;
     const b = (e.target as HTMLElement | null)?.closest('button');

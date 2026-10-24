@@ -2,6 +2,10 @@
    Loaded after style.css so these small overrides win. */
 
 button.spring { animation: pressSpring .42s cubic-bezier(.34, 1.56, .5, 1); }
+/* Press feedback (polish b2): shows on pointerdown, within one frame. Tint always; scale only with motion allowed. */
+.round.pressing, .thing.pressing { filter: brightness(.92); transition: transform 40ms ease-out, box-shadow 40ms ease-out, filter 40ms ease-out; }
+.round.pressing { transform: scale(.9); box-shadow: 0 1px 0 #e6c9d8; }
+.thing.pressing:not(.pressed) { transform: scale(.92); box-shadow: 0 1px 0 #e6c9d8; }
 @keyframes pressSpring {
   0% { transform: scale(.94); }
   50% { transform: scale(1.04); }
@@ -72,4 +76,7 @@ button.spring { animation: pressSpring .42s cubic-bezier(.34, 1.56, .5, 1); }
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  .round.pressing, .thing.pressing:not(.pressed) { transform: none; }
+  .sceneIn, .mapWorld.mapIn { animation: none !important; }
+  .mapWorld, .mapWorld.zoomIn { transition: none !important; transform: none; opacity: 1; }
 }

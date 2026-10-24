@@ -650,12 +650,12 @@ body.view-ranch #btnHood, body.view-park #btnHood { display: none !important; }
 .mapSky { top: 0; height: 36%; }
 .mapMeadow { bottom: 0; height: 38%; }
 .mapSky svg, .mapMeadow svg { width: 100%; height: 100%; overflow: hidden; }
-.mapWorld { position: relative; z-index: 1; border-radius: calc(34px * var(--sc, 1)); box-shadow: 0 0 0 4px var(--ink), 0 10px 0 rgba(90,61,92,.18); transition: transform .36s cubic-bezier(.5,0,.75,0), opacity .36s ease-in; }
+.mapWorld { position: relative; z-index: 1; border-radius: calc(34px * var(--sc, 1)); box-shadow: 0 0 0 4px var(--ink), 0 10px 0 rgba(90,61,92,.18); transition: transform .18s cubic-bezier(.5,0,.75,0), opacity .18s ease-in; }
 .mapClip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
 .mapClip > svg, .mapWorld > svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
-.mapWorld.zoomIn { transform: scale(2.6); opacity: 0; }
-.mapWorld.mapIn { animation: mapIn .42s cubic-bezier(.2,.8,.3,1); }
-@keyframes mapIn { from { transform: scale(1.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.mapWorld.zoomIn { transform: scale(1.8); opacity: 0; }
+.mapWorld.mapIn { animation: mapIn .22s cubic-bezier(.2,.8,.3,1); }
+@keyframes mapIn { from { transform: scale(1.08); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .mapSpot { position: absolute; z-index: 5; background: none; border: 0; padding: 0; box-shadow: none; border-radius: 18px; transition: transform .15s; -webkit-tap-highlight-color: transparent; }
 .mapSpot svg { width: 100%; height: 100%; display: block; pointer-events: none; }
 .mapSpot:active { transform: scale(.93); }
@@ -683,8 +683,8 @@ body.view-map #btnMap { display: none !important; }
 body.view-map .top { background: linear-gradient(#fff, rgba(255,255,255,.85)); }
 body.mode-hood.view-map #btnChat { display: block !important; }
 body.has-hood:not(.mode-hood).view-map .soloOnly { display: block !important; }
-.sceneIn { animation: sceneIn .45s cubic-bezier(.2,.8,.3,1); }
-@keyframes sceneIn { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
+.sceneIn { animation: sceneIn .22s cubic-bezier(.2,.8,.3,1); }
+@keyframes sceneIn { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
 
 /* ===================== the barn (petting zoo inside) ===================== */
 .barnOnly { display: none !important; }
