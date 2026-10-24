@@ -78,6 +78,8 @@ export function renderGameRoom() {
   let html = gameRoomSVG();
   // Continue the wall up and the floor down so the spare height isn't flat bands.
   if (top) html += `<div class="grExtWrap" style="top:${-top}px;height:${top}px">${gameRoomExtSVG('top', top / sc)}</div>`;
+  // The scroller stops 6px short of the bottom: keep that strip floor-coloured too.
+  if (room) room.style.background = top ? 'linear-gradient(180deg, #ffe0f2 0 50%, #d27399 50%)' : '';
   if (bot) html += `<div class="grExtWrap" style="top:100%;height:${bot}px">${gameRoomExtSVG('bottom', bot / sc)}</div>`;
   html += `<button class="grDoor" data-gr="map" aria-label="Back to the map" style="left:${px(78)};top:${px(268)};width:${px(86)};height:${px(170)}"></button>`;
   TABLES.forEach((t, tb) => {

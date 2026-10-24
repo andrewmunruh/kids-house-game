@@ -128,8 +128,8 @@ export function gameRoomExtSVG(side: 'top' | 'bottom', h: number): string {
   let body = '';
   if (side === 'top') {
     body = `<rect width="${W}" height="${H}" fill="#ffe0f2"/>`;
-    // light strings every ~90 units going up, alternating sag, never closer than 40 to the scene edge
-    for (let y = H - 62, i = 0; y > 10; y -= 90, i++) body += strand(W, y, i % 2 ? 22 : 16, i % 2 ? 26 : 20);
+    // light strings every ~150 units going up, alternating sag, never closer than 40 to the scene edge
+    for (let y = H - 70, i = 0; y > 24; y -= 150, i++) body += strand(W, y, i % 2 ? 22 : 16, i % 2 ? 26 : 20);
     for (let i = 0; i < 14; i++) {
       const x = 90 + ((i * 397) % (W - 180)), y = 20 + ((i * 131) % Math.max(20, H - 70));
       body += star(x, y, 0.55 + (i % 3) * 0.2, i % 2 ? '#fff' : '#ffd43b');
