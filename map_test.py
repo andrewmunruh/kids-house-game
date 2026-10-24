@@ -91,7 +91,7 @@ async def main():
         # Reduced motion: the same instant trip, with no animation at all.
         rc = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=2, has_touch=True, reduced_motion='reduce')
         await rc.add_init_script(SKIP_WN); R = await rc.new_page(); await R.goto(URL); await R.wait_for_timeout(600)
-        await R.click('#btnMap')
+        await R.locator('#btnMap').tap(); await R.wait_for_selector('body.view-map #mapWorld .mapSpot')
         await R.wait_for_selector('[data-go="park"]', state='visible'); await R.wait_for_timeout(300)
         t0 = await R.evaluate("performance.now()"); await R.locator('[data-go="park"]').tap()
         await R.wait_for_function("!document.getElementById('park').classList.contains('hidden')", timeout=2000)
