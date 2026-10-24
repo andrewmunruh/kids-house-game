@@ -41,7 +41,7 @@ import { dockSkyChrome, mountSkyToggle } from './sky-toggle';
 import './sky.css';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
-import { bindGameRoom, renderGameRoom, renderGamePeople, tickGameRoom, mySeat, grScale, tableApi } from './gameroom-view';
+import { bindGameRoom, renderGameRoom, renderGamePeople, tickGameRoom, mySeat, grScale, tableApi, GR_PORTRAIT_VIEW } from './gameroom-view';
 
 // The renderer talks to `store`, which forwards to either the offline localStorage house
 // or a neighborhood house (server-authoritative) — same actions, same reducer.
@@ -124,11 +124,11 @@ app.innerHTML = `
   <div class="streetTitle" id="streetTitle">Our Neighborhood</div>
   <div class="tools">
     <button class="round hoodOnly" id="btnChat" aria-label="Talk">${ICONS.chat}<span class="badge" id="chatBadge"></span></button>
-    <button class="round" id="btnMenu" aria-label="Menu" aria-expanded="false">${MENU_ICON}<span class="badge" id="menuBadge"></span></button>
     <button class="round homeBtn" id="btnHome" aria-label="Home">${ICONS.home}</button>
     <button class="round barnOnly" id="btnLeavePark" aria-label="Go outside">${gateIcon}</button>
     <button class="round rideOnly" id="btnHopOff" aria-label="Hop off the horse">${hopOffIcon}</button>
     <button class="round mapBtn" id="btnMap" aria-label="Map">${mapIcon}<span class="badge" id="mapBadge"></span></button>
+    <button class="round" id="btnMenu" aria-label="Menu" aria-expanded="false">${MENU_ICON}<span class="badge" id="menuBadge"></span></button>
   </div>
 </div>
 <div class="menuPop hidden" id="menuPop">
@@ -622,6 +622,8 @@ function syncTabMode() {
 }
 function fitNow() { if (phoneMQ.matches) fitPhone(); else fit(); }
 window.addEventListener('resize', fitNow);
+window.addEventListener('resize', () => requestAnimationFrame(syncTabFade));
+$('tabs').addEventListener('scroll', syncTabFade, { passive: true });
 phoneMQ.addEventListener('change', fitNow);
 // Phone only. Coming home brings the room tabs back, and the own-house buttons can
 // wrap the tool row, both without a window resize — the room then keeps the old scale
@@ -922,6 +924,22 @@ function renderTabs(s: GameState) {
     const on = s.currentRoom === r.id || (s.currentRoom === 'backyard' && r.id === 'living');
     return `<button class="tab ${on ? 'on' : ''}" data-room="${r.id}" style="--c:${r.color}" aria-label="${r.name}">${compact ? TAB_ICO : ''}${label}</button>`;
   }).join('');
+  requestAnimationFrame(() => { showTabOn(); syncTabFade(); });
+}
+/** The tab row scrolls sideways when it can't fit. Fade the edge that has more tabs past it. */
+function syncTabFade() {
+  const t = document.getElementById('tabs'); if (!t) return;
+  const max = t.scrollWidth - t.clientWidth;
+  t.classList.toggle('fadeL', max > 2 && t.scrollLeft > 2);
+  t.classList.toggle('fadeR', max > 2 && t.scrollLeft < max - 2);
+}
+/** Keep the current room's tab in view (only scrolls the tab row itself). */
+function showTabOn() {
+  const t = document.getElementById('tabs'), on = t?.querySelector<HTMLElement>('.tab.on');
+  if (!t || !on || t.scrollWidth <= t.clientWidth + 2) return;
+  const l = on.offsetLeft - t.offsetLeft, r = l + on.offsetWidth;
+  if (l < t.scrollLeft + 24) t.scrollLeft = Math.max(0, l - 24);
+  else if (r > t.scrollLeft + t.clientWidth - 24) t.scrollLeft = r - t.clientWidth + 24;
 }
 function placeEl(el: HTMLElement, x: number, y: number, w: number, h: number) {
   el.style.left = (x - w / 2) / W * 100 + '%';
@@ -3137,18 +3155,21 @@ function goPark() {
   sfx.sparkle();
 }
 function leavePark() { goMap(); }
+/** Portrait iPad: the clubhouse is fitted to the width (see grScale), so the camera can show door to first table. */
+function grWide() { return portraitPlace() && !document.body.classList.contains('phone'); }
+function grSpawnX() { return portraitPlace() ? 520 : 280; }
 function goGameRoom() {
   hideScenes(); walkQueue = []; inBarn = false;
   view = 'gameroom'; $('gameroom').classList.remove('hidden');
   const seat = mySeat();
   const p: Presence = seat
     ? { where: 'gameroom', x: seat.x, y: Math.max(RANCH_Y0, Math.min(RANCH_Y1, seat.y)), flip: false }
-    : { where: 'gameroom', x: portraitPlace() ? 520 : 280, y: 560, flip: false };
+    : { where: 'gameroom', x: grSpawnX(), y: 560, flip: false };
   if (hood) setMyPres(p); else soloPark = p;
   $('streetTitle').textContent = 'The Clubhouse'; renderHoodChrome(); renderGameRoom();
   requestAnimationFrame(() => {
     const sc = grScale(), scroll = $('grScroll');
-    const focus = seat?.x ?? (portraitPlace() ? 520 : 280);
+    const focus = seat?.x ?? (grWide() ? 60 + GR_PORTRAIT_VIEW / 2 : grSpawnX());
     scroll.scrollLeft = Math.max(0, focus * sc - scroll.clientWidth / 2);
     phoneShowKids();
     frameClubSign();

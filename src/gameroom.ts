@@ -162,7 +162,7 @@ export function gameRoomSVG(): string {
   </g>
 
   ${poster(500, 340, -6, '#ffe0f0', `${heart(0, 8, 1.4)}${star(-18, -16, 0.7, '#ffd43b')}${star(18, -10, 0.55, '#66d9e8')}`, ' frameAtHead')}
-  ${poster(424, 186, -8, '#ffe0f0', `${heart(0, 8, 1.4)}${star(-18, -16, 0.7, '#ffd43b')}${star(18, -10, 0.55, '#66d9e8')}`, ' framePhone')}
+  ${poster(270, 196, -8, '#ffe0f0', `${heart(0, 8, 1.4)}${star(-18, -16, 0.7, '#ffd43b')}${star(18, -10, 0.55, '#66d9e8')}`, ' framePhone')}
   ${poster(980, 240, 5, '#e7fbff', `<ellipse cx="0" cy="6" rx="16" ry="12" fill="#fff" ${st(2)}/><path d="M-6 6 Q0 -8 6 6" fill="none" stroke="${O}" stroke-width="2"/><path d="M0 18 V28 M-12 24 H12" ${st(2)}/>`)}
   ${poster(1680, 255, -4, '#fff3c4', `${star(0, 2, 1.5, '#ffd43b')}`)}
   ${poster(2360, 245, 6, '#f3e8ff', `${heart(0, 4, 1.3, '#d0bfff')}`)}
