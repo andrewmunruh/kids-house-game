@@ -921,6 +921,8 @@ body.view-street .stage { visibility: hidden; }
    667×375 keeps the 44px map in the rule below. */
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) and (min-width: 780px) {
   body.phone .minimap { flex: 0 0 112px; width: 112px; min-width: 96px; height: 48px; margin: 0 4px; }
+  /* On a street the Play/Decorate toggle and chat join the row, so six tabs ran under the map. A narrower map clears them. */
+  body.phone.mode-hood .minimap { flex: 0 0 76px; width: 76px; min-width: 64px; margin: 0 2px; }
 }
 /* Very short phone landscape letterboxes the room. A centred Surprises pill covers the
    top of the wall, so it moves into the right gutter. Taller landscape phones keep it centred.
