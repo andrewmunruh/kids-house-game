@@ -117,6 +117,31 @@ function tableArt(tb: number): string {
 const heart = (x: number, y: number, s = 1, fill = '#ff4d94') => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 4 C-6 -4 -14 -2 -10 6 C-7 12 0 16 0 16 C0 16 7 12 10 6 C14 -2 6 -4 0 4 Z" fill="${fill}" stroke="${O}" stroke-width="1.6" stroke-linejoin="round"/>`;
 
 /** Wide side-view of the clubhouse: lights, neon, beanbags, rugs, and three round tables. */
+/**
+ * Portrait iPad fits the room to the width, so it is shorter than the screen. These
+ * strips continue the backdrop past the painted scene instead of leaving flat bands:
+ * the wall (its top colour, more light strings and sparkles) upward, the floor downward.
+ * New backdrop only: the shipped scene is untouched. `h` is in scene units.
+ */
+export function gameRoomExtSVG(side: 'top' | 'bottom', h: number): string {
+  const W = GAMEROOM_W, H = Math.max(1, Math.ceil(h));
+  let body = '';
+  if (side === 'top') {
+    body = `<rect width="${W}" height="${H}" fill="#ffe0f2"/>`;
+    // light strings every ~150 units going up, alternating sag, never closer than 40 to the scene edge
+    for (let y = H - 70, i = 0; y > 24; y -= 150, i++) body += strand(W, y, i % 2 ? 22 : 16, i % 2 ? 26 : 20);
+    for (let i = 0; i < 14; i++) {
+      const x = 90 + ((i * 397) % (W - 180)), y = 20 + ((i * 131) % Math.max(20, H - 70));
+      body += star(x, y, 0.55 + (i % 3) * 0.2, i % 2 ? '#fff' : '#ffd43b');
+    }
+  } else {
+    body = `<defs><linearGradient id="grFloorExt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e089ab"/><stop offset="1" stop-color="#d27399"/></linearGradient></defs>
+  <rect width="${W}" height="${H}" fill="url(#grFloorExt)"/>`;
+    for (let y = 46; y < H; y += 64) body += `<rect y="${y}" width="${W}" height="3" fill="#fff" opacity=".18"/>`;
+  }
+  return `<svg class="grExt grExt-${side}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+}
+
 export function gameRoomSVG(): string {
   const W = GAMEROOM_W;
   const sparks = [[120, 200], [260, 250], [640, 210], [900, 250], [1180, 190], [1560, 230], [1860, 180], [2100, 240], [2420, 200], [2520, 280]];

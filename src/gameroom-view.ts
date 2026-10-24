@@ -3,7 +3,7 @@ import { characterSVG, SIZE_SCALE } from './character';
 import { stampAvatar } from './avatar/motion';
 import { confetti } from './eggs';
 import { createTableUI, type TableApi } from './games/ui';
-import { GR_H, gameRoomSVG, seatLayout } from './gameroom';
+import { GR_H, gameRoomSVG, gameRoomExtSVG, seatLayout } from './gameroom';
 import type { HoodClient } from './net';
 import type { Look, Presence } from './shared/hood';
 import { GAMEROOM_W, GAMES, TABLES } from './shared/games/index';
@@ -73,8 +73,14 @@ export function renderGameRoom() {
   w.style.width = GAMEROOM_W * sc + 'px'; w.style.height = GR_H * sc + 'px'; w.style.setProperty('--sc', String(sc));
   // Fitted to the width, the room is shorter than the screen: sit it a little below the middle.
   const room = document.getElementById('gameroom'), spare = (room?.clientHeight || 0) - 6 - GR_H * sc;
-  w.style.marginTop = spare > 1 ? Math.round(spare * 0.55) + 'px' : '';
+  const top = spare > 1 ? Math.round(spare * 0.55) : 0, bot = spare > 1 ? Math.ceil(spare - top) + 6 : 0;
+  w.style.marginTop = top ? top + 'px' : '';
   let html = gameRoomSVG();
+  // Continue the wall up and the floor down so the spare height isn't flat bands.
+  if (top) html += `<div class="grExtWrap" style="top:${-top}px;height:${top}px">${gameRoomExtSVG('top', top / sc)}</div>`;
+  // The scroller stops 6px short of the bottom: keep that strip floor-coloured too.
+  if (room) room.style.background = top ? 'linear-gradient(180deg, #ffe0f2 0 50%, #d27399 50%)' : '';
+  if (bot) html += `<div class="grExtWrap" style="top:100%;height:${bot}px">${gameRoomExtSVG('bottom', bot / sc)}</div>`;
   html += `<button class="grDoor" data-gr="map" aria-label="Back to the map" style="left:${px(78)};top:${px(268)};width:${px(86)};height:${px(170)}"></button>`;
   TABLES.forEach((t, tb) => {
     const tw = t.seats >= 6 ? 560 : t.seats >= 4 ? 440 : 340;
