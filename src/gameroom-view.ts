@@ -31,7 +31,13 @@ let api: TableApi | null = null;
 let walkTarget: { x: number; y: number } | null = null;
 let bound = false;
 
-export const grScale = () => (document.getElementById('gameroom')?.clientHeight || 600) / GR_H;
+/** Portrait iPad shows a wide slice of the room (door, sign and the first table) instead of a zoomed-in corner. */
+export const GR_PORTRAIT_VIEW = 960;
+const grPortraitFit = (el: HTMLElement | null) => !!el && !document.body.classList.contains('phone') && el.clientHeight > el.clientWidth + 40;
+export const grScale = () => {
+  const el = document.getElementById('gameroom'), h = el?.clientHeight || 600;
+  return grPortraitFit(el) ? Math.min(h / GR_H, el!.clientWidth / GR_PORTRAIT_VIEW) : h / GR_H;
+};
 export const tableApi = () => api;
 export function mySeat(): { tb: number; seat: number; x: number; y: number } | null {
   const h = D?.hood(); if (!h) return null;
@@ -65,6 +71,9 @@ export function renderGameRoom() {
   const sc = grScale(), w = document.getElementById('grWorld')!;
   const px = (v: number) => v * sc + 'px';
   w.style.width = GAMEROOM_W * sc + 'px'; w.style.height = GR_H * sc + 'px'; w.style.setProperty('--sc', String(sc));
+  // Fitted to the width, the room is shorter than the screen: sit it a little below the middle.
+  const room = document.getElementById('gameroom'), spare = (room?.clientHeight || 0) - 6 - GR_H * sc;
+  w.style.marginTop = spare > 1 ? Math.round(spare * 0.55) + 'px' : '';
   let html = gameRoomSVG();
   html += `<button class="grDoor" data-gr="map" aria-label="Back to the map" style="left:${px(78)};top:${px(268)};width:${px(86)};height:${px(170)}"></button>`;
   TABLES.forEach((t, tb) => {
