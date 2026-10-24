@@ -948,8 +948,10 @@ body.view-street .stage { visibility: hidden; }
 
 /* ===================== glam clubhouse / Game Room ===================== */
 .grRoom { background: linear-gradient(180deg, #ffd6ee, #e4d4ff 46%, #d5f4ff); }
+.grExtWrap { position: absolute; left: 0; width: 100%; pointer-events: none; overflow: hidden; }
+.grExtWrap > svg.grExt { display: block; width: 100%; height: 100%; }
 .grWorld > svg.grScene { position: absolute; inset: 0; width: 100%; height: 100%; }
-.grScene .bulb { transform-box: fill-box; transform-origin: center; animation: twinkle 1.3s ease-in-out infinite; }
+.grScene .bulb, .grExt .bulb { transform-box: fill-box; transform-origin: center; animation: twinkle 1.3s ease-in-out infinite; }
 /* The portrait spawn stands on the first photo. A second copy sits up and to the left, clear of her head. iPad keeps the original. */
 body.phone .grScene .frameAtHead { display: none; }
 body:not(.phone) .grScene .framePhone { display: none; }
