@@ -7,6 +7,8 @@ import { hairBack, hairFront } from './hair';
 import { topLayer, bottomLayer, bottomOverLayer, dressLayer, shoesLayer, accessoryLayer, hatHairMask } from './wardrobe';
 import { cradleArm } from '../baby/arms';
 import { poseNamed } from './sit';
+import { costumeParts } from './costume';
+import type { CostumeId } from '../shared/costume';
 
 const PRESETS: Pose[] = [
   { hip: 1.5, head: 4, armL: 3, armR: -2, legL: 0, legR: -3, legLLift: 0, legRLift: 0 },
@@ -187,7 +189,7 @@ function torso(): string {
     + `<path d="M70 168 Q74 160 92 160 H108 Q126 160 130 168 L134 236 Q100 244 66 236 Z" fill="var(--skin)" ${S(3)}/>`;
 }
 
-export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean; pose?: Pose; poseName?: string; holding?: boolean }): string {
+export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean; pose?: Pose; poseName?: string; holding?: boolean; costume?: CostumeId | null }): string {
   const L = fillLook2(look);
   const pose = opt?.pose ?? poseFor(L);
   const rich = opt?.rich !== false;
@@ -237,18 +239,26 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean; pose
     wrapHead(accessoryLayer(L), pose),
   ];
   const holdPose = opt?.poseName === 'sit' || opt?.poseName === 'lie' ? opt.poseName : null;
-  if (opt?.holding) layers.splice(6, 0, wrapHip(cradleArm('under', true, L.skin, holdPose, topHex), pose));
+  // Costume overlays are additive: with no costume this stack is unchanged.
+  const cos = opt?.costume ? costumeParts(opt.costume, pose, L.hair) : null;
+  if (opt?.holding) layers.splice(6, 0, wrapHip(cradleArm('under', true, L.skin, holdPose, cos?.sleeve ?? topHex), pose));
+  if (cos) {
+    if (cos.head) layers.push(`<g data-layer="costume-head">${wrapHead(cos.head, pose)}</g>`);
+    if (cos.over) layers.splice(6, 0, `<g data-layer="costume">${cos.over}</g>`);
+    if (cos.back) layers.splice(1, 0, `<g data-layer="costume-back">${cos.back}</g>`);
+  }
   const layersHtml = layers.join('');
   const shownTop = L.dress || L.top;
   const poseAttr = opt?.poseName ? ` data-pose="${opt.poseName}"` : '';
-  return `<svg${poseAttr} data-chibi="1" data-hair="${L.hair}" data-top="${shownTop}" viewBox="0 0 200 320" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg" style="${style}">${defs(u, rich, mask)}${shadow}${layersHtml}</svg>`;
+  const cosAttr = opt?.costume ? ` data-costume="${opt.costume}"` : '';
+  return `<svg${poseAttr}${cosAttr} data-chibi="1" data-hair="${L.hair}" data-top="${shownTop}" viewBox="0 0 200 320" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg" style="${style}">${defs(u, rich, mask)}${shadow}${layersHtml}</svg>`;
 }
 
 /** The arm that rests on the blanket. Same viewBox and hip tilt as the doll. */
-export function chibiCradleFront(look: Look2, poseName?: 'sit' | 'lie' | null): string {
+export function chibiCradleFront(look: Look2, poseName?: 'sit' | 'lie' | null, costume?: CostumeId | null): string {
   const L = fillLook2(look);
   const pose = poseNamed(poseName) ?? poseFor(L);
   const holdPose = poseName === 'sit' || poseName === 'lie' ? poseName : null;
-  const cloth = L.dress ? L.dressC : L.topC;
+  const cloth = (costume ? costumeParts(costume, pose, L.hair).sleeve : null) ?? (L.dress ? L.dressC : L.topC);
   return `<svg viewBox="0 0 200 320" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg">${wrapHip(cradleArm('over', true, L.skin, holdPose, cloth), pose)}</svg>`;
 }

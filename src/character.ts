@@ -5,6 +5,12 @@ import { cradleArm, cradleSkin } from './baby/arms';
 import { poseNamed } from './avatar/sit';
 import type { Pose } from './avatar/geom';
 import { richAvatars } from './avatar/motion';
+import { shownCostume } from './shared/costume';
+
+type Cos = { costume?: string | null };
+/** Costumes fit the chibi. The editor turns every doll into a chibi first, so any kid can wear one. */
+function costumeOf(c: { look2?: Look2 | null } & Cos) { return c.look2 ? shownCostume(c) : null; }
+
 const O = '#5a3d5c';
 const s = `stroke="${O}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"`;
 
@@ -41,8 +47,10 @@ function hair(style: number, c: string, back: boolean) {
   return `<path d="M21 46 Q18 12 50 12 Q82 12 79 46 Q72 30 58 28 Q50 36 36 30 Q26 34 21 46 Z" fill="${c}" ${s}/>`;
 }
 
-export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants'> & { acc?: number; look2?: Look2 | null }, poseName?: 'sit' | 'lie' | null, holding?: boolean) {
+export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants'> & { acc?: number; look2?: Look2 | null } & Cos, poseName?: 'sit' | 'lie' | null, holding?: boolean) {
   const pose = poseNamed(poseName);
+  const cos = costumeOf(c);
+  if (cos && c.look2) return chibiSVG(c.look2, { rich: richAvatars(), pose: pose ?? undefined, poseName: poseName || undefined, holding, costume: cos });
   if (c.look2) return chibiSVG(c.look2, { rich: richAvatars(), pose: pose ?? undefined, poseName: poseName || undefined, holding });
   if (poseName === 'sit' || poseName === 'lie') return classicPose(c, poseName, holding);
   return `<svg viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">
@@ -69,10 +77,12 @@ export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 
 }
 
 /** The arm that rests on the blanket, in a layer above the baby. */
-export function cradleFrontSVG(c: Pick<Character, 'skin'> & { look2?: Look2 | null }, poseName?: 'sit' | 'lie' | null): string {
+export function cradleFrontSVG(c: Pick<Character, 'skin'> & { look2?: Look2 | null } & Cos, poseName?: 'sit' | 'lie' | null): string {
   const pose = poseName === 'sit' || poseName === 'lie' ? poseName : null;
   // Lying: the far arm crosses her face. Only the near arm and hand stay.
   if (pose === 'lie') return '';
+  const cos = costumeOf(c);
+  if (cos && c.look2) return chibiCradleFront(c.look2, poseName, cos);
   if (c.look2) return chibiCradleFront(c.look2, poseName);
   return `<svg viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">${cradleArm('over', false, cradleSkin(c.skin), pose)}</svg>`;
 }
