@@ -23,6 +23,8 @@ SCENES = [
   ('friends', [], [(470, 620, None), (590, 620, None)], "pairOn()", ['soc-']),
   ('duet', [('pack:cute-speaker', 540, 560, True)], [(470, 620, None), (590, 620, None)], "", ['soc-duet']),
   ('cat-snuggle', [('sofa', 500, 560, False)], [(500, 560, 0)], "cat(900)", ['soc-snug']),
+  ('pet-trot-sleeping-doll', [('bed', 520, 600, False)], [(520, 600, 0)], "cat(1150)", ['soc-snug']),
+  ('dolls-wave', [], [(470, 620, None), (1300, 620, None)], "arrive()", ['soc-wave']),
   ('baby-coo', [], [(520, 620, None)], "baby(600, 620)", ['soc-coo']),
 ]
 SETUP = """([items, dolls]) => { const s = __store, st = s.get(), room = 'living';
@@ -32,13 +34,14 @@ SETUP = """([items, dolls]) => { const s = __store, st = s.get(), room = 'living
   if (st.currentRoom !== room) s.dispatch({type:'room/switch', room});
   items.forEach(([kind, x, y, on], i) => { s.dispatch({type:'item/add', room, item:{id:'m3-' + i, kind, x, y, flip:false, z:40 + i, scale:1}}); if (on) s.dispatch({type:'item/power', room, id:'m3-' + i, on:true}); });
   const base = {skin:'#f2c9a0', hair:'#5a3d2b', hairStyle:1, shirt:'#ff7eb3', pants:'#6b8cff', size:'kid', acc:0, flip:false, held:{left:null, right:null}, room};
-  dolls.forEach(([cx, cy, seat], i) => s.dispatch({type:'char/add', char:{...base, id:'m3d' + i, x:cx, y:cy, hairStyle:i % 4, shirt:['#ff7eb3','#7ec8ff','#b48cff','#ffd166'][i % 4], ...(seat !== null ? {seat:{item:'m3-' + seat, pose:'sit', n:0}} : {})}}));
+  dolls.forEach(([cx, cy, seat], i) => s.dispatch({type:'char/add', char:{...base, id:'m3d' + i, x:cx, y:cy, hairStyle:i % 4, shirt:['#ff7eb3','#7ec8ff','#b48cff','#ffd166'][i % 4], ...(seat !== null ? {seat:{item:'m3-' + seat, pose: items[seat][0] === 'bed' ? 'lie' : 'sit', n:0}} : {})}}));
   __cam.set(150);
   window.tapKeys = window.openItem = i => setTimeout(() => { const el = document.querySelector('.item[data-id="m3-' + i + '"]'); const r = el.getBoundingClientRect(); const o = {bubbles:true, clientX:r.left + r.width / 2, clientY:r.top + r.height / 2, pointerId:1, isPrimary:true, pointerType:'touch'};
     el.dispatchEvent(new PointerEvent('pointerdown', o)); el.dispatchEvent(new PointerEvent('pointerup', o)); }, 300);
   window.cat = x => s.dispatch({type:'cat/set', cat:{name:'Mimi', coat:1, room, x}});
   window.baby = (x, y) => { if (!s.get().baby) s.dispatch({type:'baby/meet', now: Date.now()}); s.dispatch({type:'baby/place', room, x, y, spot:'mat', bed:null, seat:null, now: Date.now()}); };
   window.pairOn = () => {};
+  window.arrive = () => setTimeout(() => s.dispatch({type:'char/move', id:'m3d1', room, x:600, y:620}), 1500);
 }"""
 CLS = "() => [...document.querySelectorAll('.layer .char, .layer > .pet, .layer > .baby, .layer .item[data-id^=m3-]')].map(e => [...e.classList].filter(c => /^(amb|soc)-/.test(c)).join(' ')).filter(Boolean)"
 
@@ -51,11 +54,11 @@ async def main():
             await pg.goto(WEB); await pg.wait_for_selector('#stage')
             if os.environ.get('INJECT'): await pg.add_style_tag(content=os.environ['INJECT']); await pg.wait_for_timeout(600)
             await pg.click('#modePlay')
-            for name, items, dolls, js, want in [x for x in (SCENES if not rm else [SCENES[0], SCENES[9], SCENES[10]]) if not os.environ.get("ONLY") or x[0] in os.environ["ONLY"].split(",")]:
+            for name, items, dolls, js, want in [x for x in (SCENES if not rm else [SCENES[0], SCENES[9], SCENES[10], SCENES[11]]) if not os.environ.get("ONLY") or x[0] in os.environ["ONLY"].split(",")]:
                 await pg.evaluate(SETUP, [items, dolls])
                 if js: await pg.evaluate(js)
                 got = []
-                for _ in range(14 if name == 'friends' else 4):
+                for _ in range(14 if name == 'friends' else 6):
                     await pg.wait_for_timeout(1000)
                     got = await pg.evaluate(CLS)
                     if all(any(w in g for g in got) for w in want): break
@@ -76,7 +79,7 @@ async def main():
                 check('rAF with 4 dolls + cat + baby + stereo (headless webkit)', fps[0] >= 55, fps)
                 # dragging away mid-reaction: move a dancer out of reach -> dance ends
                 await pg.evaluate("__store.dispatch({type:'char/move', id:'m3d0', room:'living', x:1500, y:620})"); await pg.wait_for_timeout(1300)
-                cl = await pg.evaluate("() => [...document.querySelector('.char[data-id=\"m3d0\"]')?.classList || []].filter(c => /^(amb|soc)-/.test(c))")
+                cl = await pg.evaluate("() => [...document.querySelector('.char[data-cid=\"m3d0\"]')?.classList || []].filter(c => /^(amb|soc)-/.test(c))")
                 check('moved out of reach mid-dance: reactions end', cl == [], cl)
             check(f'no page errors{" (reduced)" if rm else ""}', not errs, errs)
             await c.close()
