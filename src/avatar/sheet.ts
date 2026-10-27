@@ -6,6 +6,8 @@ import {
   fillLook2, accSlot, type Look2, type AccId,
 } from '../shared/avatar';
 import { characterSVG, SIZES } from '../character';
+import { chibiSVG } from './draw';
+import type { CostumeId } from '../shared/costume';
 import { costumesVisible, cleanCostume, HELPER_COLORS, COSTUME_NAME } from '../shared/costume';
 
 export type AvTab = 'hair' | 'face' | 'clothes' | 'shoes' | 'extras' | 'costume';
@@ -16,16 +18,20 @@ const TABS: { id: AvTab; name: string }[] = [
   { id: 'shoes', name: 'Shoes' },
   { id: 'extras', name: 'Extras' },
 ];
-const COSTUME_TAB = { id: 'costume' as AvTab, name: '🎃 Costume' };
+const COSTUME_TAB = { id: 'costume' as AvTab, name: '🎃 Costumes' };
 function tabs(): { id: AvTab; name: string }[] { return costumesVisible() ? [...TABS, COSTUME_TAB] : TABS; }
 
-/** Costume pane: a 'No costume' choice, then each costume. The helper comes in four overall colors. */
-export function costumePaneHTML(cur: string | null | undefined): string {
+/** Costume pane: big tiles, each a preview on her own avatar. 'No costume' first; the helper also has four overall colors. */
+export function costumePaneHTML(cur: string | null | undefined, look?: Look2): string {
   const on = cleanCostume(cur);
-  const pick = (v: string, label: string) => `<button type="button" class="avOpt${(on ?? '') === v ? ' on' : ''}" data-act="av-costume" data-v="${v}">${label}</button>`;
-  const helperOn = !!on && on.indexOf('helper-') === 0;
+  const helperOn = !!on && on.startsWith('helper-');
+  const L = fillLook2(look);
+  const tile = (v: string, label: string, sel: boolean, cos: string) => `<button type="button" class="avCosTile${sel ? ' on' : ''}" data-act="av-costume" data-v="${v}" aria-pressed="${sel}"><span class="avCosPic">${chibiSVG(L, { uid: 'cosT' + (cos || 'none'), rich: false, costume: (cos || null) as CostumeId | null })}</span><span class="avCosName">${label}</span></button>`;
+  const hv = helperOn ? on! : 'helper-yellow';
+  const tiles = tile('', 'No costume', !on, '') + tile(hv, COSTUME_NAME.helper, helperOn, hv)
+    + (['witch', 'cat', 'ghost', 'skeleton', 'bat'] as const).map(k => tile(k, COSTUME_NAME[k], on === k, k)).join('');
   const sw = (Object.keys(HELPER_COLORS) as (keyof typeof HELPER_COLORS)[]).map(k => `<button type="button" class="avSw${on === 'helper-' + k ? ' on' : ''}" style="background:${HELPER_COLORS[k]}" data-act="av-costume" data-v="helper-${k}" aria-label="${k} overalls"></button>`).join('');
-  return `<h3>Costume</h3><p class="avHint">Halloween dress-up! Everyone in the room sees it.</p>${grid(pick('', 'No costume') + `<button type="button" class="avOpt${helperOn ? ' on' : ''}" data-act="av-costume" data-v="${helperOn ? on : 'helper-yellow'}">${COSTUME_NAME.helper}</button>` + pick('witch', COSTUME_NAME.witch) + pick('cat', COSTUME_NAME.cat) + pick('ghost', COSTUME_NAME.ghost) + pick('skeleton', COSTUME_NAME.skeleton) + pick('bat', COSTUME_NAME.bat))}<h3>Overalls color</h3><div class="avColors avCosColors">${sw}</div>`;
+  return `<h3>Costumes</h3><p class="avHint">Halloween dress-up! Tap one. Everyone in the room sees it.</p><div class="avCosGrid">${tiles}</div><h3>Helper overalls color</h3><div class="avColors avCosColors">${sw}</div>`;
 }
 
 const HAIR_NAME: Record<string, string> = {
@@ -71,7 +77,7 @@ export function avatarSheetHTML(c: Character, picker: string, confirm: boolean, 
   const L = fillLook2(c.look2);
   const me = c.id === '__me';
   if (tab === 'costume' && !costumesVisible()) tab = 'hair';
-  const pane = tab === 'costume' ? costumePaneHTML(c.costume) : tab === 'hair'
+  const pane = tab === 'costume' ? costumePaneHTML(c.costume, c.look2) : tab === 'hair'
     ? `<h3>Style</h3>${grid(HAIR_IDS.map(id => opt('av-hair', id, HAIR_NAME[id], L.hair === id)).join(''))}<h3>Color</h3><div class="avColors">${HAIR2.map(col => swatch('av-hairC', col, L.hairC === col)).join('')}</div>`
     : tab === 'face'
       ? `<h3>Skin</h3><div class="avColors">${SKIN2.map(col => swatch('av-skin', col, L.skin === col)).join('')}</div><h3>Eyes</h3>${grid(EYE_IDS.map(id => opt('av-eyes', id, EYE_NAME[id], L.eyes === id)).join(''))}<h3>Eye color</h3><div class="avColors">${EYE2.map(col => swatch('av-eyeC', col, L.eyeC === col)).join('')}</div><div class="avToggles">${opt('av-freckles', L.freckles ? '0' : '1', 'Freckles', L.freckles)}${opt('av-blush', L.blush ? '0' : '1', 'Blush', L.blush)}</div>`
