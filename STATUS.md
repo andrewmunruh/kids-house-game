@@ -1,0 +1,22 @@
+# Track C2 costumes: status
+
+- Branch cursor/costumes, PR #44. Nothing has been deployed.
+- Art: code-drawn vector overlays.
+  - The chibi avatars are SVG vector themselves.
+  - The overlays use the same `var(--line)` ink and the same tube outline as the wardrobe (w+7, about a 3.5px rim), so the style matches.
+- Picker: an obvious 🎃 Costumes tab.
+  - Big tiles, each showing a preview on her own avatar.
+  - A "No costume" tile comes first.
+  - Helper overall colors appear as swatches.
+- Screenshots in /workspace/t-costumes-shots/v2/:
+  - ipad/ at 820x1180 and phone/ at 844x390 landscape (true phone mode).
+  - 4 avatars and 8 poses: stand, walk, sit, lie, dance, baby, pet, drag.
+  - Contact sheets in the same folder.
+  - Nametag shots are in /tmp/costume-sync-shots/. Nametags only draw in the hood.
+- Gates done:
+  - tsc and tests/*.ts are green, except for these:
+    - art_bounds and art_raster fail the same way on 10ef736.
+    - mail_persist node mode needs port 8791, which is forbidden.
+  - hood 43/43, pets 46/46, ranch 41/41, map 40/40, ambient_sync 12/12.
+  - costume_test 20/20, avatar_test 50/50, costume_sync 23/23 (chromium).
+- Gates being re-run on the head build: migration (needs ART_DIR), gameroom (hit a 429), b0_compat, phone, costume_sync (webkit). See /tmp/cos-gate2.out.
