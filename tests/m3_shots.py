@@ -38,7 +38,9 @@ SETUP = """([items, dolls]) => { const s = __store, st = s.get(), room = 'living
   __cam.set(150);
   window.tapKeys = window.openItem = i => setTimeout(() => { const el = document.querySelector('.item[data-id="m3-' + i + '"]'); const r = el.getBoundingClientRect(); const o = {bubbles:true, clientX:r.left + r.width / 2, clientY:r.top + r.height / 2, pointerId:1, isPrimary:true, pointerType:'touch'};
     el.dispatchEvent(new PointerEvent('pointerdown', o)); el.dispatchEvent(new PointerEvent('pointerup', o)); }, 300);
-  window.cat = x => s.dispatch({type:'cat/set', cat:{name:'Mimi', coat:1, room, x}});
+  window.__pinCat = null;
+  // hold her where we put her (her wander is clock-driven and can carry her out of reach)
+  window.cat = x => { s.dispatch({type:'cat/set', cat:{name:'Mimi', coat:1, room, x}}); window.__pinCat = {x}; };
   window.baby = (x, y) => { if (!s.get().baby) s.dispatch({type:'baby/meet', now: Date.now()}); s.dispatch({type:'baby/place', room, x, y, spot:'mat', bed:null, seat:null, now: Date.now()}); };
   window.pairOn = () => {};
   window.arrive = () => setTimeout(() => s.dispatch({type:'char/move', id:'m3d1', room, x:600, y:620}), 1500);
