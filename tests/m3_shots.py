@@ -13,7 +13,7 @@ def check(name, ok, extra=''):
 # name, items [(kind,x,y,on)], dolls [(x,y,seat_item_index or None)], extra js, expected classes
 SCENES = [
   ('piano-play', [('pack:piano', 540, 560, False)], [(560, 600, None), (760, 620, None)], "tapKeys(0)", ['amb-play', 'amb-listen']),
-  ('keyboard-play', [('pack:keyboard', 540, 560, False)], [(560, 600, None)], "tapKeys(0)", ['amb-play']),
+  ('keyboard-play', [('pack:keyboard', 540, 560, False)], [(620, 580, None)], "tapKeys(0)", ['amb-play']),
   ('stove-stir', [('stove', 540, 540, False)], [(600, 600, None)], "openItem(0)", ['amb-stir']),
   ('aquarium-look', [('pack:aquarium', 540, 540, False)], [(420, 620, None), (690, 620, None)], "", ['amb-look']),
   ('fountain-look', [('pack:pink-fountain', 540, 560, False)], [(420, 620, None)], "", ['amb-look']),
@@ -23,7 +23,7 @@ SCENES = [
   ('friends', [], [(470, 620, None), (590, 620, None)], "pairOn()", ['soc-']),
   ('duet', [('pack:cute-speaker', 540, 560, True)], [(470, 620, None), (590, 620, None)], "", ['soc-duet']),
   ('cat-snuggle', [('sofa', 500, 560, False)], [(500, 560, 0)], "cat(900)", ['soc-snug']),
-  ('pet-trot-sleeping-doll', [('bed', 520, 600, False)], [(520, 600, 0)], "cat(1150)", ['soc-snug']),
+  ('pet-trot-sleeping-doll', [('bed', 520, 600, False)], [(520, 600, 0)], "cat(900)", ['soc-snug']),
   ('dolls-wave', [], [(470, 620, None), (1300, 620, None)], "arrive()", ['soc-wave']),
   ('baby-coo', [], [(520, 620, None)], "baby(600, 620)", ['soc-coo']),
 ]

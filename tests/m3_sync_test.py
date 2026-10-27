@@ -157,14 +157,22 @@ async def main():
         await S.evaluate("h => document.querySelector(`#mapWorld .mapHouse[data-go=\"house:${h}\"]`)?.click()", hid); await S.wait_for_timeout(1200)
         await S.evaluate("() => { const s = __store; if (s.get().currentRoom !== 'living') s.dispatch({type:'room/switch', room:'living'}); }"); await S.click('#modePlay'); await S.evaluate('__cam.set(250)')
         await cB.set_offline(True)
+        # Chromium offline emulation leaves open sockets up, so drop B's socket for real as a network loss would
+        await B.evaluate("() => { const ws = __hood().ws; if (ws) ws.close(); }")
         await A.evaluate("__store.dispatch({type:'char/move', id:'q4', room:'living', x:700, y:640}); __store.dispatch({type:'char/move', id:'q3', room:'living', x:760, y:640})")
         await A.wait_for_timeout(4000); await cB.set_offline(False)
+        # B and S share one sign-in, so by design the hood keeps only one of them live and the other shows the "elsewhere" card
+        live = []
         for _ in range(40):
-            if await B.evaluate(POS) == await A.evaluate(POS) and await S.evaluate(POS) == await A.evaluate(POS): break
+            live = [P for P in (B, S) if await P.evaluate("() => !__hood().replaced && __hood().status === 'online'")]
+            if live and all([await P.evaluate(POS) == await A.evaluate(POS) for P in live]): break
             await A.wait_for_timeout(500)
-        check("reconnect: B and the stale tab catch up to A's positions", await B.evaluate(POS) == await A.evaluate(POS) == await S.evaluate(POS))
+        poss = {n: await P.evaluate(POS) for n, P in (('A', A), ('B', B), ('S', S))}
+        check("reconnect: the live screen of B's sign-in catches up to A's positions", bool(live) and all([await P.evaluate(POS) == poss['A'] for P in live]), poss)
+        rep = [P for P in (B, S) if P not in live]
+        check("stale tab of the same sign-in is parked behind the elsewhere card, not split", all([await P.evaluate("() => __hood().replaced && !document.getElementById('elsewhere').classList.contains('hidden')") for P in rep]), len(rep))
         await A.wait_for_timeout(2200)
-        await agree([A, B, S], 8, 'after reconnect (A, B, stale tab)')
+        await agree([A] + live, 8, 'after reconnect (A and the live screen)')
         # mute: the piano plays without sound and sends nothing
         await A.evaluate("__store.dispatch({type:'settings/sound', on:false})"); await A.evaluate("window.__sent.length = 0; window.__osc = 0")
         await A.evaluate("__store.dispatch({type:'char/move', id:'q1', room:'living', x:2140, y:620})"); await A.evaluate('__cam.set(1700)'); await A.wait_for_timeout(1200)
