@@ -151,7 +151,7 @@ app.innerHTML = `
     <button type="button" class="menuRow grownRow" id="btnParent" aria-label="Grown-ups"><span class="mIco">${ICONS.shield}</span><span class="mLabel">Grown-ups</span></button>
     <button type="button" class="menuRow soloLeave" id="btnSolo" aria-label="Play in my own house"><span class="mIco">${ICONS.solo}</span><span class="mLabel">Play in my own house</span></button>
     <button type="button" class="menuRow friendRow" id="btnHood" aria-label="Friends"><span class="mIco">${ICONS.street}</span><span class="mLabel">Friends</span></button>
-    <p class="menuGroup">This iPad</p>
+    <p class="menuGroup">Settings</p>
     <button type="button" class="menuRow" id="btnSound" aria-label="Sound"><span class="mIco" id="soundIco"></span><span class="mLabel">Sound</span></button>
   </div>
 </div>

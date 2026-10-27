@@ -99,7 +99,7 @@ export const LATEST = CHANGELOG[0].v;
 export const WELCOME: ChangeEntry = { v: LATEST, title: 'Welcome to your cozy house!', lines: [
   { art: wrap(houseArt), text: 'Drag furniture into your rooms.' },
   { art: wrap(shirtArt), text: 'Dress up your friends.' },
-  { art: wrap(catSVG(0, 'sit')), text: 'Tap the paw to adopt a pet!' },
+  { art: wrap(catSVG(0, 'sit')), text: 'Open the Menu ☰ to adopt a pet!' },
 ] };
 
 const SEEN_KEY = storeKey('cozy-whatsnew');

@@ -1253,10 +1253,16 @@ body:not(.mode-hood):not(.has-hood) #menuPop .streetGroup { display: none; }
 /* The letter composer's .mailRow has a top margin. The Menu mailbox is a row, not that composer. */
 #menuPop .menuRow { margin: 0; }
 .menuSlot { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 4px 10px; }
-#menuDaySlot::after { content: 'Auto'; font-weight: 800; font-size: 16px; line-height: 1.2; }
-html[data-sky-choice="day"] #menuDaySlot::after { content: 'Day'; }
-html[data-sky-choice="night"] #menuDaySlot::after { content: 'Night'; }
-html[data-sky-choice="auto"] #menuDaySlot::after { content: 'Auto'; }
+#menuDaySlot::after { content: 'Sky: Auto (follows the clock)'; font-weight: 800; font-size: 16px; line-height: 1.2; }
+html[data-sky-choice="day"] #menuDaySlot::after { content: 'Sky: Day'; }
+html[data-sky-choice="night"] #menuDaySlot::after { content: 'Sky: Night'; }
+html[data-sky-choice="auto"] #menuDaySlot::after { content: 'Sky: Auto (follows the clock)'; }
+/* Polish b4: the sky row looks like the other rows (32px icon, same indent) and the whole row is the tap target. */
+#menuDaySlot { position: relative; border-radius: 14px; background: #fff; }
+#menuPop #menuDaySlot > #skyMount { position: static; }
+#menuPop #menuDaySlot .skyBtn { width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+#menuPop #menuDaySlot .skyBtn::before { content: ''; position: absolute; inset: 0; border-radius: 14px; }
+#menuPop #menuDaySlot:active { background: #ffe4ef; }
 #menuPop .menuSlot[hidden] { display: none !important; margin: 0; padding: 0; height: 0; }
 #menuPop .lockRow, #menuPop .mailRow, #menuPop .grownRow, #menuPop .soloLeave, #menuPop .friendRow { display: none; }
 body.mode-hood.own-house:not(.view-street) #menuPop .lockRow { display: flex; }
