@@ -33,6 +33,7 @@ const LABEL: Record<Need, string> = { sleepy: 'wants a nap', hungry: 'wants a sn
 const EYE_OPEN = `<svg viewBox="0 0 48 48"><path d="M6 28 Q24 8 42 28" fill="none" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/><ellipse cx="24" cy="30" rx="14" ry="11" fill="#fff" stroke="#5a3d5c" stroke-width="3"/><circle cx="20" cy="30" r="5" fill="#ffd166" stroke="#5a3d5c" stroke-width="2.5"/><circle cx="31" cy="24" r="3" fill="#fff" stroke="#5a3d5c" stroke-width="2"/></svg>`;
 const EYE_OFF = `<svg viewBox="0 0 48 48"><ellipse cx="24" cy="30" rx="14" ry="11" fill="#eee" stroke="#5a3d5c" stroke-width="3"/><path d="M10 40 L38 18" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/></svg>`;
 
+const hintFor = (n: Need, k: string) => n === 'sleepy' ? /(^|-|:)bed$|bunk-bed|canopy-bed/.test(k) : n === 'hungry' ? isFridge(k) : n === 'clean' ? isTub(k) : isToy(k);
 /** Where the thing she wishes for is, in this room (for the lean hint). */
 function spotX(s: GameState, c: Character, n: Need): number | null {
   const items = s.rooms[c.room]?.items ?? [];
@@ -89,6 +90,11 @@ export function installNeeds(d: NeedsDeps) {
       requestAnimationFrame(() => bub!.classList.add('show'));
     }
     for (const id of prev.keys()) if (!s.characters.some(c => c.id === id)) prev.delete(id);
+    // A soft shimmer on the spot that would help (the fridge for a hungry doll, the bed for a sleepy one...).
+    const want = new Set<string>();
+    if (on) for (const c of s.characters) { if (c.room !== s.currentRoom) continue; const w = wishOf(c); if (!w) continue;
+      for (const it of s.rooms[s.currentRoom]?.items ?? []) if (hintFor(w, it.kind)) want.add(it.id); }
+    for (const el of d.layer.querySelectorAll<HTMLElement>('.item[data-id]')) el.classList.toggle('need-hint', want.has(el.dataset.id!));
   }
 
   /** Care: a doll at the right spot with a need below full gets it met. Anyone may do this, visitors too. */
@@ -118,6 +124,8 @@ export function installNeeds(d: NeedsDeps) {
   }
 
   d.subscribe(() => { paint(); care(); });
+  // Tapping a doll that already sits at the right spot (a visitor tucking her in, say) gives the care too.
+  d.layer.addEventListener('pointerup', e => { if ((e.target as HTMLElement).closest?.('.char[data-cid]')) { asked.clear(); care(); } });
   setInterval(() => { tick(); paint(); }, 1000);
   document.addEventListener('visibilitychange', () => { last = performance.now(); });
   paint();

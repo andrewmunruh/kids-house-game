@@ -77,8 +77,14 @@ async def main():
         # Two iPads care for the same doll at once (hungry). The kitchen fridge.
         fr = await A.evaluate(ITEM, ['kitchen', 'fridge$'])
         for pg in (A, B): await pg.evaluate(ROOM, 'kitchen')
+        await A.evaluate("f => __store.dispatch({type:'char/move', id:'nd1', room:'kitchen', x: f.x > 800 ? f.x - 520 : f.x + 520, y: 700})", fr)
+        await A.wait_for_timeout(1000)
+        check('hungry hint: the fridge shimmers on both iPads', await A.evaluate("id => !!document.querySelector(`.item.need-hint[data-id=\"${id}\"]`)", fr['id']) and await B.evaluate("id => !!document.querySelector(`.item.need-hint[data-id=\"${id}\"]`)", fr['id']))
+        await A.evaluate("f => __cam.set(Math.max(0, Math.min(f.x, f.x > 800 ? f.x - 520 : f.x + 520) - 200))", fr); await A.wait_for_timeout(700)
+        await A.screenshot(path=f'{SHOT}needs-hungry-hint-820x1180.png')
         await A.evaluate(f"([x, y]) => __store.dispatch({{type:'char/move', id:'nd1', room:'kitchen', x: x + 80, y: Math.max(y, 520)}})", [fr['x'], fr['y']])
-        await A.wait_for_timeout(1200)
+        await A.wait_for_timeout(350); await A.screenshot(path=f'{SHOT}needs-care-burst-820x1180.png')
+        await A.wait_for_timeout(1000)
         await asyncio.gather(A.evaluate("__store.dispatch({type:'need/meet', id:'nd1', need:'hungry'})"), B.evaluate("__store.dispatch({type:'need/meet', id:'nd1', need:'hungry'})"))
         await A.wait_for_timeout(1200)
         nA, nB = await A.evaluate(NEEDS, 'nd1'), await B.evaluate(NEEDS, 'nd1')
@@ -124,6 +130,8 @@ async def main():
         check('no page errors (new clients)', not eA and not eB and not eA2, eA + eB + eA2)
         # Show wishes off (this iPad only).
         await A2.evaluate("() => { for (let i = 0; i < 6; i++) __needs.tick(4 * 60000); }")  # solo-style local ticks still gated by server
+        await A2.evaluate("document.querySelector('#btnMenu, .menuBtn, [aria-label=Menu]') && document.querySelector('#btnMenu, .menuBtn, [aria-label=Menu]').click()"); await A2.wait_for_timeout(500)
+        await A2.screenshot(path=f'{SHOT}needs-menu-wishes-820x1180.png')
         await A2.evaluate("document.querySelector('#btnWishes').click()"); await A2.wait_for_timeout(700)
         check('Wishes switch hides bubbles', not await A2.evaluate("!!document.querySelector('.need-bubble.show')"))
         check('Wishes switch is stored on this iPad', await A2.evaluate("localStorage.getItem('khg.showWishes')") == '0')
@@ -146,6 +154,8 @@ async def main():
         P = await b.new_context(viewport={'width': 844, 'height': 390}, device_scale_factor=3, has_touch=True, storage_state=await cR.storage_state())
         pp = await P.new_page(); await pp.goto(f'{WEB}/kids-house-game/'); await pp.wait_for_timeout(1200)
         await pp.evaluate("() => { __store.dispatch({type:'room/switch', room:'living'}); __store.dispatch({type:'char/add', char:{skin:'#f2c9a0', hair:'#5a3d2b', hairStyle:2, shirt:'#ffd166', pants:'#6b8cff', size:'kid', acc:0, flip:false, held:{left:null, right:null}, id:'pd1', room:'living', x:600, y:600}}); for (let i = 0; i < 80 && Object.values(((__store.get().characters.find(c => c.id === 'pd1') || {}).needs) || {}).filter(v => v <= 1).length < 4; i++) __needs.tick(4 * 60000); }")
+        await pp.evaluate("() => { const b = document.querySelector('#btnMenu, .menuBtn, [aria-label=Menu]'); b && b.click(); }"); await pp.wait_for_timeout(500); await pp.screenshot(path=f'{SHOT}needs-phone-menu-844x390.png')
+        await pp.keyboard.press('Escape'); await pp.evaluate("() => { const b = document.querySelector('#btnMenu, .menuBtn, [aria-label=Menu]'); const m = document.getElementById('menuPop'); if (m && !m.classList.contains('hidden') && b) b.click(); }")
         await pp.wait_for_timeout(1000); await pp.evaluate("document.querySelectorAll('button').forEach(b => /^OK/.test(b.textContent.trim()) && b.click())"); await pp.evaluate('__cam.set(250)'); await pp.wait_for_timeout(900); await pp.screenshot(path=f'{SHOT}needs-phone-844x390.png')
         check('no page errors (reduced motion / phone)', not eR, eR)
         print(f"\n{sum(res.values())}/{len(res)} checks passed"); await b.close()

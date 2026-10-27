@@ -28,7 +28,12 @@
 @keyframes needPop { 0% { opacity: 0; transform: rotate(var(--a)) translateY(0) scale(.4); } 20% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--a)) translateY(-70px) scale(1.1); } }
 .char.need-glow > .inner { filter: drop-shadow(0 0 6px #ffd166); }
 
+/* The helpful spot glows softly while a doll here wishes for it. A light effect only; the art is untouched. */
+.item.need-hint > .inner, .item.need-hint > img, .item.need-hint > svg { animation: needHint 2.6s ease-in-out infinite; }
+@keyframes needHint { 0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 209, 102, 0)); } 50% { filter: drop-shadow(0 0 10px rgba(255, 209, 102, .95)); } }
+
 @media (prefers-reduced-motion: reduce) {
+  .item.need-hint > .inner, .item.need-hint > img, .item.need-hint > svg { animation: none; filter: drop-shadow(0 0 6px rgba(255, 209, 102, .9)); }
   .need-bubble, .need-bubble.show { transition: opacity .3s linear; animation: none; transform: translate(calc(-50% + var(--lean, 0) * 22%), 0); }
   .char.need-sleepy > .inner, .char.need-snooze > .inner, .char > .inner.need-hop { animation: none; }
   .char.need-snooze::after { animation: none; opacity: .9; }
