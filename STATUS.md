@@ -20,7 +20,25 @@ Branch `cursor/halloween`, PR #42. Base: 10ef736.
   - `tests/trick_or_treat_test.ts` (24 checks)
   - `tests/trick_or_treat_sync_test.py`: 3-house street with a 10ef736 old client, 14/14
 
-## Gate
+## Gate (all green, code at 5f767fd)
+
+| Suite | Result |
+|---|---|
+| tsc | pass |
+| tests/*.ts (incl. art catalog + Halloween art contract, season, trick_or_treat 24) | all pass (mail_persist node 4 / b0 1) |
+| art_ingame_bounds living SKY=day | 11/11 within ±2% |
+| art_ingame_bounds living SKY=night | 10/10; moon lantern is not measurable at night (lit) |
+| migration vs 10ef736 | 43/43 |
+| hood | 43/43 |
+| gameroom | 69/69 |
+| pets | 46/46 |
+| ranch | 41/41 |
+| map | 40/40 |
+| phone | 357/357 |
+| ambient_sync (10ef736 old client) | 12/12 |
+| b0_compat | 14/14 |
+| trick_or_treat_sync (3 houses, 10ef736 old client) | 14/14 |
+
 
 Logs are in `work/g2-*.log` (gitignored). Shots are in `/tmp/hw-shots`.
 
