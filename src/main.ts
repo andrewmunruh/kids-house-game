@@ -44,7 +44,8 @@ import { dockSkyChrome, mountSkyToggle } from './sky-toggle';
 import './sky.css';
 import './paint/studio.css';
 import { openStudio, zoomPainting, type StampSrc } from './paint/studio';
-import { framedSvg, artUrl, hasArt, putArt, loadLocalArt, saveLocalArt } from './paint/gallery';
+import { PAINT_PER_HOUSE } from './shared/paint';
+import { framedSvg, artUrl, hasArt, putArt, loadLocalArt, saveLocalArt, artData } from './paint/gallery';
 import { STICKER } from './mail';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
@@ -3005,6 +3006,12 @@ function bringHouse(url: string, code: string, id: string, nickname: string) {
     <button class="big" data-m="fresh">${houseSVG(5)}<span>Start a new one</span></button></div>`,
     (t, close) => { const m = t.closest<HTMLElement>('[data-m]')?.dataset.m; if (!m) return; close(); connectJoin(url, code, id, nickname, m === 'bring'); });
 }
+/** Her house came along from solo play: send its paintings to this street's Worker (the Worker applies every cap; a refused one stays a placeholder with a friendly toast). */
+function uploadLocalArt(c: HoodClient, house: GameState) {
+  const hid = c.myHouseId(); if (!hid) return;
+  let n = 0;
+  for (const id of hungArt(house)) { const d = artData(id); if (d && n++ < PAINT_PER_HOUSE) c.saveArt(hid, id, d); }
+}
 async function connectJoin(url: string, code: string, id: string, nickname: string, bring: boolean | undefined) {
   const s = local.get(); const meChar = s.characters[0];
   // your first character becomes "you" on the street; the rest stay in the house
@@ -3017,6 +3024,7 @@ async function connectJoin(url: string, code: string, id: string, nickname: stri
   const c = new HoodClient(cfg); const r = await c.connect({ nickname, look, house, dog });
   if (r === 'ok') {
     saveHoodConfig(c.cfg); enterNeighborhood(c); toast(`Welcome to the street, ${nickname}!`);
+    if (house) uploadLocalArt(c, house);
     if (avatarIntroPending()) { markAvatarIntro(); activeChar = ME; openSheet('dress'); }
     return;
   }
