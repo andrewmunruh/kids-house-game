@@ -45,7 +45,7 @@ async def main():
         await ctx.close()
         ctx, pg = await page(b, 390, 844, wn=False); await pg.wait_for_timeout(300)
         txt = await pg.evaluate("document.body.innerText")
-        check('welcome card points at the Menu for pets', 'Tap the paw' not in txt and 'Open the Menu' in txt)
+        check('welcome card points at the Menu for pets', 'Tap the paw' not in txt and 'from the Menu' in txt)
         await ctx.close()
         for w, h in [(390, 844), (820, 1180), (844, 390)]:
             ctx, pg = await page(b, w, h); await pg.evaluate(CLEAR + ";document.getElementById('btnMap').click()"); await pg.wait_for_timeout(1200)
