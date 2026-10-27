@@ -79,7 +79,7 @@ export function syncSocial(ctx: SocialCtx, ambient: Map<string, Reaction>) {
   const pets: SocPet[] = [];
   const petEls = new Map<string, HTMLElement>();
   ctx.layer.querySelectorAll<HTMLElement>(':scope > .pet').forEach((el, i) => {
-    if (el.classList.contains('lifted')) return;
+    if (el.classList.contains('lifted') || el.classList.contains('kenneled')) return; // a resting kennel dog stays home
     const key = el.classList.contains('pet-cat') ? 'cat' : (el.dataset.dog || 'pet' + i);
     pets.push({ key, ...footOf(el, k) }); petEls.set(key, el);
   });
