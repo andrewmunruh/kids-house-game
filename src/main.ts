@@ -1131,6 +1131,10 @@ function renderItems(s: GameState) {
     const iz = 1000 + it.z;
     el.style.zIndex = String(iz);
     el.style.setProperty('--iz', String(iz));
+    if (it.art) { // a painting hung across the back door sits in front of it, so the door button cannot swallow its drag
+      const door = layer.querySelector<HTMLElement>('.yardDoor');
+      if (door && boxesOverlap(el.getBoundingClientRect(), door.getBoundingClientRect())) el.style.zIndex = String(Math.max(iz, (parseInt(door.style.zIndex || '2', 10) || 2) + 1));
+    }
     el.classList.toggle('flipped', it.flip);
     el.classList.toggle('sel', selected === it.id);
   }
@@ -1254,6 +1258,10 @@ function liftDoorOverFurniture(door: HTMLElement) {
     if (z > maxZ) maxZ = z;
   });
   door.style.zIndex = maxZ ? String(maxZ + 2) : '2';
+  // Art Studio paintings hung across the door stay in front of it (else the door swallows their drag).
+  layer.querySelectorAll<HTMLElement>('.item[data-sig]').forEach(el => {
+    if (boxesOverlap(el.getBoundingClientRect(), tap)) el.style.zIndex = String(Math.max(parseInt(el.style.zIndex || '0', 10) || 0, parseInt(door.style.zIndex, 10) + 1));
+  });
 }
 /** Indoor dressing, and the outdoor paint plus the back door when she is home.
     The door lives in the item layer (scenery is a lower stacking context) so a sofa or rug cannot cover it. */
