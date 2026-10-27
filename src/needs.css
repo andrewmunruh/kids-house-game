@@ -15,7 +15,7 @@
 @keyframes needSway { 0%, 100% { transform: rotate(0); } 40% { transform: rotate(-3deg) translateY(2px); } 60% { transform: rotate(-3deg) translateY(2px); } }
 .char.need-snooze > .inner { animation: needBreathe 4s ease-in-out infinite; transform-origin: 50% 90%; }
 @keyframes needBreathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.015, .985); } }
-.char.need-snooze::after { content: 'z'; position: absolute; left: 62%; top: 8%; font: 700 22px/1 system-ui, sans-serif; color: #8fb8ff; -webkit-text-stroke: 1px #5a3d5c; pointer-events: none; animation: needZ 3s ease-in infinite; }
+.char.need-snooze::after { content: 'z'; position: absolute; left: var(--zx, 62%); top: var(--zy, 8%); font: 700 22px/1 system-ui, sans-serif; color: #8fb8ff; -webkit-text-stroke: 1px #5a3d5c; pointer-events: none; animation: needZ 3s ease-in infinite; }
 @keyframes needZ { 0% { opacity: 0; transform: translate(0, 0) scale(.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(18px, -34px) scale(1.2); } }
 
 /* Care met: a little hop and a ring of sparkles and hearts. */

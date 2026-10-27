@@ -68,6 +68,23 @@ export function installNeeds(d: NeedsDeps) {
     const inner = el.querySelector(':scope > .inner'); inner?.classList.remove('need-hop'); void (inner as HTMLElement | null)?.offsetWidth; inner?.classList.add('need-hop');
   }
 
+  /** Lying dolls are drawn sideways, so the bubble goes over her head on the pillow instead of where a standing head would be. */
+  function anchor(el: HTMLElement, bub: HTMLElement, lying: boolean) {
+    if (!lying) { bub.style.left = ''; bub.style.bottom = ''; return; }
+    const head = el.querySelector('.inner svg .dollhead'); if (!head) return;
+    const r = el.getBoundingClientRect(), h = head.getBoundingClientRect(); if (!r.width || !r.height || !h.width) return;
+    bub.style.left = ((h.left + h.width / 2 - r.left) / r.width * 100).toFixed(1) + '%';
+    bub.style.bottom = ((r.bottom - h.top) / r.height * 100 + 4).toFixed(1) + '%';
+  }
+
+  /** The little z floats just past her head on the pillow. */
+  function snoozeAt(el: HTMLElement) {
+    const head = el.querySelector('.inner svg .dollhead'); if (!head) return;
+    const r = el.getBoundingClientRect(), h = head.getBoundingClientRect(); if (!r.width || !r.height || !h.width) return;
+    el.style.setProperty('--zx', ((h.left + h.width * 0.7 - r.left) / r.width * 100).toFixed(1) + '%');
+    el.style.setProperty('--zy', ((h.top - r.top) / r.height * 100 - 14).toFixed(1) + '%');
+  }
+
   function paint() {
     const s = d.get(); const on = showWishes();
     for (const el of d.layer.querySelectorAll<HTMLElement>('.char[data-cid]')) {
@@ -80,6 +97,7 @@ export function installNeeds(d: NeedsDeps) {
       const w = wishOf(c);
       const lying = !!(c as any).seat && (c as any).seat.pose === 'lie';
       el.classList.toggle('need-snooze', lying);
+      if (lying) requestAnimationFrame(() => snoozeAt(el)); else { el.style.removeProperty('--zx'); el.style.removeProperty('--zy'); }
       el.classList.toggle('need-sleepy', w === 'sleepy' && !lying);
       let bub = el.querySelector<HTMLElement>(':scope > .need-bubble');
       if (!w || !on) { if (bub) { bub.classList.remove('show'); const b = bub; setTimeout(() => { if (!b.classList.contains('show')) b.remove(); }, 450); } continue; }
@@ -87,7 +105,8 @@ export function installNeeds(d: NeedsDeps) {
       if (bub.dataset.need !== w) { bub.dataset.need = w; bub.querySelector('.nb-cloud')!.innerHTML = ICON[w]; bub.setAttribute('role', 'img'); bub.setAttribute('aria-label', LABEL[w]); }
       const sx = spotX(s, c, w); const lean = sx == null ? 0 : Math.max(-1, Math.min(1, (sx - c.x) / 300));
       bub.style.setProperty('--lean', String(Math.round(lean * 100) / 100));
-      requestAnimationFrame(() => bub!.classList.add('show'));
+      const b2 = bub;
+      requestAnimationFrame(() => { anchor(el, b2, lying); b2.classList.add('show'); });
     }
     for (const id of prev.keys()) if (!s.characters.some(c => c.id === id)) prev.delete(id);
     // A soft shimmer on the spot that would help (the fridge for a hungry doll, the bed for a sleepy one...).
