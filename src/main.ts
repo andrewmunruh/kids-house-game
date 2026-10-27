@@ -32,7 +32,7 @@ import { sfx, setSound } from './sound';
 import { setAmbientMusic, primeAmbientMusic } from './ambientMusic';
 import { BEAT_MS, MUSIC_BOX_MS, isFridge, isPowerable, isTub, reactionsFor, roleOf, syncDelayMs, type AmbChar, type AmbItem, type Reaction, type ReactionKind } from './shared/ambient';
 import './ambient.css';
-import { catalogShows } from './roomfilter';
+import { catalogShows, seasonHidden } from './roomfilter';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
@@ -96,7 +96,7 @@ const TABS: Tab[] = [
 ];
 TABS.push({ id: 'secrets', name: 'Secrets', icon: 'egg:chloe-starlamp', kind: 'cat' });
 for (const it of ITEMS) if (!TABS.some(t => t.kind === 'cat' && t.id === it.cat)) TABS.push({ id: it.cat, name: it.cat, icon: it.kind, kind: 'cat' });
-for (const it of ITEMS) if (it.pack && !TABS.some(t => t.id === 'pack:' + it.pack)) TABS.push({ id: 'pack:' + it.pack, name: packLabel(it.pack), icon: it.kind, kind: 'pack' });
+for (const it of ITEMS) if (it.pack && !seasonHidden(it) && !TABS.some(t => t.id === 'pack:' + it.pack)) TABS.push({ id: 'pack:' + it.pack, name: packLabel(it.pack), icon: it.kind, kind: 'pack' });
 const tabItems = (tab: string) => ITEMS.filter(i => catalogShows(i, tab, store.get().currentRoom, roomFilter === 'all', foundSet()));
 
 const WALLS = ['#ffd6e0', '#d9ccff', '#cdf3dc', '#cfe8ff', '#fff1b8', '#ffe0c7', '#ffffff', '#f6c1ff'];
