@@ -26,7 +26,7 @@ SNAP = """() => { const L = document.querySelector('#stage .layer') || document.
   L.querySelectorAll('.char').forEach(e => { const id = e.dataset.id || e.dataset.cid; if (!id || !id.startsWith('q')) return;
     const c = [...e.classList].filter(c => /^(soc-(hop|heart|duet|baby|l|r)|amb-[a-z]+)$/.test(c) && c !== 'amb-l' && c !== 'amb-r');
     d[id] = e.dataset.soc && e.dataset.soc.startsWith('soc-wave') ? 'greet' : c.sort().join(' '); });
-  const p = {}; L.querySelectorAll(':scope > .pet').forEach(e => { if (!e.classList.contains('kenneled')) p[e.classList.contains('pet-cat') ? 'cat' : (e.dataset.dog || '?')] = Math.round(parseFloat(e.dataset.socDx || '0') / k / 10); });
+  const p = {}; L.querySelectorAll(':scope > .pet').forEach(e => { if (!e.classList.contains('kenneled')) p[e.classList.contains('pet-cat') ? 'cat' : (e.dataset.dog || '?')] = e.classList.contains('soc-snug') ? 'snug@' + Math.round(((e.offsetLeft + e.offsetWidth / 2) + parseFloat(e.dataset.socDx || '0')) / k / 60) : 'free'; }); // where she settles (who she goes to), not her mid-walk offset: her wander is clock-driven
   const b = L.querySelector(':scope > .baby'); return {d, p, coo: b ? b.classList.contains('soc-coo') : null}; }"""
 POS = "() => Object.fromEntries(__store.get().characters.filter(c => c.id.startsWith('q')).map(c => [c.id, [Math.round(c.x), Math.round(c.y)]]))"
 def same(a, b):
