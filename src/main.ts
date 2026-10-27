@@ -476,7 +476,10 @@ function playZoomFloor(): number {
     }
   }
   if (piece < 40) return 0;
-  return Math.min(W, Math.ceil(piece / 0.55));
+  // Phone portrait has height to spare but little width. Letting the widest piece take
+  // most of the width makes the room fill the tall box instead of floating in blank space.
+  const share = document.body.classList.contains('phone-portrait') ? 0.7 : 0.55;
+  return Math.min(W, Math.ceil(piece / share));
 }
 function withPlayZoomFloor(viewW: number): number {
   const floor = playZoomFloor();
