@@ -1,0 +1,97 @@
+/* M3: remaining ambient items and social reactions. Motion only, no repaints, no faces.
+   Social motion uses the individual `translate`/`rotate`/`scale` properties so it composes
+   with M1's transform animations instead of fighting them. */
+
+/* ---- new item reactions (on .inner like M1) ---- */
+.layer .char.amb-play:not(.lifted):not(.pose-lie) > .inner { animation: ambNibble var(--amb-period, .9s) ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
+.char.chibi-move.amb-play .arm.l:not(.sleeve) { animation: socTapL calc(var(--amb-period, .9s) / 2) ease-in-out infinite alternate; transform-origin: 50% 0; }
+.char.chibi-move.amb-play .arm.r:not(.sleeve) { animation: socTapR calc(var(--amb-period, .9s) / 2) ease-in-out infinite alternate; animation-delay: -.22s; transform-origin: 50% 0; }
+@keyframes socTapL { from { transform: rotate(20deg); } to { transform: rotate(32deg); } }
+@keyframes socTapR { from { transform: rotate(-20deg); } to { transform: rotate(-32deg); } }
+.layer .char.amb-listen:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: ambSway var(--amb-period, 3.6s) ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
+.layer .char.amb-listen.pose-sit > .inner, .layer .char.amb-look.pose-sit > .inner { animation: ambSitSway var(--amb-period, 4.5s) ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
+.layer .char.amb-stir:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: socStir var(--amb-period, 1.8s) ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
+@keyframes socStir { 0%, 100% { transform: rotate(-2deg) translateX(-2px); } 50% { transform: rotate(2deg) translateX(2px); } }
+.char.chibi-move.amb-stir.amb-r .arm.r:not(.sleeve), .char.chibi-move.amb-stir.amb-l .arm.l:not(.sleeve) { animation: socStirArm var(--amb-period, 1.8s) ease-in-out infinite; transform-origin: 50% 0; }
+@keyframes socStirArm { 0%, 100% { transform: rotate(-24deg); } 50% { transform: rotate(-36deg); } }
+.layer .char.amb-swing:not(.lifted):not(.pose-lie) > .inner { transform-origin: 50% -40%; animation: socSwing var(--amb-period, 2.7s) ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
+@keyframes socSwing { 0%, 100% { transform: rotate(-9deg); } 50% { transform: rotate(9deg); } }
+.layer .char.amb-slide:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: socSlide var(--amb-period, 3.6s) cubic-bezier(.4,0,.2,1) infinite; animation-delay: var(--amb-delay, 0s); }
+/* climb, perch (anticipation), whoosh down, little settle */
+@keyframes socSlide { 0% { transform: translate(0, 0); } 35% { transform: translate(-6px, -18px); } 45% { transform: translate(-6px, -20px) scale(1.02, .98); } 70% { transform: translate(22px, 0) rotate(4deg); } 80% { transform: translate(22px, 2px) scale(1.05, .95); } 100% { transform: translate(0, 0); } }
+.layer .char.amb-look:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: socLook var(--amb-period, 4.5s) ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
+.layer .char.amb-look.amb-l:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation-name: socLookL; }
+@keyframes socLook { 0%, 100% { transform: rotate(0); } 40%, 60% { transform: rotate(3.5deg) translateY(1px); } }
+@keyframes socLookL { 0%, 100% { transform: rotate(0); } 40%, 60% { transform: rotate(-3.5deg) translateY(1px); } }
+.char.chibi-move.amb-look.amb-r .arm.r:not(.sleeve), .char.chibi-move.amb-look.amb-l .arm.l:not(.sleeve) { animation: socPoint var(--amb-period, 4.5s) ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
+.char.chibi-move.amb-look.amb-l .arm.l:not(.sleeve) { animation-name: socPointL; }
+@keyframes socPoint { 0%, 30%, 75%, 100% { transform: rotate(0); } 42%, 62% { transform: rotate(-70deg); } }
+@keyframes socPointL { 0%, 30%, 75%, 100% { transform: rotate(0); } 42%, 62% { transform: rotate(70deg); } }
+.layer .char.amb-kneel:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { transform-origin: 50% 100%; animation: socKneel var(--amb-period, 2.7s) ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
+@keyframes socKneel { 0%, 100% { transform: translateY(14%) scale(1, .9) rotate(-1deg); } 50% { transform: translateY(14%) scale(1, .9) rotate(2deg); } }
+
+/* ---- new item effects ---- */
+.item > .ambFx.fx-keys > span { top: 6%; left: 30%; font-size: 22px; color: #8b5fbf; animation: ambNoteUp 2.2s ease-out infinite; }
+.item > .ambFx.fx-keys > span:nth-child(2) { left: 52%; animation-delay: -.7s; color: #e06c9f; }
+.item > .ambFx.fx-keys > span:nth-child(3) { left: 70%; animation-delay: -1.4s; }
+.item > .ambFx.fx-stove > .steam { top: 2%; left: 30%; width: 16px; height: 22px; border-radius: 50%; background: rgba(255,255,255,.75); filter: blur(2px); animation: socSteam 2.4s ease-out infinite; }
+.item > .ambFx.fx-stove > .steam:nth-child(2) { left: 48%; animation-delay: -.8s; }
+.item > .ambFx.fx-stove > .steam:nth-child(3) { left: 64%; animation-delay: -1.6s; }
+@keyframes socSteam { 0% { transform: translateY(0) scale(.6); opacity: 0; } 25% { opacity: .8; } 100% { transform: translateY(-60px) scale(1.4); opacity: 0; } }
+.item > .ambFx.fx-water > .bub { top: 40%; left: 35%; width: 10px; height: 10px; border-radius: 50%; border: 2px solid rgba(255,255,255,.9); background: rgba(190,230,255,.35); animation: socBub 2.6s ease-in infinite; }
+.item > .ambFx.fx-water > .bub:nth-child(2) { left: 60%; animation-delay: -1.3s; width: 7px; height: 7px; }
+.item > .ambFx.fx-water > .ripple { left: 30%; right: 30%; top: 55%; height: 12%; border-radius: 50%; border: 2px solid rgba(255,255,255,.7); animation: socRipple 2.8s ease-out infinite; }
+@keyframes socBub { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(-40px); opacity: 0; } }
+@keyframes socRipple { 0% { transform: scale(.4); opacity: .9; } 100% { transform: scale(1.3); opacity: 0; } }
+.item.soc-ducky > .inner { animation: socDuck 1.4s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes socDuck { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-4px) rotate(4deg); } }
+
+/* ---- dolls with each other: anticipation, action, settle ---- */
+.layer .char.soc-l > .inner, .layer .char.soc-r > .inner { transition: rotate .35s ease-out; }
+.layer .char.soc-r:not(.lifted) > .inner { rotate: 3deg; }
+.layer .char.soc-l:not(.lifted) > .inner { rotate: -3deg; }
+.layer .char.soc-hop:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: socHop 1.8s cubic-bezier(.3,.7,.4,1) infinite; animation-delay: var(--soc-delay, 0s); }
+@keyframes socHop {
+  0%, 55%, 100% { translate: 0 0; scale: 1 1; }
+  12% { translate: 0 2px; scale: 1.05 .93; }      /* crouch */
+  26% { translate: 0 -16px; scale: .97 1.04; }    /* up */
+  40% { translate: 0 0; scale: 1.04 .96; }        /* land */
+  48% { translate: 0 0; scale: .99 1.01; }        /* settle */
+}
+.char.chibi-move.soc-wave.soc-r .arm.r:not(.sleeve), .char.chibi-move.soc-wave.soc-l .arm.l:not(.sleeve),
+.char.chibi-move.soc-baby.soc-r .arm.r:not(.sleeve), .char.chibi-move.soc-baby.soc-l .arm.l:not(.sleeve) { animation: socWaveR 1.8s ease-in-out infinite; animation-delay: var(--soc-delay, 0s); transform-origin: 50% 0; }
+.char.chibi-move.soc-wave.soc-l .arm.l:not(.sleeve), .char.chibi-move.soc-baby.soc-l .arm.l:not(.sleeve) { animation-name: socWaveL; }
+@keyframes socWaveR { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(8deg); } 30%, 70% { transform: rotate(-150deg); } 40%, 60% { transform: rotate(-125deg); } 50% { transform: rotate(-155deg); } 85% { transform: rotate(-4deg); } }
+@keyframes socWaveL { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(-8deg); } 30%, 70% { transform: rotate(150deg); } 40%, 60% { transform: rotate(125deg); } 50% { transform: rotate(155deg); } 85% { transform: rotate(4deg); } }
+.layer .char.soc-wave:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner, .layer .char.soc-baby:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: socNod 1.8s ease-in-out infinite; animation-delay: var(--soc-delay, 0s); }
+@keyframes socNod { 0%, 100% { translate: 0 0; } 30% { translate: 0 -3px; } 50% { translate: 0 0; } }
+.layer .char.soc-heart::before, .layer .char.soc-baby::before {
+  content: '♥'; position: absolute; left: 50%; top: -6%; color: #ff7aa8; font-size: 22px; pointer-events: none;
+  animation: socHeart 1.8s ease-out infinite; animation-delay: var(--soc-delay, 0s); opacity: 0;
+}
+.layer .char.soc-baby::before { animation-duration: 3.6s; font-size: 16px; }
+@keyframes socHeart { 0% { transform: translate(-50%, 6px) scale(.4); opacity: 0; } 20% { transform: translate(-50%, 0) scale(1.15); opacity: 1; } 35% { transform: translate(-50%, -6px) scale(1); } 100% { transform: translate(-50%, -38px); opacity: 0; } }
+@keyframes socHeartB { 0% { transform: translateY(6px) scale(.4); opacity: 0; } 20% { transform: scale(1.15); opacity: 1; } 35% { transform: translateY(-6px); } 100% { transform: translateY(-38px); opacity: 0; } }
+.layer .char.soc-heart:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: socNod 1.8s ease-in-out infinite; animation-delay: var(--soc-delay, 0s); }
+/* Duet: lean in toward the partner on the beat (M1 dance still runs underneath). */
+.layer .char.soc-duet.soc-r > .inner { rotate: 4deg; }
+.layer .char.soc-duet.soc-l > .inner { rotate: -4deg; }
+
+/* ---- pets trot over and snuggle ---- */
+.layer > .pet { transition: translate 1.2s cubic-bezier(.45,.05,.3,1); }
+.layer > .pet.soc-trot > .inner { animation: socTrot .32s ease-in-out infinite alternate; }
+@keyframes socTrot { from { translate: 0 0; rotate: -2deg; } to { translate: 0 -5px; rotate: 2deg; } }
+.layer > .pet.soc-snug:not(.soc-trot) > .inner { animation: socSnug 3.2s ease-in-out infinite; }
+@keyframes socSnug { 0%, 100% { scale: 1 1; } 50% { scale: 1.02 .98; } }
+
+/* ---- the baby coos and wiggles (mood and clock untouched) ---- */
+.layer > .baby.soc-coo .babyInner { animation: socCoo 2.4s ease-in-out infinite; transform-origin: 50% 80%; will-change: transform; }
+@keyframes socCoo { 0%, 48%, 60%, 100% { transform: none; } 12% { transform: rotate(-4deg); } 24% { transform: rotate(4deg) scale(1.03, .97); } 36% { transform: rotate(-2deg); } }
+.layer > .baby.soc-coo::after { content: '♡'; position: absolute; left: 60%; top: -10%; color: #ff8fb8; font-size: 18px; pointer-events: none; animation: socHeartB 2.4s ease-out infinite; opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .layer .char[class*="soc-"] > .inner, .char[class*="soc-"] .arm, .layer > .pet > .inner, .layer > .baby .babyInner, .item.soc-ducky > .inner { animation: none !important; }
+  .layer > .pet { transition: none; }
+  .layer .char.soc-heart::before, .layer .char.soc-baby::before, .layer > .baby.soc-coo::after { animation: none; opacity: .9; transform: translate(-50%, -10px); }
+  .layer > .baby.soc-coo::after { transform: none; }
+}
