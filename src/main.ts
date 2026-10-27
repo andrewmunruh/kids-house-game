@@ -1054,10 +1054,10 @@ function wallSafeRange(half: number): { lo: number; hi: number } {
 function findWallSpot(): number {
   const def = ITEM_MAP.picture, half = def.w / 2, h = hOf(def), foot = Math.min(WALL_BOTTOM, 200 + h / 2), top = foot - h;
   let { lo, hi } = wallSafeRange(half);
-  const boxes: { l: number; r: number; t: number; b: number }[] = [];
+  const boxes: { l: number; r: number; t: number; b: number; k: number }[] = [];
   for (const el of document.querySelectorAll<HTMLElement>('#layer > :not(.char), #scenery > *')) {
     const b = el.getBoundingClientRect(); if (!b.width) continue;
-    const a = toRoom(b.left, b.top), z = toRoom(b.right, b.bottom); boxes.push({ l: a.x, r: z.x, t: a.y, b: z.y });
+    const a = toRoom(b.left, b.top), z = toRoom(b.right, b.bottom), k = el.classList.contains('yardDoor') ? 50 : 1; boxes.push({ l: a.x, r: z.x, t: a.y, b: z.y, k });
   }
   const mid = camX + VIEW_W / 2;
   // Stay in the middle part of the view, where she is looking (not the far edge behind the Paint button).
@@ -1065,7 +1065,7 @@ function findWallSpot(): number {
   let best = Math.max(lo, Math.min(hi, mid)), bestScore = Infinity;
   for (let x = lo; x <= hi + .1; x += Math.max(4, (hi - lo) / 60)) {
     let ov = 0;
-    for (const o of boxes) ov += Math.max(0, Math.min(x + half + 12, o.r) - Math.max(x - half - 12, o.l)) * Math.max(0, Math.min(foot + 12, o.b) - Math.max(top - 12, o.t));
+    for (const o of boxes) ov += o.k * Math.max(0, Math.min(x + half + 12, o.r) - Math.max(x - half - 12, o.l)) * Math.max(0, Math.min(foot + 12, o.b) - Math.max(top - 12, o.t));
     const score = ov * 10 + Math.abs(x - mid);
     if (score < bestScore) { bestScore = score; best = x; }
   }
@@ -1077,7 +1077,19 @@ function settlePainting(room: RoomId, id: string) {
   const def = ITEM_MAP.picture, sc = drawnScale(it), half = def.w * sc / 2, h = hOf(def) * sc;
   const sr = stage.getBoundingClientRect(), v0 = toRoom(sr.left, 0).x, v1 = toRoom(sr.right, 0).x;
   let x = it.x, y = Math.min(WALL_BOTTOM, Math.max(h + 16, it.y));
-  if (x + half > v0 && x - half < v1) { const { lo, hi } = wallSafeRange(half); x = Math.max(lo, Math.min(hi, x)); }
+  if (x + half > v0 && x - half < v1) {
+    const { lo, hi } = wallSafeRange(half); x = Math.max(lo, Math.min(hi, x));
+    // Never hang over the back door: the door button sits on top and would swallow every tap/drag on the painting.
+    const door = layer.querySelector<HTMLElement>('.yardDoor'), db = door?.getBoundingClientRect();
+    if (db && db.width) {
+      const l = toRoom(db.left, db.top), r = toRoom(db.right, db.bottom);
+      if (x + half > l.x - 8 && x - half < r.x + 8 && y > l.y && y - h < r.y) {
+        const left = l.x - 8 - half, right = r.x + 8 + half, ok = (v: number) => v >= lo - .5 && v <= hi + .5;
+        const opts = [left, right].filter(ok).sort((p, q) => Math.abs(p - x) - Math.abs(q - x));
+        if (opts.length) x = opts[0];
+      }
+    }
+  }
   if (Math.abs(x - it.x) > .5 || Math.abs(y - it.y) > .5) store.dispatch({ type: 'item/move', room, id, x, y });
 }
 function hangPainting(data: string, frame: number) {
