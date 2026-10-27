@@ -42,7 +42,12 @@ STAMPFIT = """() => { const W = innerWidth, H = innerHeight, bad = [], rows = {}
 
 async def paint(pg, frame=2, fab=False):
     if fab: await pg.locator('#artFab').click()
-    else: await tap(pg, '#btnStudio')
+    else:
+        for k in range(3):  # the menu can close under us when a hood message lands; reopen and retry
+            try: await tap(pg, '#btnStudio', timeout=8000); break
+            except Exception:
+                if k == 2: raise
+                await pg.keyboard.press('Escape'); await pg.wait_for_timeout(600)
     await pg.wait_for_selector('.studio canvas')
     box = await pg.locator('.stuPaper canvas').bounding_box()
     X = lambda f: box['x'] + box['width'] * f; Y = lambda f: box['y'] + box['height'] * f
