@@ -168,6 +168,7 @@ app.innerHTML = `
       <div class="wall" id="wall"></div><div class="floor" id="floor"></div><div class="baseboard"></div>
       <div class="scenery" id="scenery"></div>
       <div class="layer" id="layer"></div>
+      <div class="artGrip hidden" id="artGrip" role="button" aria-label="Drag to make the painting bigger or smaller"><svg viewBox="0 0 40 40"><path d="M12 28 L28 12 M20 30 L30 20 M28 28 L28 18 M28 28 L18 28" fill="none" stroke="#5a3d5c" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <div class="toolbar hidden" id="toolbar">
         <button data-a="smaller" aria-label="Smaller">${ICON.smaller}</button><button data-a="bigger" aria-label="Bigger">${ICON.bigger}</button><button data-a="flip" aria-label="Flip">${ICON.flip}</button><button data-a="front" aria-label="Bring forward">${ICON.front}</button><button data-a="back" aria-label="Send back">${ICON.back}</button><button data-a="delete" class="danger" aria-label="Put away">${ICON.trash}</button>
       </div>
@@ -175,6 +176,7 @@ app.innerHTML = `
     <button class="nudge left" id="nudgeL" aria-label="Look left"><svg viewBox="0 0 40 40"><path d="M24 10 L14 20 L24 30" fill="none" stroke="#5a3d5c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button class="nudge right" id="nudgeR" aria-label="Look right"><svg viewBox="0 0 40 40"><path d="M16 10 L26 20 L16 30" fill="none" stroke="#5a3d5c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
+  <button type="button" class="artFab" id="artFab" aria-label="Art Studio: paint a picture">${STUDIO_ICON}<span>Paint</span></button>
   <div class="bin" id="bin">${ICON.trash}</div>
   <div class="houseTag" id="houseTag"></div>
 </div>
@@ -1000,15 +1002,90 @@ function openArtStudio() {
   if (!canEdit()) { toast('Paint at home, or in a friend\'s open house!'); return; }
   openStudio({ stamps: STAMPS, sfx, onSave: (data, frame) => hangPainting(data, frame) });
 }
+/** Decorate: a big corner handle on the selected painting. Drag it out or in to resize (keeps the shape, snaps to the kid size steps). */
+function renderArtGrip(s: GameState) {
+  const g = $('artGrip');
+  const it = selected ? s.rooms[s.currentRoom].items.find(i => i.id === selected) : undefined;
+  const el = it && layer.querySelector<HTMLElement>(`.item[data-id="${it.id}"]`);
+  if (play.isPlay() || !it || it.kind !== 'picture' || !it.art || !el || !canEdit()) { g.classList.add('hidden'); return; }
+  const b = el.getBoundingClientRect(), p = toRoom(b.right, b.bottom);
+  const sc = stage.getBoundingClientRect().width / Math.max(1, VIEW_W) || 1;
+  g.style.left = (p.x / W) * 100 + '%'; g.style.top = (p.y / H) * 100 + '%';
+  g.style.width = g.style.height = 60 / sc + 'px'; // 60 screen px at any zoom
+  g.classList.remove('hidden');
+}
+$('artGrip').addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation();
+  if (!canEdit() || !selected) return;
+  const room = store.get().currentRoom, id = selected;
+  const it = store.get().rooms[room].items.find(i => i.id === id); const el = layer.querySelector<HTMLElement>(`.item[data-id="${id}"]`);
+  if (!it || !el) return;
+  const b = el.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+  const d0 = Math.max(20, Math.hypot(e.clientX - cx, e.clientY - cy)), s0 = itemSizeOf(it.size);
+  $('artGrip').classList.add('active'); toolbar.classList.add('hidden');
+  startDrag(e, {
+    edgeScroll: false,
+    onMove(ev) {
+      const want = s0 * Math.hypot(ev.clientX - cx, ev.clientY - cy) / d0;
+      let best: number = ITEM_SIZE_STEPS[0]; for (const st of ITEM_SIZE_STEPS) if (Math.abs(st - want) < Math.abs(best - want)) best = st;
+      const cur = store.get().rooms[room].items.find(i => i.id === id);
+      if (cur && itemSizeOf(cur.size) !== best) { store.dispatch({ type: 'item/size', room, id, size: best }); sfx.click(); }
+    },
+    onUp() { $('artGrip').classList.remove('active'); settlePainting(room, id); renderItems(store.get()); },
+  });
+});
+$('artFab').addEventListener('click', () => { sfx.click(); openArtStudio(); });
+/** The Paint button shows in a house she can paint in. */
+function renderArtFab() { $('artFab').classList.toggle('hidden', view !== 'house' || !canEdit()); }
 /** Online, a painting waits for the street's OK before it goes on the wall, so a refused one never leaves an empty frame. */
 const pendingArt = new Map<string, { houseId: string; room: RoomId; frame: number; x: number }>();
+/** Room x range (for a piece half-width `half`) that is on screen and clear of the left/right room arrows. */
+function wallSafeRange(half: number): { lo: number; hi: number } {
+  const sr = stage.getBoundingClientRect();
+  const L = $('nudgeL').getBoundingClientRect(), R = $('nudgeR').getBoundingClientRect();
+  const visible = (b: DOMRect, el: HTMLElement) => b.width > 0 && !el.classList.contains('off') && getComputedStyle(el).visibility !== 'hidden' && getComputedStyle(el).display !== 'none' && +getComputedStyle(el).opacity > 0.05;
+  const left = visible(L, $('nudgeL')) ? L.right + 10 : sr.left + 6, right = visible(R, $('nudgeR')) ? R.left - 10 : sr.right - 6;
+  let lo = toRoom(left, 0).x + half, hi = toRoom(right, 0).x - half;
+  lo = Math.max(half, lo); hi = Math.min(W - half, hi);
+  if (hi < lo) { const m = (lo + hi) / 2; lo = hi = Math.max(half, Math.min(W - half, m)); }
+  return { lo, hi };
+}
+/** A clear spot on the wall in view for a new painting: the least overlap with furniture, doors and windows, near the middle. */
+function findWallSpot(): number {
+  const def = ITEM_MAP.picture, half = def.w / 2, h = hOf(def), foot = Math.min(WALL_BOTTOM, 200 + h / 2), top = foot - h;
+  let { lo, hi } = wallSafeRange(half);
+  const boxes: { l: number; r: number; t: number; b: number }[] = [];
+  for (const el of document.querySelectorAll<HTMLElement>('#layer > :not(.char), #scenery > *')) {
+    const b = el.getBoundingClientRect(); if (!b.width) continue;
+    const a = toRoom(b.left, b.top), z = toRoom(b.right, b.bottom); boxes.push({ l: a.x, r: z.x, t: a.y, b: z.y });
+  }
+  const mid = camX + VIEW_W / 2;
+  // Stay in the middle part of the view, where she is looking (not the far edge behind the Paint button).
+  lo = Math.min(Math.max(lo, mid - VIEW_W * .3), hi); hi = Math.max(Math.min(hi, mid + VIEW_W * .3), lo);
+  let best = Math.max(lo, Math.min(hi, mid)), bestScore = Infinity;
+  for (let x = lo; x <= hi + .1; x += Math.max(4, (hi - lo) / 60)) {
+    let ov = 0;
+    for (const o of boxes) ov += Math.max(0, Math.min(x + half + 12, o.r) - Math.max(x - half - 12, o.l)) * Math.max(0, Math.min(foot + 12, o.b) - Math.max(top - 12, o.t));
+    const score = ov * 10 + Math.abs(x - mid);
+    if (score < bestScore) { bestScore = score; best = x; }
+  }
+  return best;
+}
+/** After a painting is dragged: keep it on the wall, below the ceiling, and out from under the room arrows when it sits in view. */
+function settlePainting(room: RoomId, id: string) {
+  const it = store.get().rooms[room].items.find(i => i.id === id); if (!it || it.kind !== 'picture' || !it.art) return;
+  const def = ITEM_MAP.picture, sc = drawnScale(it), half = def.w * sc / 2, h = hOf(def) * sc;
+  const sr = stage.getBoundingClientRect(), v0 = toRoom(sr.left, 0).x, v1 = toRoom(sr.right, 0).x;
+  let x = it.x, y = Math.min(WALL_BOTTOM, Math.max(h + 16, it.y));
+  if (x + half > v0 && x - half < v1) { const { lo, hi } = wallSafeRange(half); x = Math.max(lo, Math.min(hi, x)); }
+  if (Math.abs(x - it.x) > .5 || Math.abs(y - it.y) > .5) store.dispatch({ type: 'item/move', room, id, x, y });
+}
 function hangPainting(data: string, frame: number) {
   const id = 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const s = store.get(); const room = s.currentRoom;
   putArt(id, data);
-  // Hang it in the open middle of the view, clear of the left/right room arrows (they sit ~80 stage px in).
-  const half = ITEM_MAP.picture.w / 2, safe = Math.max(0, VIEW_W / 2 - 96 - half);
-  const x = Math.max(half, Math.min(W - half, camX + VIEW_W / 2 + (Math.random() - .5) * Math.min(120, safe * 2)));
+  // Hang it in a clear wall spot in view: between the left/right room arrows, away from other wall things.
+  const x = findWallSpot();
   if (hood && inner !== local && currentHouseId) { pendingArt.set(id, { houseId: currentHouseId, room, frame, x }); hood.saveArt(currentHouseId, id, data); return; }
   saveLocalArt(id, data, hungArt(s));
   placePainting(room, id, frame, x);
@@ -1049,7 +1126,7 @@ function renderItems(s: GameState) {
   paintScenery(s);
   syncSkyPuddles();
   syncSeatFronts();
-  renderToolbar(s); renderMinimap(s);
+  renderToolbar(s); renderMinimap(s); renderArtFab();
   queueAmbient();
 }
 /** Paint-only front of an occupied seat. The saved item and its z stay one object. */
@@ -1367,17 +1444,21 @@ function placeToolbarAnchor(x: number, y: number) {
   toolbar.style.top = (y / H) * 100 + '%';
 }
 function renderToolbar(s: GameState) {
+  renderArtGrip(s);
   const it = selected && s.rooms[s.currentRoom].items.find(i => i.id === selected);
   if (play.isPlay() || !it || !ITEM_MAP[it.kind]) {
     toolbar.classList.add('hidden');
     toolbar.classList.remove('below');
     toolbar.style.maxWidth = '';
+    $('artFab').classList.remove('tucked');
     return;
   }
+  $('artFab').classList.add('tucked'); // the Paint button steps aside while a piece is being decorated
   const def = ITEM_MAP[it.kind];
   const foot = drawY(def, it.y);
   const pieceTop = foot - hOf(def) * drawnScale(it);
-  const gap = 12;
+  // A selected painting has a resize handle on its bottom-right corner: keep the bar clear of it.
+  const gap = it.kind === 'picture' && it.art ? 12 + 34 / (stage.getBoundingClientRect().width / Math.max(1, VIEW_W) || 1) : 12;
   toolbar.classList.remove('hidden');
   toolbar.style.maxWidth = '';
   toolbar.classList.remove('below');
@@ -1753,7 +1834,7 @@ function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
       el.classList.remove('lifted'); bin.classList.remove('show', 'hot'); showHoldTarget(null);
       if (moved && overBin(ev.clientX, ev.clientY)) { selected = null; store.dispatch({ type: 'item/delete', room, id }); poof(ev.clientX, ev.clientY); return; }
       if (moved && target) { holdInto(target, id); return; }
-      if (moved) { sfx.drop(); bounce(el); } else { sfx.click(); onPlaceTap(id); wiggleItem(el); }
+      if (moved) { settlePainting(room, id); sfx.drop(); bounce(el); } else { sfx.click(); onPlaceTap(id); wiggleItem(el); }
       renderItems(store.get());
     },
   });
