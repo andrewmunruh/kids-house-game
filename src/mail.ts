@@ -5,7 +5,7 @@ import { MAIL_COLOR, MAIL_COLORS, MAIL_MAX, MAIL_STICKERS, friendlyWhen, type Le
 const O = '#5a3d5c';
 const st = `stroke="${O}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"`;
 
-const STICKER = [
+export const STICKER = [
   `<svg viewBox="0 0 48 48"><path d="M24 40 C16 32 6 26 10 16 C14 8 24 12 24 20 C24 12 34 8 38 16 C42 26 32 32 24 40 Z" fill="#ff6b9a" ${st}/></svg>`,
   `<svg viewBox="0 0 48 48"><path d="M24 6 l5 12 13 1 -10 8 3 13 -11 -7 -11 7 3 -13 -10 -8 13 -1z" fill="#ffd166" ${st}/></svg>`,
   `<svg viewBox="0 0 48 48"><circle cx="24" cy="22" r="6" fill="#ff8fab" ${st}/>${[0, 60, 120, 180, 240, 300].map(a => `<circle cx="${24 + Math.cos(a * Math.PI / 180) * 12}" cy="${22 + Math.sin(a * Math.PI / 180) * 12}" r="5" fill="#ffd166" ${st}/>`).join('')}<path d="M24 34 V44" ${st}/></svg>`,

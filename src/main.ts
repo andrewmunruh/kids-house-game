@@ -42,6 +42,10 @@ import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { isLightKind } from './sky';
 import { dockSkyChrome, mountSkyToggle } from './sky-toggle';
 import './sky.css';
+import './paint/studio.css';
+import { openStudio, zoomPainting, type StampSrc } from './paint/studio';
+import { framedSvg, artUrl, hasArt, putArt, loadLocalArt, saveLocalArt } from './paint/gallery';
+import { STICKER } from './mail';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
 import { bindGameRoom, renderGameRoom, renderGamePeople, tickGameRoom, mySeat, grScale, tableApi, GR_PORTRAIT_VIEW } from './gameroom-view';
@@ -118,6 +122,7 @@ const MENU_ICON = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 15 H
 const MAIL_ICON = `<svg class="mailGlyph" viewBox="0 0 48 48" aria-hidden="true"><g transform="translate(0 2)"><rect x="6" y="14" width="36" height="24" rx="4" fill="#8ecae6" stroke="#5a3d5c" stroke-width="3"/><path d="M6 16 L24 30 L42 16" fill="none" stroke="#5a3d5c" stroke-width="3"/><path d="M34 12 V6" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/><path d="M34 6 H44 L40 10 L44 14 H34 Z" fill="#ff6b6b" stroke="#5a3d5c" stroke-width="2"/></g></svg>`;
 const PLUS = `<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="#fff3b0" stroke="#5a3d5c" stroke-width="3"/><path d="M24 15 V33 M15 24 H33" stroke="#5a3d5c" stroke-width="4" stroke-linecap="round"/></svg>`;
 
+const STUDIO_ICON = '<svg viewBox="0 0 40 40" width="28" height="28"><path d="M12 36 L18 8 M28 36 L22 8 M20 30 V38" stroke="#a86f3e" stroke-width="3" stroke-linecap="round"/><rect x="8" y="8" width="24" height="18" rx="3" fill="#fff" stroke="#5a3d5c" stroke-width="2.5"/><circle cx="16" cy="16" r="3" fill="#ff8fab"/><path d="M12 24 L20 17 L28 24" fill="#69db7c" stroke="#5a3d5c" stroke-width="1.5" stroke-linejoin="round"/></svg>';
 // ---------- DOM skeleton ----------
 const app = document.getElementById('app')!;
 app.innerHTML = `
@@ -140,6 +145,7 @@ app.innerHTML = `
     <p class="menuGroup">My stuff</p>
     <button type="button" class="menuRow" id="btnPets" aria-label="Pets"><span class="mIco">${pawIcon}</span><span class="mLabel">Pets</span></button>
     <button type="button" class="menuRow" id="btnDress" aria-label="Characters"><span class="mIco">${ICON.shirt}</span><span class="mLabel">Characters</span></button>
+    <button type="button" class="menuRow" id="btnStudio" aria-label="Art Studio"><span class="mIco">${STUDIO_ICON}</span><span class="mLabel">Art Studio</span></button>
     <button type="button" class="menuRow" id="btnPaint" aria-label="Colors"><span class="mIco">${ICON.paint}</span><span class="mLabel">Wall &amp; floor colors</span></button>
     <button type="button" class="menuRow" id="secrets" aria-label="Surprises, 0 of 5"><span class="mIco secGift">🎁</span><span class="mLabel"><span class="secWord">Surprises </span><span class="secCount">0/5</span></span></button>
     <p class="menuGroup houseGroup">House</p>
@@ -963,6 +969,48 @@ function placedBox(def: ItemDef, scale: number) {
   }
   return { w, h };
 }
+// ---------- Art Studio: hung paintings ----------
+/** A painting is a 'picture' item with an art id. Draw its frame; ask for the bitmap if this iPad has not got it yet. */
+function paintFrameEl(el: HTMLElement, art: string, frame: number) {
+  const url = artUrl(art);
+  const sig = art + ':' + frame + ':' + (url ? 1 : 0);
+  if (el.dataset.sig === sig) return;
+  el.dataset.sig = sig;
+  el.innerHTML = `<div class="inner">${framedSvg(frame, url)}</div>`;
+  if (!url) askArt(art);
+}
+const artAsked = new Set<string>(); let artAskT = 0; const artQueue = new Set<string>();
+function askArt(id: string) {
+  if (!hood || inner === local || artAsked.has(id) || hasArt(id)) return;
+  artAsked.add(id); artQueue.add(id);
+  if (!artAskT) artAskT = window.setTimeout(() => { artAskT = 0; const ids = [...artQueue]; artQueue.clear(); if (hood && currentHouseId) hood.getArt(currentHouseId, ids); ids.forEach(i => setTimeout(() => artAsked.delete(i), 8000)); }, 60);
+}
+function hungArt(s: GameState): Set<string> {
+  const out = new Set<string>();
+  for (const r of Object.values(s.rooms)) for (const it of r?.items ?? []) if (it.art) out.add(it.art);
+  return out;
+}
+const STAMPS: StampSrc[] = [
+  ...['Heart', 'Star', 'Flower', 'Kitty', 'Rainbow', 'Sparkle'].map((name, i) => ({ name, svg: STICKER[i] })),
+  ...['dog', 'bunny', 'fish', 'flowers', 'balloon'].filter(k => ITEM_MAP[k]).map(k => ({ name: ITEM_MAP[k].name, svg: `<svg viewBox="${ITEM_MAP[k].vb ?? '0 0 100 100'}" xmlns="http://www.w3.org/2000/svg">${ITEM_MAP[k].svg}</svg>` })),
+];
+function openArtStudio() {
+  if (view !== 'house') { toast('The Art Studio is at home. Pop inside to paint!'); return; }
+  if (!canEdit()) { toast('Paint at home, or in a friend\'s open house!'); return; }
+  openStudio({ stamps: STAMPS, sfx, onSave: (data, frame) => hangPainting(data, frame) });
+}
+function hangPainting(data: string, frame: number) {
+  const id = 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const s = store.get(); const room = s.currentRoom;
+  putArt(id, data);
+  if (hood && inner !== local && currentHouseId) hood.saveArt(currentHouseId, id, data);
+  else saveLocalArt(id, data, hungArt(s));
+  const def = ITEM_MAP.picture;
+  const item: PlacedItem = { id: newId('picture'), kind: 'picture', x: camX + VIEW_W / 2 + (Math.random() - .5) * 120, y: Math.min(WALL_BOTTOM, 200 + hOf(def) / 2), flip: false, z: 0, scale: 1, art: id, ...(frame ? { frame } : {}) };
+  store.dispatch({ type: 'item/add', room, item });
+  selected = item.id; renderItems(store.get());
+  const el = layer.querySelector(`.item[data-id="${item.id}"]`); bounce(el); sparkleAt(el); sfx.sparkle();
+}
 function renderItems(s: GameState) {
   const room = s.rooms[s.currentRoom];
   const seen = new Set<string>();
@@ -978,6 +1026,7 @@ function renderItems(s: GameState) {
       el.addEventListener('pointerdown', e => onItemPointer(el!, e));
     }
     el.dataset.kind = it.kind;
+    if (it.art) paintFrameEl(el, it.art, it.frame ?? 0);
     el.classList.toggle('is-light', isLightKind(it.kind, !!def.light));
     const box = placedBox(def, drawnScale(it));
     placeEl(el, it.x, drawY(def, it.y), box.w, box.h);
@@ -2748,6 +2797,7 @@ $('menuPop').addEventListener('click', e => {
   if (t.id === 'menuPop' || t.closest('#menuClose')) { setMenuOpen(false); return; }
   if (t.closest('.menuRow')) setMenuOpen(false);
 });
+$('btnStudio').addEventListener('click', () => openArtStudio());
 $('btnMail').addEventListener('click', () => {
   const id = hood?.myHouseId();
   if (id) openMailbox(id);
@@ -2833,6 +2883,12 @@ function enterNeighborhood(client: HoodClient) {
   });
   client.on('houseMeta', (id: string) => { if (hood !== client || id !== currentHouseId || view !== 'house') return; selected = null; renderHoodChrome(); renderItems(store.get()); renderDrawer(); if (!canEdit()) $('sheet').classList.add('hidden'); });
   client.on('pres', () => { if (hood !== client) return; view === 'street' ? renderMapFaces() : view === 'park' ? renderParkAvatars() : view === 'ranch' ? renderRanchAvatars() : view === 'gameroom' ? renderGamePeople() : renderAvatars(); });
+  client.on('art', (houseId: string, arts: Record<string, string>) => {
+    if (hood !== client || !arts || typeof arts !== 'object') return;
+    for (const [id, d] of Object.entries(arts)) putArt(id, d);
+    if (view === 'house' && houseId === currentHouseId) renderItems(store.get());
+  });
+  client.on('artFail', (_h: string, _id: string, r: string) => { if (hood === client && r === 'full') toast('Your walls are full of art! Take one down to hang a new one.'); });
   client.on('ranch', () => { if (hood === client && view === 'ranch') renderPlots(true); });
   client.on('ranchFail', (r: string) => { if (hood === client) ranchFailToast(r); });
   client.on('noride', () => { if (hood !== client) return; const p = myPres(); if (p?.ride !== undefined) { const { ride: _r, ...q } = p; setMyPres(q); renderRanchAvatars(); } toast('Someone is riding that horse!'); });
@@ -3396,6 +3452,7 @@ function onPlaceTap(id: string) {
 function onPlayTap(el: HTMLElement, id: string) {
   const s = store.get();
   const it = s.rooms[s.currentRoom]?.items.find(i => i.id === id); if (!it) return;
+  if (it.art) { sfx.click(); zoomPainting(framedSvg(it.frame ?? 0, artUrl(it.art))); return; }
   const g = playGesture(it.kind);
   el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle');
   sfx.click();
@@ -4543,6 +4600,7 @@ function loadNewArt(): Promise<void> {
 
 // ---------- start ----------
 installArtFallback();
+loadLocalArt();
 installJuice();
 setRoomScenery(room => (room === 'backyard' ? yardBackyardScenery() : null));
 $('scenery').addEventListener('click', e => {

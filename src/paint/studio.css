@@ -1,0 +1,50 @@
+/* Art Studio overlay. Fits every test size: landscape puts tools beside the paper, portrait below it. */
+.studio { position: fixed; inset: 0; z-index: 9000; background: rgba(90, 61, 92, .55); display: flex; align-items: center; justify-content: center; padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+.stuCard { background: #fff6ea; border: 3px solid #5a3d5c; border-radius: 22px; padding: 10px; box-sizing: border-box; width: 100%; height: 100%; max-width: 1100px; max-height: 860px; display: flex; flex-direction: column; gap: 6px; }
+.stuHead { display: flex; align-items: center; justify-content: space-between; }
+.stuHead h2 { margin: 0 4px; font-size: 20px; color: #5a3d5c; }
+.stuX { width: 44px; height: 44px; border-radius: 50%; border: 3px solid #5a3d5c; background: #fff; font-size: 18px; color: #5a3d5c; }
+.stuBody { flex: 1; min-height: 0; display: flex; gap: 10px; }
+.stuPaper { flex: 1; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; container-type: size; }
+.stuPaper canvas { touch-action: none; width: min(100cqw, 133.33cqh); height: auto; aspect-ratio: 4 / 3; border: 3px solid #5a3d5c; border-radius: 10px; background: #fff; box-shadow: 0 4px 0 rgba(90, 61, 92, .25); cursor: crosshair; }
+.stuSide { width: 300px; flex: none; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+.stuRow { display: flex; gap: 6px; flex-wrap: wrap; }
+.studio button { touch-action: manipulation; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.stuTool, .stuSize { width: 44px; height: 44px; padding: 3px; border-radius: 12px; border: 2.5px solid #d9c6e6; background: #fff; display: flex; align-items: center; justify-content: center; }
+.stuTool svg { width: 100%; height: 100%; }
+.stuTool.on, .stuSize.on, .stuStamp.on, .stuFrame.on { border-color: #5a3d5c; background: #ffe0ec; }
+.stuTool:disabled { opacity: .4; }
+.stuSize i { display: block; border-radius: 50%; background: #5a3d5c; }
+.stuColors { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; }
+.stuColor { aspect-ratio: 1; min-height: 30px; border-radius: 50%; border: 2.5px solid #5a3d5c; padding: 0; }
+.stuColor.on { box-shadow: 0 0 0 3px #fff6ea, 0 0 0 6px #5a3d5c; }
+.stuStamps { display: none; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.studio.stamping .stuStamps { display: grid; }
+.stuStamp { aspect-ratio: 1; min-height: 40px; padding: 3px; border-radius: 12px; border: 2.5px solid #d9c6e6; background: #fff; }
+.stuStamp svg { width: 100%; height: 100%; display: block; }
+.stuFrame { width: 52px; height: 52px; padding: 0; border-radius: 12px; border: 2.5px solid #d9c6e6; background: #fff; }
+.stuFrame svg { width: 100%; height: 100%; display: block; }
+.stuHang { margin-top: auto; min-height: 48px; border-radius: 24px; border: 3px solid #5a3d5c; background: #ff8fab; color: #fff; font-size: 18px; font-weight: 800; text-shadow: 0 1px 0 #5a3d5c; }
+@media (orientation: portrait) {
+  .stuBody { flex-direction: column; }
+  .stuSide { width: auto; flex: none; max-height: 52%; }
+  .stuColors { grid-template-columns: repeat(8, 1fr); }
+  .stuStamps { grid-template-columns: repeat(10, 1fr); }
+  .stuStamp { min-height: 30px; }
+}
+@media (max-height: 500px) {
+  .stuCard { padding: 6px; border-radius: 16px; }
+  .stuHead h2 { font-size: 16px; }
+  .stuX { width: 36px; height: 36px; }
+  .stuSide { width: 260px; gap: 4px; }
+  .stuTool, .stuSize { width: 38px; height: 38px; }
+  .stuColor { min-height: 24px; }
+  .stuStamps { grid-template-columns: repeat(5, 1fr); }
+  .stuStamp { min-height: 30px; }
+  .stuFrame { width: 40px; height: 40px; }
+  .stuHang { min-height: 40px; font-size: 16px; }
+}
+.paintZoom { position: fixed; inset: 0; z-index: 9000; background: rgba(90, 61, 92, .6); display: flex; align-items: center; justify-content: center; }
+.pzInner { width: min(92vw, 118vh); aspect-ratio: 1; max-height: 92vh; }
+.pzInner svg { width: 100%; height: 100%; display: block; }
+.item .inner .paintFramed { width: 100%; height: 100%; display: block; }
