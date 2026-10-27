@@ -10,8 +10,8 @@
 .partyFx > .pl1 { background: radial-gradient(closest-side, rgba(255, 120, 200, .9), rgba(255, 120, 200, 0)); animation: partySweepA 7.2s ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
 .partyFx > .pl2 { background: radial-gradient(closest-side, rgba(120, 190, 255, .9), rgba(120, 190, 255, 0)); animation: partySweepB 7.2s ease-in-out infinite; animation-delay: calc(var(--amb-delay, 0s) - 2.4s); }
 .partyFx > .pl3 { background: radial-gradient(closest-side, rgba(255, 220, 120, .9), rgba(255, 220, 120, 0)); animation: partySweepA 10.8s ease-in-out infinite reverse; animation-delay: calc(var(--amb-delay, 0s) - 4.8s); }
-@keyframes partySweepA { 0%, 100% { transform: translateX(-45%) scale(.9); } 50% { transform: translateX(45%) scale(1.05); } }
-@keyframes partySweepB { 0%, 100% { transform: translate(40%, 8%) scale(1); } 50% { transform: translate(-40%, -6%) scale(.9); } }
+@keyframes partySweepA { 0%, 100% { transform: translateX(-45%); } 50% { transform: translateX(45%); } }
+@keyframes partySweepB { 0%, 100% { transform: translate(40%, 8%); } 50% { transform: translate(-40%, -6%); } }
 /* Twinkles and confetti: small dots that fade in and out softly. */
 .partyFx > .sp { width: 10px; height: 10px; border-radius: 50%; background: #fff6a8; box-shadow: 0 0 6px 2px rgba(255, 246, 168, .7); opacity: 0; animation: partyTwinkle 3.6s ease-in-out infinite; }
 .partyFx > .s1 { left: 12%; top: 14%; } .partyFx > .s2 { left: 28%; top: 36%; animation-delay: -.9s; background: #ffb3d9; }
@@ -34,3 +34,6 @@
   .partyFx > .pl2 { left: calc(var(--px, 50%) - 60%); } .partyFx > .pl3 { left: calc(var(--px, 50%) - 10%); }
   .partyFx > .sp { opacity: .5; }
 }
+
+/* perf (X2): WebKit software paths blend each full-room wash every frame; two washes, translate-only, carry the look at far less fill. */
+.partyFx > .pl3 { display: none; }
