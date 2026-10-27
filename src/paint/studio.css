@@ -26,11 +26,20 @@
 .stuFrame svg { width: 100%; height: 100%; display: block; }
 .stuHang { margin-top: auto; min-height: 48px; border-radius: 24px; border: 3px solid #5a3d5c; background: #ff8fab; color: #fff; font-size: 18px; font-weight: 800; text-shadow: 0 1px 0 #5a3d5c; }
 @media (orientation: portrait) {
+  .stuCard { max-height: none; }
   .stuBody { flex-direction: column; }
-  .stuSide { width: auto; flex: none; max-height: 52%; }
+  .stuPaper { min-height: 180px; }
+  .stuSide { width: auto; flex: none; overflow: visible; }
   .stuColors { grid-template-columns: repeat(8, 1fr); }
-  .stuStamps { grid-template-columns: repeat(10, 1fr); }
-  .stuStamp { min-height: 30px; }
+  .stuColor { min-height: 0; width: 34px; height: 34px; justify-self: center; }
+  .stuStamps { grid-template-columns: repeat(11, 1fr); }
+  .stuStamp { min-height: 0; padding: 1px; }
+  .stuHang { margin-top: 2px; }
+}
+@media (orientation: portrait) and (min-width: 600px) {
+  .stuColors { grid-template-columns: repeat(16, 1fr); }
+  .stuColor { width: 40px; height: 40px; }
+  .stuStamp { padding: 3px; }
 }
 @media (max-height: 500px) {
   .stuCard { padding: 6px; border-radius: 16px; }
@@ -38,10 +47,11 @@
   .stuX { width: 36px; height: 36px; }
   .stuSide { width: 260px; gap: 4px; }
   .stuTool, .stuSize { width: 38px; height: 38px; }
-  .stuColor { min-height: 24px; }
-  .stuStamps { grid-template-columns: repeat(5, 1fr); }
-  .stuStamp { min-height: 30px; }
-  .stuFrame { width: 40px; height: 40px; }
+  .stuSide { width: 280px; }
+  .stuColor { min-height: 0; width: 28px; height: 28px; justify-self: center; }
+  .stuStamps { grid-template-columns: repeat(8, 1fr); gap: 3px; }
+  .stuStamp { min-height: 0; padding: 1px; border-radius: 8px; }
+  .stuFrame { width: 38px; height: 38px; }
   .stuHang { min-height: 40px; font-size: 16px; }
 }
 .paintZoom { position: fixed; inset: 0; z-index: 9000; background: rgba(90, 61, 92, .6); display: flex; align-items: center; justify-content: center; }

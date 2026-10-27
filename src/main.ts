@@ -4581,7 +4581,7 @@ function paintLoaded(ids: string[]): void {
   let changed = false;
   for (const it of s.rooms[s.currentRoom].items) {
     const def = ITEM_MAP[it.kind];
-    if (!want.has(it.kind) || !def) continue;
+    if (!want.has(it.kind) || !def || it.art) continue;
     const inner = layer.querySelector<HTMLElement>(`.item[data-id="${it.id}"] .inner`);
     if (!inner || inner.querySelector('img.artimg')) continue;
     inner.innerHTML = svgOf(def, true);
