@@ -40,6 +40,7 @@ import './photobooth.css';
 import { catalogShows, seasonHidden } from './roomfilter';
 import { candyCount, knockTreat, trickOrTreatOn, knockNote } from './candy';
 import { MORE_CHAR_FX, MORE_ITEM_FX, MORE_PERIOD, keysPlaying, moreItemFx, syncSocial, tapMore } from './social';
+import { installNeeds } from './needs-ui';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
@@ -2116,6 +2117,7 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js');
 (window as any).__store = store; // handy for debugging / tests
+installNeeds({ get: () => store.get(), dispatch: a => store.dispatch(a), subscribe: fn => store.subscribe(fn), canDrift: () => view === 'house' && ownsDolls(), speaks: () => !hood || inner === local || hood.speaksNeeds, layer, menuAfter: $('btnSound') });
 (window as any).__items = Object.fromEntries(ITEMS.filter(i => i.img).map(i => [i.kind, { w: i.w, h: hOf(i), cat: i.cat, holdable: i.holdable, svg: i.img!.includes('.svg') }]));
 (window as any).__cam = { get: () => camX, set: setCam };
 (window as any).__phoneShowKids = () => phoneShowKids();
