@@ -14,11 +14,11 @@ EDGE = """() => { const s = __store, room = s.get().currentRoom, stage = documen
 # Every doll she can partly see on screen must be fully inside the visible stage (what the photo captures).
 INFRAME = """() => { const stage = document.getElementById('stage'), sr = stage.getBoundingClientRect(), w = stage.parentElement.getBoundingClientRect();
   const v = {l: Math.max(sr.left, w.left, 0), t: Math.max(sr.top, w.top, 0), r: Math.min(sr.right, w.right, innerWidth), b: Math.min(sr.bottom, w.bottom, innerHeight)};
-  const out = [...document.querySelectorAll('.char')].map(e => [e.dataset.id || e.id, e.getBoundingClientRect()]).filter(([, r]) => r.right > v.l && r.left < v.r)
+  const out = [...document.querySelectorAll('.char')].map(e => [e.dataset.cid, e.getBoundingClientRect()]).filter(([, r]) => r.right > v.l && r.left < v.r)
     .filter(([, r]) => r.left < v.l - 1 || r.right > v.r + 1 || r.top < v.t - 1 || r.bottom > v.b + 1).map(([id, r]) => [id, Math.round(r.right - v.r), Math.round(r.bottom - v.b)]);
   // The edge doll stands at the right/bottom of the play area she can see: it must be wholly on screen (so wholly in the photo).
   // Others past the screen edge are cut on screen too (the room scrolls); the photo matches the screen, so they are listed only.
-  return {ok: !out.some(([id]) => id === 'ptedge'), cut: out}; }"""
+  const edge = !!document.querySelector('.char[data-cid="ptedge"]'); return {ok: !out.some(([id]) => id === 'ptedge') && (edge || !__store.get().characters.length), edge, cut: out}; }"""
 def check_photo(photo, screen):
     """flush: the picture meets the frame with no pale strip; diff: the picture matches the on-screen stage."""
     from PIL import Image, ImageChops, ImageStat
