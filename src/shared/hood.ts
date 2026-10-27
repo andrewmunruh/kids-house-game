@@ -1,4 +1,5 @@
 import { isPowerable } from './ambient';
+import { cleanNeeds, isNeed } from './needs';
 // Shared between client and server: protocol, presets, validation and the chat filter.
 // Nothing here touches the DOM or Node APIs, so it runs in browsers, Node and Cloudflare Workers.
 import { RANCH_W, BARN_W, RANCH_Y0, RANCH_Y1, HORSES, ANIMALS, FOODS, type Basket, type Plot, type RanchOp } from './ranch';
@@ -663,11 +664,13 @@ function cleanCharacter(c: any): Character | null {
     held: { left: c.held?.left ? cleanItem(c.held.left) : null, right: c.held?.right ? cleanItem(c.held.right) : null } });
   const seat = cleanDollSeat(c?.seat);
   if (seat) ch.seat = seat;
+  const needs = cleanNeeds(c?.needs);
+  if (needs) ch.needs = needs;
   return ch;
 }
 
 // ---------- pets ----------
-export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, bathroom, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1. A seat rides on char/move and on house presence, and is forwarded only to clients that say sit:1. item/size is forwarded only to clients that say fit:1. A missing item size is 1, and old clients ignore the field. Baby actions are forwarded only to clients that say baby:1. item/power (ambient M1) is forwarded only to clients that say amb:1, and an item's optional `on` flag rides along on the house; old clients keep it and ignore it. A missing baby means an older save. There is no PROTOCOL 5. A grown-up mailbox listing is an optional field on parentInfo; old clients ignore it. settings.freeMail is optional too: missing means letters follow freeChat.
+export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, bathroom, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1. A seat rides on char/move and on house presence, and is forwarded only to clients that say sit:1. item/size is forwarded only to clients that say fit:1. A missing item size is 1, and old clients ignore the field. Baby actions are forwarded only to clients that say baby:1. item/power (ambient M1) is forwarded only to clients that say amb:1, and an item's optional `on` flag rides along on the house; old clients keep it and ignore it. A missing baby means an older save. need/meet and need/drift (M2) are forwarded only to clients that say needs:1; a doll's optional `needs` rides along on the house and old clients keep it. There is no PROTOCOL 5. A grown-up mailbox listing is an optional field on parentInfo; old clients ignore it. settings.freeMail is optional too: missing means letters follow freeChat.
 export const PROTO_PETS = 2, PROTO_RANCH = 3, PROTO_GAMES = 4;
 export const CAT_NAMES = ['Mittens', 'Luna', 'Biscuit', 'Pumpkin', 'Whiskers', 'Mochi', 'Pepper', 'Noodle', 'Ginger', 'Socks'];
 export const DOG_NAMES = ['Buddy', 'Coco', 'Max', 'Daisy', 'Peanut', 'Rocket', 'Bella', 'Waffles', 'Scout', 'Honey'];
@@ -706,7 +709,7 @@ export function cleanAction(a: any): Action | null {
     case 'room/wallpaper': case 'room/floor': { const color = str(a.color, COLOR_RE, 9); return isRoom(room) && color ? { type: a.type, room, color } : null; }
     case 'room/pattern': { const p = num(a.pattern, 0, 3); return isRoom(room) && p !== null ? { type: a.type, room, pattern: Math.round(p) } : null; }
     case 'room/wallTile': case 'room/floorTile': { if (!isRoom(room)) return null; if (a.tile === null) return { type: a.type, room, tile: null }; const t = str(a.tile, TILE_RE, 101); return t ? { type: a.type, room, tile: t } : null; }
-    case 'char/add': { const c = cleanCharacter(a.char); if (!c) return null; const { seat: _drop, ...rest } = c; return { type: a.type, char: { ...rest, held: { left: null, right: null } } }; }
+    case 'char/add': { const c = cleanCharacter(a.char); if (!c) return null; const { seat: _drop, needs: _n, ...rest } = c; return { type: a.type, char: { ...rest, held: { left: null, right: null } } }; }
     case 'char/update': { const id = str(a.id, ID_RE), patch = cleanLookPatch(a.patch); return id && patch ? { type: a.type, id, patch } : null; }
     case 'char/move': {
       const id = str(a.id, ID_RE), x = num(a.x, 0, ROOM_W), y = num(a.y, 60, ROOM_H);
@@ -750,6 +753,7 @@ export function cleanAction(a: any): Action | null {
       const seat = a.seat == null ? null : cleanDollSeat(a.seat);
       return { type: 'baby/place', room, x, y, spot: a.spot, bed, seat, now: finiteNow(a.now) };
     }
+    case 'need/meet': case 'need/drift': { const id = str(a.id, ID_RE); return id && isNeed(a.need) ? { type: a.type, id, need: a.need } : null; }
     default: return null; // room/switch, settings/sound, game/reset, dog/set (dogs live on the player) are local-only
   }
 }
@@ -890,8 +894,8 @@ export interface HouseFull extends HouseMeta { state: GameState }
 export type Bubble = { kind: 'phrase' | 'emote'; v: number } | { kind: 'text'; v: string };
 
 export type ClientMsg =
-  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number }
-  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number }
+  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; needs?: number }
+  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; needs?: number }
   | { t: 'dog'; dog: Dog | null }
   | { t: 'fx'; fx: Fx }
   | { t: 'ranch'; o: RanchOp }
@@ -910,7 +914,7 @@ export type ClientMsg =
 
 export type ServerMsg =
   | { t: 'joined'; token: string; pid: string }
-  | { t: 'welcome'; pid: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[]; sit?: 1; baby?: 1; amb?: 1 }
+  | { t: 'welcome'; pid: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[]; sit?: 1; baby?: 1; amb?: 1; needs?: 1 }
   | { t: 'act'; houseId: string; by: string; cid: number; action: Action }
   | { t: 'nack'; houseId: string; cid: number; reason: string; state?: GameState }
   | { t: 'pres'; pid: string; p: Presence | null }
