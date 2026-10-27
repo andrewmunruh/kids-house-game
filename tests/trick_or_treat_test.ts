@@ -28,7 +28,7 @@ check('?halloween=1 forces on', trickOrTreatOn(new Date(2026, 5, 10), '?hallowee
 check('?halloween=0 forces off', !trickOrTreatOn(new Date(2026, 9, 31), '?x=1&halloween=0'));
 
 // ---- notes ----
-check('note uses the first name', knockNote('Reagan Smith') === 'Reagan came trick-or-treating!');
+check('note reads well', knockNote('Reagan') === 'Reagan came trick-or-treating!' && knockNote('Sunny Bunny') === 'Sunny Bunny came trick-or-treating!' && !knockNote('<b>x</b>').includes('<'));
 check('note never empty', knockNote('  ') === 'A friend came trick-or-treating!');
 check('knocker name: house first name', knockerName("Reagan's House", 'Sunny Bunny') === 'Reagan' && knockerName('Castle', 'Sunny Bunny') === 'Sunny Bunny' && knockerName(undefined, '') === 'A friend');
 check('server first name strips symbols', firstName('Quinn!! Jones') === 'Quinn' && firstName('') === 'A friend');

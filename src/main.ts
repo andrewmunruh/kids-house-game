@@ -2472,6 +2472,7 @@ function knockBtn(h: MapHouse, x: number, y: number, px: (v: number) => string) 
   if (!h || h.mine || !trickOrTreatOn()) return '';
   return `<button class="mapKnock" data-knock="${h.id}" aria-label="Knock at ${esc(h.name)} for a treat" style="left:${px(x)};top:${px(y)}"><span>🎃</span></button>`;
 }
+const knockSeen = new Map<string, number>();
 function renderCandyBucket() {
   const st = $('street'); let b = document.getElementById('candyBucket');
   if (!trickOrTreatOn()) { b?.remove(); return; }
@@ -2862,7 +2863,10 @@ function enterNeighborhood(client: HoodClient) {
   client.on('noride', () => { if (hood !== client) return; const p = myPres(); if (p?.ride !== undefined) { const { ride: _r, ...q } = p; setMyPres(q); renderRanchAvatars(); } toast('Someone is riding that horse!'); });
   client.on('fx', (pid: string, fx: Fx) => { if (hood === client) onFx(pid, fx); });
   client.on('bubble', (pid: string, b: Bubble) => { if (hood === client) showBubble(pid, b); });
-  client.on('knocked', (_houseId: string, name: string) => { if (hood === client) toast(knockNote(name)); });
+  client.on('knocked', (_houseId: string, name: string) => {
+    // One note per friend per 20s, so a fast knocker does not stack the lane.
+    if (hood !== client) return; const now = Date.now(); if ((knockSeen.get(name) ?? 0) > now - 20000) return; knockSeen.set(name, now); toast(knockNote(name));
+  });
   client.on('sayFail', (r: string) => toast(r === 'presetsOnly' ? 'Typing is turned off: pick a bubble!' : FILTER_MSG[r] || "Couldn't send that"));
   client.on('mailbox', () => { if (hood !== client) return; if (view === 'street') renderMap(true); syncMailCue(); mailUI.refresh(); paintBadges(); });
   client.on('mailFail', (r: string) => { if (hood === client) mailUI.fail(r); });

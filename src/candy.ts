@@ -22,8 +22,9 @@ export function trickOrTreatOn(now: Date = new Date(), search = typeof location 
   if (/[?&]halloween=0\b/.test(search)) return false;
   return /[?&]halloween=1\b/.test(search) || halloweenVisible(now);
 }
-/** "Reagan came trick-or-treating!" with only the first name. */
+/** "Reagan came trick-or-treating!" (the server only ever sends a first name or nickname). */
 export function knockNote(name: string): string {
-  const first = String(name ?? '').trim().split(/\s+/)[0]?.replace(/[^\p{L}'-]/gu, '').slice(0, 20) || 'A friend';
+  // The server already sends a first name or a pick-list nickname ("Sunny Bunny"); just keep it tidy.
+  const first = String(name ?? '').replace(/[^\p{L}' -]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 30) || 'A friend';
   return `${first} came trick-or-treating!`;
 }
