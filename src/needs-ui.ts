@@ -92,8 +92,8 @@ export function installNeeds(d: NeedsDeps) {
     for (const id of prev.keys()) if (!s.characters.some(c => c.id === id)) prev.delete(id);
     // A soft shimmer on the spot that would help (the fridge for a hungry doll, the bed for a sleepy one...).
     const want = new Set<string>();
-    if (on) for (const c of s.characters) { if (c.room !== s.currentRoom) continue; const w = wishOf(c); if (!w) continue;
-      for (const it of s.rooms[s.currentRoom]?.items ?? []) if (hintFor(w, it.kind)) want.add(it.id); }
+    if (on) for (const c of s.characters) { if (c.room !== s.currentRoom) continue; if (!wishOf(c)) continue;
+      for (const n of NEEDS) if (levelOf(c, n) <= 1) for (const it of s.rooms[s.currentRoom]?.items ?? []) if (hintFor(n, it.kind)) want.add(it.id); }
     for (const el of d.layer.querySelectorAll<HTMLElement>('.item[data-id]')) el.classList.toggle('need-hint', want.has(el.dataset.id!));
   }
 
