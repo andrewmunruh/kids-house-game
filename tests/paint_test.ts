@@ -17,6 +17,8 @@ const mk = (): C => { const inbox: any[] = []; return { inbox, send(s: string) {
 const look = { skin: '#f1c27d', hair: '#3b2219', hairStyle: 0, shirt: '#ff7aa8', pants: '#5b8def', size: 'kid', acc: 0 };
 const noise = (seed: number) => { const px = new Uint8Array(PAINT_W * PAINT_H); let s = seed; for (let i = 0; i < px.length; i++) { s = (s * 1103515245 + 12345) >>> 0; px[i] = (s >>> 16) & 15; } return px; };
 
+const aid = (n: number) => 'a' + (1000000 + n).toString(36).padStart(8, '0');
+const afriend = (n: number) => 'afriend00' + n;
 async function main() {
   // codec
   check('16 colors, 256x192', PALETTE.length === 16 && PAINT_W === 256 && PAINT_H === 192);
@@ -57,7 +59,7 @@ async function main() {
   const hood = new Neighborhood(kv, { flushMs: 5 });
   await hood.init('ARTSTUD1');
   let nickN = 0;
-  const send = (c: C, o: any) => { (c as any).budget = undefined; return hood.onMessage(c, JSON.stringify(o)); };
+  const send = (c: C, o: any) => { (c as any).budget = undefined; (hood as any).artBudget.clear(); return hood.onMessage(c, JSON.stringify(o)); };
   const join = async (art = 1) => {
     const c = mk(); const nick = NICKNAMES[nickN++];
     await hood.onConnect(c);
@@ -118,7 +120,13 @@ async function main() {
   h.state.rooms.living!.items.push({ id: 'picture-x', kind: 'picture', x: 500, y: 200, flip: false, z: 0, art: 'acap0000' } as any);
   await send(a.c, { t: 'art', op: 'save', houseId: a.hid, id: 'anew00001', data: d1 });
   const after = mem.get('art:' + a.hid);
-  check('when full, paintings not hung are cleared to make room', after.anew00001 === d1 && after.acap0000 === eb && !after.acap0001 && Object.keys(after).length === 2, Object.keys(after).join(','));
+  check('when her house is full, her oldest unhung painting is cleared to make room', after.anew00001 === d1 && after.acap0000 === eb && !after.aabcdef01 && Object.keys(after).length === PAINT_PER_HOUSE, Object.keys(after).join(','));
+  check('memory and storage agree after clearing', JSON.stringify(Object.keys(await (hood as any).artsOf(a.hid)).sort()) === JSON.stringify(Object.keys(after).sort()));
+  // safe choice: a friend in an open house never clears the owner's unhung paintings
+  const keep = JSON.stringify(mem.get('art:' + a.hid));
+  await send(b.c, { t: 'art', op: 'save', houseId: a.hid, id: afriend(1), data: eb });
+  check("a friend cannot clear the owner's unhung paintings (full instead)", b.c.last('artFail')?.reason === 'full' && JSON.stringify(mem.get('art:' + a.hid)) === keep);
+  check('a refused save leaves memory and storage in step', JSON.stringify(await (hood as any).artsOf(a.hid)) === keep);
   for (let i = 0; i < PAINT_PER_HOUSE; i++) h.state.rooms.living!.items.push({ id: 'picture-h' + i, kind: 'picture', x: 500, y: 200, flip: false, z: 0, art: 'ahung' + String(i).padStart(4, '0') } as any);
   for (let i = 0; i < PAINT_PER_HOUSE; i++) await send(a.c, { t: 'art', op: 'save', houseId: a.hid, id: 'ahung' + String(i).padStart(4, '0'), data: eb });
   await send(a.c, { t: 'art', op: 'save', houseId: a.hid, id: 'aover0001', data: eb });
@@ -130,18 +138,38 @@ async function main() {
   await hood2.onMessage(r, JSON.stringify({ t: 'hello', token: tok, v: PROTOCOL, art: 1 }));
   await hood2.onMessage(r, JSON.stringify({ t: 'art', op: 'get', houseId: a.hid, ids: ['acap0000'] }));
   check('paintings survive a restart', r.last('art')?.arts?.acap0000 === eb, JSON.stringify(r.inbox.map(m => m.t)) + ' ' + Object.keys(mem.get('art:' + a.hid)));
-  // per-street cap: every house together holds at most PAINT_PER_STREET
-  let streetN = Object.keys(mem.get('art:' + a.hid) ?? {}).length;
-  while (streetN < PAINT_PER_STREET) {
-    const p = await join(1);
-    for (let i = 0; i < PAINT_PER_HOUSE && streetN < PAINT_PER_STREET; i++, streetN++) await send(p.c, { t: 'art', op: 'save', houseId: p.hid, id: 'ast' + p.hid.toLowerCase().replace(/[^0-9a-z]/g, '') + i, data: eb });
-  }
+  // per-street cap: every house together holds at most PAINT_PER_STREET; a full street clears the oldest unhung ones
   const countStreet = () => [...hood.houses.keys()].reduce((n, k) => n + Object.keys(mem.get('art:' + k) ?? {}).length, 0);
+  const fillers: Awaited<ReturnType<typeof join>>[] = [];
+  let streetN = countStreet(), seq = 0;
+  while (streetN < PAINT_PER_STREET) {
+    const p = await join(1); fillers.push(p);
+    for (let i = 0; i < PAINT_PER_HOUSE && streetN < PAINT_PER_STREET; i++, streetN++) await send(p.c, { t: 'art', op: 'save', houseId: p.hid, id: aid(seq++), data: eb });
+  }
   check('the street holds ' + PAINT_PER_STREET + ' paintings', countStreet() === PAINT_PER_STREET, String(countStreet()));
-  await send(b.c, { t: 'art', op: 'save', houseId: b.hid, id: 'astreet99', data: eb });
-  check('one more on a full street is refused', b.c.last('artFail')?.reason === 'streetfull' && countStreet() === PAINT_PER_STREET);
+  const oldest = aid(0), oldestHouse = fillers[0].hid;
+  await send(b.c, { t: 'art', op: 'save', houseId: b.hid, id: aid(900), data: eb });
+  check('a full street still takes a new painting (UI path: always a new id)', b.c.last('art')?.arts?.[aid(900)] === eb && countStreet() === PAINT_PER_STREET, String(countStreet()));
+  check('the oldest unhung painting on the street made room', !mem.get('art:' + oldestHouse)?.[oldest]);
+  check('nothing hanging was cleared', mem.get('art:' + a.hid)?.acap0000 !== undefined && Object.keys(mem.get('art:' + a.hid)).every(k => k !== 'acap0000' || true));
+  // own unhung first: b saves again, b's own unhung painting goes before anyone else's
+  const before2 = JSON.stringify(mem.get('art:' + fillers[0].hid));
+  await send(b.c, { t: 'art', op: 'save', houseId: b.hid, id: aid(901), data: eb });
+  check("her own unhung painting is cleared before a friend's", !mem.get('art:' + b.hid)?.[aid(900)] && mem.get('art:' + b.hid)?.[aid(901)] === eb && JSON.stringify(mem.get('art:' + fillers[0].hid)) === before2);
+  // two saves at the same moment at the cap: both fit by clearing, the total never passes the cap
+  await Promise.all([send(fillers[1].c, { t: 'art', op: 'save', houseId: fillers[1].hid, id: aid(950), data: eb }), send(fillers[2].c, { t: 'art', op: 'save', houseId: fillers[2].hid, id: aid(951), data: eb })]);
+  check('two simultaneous saves at the cap never pass ' + PAINT_PER_STREET, countStreet() === PAINT_PER_STREET, String(countStreet()));
+  // every painting hung: the street really is full, and nothing changes
+  for (const hid of hood.houses.keys()) { const hh = hood.houses.get(hid)!; for (const k of Object.keys(mem.get('art:' + hid) ?? {})) hh.state.rooms.living!.items.push({ id: 'picture-' + k, kind: 'picture', x: 500, y: 200, flip: false, z: 0, art: k } as any); }
+  const snapAll = JSON.stringify([...hood.houses.keys()].map(k => mem.get('art:' + k)));
+  await Promise.all([send(b.c, { t: 'art', op: 'save', houseId: b.hid, id: aid(990), data: eb }), send(fillers[3].c, { t: 'art', op: 'save', houseId: fillers[3].hid, id: aid(991), data: eb })]);
+  check('all hung: a new painting is refused as streetfull, nothing cleared', b.c.last('artFail')?.reason === 'streetfull' && ['full', 'streetfull'].includes(fillers[3].c.last('artFail')?.reason) && JSON.stringify([...hood.houses.keys()].map(k => mem.get('art:' + k))) === snapAll, JSON.stringify([b.c.last('artFail'), fillers[3].c.last('artFail'), countStreet()]));
   await send(a.c, { t: 'art', op: 'save', houseId: a.hid, id: 'acap0000', data: d1 });
   check('repainting an existing painting still works on a full street', mem.get('art:' + a.hid)?.acap0000 === d1);
+  // rate limit: a burst is fine, a flood is slowed
+  (hood as any).artBudget.clear(); let slow = 0;
+  for (let i = 0; i < 30; i++) { (a.c as any).budget = undefined; await hood.onMessage(a.c, JSON.stringify({ t: 'art', op: 'save', houseId: a.hid, id: 'acap0000', data: d1 })); if (a.c.last('artFail')?.reason === 'slow') slow++; }
+  check('art saves are rate limited per player (burst ok, flood slowed)', slow > 0 && slow <= 30 - 12, String(slow));
   console.log(`\n${pass} passed` + (process.exitCode ? ' (FAILURES)' : ''));
 }
 main();

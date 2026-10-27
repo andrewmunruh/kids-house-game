@@ -19,6 +19,9 @@ import { cleanBasket, cleanPlots, cleanRanchOp, ranchApply, BASKET_ITEM, type Ba
 export interface KV { get<T>(k: string): Promise<T | undefined>; put(k: string, v: unknown): Promise<void>; delete(k: string): Promise<void> }
 /** Maps invite codes (case-insensitive, unique across streets) to permanent street ids. */
 export interface CodeRegistry { claim(code: string, id: string): Promise<boolean>; release(code: string, id: string): Promise<void> }
+/** Paintings ids are 'a' + base36 time + random, so the id sorts oldest first. */
+const byAge = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
+const ART_BURST = 14, ART_REFILL_MS = 4000;
 export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; art?: number }
 /** Not a real socket. Baby release is broadcast to every baby client, including the kid who just left. */
 const RELEASE_SENDER: Conn = { send() {}, close() {} };
@@ -43,6 +46,8 @@ export class Neighborhood {
   houses = new Map<string, HouseFull>();
   /** Paintings per house, loaded once (the promise is cached so two loads never race). */
   private arts = new Map<string, Promise<Record<string, string>>>();
+  private artQueue: Promise<void> = Promise.resolve();
+  private artBudget = new Map<string, { t: number; n: number }>();
   conns = new Set<Conn>();
   presence = new Map<string, Presence>();
   private lastEgg = new Map<string, number>();
@@ -729,22 +734,60 @@ export class Neighborhood {
     const fail = (reason: string) => this.send(c, { t: 'artFail', houseId, id, reason });
     if (h.locked && h.ownerId !== me.pid) return fail('locked');
     const data = cleanPaintData(m.data); if (!id || !data) return fail('bad');
-    const all = await this.artsOf(houseId);
-    if (!all[id] && Object.keys(all).length >= PAINT_PER_HOUSE) {
-      // Make room: forget paintings no longer hanging anywhere in this house.
-      const hung = new Set<string>();
-      for (const r of Object.values(h.state.rooms)) for (const it of r?.items ?? []) if (it.art) hung.add(it.art);
-      for (const ch of h.state.characters) for (const it of [ch.held?.left, ch.held?.right]) if (it?.art) hung.add(it.art);
-      for (const k of Object.keys(all)) if (!hung.has(k)) delete all[k];
-      if (Object.keys(all).length >= PAINT_PER_HOUSE) return fail('full');
+    // Gentle per-player rate limit (a brought house uploads up to 12 at once, then about one every 4 s).
+    const now = Date.now(), b = this.artBudget.get(me.pid) ?? { t: now, n: ART_BURST };
+    b.n = Math.min(ART_BURST, b.n + (now - b.t) / ART_REFILL_MS); b.t = now; this.artBudget.set(me.pid, b);
+    if (b.n < 1) return fail('slow');
+    b.n -= 1;
+    // One save at a time per street, so two saves can never both slip past a cap.
+    const run = this.artQueue.then(() => this.saveArt(c, me, h, id, data, fail));
+    this.artQueue = run.catch(() => { /* keep the queue alive */ });
+    await run;
+  }
+  /** Paintings that are on a wall or in a hand in this house. */
+  private hungIn(h: HouseFull): Set<string> {
+    const hung = new Set<string>();
+    for (const r of Object.values(h.state.rooms)) for (const it of r?.items ?? []) if (it.art) hung.add(it.art);
+    for (const ch of h.state.characters) for (const it of [ch.held?.left, ch.held?.right]) if (it?.art) hung.add(it.art);
+    return hung;
+  }
+  /** Runs inside artQueue. Works on copies; memory and storage change only when the save goes through. */
+  private async saveArt(c: Conn, me: Player, h: HouseFull, id: string, data: string, fail: (r: string) => void) {
+    const houseId = h.id, mine = h.ownerId === me.pid;
+    const cur = await this.artsOf(houseId);
+    const next: Record<string, string> = { ...cur };
+    const changed = new Map<string, Record<string, string>>(); // other houses whose unhung paintings get cleared
+    if (!next[id]) {
+      if (Object.keys(next).length >= PAINT_PER_HOUSE) {
+        // Only the owner may clear her own unhung paintings; a friend in an open house never removes them.
+        if (!mine) return fail('full');
+        const hung = this.hungIn(h);
+        const unhung = Object.keys(next).filter(k => !hung.has(k)).sort(byAge);
+        while (Object.keys(next).length >= PAINT_PER_HOUSE && unhung.length) delete next[unhung.shift()!];
+        if (Object.keys(next).length >= PAINT_PER_HOUSE) return fail('full');
+      }
+      // Street total from the in-memory copies (storage is read once per house, then cached).
+      let street = Object.keys(next).length;
+      const others: [HouseFull, Record<string, string>][] = [];
+      for (const [hid, oh] of this.houses) if (hid !== houseId) { const a = await this.artsOf(hid); street += Object.keys(a).length; others.push([oh, a]); }
+      if (street >= PAINT_PER_STREET) {
+        // Make room: first the saver's own house's unhung paintings (owner only), then the oldest unhung ones on the street.
+        if (mine) { const hung = this.hungIn(h); for (const k of Object.keys(next).filter(k => !hung.has(k)).sort(byAge)) { if (street < PAINT_PER_STREET) break; delete next[k]; street--; } }
+        const pool: [string, string][] = [];
+        for (const [oh, a] of others) { const hung = this.hungIn(oh); for (const k of Object.keys(a)) if (!hung.has(k)) pool.push([oh.id, k]); }
+        pool.sort((x, y) => byAge(x[1], y[1]));
+        for (const [hid, k] of pool) {
+          if (street < PAINT_PER_STREET) break;
+          const copy = changed.get(hid) ?? { ...(await this.artsOf(hid)) }; delete copy[k]; changed.set(hid, copy); street--;
+        }
+        if (street >= PAINT_PER_STREET) return fail('streetfull');
+      }
     }
-    if (!all[id]) {
-      let street = 0;
-      for (const hid of this.houses.keys()) street += hid === houseId ? Object.keys(all).length : Object.keys(await this.artsOf(hid)).length;
-      if (street >= PAINT_PER_STREET) return fail('streetfull');
-    }
-    all[id] = data;
-    await this.kv.put('art:' + houseId, all);
+    next[id] = data;
+    await this.kv.put('art:' + houseId, next);
+    for (const [hid, copy] of changed) await this.kv.put('art:' + hid, copy);
+    this.arts.set(houseId, Promise.resolve(next));
+    for (const [hid, copy] of changed) this.arts.set(hid, Promise.resolve(copy));
     this.send(c, { t: 'art', houseId, arts: { [id]: data } });
     for (const x of this.conns) if (x !== c && x.pid && (x.art ?? 0) >= 1) this.send(x, { t: 'art', houseId, arts: { [id]: data } });
   }
