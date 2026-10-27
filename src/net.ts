@@ -119,8 +119,8 @@ export class HoodClient {
       this.ws = ws;
       if (prev && prev !== ws) { try { prev.close(); } catch { /* already closed */ } }
       ws.onopen = () => {
-        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1 });
-        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1 });
+        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, halloween: 1 });
+        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, halloween: 1 });
         else done('notoken');
       };
       ws.onmessage = e => { const m: ServerMsg = JSON.parse(e.data); this.handle(m); if (m.t === 'welcome') { this.armStable(); done('ok'); } if (m.t === 'error') done(m.code + (m.msg ? ':' + m.msg : '')); if (m.t === 'removed') done('removed'); };
@@ -192,6 +192,7 @@ export class HoodClient {
       case 'settings': this.settings = m.settings; this.emit('settings'); break;
       case 'bubble': this.emit('bubble', m.pid, m.b); break;
       case 'fx': this.emit('fx', m.pid, m.fx); break;
+      case 'knocked': this.emit('knocked', m.houseId, m.name); break;
       case 'ranch': this.ranch = { plots: m.plots, skew: m.now - Date.now() }; this.emit('ranch'); break;
       case 'ranchFail': this.ranch = { plots: m.plots, skew: m.now - Date.now() }; this.emit('ranch'); this.emit('ranchFail', m.reason); break;
       case 'noride': this.emit('noride', m.ride); break;
@@ -255,6 +256,8 @@ export class HoodClient {
   setLook(look: Look) { this.reliable({ t: 'look', look }); const me = this.players.get(this.pid); if (me) me.look = look; }
   setDog(dog: Dog | null) { this.reliable({ t: 'dog', dog }); const me = this.players.get(this.pid); if (me) me.dog = dog; }
   fx(fx: Fx) { this.reliable({ t: 'fx', fx }); }
+  /** Trick-or-treat knock. Fire and forget: the treat never waits on the server. */
+  knock(houseId: string) { this.send({ t: 'knock', houseId }); }
   ranchOp(o: RanchOp) { this.reliable({ t: 'ranch', o }); }
   tbl(op: TableOp) { this.reliable({ t: 'tbl', ...op }); }
   sendMail(houseId: string, text: string, color: number, sticker: number) { this.reliable({ t: 'mail', op: 'send', houseId, text, color, sticker }); }

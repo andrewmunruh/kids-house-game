@@ -18,7 +18,7 @@ import { cleanBasket, cleanPlots, cleanRanchOp, ranchApply, BASKET_ITEM, type Ba
 export interface KV { get<T>(k: string): Promise<T | undefined>; put(k: string, v: unknown): Promise<void>; delete(k: string): Promise<void> }
 /** Maps invite codes (case-insensitive, unique across streets) to permanent street ids. */
 export interface CodeRegistry { claim(code: string, id: string): Promise<boolean>; release(code: string, id: string): Promise<void> }
-export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number }
+export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; halloween?: number }
 /** Not a real socket. Baby release is broadcast to every baby client, including the kid who just left. */
 const RELEASE_SENDER: Conn = { send() {}, close() {} };
 
@@ -439,6 +439,7 @@ export class Neighborhood {
         c.fit = m.fit === 1 ? 1 : 0;
         c.baby = m.baby === 1 ? 1 : 0;
         c.amb = m.amb === 1 ? 1 : 0;
+        c.halloween = m.halloween === 1 ? 1 : 0;
         const h = typeof m.token === 'string' ? await sha256(m.token) : '';
         const p = h ? Object.values(meta.players).find(p => p.tokenHash === h) : undefined;
         if (!p) { this.send(c, { t: 'error', code: 'badtoken' }); return; }
@@ -454,6 +455,7 @@ export class Neighborhood {
         c.fit = m.fit === 1 ? 1 : 0;
         c.baby = m.baby === 1 ? 1 : 0;
         c.amb = m.amb === 1 ? 1 : 0;
+        c.halloween = m.halloween === 1 ? 1 : 0;
         const roster = meta.roster ?? [];
         let nickname: string;
         if (roster.length) {
@@ -602,6 +604,16 @@ export class Neighborhood {
       case 'dog': {
         const d = m.dog === null ? null : cleanDog(m.dog); if (m.dog !== null && !d) return;
         me.dog = d; this.save('meta'); this.broadcast({ t: 'players', players: this.players() }); return;
+      }
+      case 'knock': {
+        // Trick-or-treat: the knocker's own screen gives the treat; the owner just gets a passing note.
+        // Only owners who said halloween:1 hear it, so an older client never sees an unknown message.
+        if ((c.halloween ?? 0) < 1) return;
+        const h = this.houses.get(String(m.houseId).slice(0, 40)); if (!h || h.ownerId === me.pid) return;
+        const mine = [...this.houses.values()].find(x => x.ownerId === me.pid);
+        const name = knockerName(mine?.name, me.nickname);
+        this.broadcast({ t: 'knocked', houseId: h.id, name }, x => x.pid === h.ownerId && (x.halloween ?? 0) >= 1);
+        return;
       }
       case 'fx': {
         // tricks, purrs, ball throws, splashes: relayed live to kids in the same place; nothing is stored
@@ -833,4 +845,15 @@ export class Neighborhood {
     }
     this.send(c, { t: 'parentInfo', code: meta.code, settings: meta.settings, players: this.players(), houses: meta.houseOrder.map(id => this.metaOf(this.houses.get(id)!)), roster: this.roster(), mail: this.parentMail(), note });
   }
+}
+
+/** First word of a nickname, letters only, for trick-or-treat notes. */
+export function firstName(n: string): string {
+  const w = String(n ?? '').trim().split(/\s+/)[0] ?? '';
+  return w.replace(/[^\p{L}'-]/gu, '').slice(0, 20) || 'A friend';
+}
+/** "Reagan's House" gives Reagan; otherwise her pick-list nickname. Never a last name. */
+export function knockerName(houseName: string | undefined, nickname: string): string {
+  const m = /^\s*([\p{L}'-]+?)['’]s\b/u.exec(String(houseName ?? ''));
+  return m ? firstName(m[1]) : (String(nickname ?? '').trim().slice(0, 30) || 'A friend');
 }

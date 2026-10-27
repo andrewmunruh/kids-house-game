@@ -4,3 +4,4 @@ server/data/
 .wrangler/
 dist-preview
 __pycache__/
+work/

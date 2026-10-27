@@ -90,6 +90,16 @@ try {
 }
 check('winter paintings are exact 3x under 60KB', winterOk);
 
+// Spooky Cute (Halloween): same raster contract plus ink bounds within 3%.
+let halloweenOk = false;
+try {
+  execSync('python3 tests/halloween_art_check.py', { stdio: 'inherit' });
+  halloweenOk = true;
+} catch {
+  halloweenOk = false;
+}
+check('halloween paintings are exact 3x under 60KB with ink on the box', halloweenOk);
+
 const py = ['/tmp/pwvenv/bin/python', '/workspace/.pwvenv/bin/python', 'python3'].find(p => {
   try { execSync(`${p} -c "import playwright"`, { stdio: 'ignore' }); return true; } catch { return false; }
 });
