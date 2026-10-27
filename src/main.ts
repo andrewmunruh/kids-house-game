@@ -32,6 +32,7 @@ import { sfx, setSound } from './sound';
 import { setAmbientMusic, primeAmbientMusic } from './ambientMusic';
 import { BEAT_MS, MUSIC_BOX_MS, isFridge, isPowerable, isTub, reactionsFor, roleOf, syncDelayMs, type AmbChar, type AmbItem, type Reaction, type ReactionKind } from './shared/ambient';
 import './ambient.css';
+import { installNeeds } from './needs-ui';
 import { catalogShows } from './roomfilter';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
@@ -2085,6 +2086,7 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js');
 (window as any).__store = store; // handy for debugging / tests
+installNeeds({ get: () => store.get(), dispatch: a => store.dispatch(a), subscribe: fn => store.subscribe(fn), canDrift: () => view === 'house' && ownsDolls(), speaks: () => !hood || inner === local || hood.speaksNeeds, layer, menuAfter: $('btnSound') });
 (window as any).__items = Object.fromEntries(ITEMS.filter(i => i.img).map(i => [i.kind, { w: i.w, h: hOf(i), cat: i.cat, holdable: i.holdable, svg: i.img!.includes('.svg') }]));
 (window as any).__cam = { get: () => camX, set: setCam };
 (window as any).__phoneShowKids = () => phoneShowKids();
