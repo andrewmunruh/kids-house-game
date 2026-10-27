@@ -63,14 +63,20 @@ async def main():
         bb = await el.bounding_box()
         await P.touchscreen.tap(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); await P.wait_for_timeout(400)
         z = await P.locator('.paintZoom').count()
+        if not z:  # camera may still be easing after the mode switch: settle, re-measure, tap again
+            await P.wait_for_timeout(800); bb = await el.bounding_box()
+            await P.touchscreen.tap(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); await P.wait_for_timeout(400)
+            z = await P.locator('.paintZoom').count()
         if z: await P.screenshot(path=SHOT + 'zoom_820x1180.png')
-        check('tap a hung painting zooms it big', z == 1)
+        hit = await P.evaluate("([x, y]) => { const e = document.elementFromPoint(x, y); return e ? (e.closest('.item')?.getAttribute('data-id') || e.className?.baseVal || e.className || e.tagName) : null }", [bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2])
+        check('tap a hung painting zooms it big', z == 1, [bb, hit, await P.evaluate("document.body.className")])
         if z: await P.locator('.paintZoom').click(); await P.wait_for_timeout(300)
         check('solo: no page errors', not eP, eP[:3])
         # 1b. every tool, read back from the paper's pixels
         T, eT = await mk(820, 1180)
         await tap(T, '#btnStudio'); await T.wait_for_selector('.studio canvas')
         PX = """([fx, fy]) => { const c = document.querySelector('.stuPaper canvas'); const d = c.getContext('2d').getImageData(Math.floor(fx * c.width), Math.floor(fy * c.height), 1, 1).data; return [d[0], d[1], d[2]]; }"""
+        SUM = "() => { const c = document.querySelector('.stuPaper canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let h = 0; for (let i = 0; i < d.length; i += 4) h = (h * 31 + d[i] + d[i+1] * 7 + d[i+2] * 13) | 0; return h; }"
         INK = "() => { const c = document.querySelector('.stuPaper canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] + d[i+1] + d[i+2] < 760) n++; return n; }"
         STROKE = """([type, fy, id]) => { const c = document.querySelector('.stuPaper canvas'); const r = c.getBoundingClientRect();
           const ev = (k, fx) => c.dispatchEvent(new PointerEvent(k, {pointerId: id, pointerType: type, isPrimary: true, bubbles: true, cancelable: true, clientX: r.left + r.width * fx, clientY: r.top + r.height * fy, pressure: .5}));
@@ -95,8 +101,8 @@ async def main():
         filled = await T.evaluate(PX, [.95, .05])
         check('tools: fill floods the paper', filled != W and filled == await T.evaluate(PX, [.05, .95]), filled)
         await T.locator('.stuTool[data-tool="stamp"]').click(); await T.locator('.stuStamp').nth(1).click()
-        before = await T.evaluate(INK); await T.mouse.click(box['x'] + box['width'] * .8, box['y'] + box['height'] * .8); await T.wait_for_timeout(400)
-        check('tools: stamps come from the game art', await T.locator('.stuStamp').count() >= 6 and await T.evaluate(INK) != before)
+        before = await T.evaluate(SUM); await T.mouse.click(box['x'] + box['width'] * .8, box['y'] + box['height'] * .8); await T.wait_for_timeout(400)
+        check('tools: stamps come from the game art', await T.locator('.stuStamp').count() >= 6 and await T.evaluate(SUM) != before)
         await T.locator('.stuClear').click()
         check('tools: clear makes white paper', await T.evaluate(INK) == 0)
         await T.locator('.stuUndo').click()
