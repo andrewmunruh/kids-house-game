@@ -18,7 +18,7 @@ INFRAME = """() => { const stage = document.getElementById('stage'), sr = stage.
     .filter(([, r]) => r.left < v.l - 1 || r.right > v.r + 1 || r.top < v.t - 1 || r.bottom > v.b + 1).map(([id, r]) => [id, Math.round(r.right - v.r), Math.round(r.bottom - v.b)]);
   // The edge doll stands at the right/bottom of the play area she can see: it must be wholly on screen (so wholly in the photo).
   // Others past the screen edge are cut on screen too (the room scrolls); the photo matches the screen, so they are listed only.
-  const edge = !!document.querySelector('.char[data-cid="ptedge"]'); return {ok: !out.some(([id]) => id === 'ptedge') && (edge || !__store.get().characters.length), edge, cut: out}; }"""
+  const edge = !!document.querySelector('.char[data-cid="ptedge"]'); return {ok: !out.some(([id]) => id === 'ptedge'), edge, cut: out}; }"""
 def check_photo(photo, screen):
     """flush: the picture meets the frame with no pale strip; diff: the picture matches the on-screen stage."""
     from PIL import Image, ImageChops, ImageStat
@@ -68,7 +68,7 @@ async def run(b, w, h, party):
     bad = [r for r in bad if not r[1].startswith('blob:') and not r[1].startswith('data:')]
     print(tag, 'dolls in frame', inframe, 'flush', flush, 'photo-vs-screen diff', round(diff, 1))
     print(tag, 'menu row visible', vis, 'download', d.suggested_filename, 'closed', closed, 'off-box/non-GET requests', bad, 'errors', errs)
-    await c.close(); return vis and closed and not bad and not errs and inframe['ok'] and flush and diff < 18
+    await c.close(); return vis and closed and not bad and not errs and (inframe['ok'] and inframe['edge'] if party else True) and flush and diff < 18
 async def main():
     async with async_playwright() as p:
         b = await p.webkit.launch(); ok = True
