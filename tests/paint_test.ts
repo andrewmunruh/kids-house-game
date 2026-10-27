@@ -79,6 +79,21 @@ async function main() {
   check('too big is refused', a.c.last('artFail')?.reason === 'bad' && !mem.get('art:' + a.hid)?.aabcdef02);
   await send(a.c, { t: 'art', op: 'save', houseId: a.hid, id: 'aabcdef03', data: '<img src=x>' });
   check('bad charset is refused', a.c.last('artFail')?.reason === 'bad');
+  // malicious payloads: none may be stored, none may throw, the Worker never decodes
+  const before = JSON.stringify(mem.get('art:' + a.hid));
+  const evil: any[] = [
+    { id: '__proto__', data: d1 }, { id: 'constructor', data: d1 }, { id: 'aabcdef09', data: { length: 5 } },
+    { id: 'aabcdef09', data: ['P1AAAA'] }, { id: 'aabcdef09', data: 'P1' + 'A'.repeat(1 << 20) }, { id: 'aabcdef09', data: 'GIF89aAAAA' },
+    { id: 'aabcdef09', data: 'P1AAAA\n<script>' }, { id: 'aabcdef09', data: 'javascript:alert(1)' }, { id: 'a'.repeat(5000), data: d1 },
+    { id: 'aabcdef09', data: d1, houseId: 'house:../../x' },
+  ];
+  let threw = false;
+  for (const e of evil) { try { await send(a.c, { t: 'art', op: 'save', houseId: e.houseId ?? a.hid, id: e.id, data: e.data }); } catch { threw = true; } }
+  check('malicious saves are refused and nothing is stored', !threw && JSON.stringify(mem.get('art:' + a.hid)) === before && !mem.get('art:house:../../x'));
+  await send(b.c, { t: 'art', op: 'get', houseId: a.hid, ids: ['__proto__', 'constructor', 'toString', 'aabcdef01'] });
+  check('a hostile get only returns real paintings', JSON.stringify(b.c.last('art')?.arts) === JSON.stringify({ aabcdef01: d1 }));
+  const bomb = 'P1' + '/'.repeat(PAINT_MAX - 2 - ((PAINT_MAX - 2) % 4));
+  check('a decode bomb stays one bounded bitmap', decodePaint(bomb).length === PAINT_W * PAINT_H);
   // lock: a friend cannot paint into a locked house
   const h = hood.houses.get(a.hid)!; const wasLocked = h.locked; h.locked = true;
   await send(b.c, { t: 'art', op: 'save', houseId: a.hid, id: 'abbbbbb01', data: eb });
