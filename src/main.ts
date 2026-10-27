@@ -1924,6 +1924,8 @@ function updateChipCue() {
   const bar = document.getElementById('drawerBar');
   if (!row || !bar) return;
   bar.classList.toggle('more', row.scrollWidth - row.clientWidth - row.scrollLeft > 6);
+  // Scrolled away from the start: fade the left edge too, so a half chip doesn't butt against Play/Decorate.
+  bar.classList.toggle('back', row.scrollLeft > 6);
 }
 document.querySelector('.drawerTop')!.addEventListener('scroll', updateChipCue, { passive: true });
 window.addEventListener('resize', updateChipCue);
