@@ -11,6 +11,7 @@ import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, applyLook, cleanPresence, cleanHouseName,
   filterSay, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, fxAllowedAt, PROTOCOL, PROTO_PETS, PROTO_RANCH, PROTO_GAMES, RANCH_FX, normCode, validInvite, MAX_ROSTER, cleanMailText, filterMailbox, mailColor, mailSticker, mailIsFree, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble, type StreetSettings,
 } from '../src/shared/hood';
+import { cleanArtId, cleanPaintData, PAINT_PER_HOUSE } from '../src/shared/paint';
 import { MAIL_CAP, MAIL_RATE_MAX, MAIL_RATE_WINDOW_MS, keepMailbox, projectMailbox, type Letter, type Mailbox } from '../src/shared/mail';
 import { GAMES, TABLES, NUDGE_MS, cleanTableOp, type TablePub, type TablePhase } from '../src/shared/games/index';
 import { cleanBasket, cleanPlots, cleanRanchOp, ranchApply, BASKET_ITEM, type Basket, type Plot } from '../src/shared/ranch';
@@ -18,7 +19,7 @@ import { cleanBasket, cleanPlots, cleanRanchOp, ranchApply, BASKET_ITEM, type Ba
 export interface KV { get<T>(k: string): Promise<T | undefined>; put(k: string, v: unknown): Promise<void>; delete(k: string): Promise<void> }
 /** Maps invite codes (case-insensitive, unique across streets) to permanent street ids. */
 export interface CodeRegistry { claim(code: string, id: string): Promise<boolean>; release(code: string, id: string): Promise<void> }
-export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number }
+export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; art?: number }
 /** Not a real socket. Baby release is broadcast to every baby client, including the kid who just left. */
 const RELEASE_SENDER: Conn = { send() {}, close() {} };
 
@@ -40,6 +41,8 @@ const MSGS_PER_SEC = 80;
 export class Neighborhood {
   meta: Meta | null = null;
   houses = new Map<string, HouseFull>();
+  /** Paintings per house, loaded once (the promise is cached so two loads never race). */
+  private arts = new Map<string, Promise<Record<string, string>>>();
   conns = new Set<Conn>();
   presence = new Map<string, Presence>();
   private lastEgg = new Map<string, number>();
@@ -114,7 +117,7 @@ export class Neighborhood {
   private welcome(c: Conn) {
     const presence: Record<string, Presence> = {};
     this.presence.forEach((p, k) => { presence[k] = this.viewPresence(p, c); });
-    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean).map(h => this.wireHouse(h, c)), presence, sit: 1, baby: 1, amb: 1, ranch: { plots: cleanPlots(this.meta!.ranch?.plots), now: Date.now() }, ...((c.v ?? 1) >= PROTO_GAMES ? { tables: this.tables.map((_, i) => this.tablePub(i, c.pid!)) } : {}) });
+    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean).map(h => this.wireHouse(h, c)), presence, sit: 1, baby: 1, amb: 1, art: 1, ranch: { plots: cleanPlots(this.meta!.ranch?.plots), now: Date.now() }, ...((c.v ?? 1) >= PROTO_GAMES ? { tables: this.tables.map((_, i) => this.tablePub(i, c.pid!)) } : {}) });
   }
   /** Clients that did not say sit:1 draw her standing. The seat field stays off their copy. */
   private viewPresence(p: Presence, c: Conn): Presence {
@@ -439,6 +442,7 @@ export class Neighborhood {
         c.fit = m.fit === 1 ? 1 : 0;
         c.baby = m.baby === 1 ? 1 : 0;
         c.amb = m.amb === 1 ? 1 : 0;
+        c.art = m.art === 1 ? 1 : 0;
         const h = typeof m.token === 'string' ? await sha256(m.token) : '';
         const p = h ? Object.values(meta.players).find(p => p.tokenHash === h) : undefined;
         if (!p) { this.send(c, { t: 'error', code: 'badtoken' }); return; }
@@ -454,6 +458,7 @@ export class Neighborhood {
         c.fit = m.fit === 1 ? 1 : 0;
         c.baby = m.baby === 1 ? 1 : 0;
         c.amb = m.amb === 1 ? 1 : 0;
+        c.art = m.art === 1 ? 1 : 0;
         const roster = meta.roster ?? [];
         let nickname: string;
         if (roster.length) {
@@ -494,6 +499,7 @@ export class Neighborhood {
     if (!c.pid || !meta.players[c.pid]) return; // everything below needs a joined player
     const me = meta.players[c.pid];
     switch (m.t) {
+      case 'art': return this.onArt(c, me, m);
       case 'act': {
         const cid = typeof m.cid === 'number' ? m.cid : -1;
         const h = typeof m.houseId === 'string' ? this.houses.get(m.houseId) : undefined;
@@ -689,6 +695,51 @@ export class Neighborhood {
     this.pushMail(h, dropped.map(l => l.fromPid));
   }
 
+  /** Paintings of one house, loaded lazily from their own key ('art:' + houseId), never inline in the house save. */
+  private async artsOf(houseId: string): Promise<Record<string, string>> {
+    let a = this.arts.get(houseId);
+    if (!a) {
+      a = this.kv.get<Record<string, string>>('art:' + houseId).then(raw => {
+        const out: Record<string, string> = {};
+        if (raw && typeof raw === 'object') for (const [id, d] of Object.entries(raw)) if (cleanArtId(id) && cleanPaintData(d)) out[id] = d;
+        return out;
+      });
+      this.arts.set(houseId, a);
+    }
+    return a;
+  }
+  /** Save or fetch paintings. The data is an opaque, size-capped, charset-checked string: it is never decoded here. */
+  private async onArt(c: Conn, me: Player, m: Extract<ClientMsg, { t: 'art' }>) {
+    if ((c.art ?? 0) < 1) return;
+    const houseId = typeof m.houseId === 'string' ? m.houseId : '';
+    const h = this.houses.get(houseId); if (!h) return;
+    if (m.op === 'get') {
+      const ids = Array.isArray(m.ids) ? m.ids.slice(0, PAINT_PER_HOUSE * 2).map(cleanArtId).filter(Boolean) as string[] : [];
+      const all = await this.artsOf(houseId), out: Record<string, string> = {};
+      for (const id of ids) if (all[id]) out[id] = all[id];
+      this.send(c, { t: 'art', houseId, arts: out });
+      return;
+    }
+    if (m.op !== 'save') return;
+    const id = cleanArtId(m.id) ?? '';
+    const fail = (reason: string) => this.send(c, { t: 'artFail', houseId, id, reason });
+    if (h.locked && h.ownerId !== me.pid) return fail('locked');
+    const data = cleanPaintData(m.data); if (!id || !data) return fail('bad');
+    const all = await this.artsOf(houseId);
+    if (!all[id] && Object.keys(all).length >= PAINT_PER_HOUSE) {
+      // Make room: forget paintings no longer hanging anywhere in this house.
+      const hung = new Set<string>();
+      for (const r of Object.values(h.state.rooms)) for (const it of r?.items ?? []) if (it.art) hung.add(it.art);
+      for (const ch of h.state.characters) for (const it of [ch.held?.left, ch.held?.right]) if (it?.art) hung.add(it.art);
+      for (const k of Object.keys(all)) if (!hung.has(k)) delete all[k];
+      if (Object.keys(all).length >= PAINT_PER_HOUSE) return fail('full');
+    }
+    all[id] = data;
+    await this.kv.put('art:' + houseId, all);
+    this.send(c, { t: 'art', houseId, arts: { [id]: data } });
+    for (const x of this.conns) if (x !== c && x.pid && (x.art ?? 0) >= 1) this.send(x, { t: 'art', houseId, arts: { [id]: data } });
+  }
+
   /** Send, open, or throw away a letter. The name is stamped from the connection, never from the payload. */
   private onMail(c: Conn, me: Player, m: Extract<ClientMsg, { t: 'mail' }>) {
     const houseId = typeof m.houseId === 'string' ? m.houseId : '';
@@ -821,7 +872,7 @@ export class Neighborhood {
         }
         const last = this.presence.get(p.pid) ?? null;
         this.releaseHeldBaby(p.pid, last, null);
-        delete meta.players[p.pid]; this.houses.delete(p.houseId); meta.houseOrder = meta.houseOrder.filter(id => id !== p.houseId);
+        delete meta.players[p.pid]; this.houses.delete(p.houseId); this.arts.delete(p.houseId); void this.kv.delete('art:' + p.houseId); meta.houseOrder = meta.houseOrder.filter(id => id !== p.houseId);
         meta.houseOrder.forEach((id, i) => { const h = this.houses.get(id); if (h && h.slot !== i) { h.slot = i; this.save(id); } });
         this.presence.delete(p.pid); this.save('meta'); this.save(p.houseId);
         kick(p.pid); this.tableDropPlayer(p.pid);
