@@ -26,7 +26,7 @@ body.mode-play .toolbar, body.mode-play .bin { display: none !important; }
 .item.lamp-on .inner { filter: drop-shadow(0 0 10px #ffe066); }
 .item.opened .inner { transform: scale(1.04); }
 
-.mapMail { position: absolute; z-index: 4; background: none; border: 0; padding: 0; box-shadow: none; }
+.mapMail { position: absolute; z-index: 6; /* above the house (5) so its 48px tap pad wins at the house edge */ background: none; border: 0; padding: 0; box-shadow: none; }
 .mapMail svg { width: 100%; height: 100%; display: block; pointer-events: none; overflow: visible; }
 .mapMail.up .flag { transform-origin: 30px 16px; animation: flagPop 1s ease-in-out infinite; }
 @keyframes flagPop { 0%, 100% { transform: rotate(0deg); } 35% { transform: rotate(-16deg) translateY(-2px); } 55% { transform: rotate(8deg); } }
