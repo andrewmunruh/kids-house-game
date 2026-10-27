@@ -67,6 +67,42 @@ async def main():
         check('tap a hung painting zooms it big', z == 1)
         if z: await P.locator('.paintZoom').click(); await P.wait_for_timeout(300)
         check('solo: no page errors', not eP, eP[:3])
+        # 1b. every tool, read back from the paper's pixels
+        T, eT = await mk(820, 1180)
+        await tap(T, '#btnStudio'); await T.wait_for_selector('.studio canvas')
+        PX = """([fx, fy]) => { const c = document.querySelector('.stuPaper canvas'); const d = c.getContext('2d').getImageData(Math.floor(fx * c.width), Math.floor(fy * c.height), 1, 1).data; return [d[0], d[1], d[2]]; }"""
+        INK = "() => { const c = document.querySelector('.stuPaper canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] + d[i+1] + d[i+2] < 760) n++; return n; }"
+        STROKE = """([type, fy, id]) => { const c = document.querySelector('.stuPaper canvas'); const r = c.getBoundingClientRect();
+          const ev = (k, fx) => c.dispatchEvent(new PointerEvent(k, {pointerId: id, pointerType: type, isPrimary: true, bubbles: true, cancelable: true, clientX: r.left + r.width * fx, clientY: r.top + r.height * fy, pressure: .5}));
+          ev('pointerdown', .1); for (let i = 1; i <= 10; i++) ev('pointermove', .1 + i * .03); ev('pointerup', .4); }"""
+        W = [255, 255, 255]
+        await T.locator('.stuColor').nth(2).click(); await T.locator('.stuSize').nth(0).click()
+        await T.evaluate(STROKE, ['pen', .2, 11])
+        check('tools: Apple Pencil (pen) stroke draws', await T.evaluate(PX, [.25, .2]) != W)
+        small = await T.evaluate(INK)
+        await T.evaluate(STROKE, ['touch', .4, 12])
+        check('tools: finger (touch) stroke draws', await T.evaluate(PX, [.25, .4]) != W)
+        await T.locator('.stuSize').nth(3).click(); await T.evaluate(STROKE, ['touch', .6, 13])
+        big = await T.evaluate(INK) - 2 * small
+        check('tools: brush sizes differ (big stroke has much more ink)', big > small * 3, [small, big])
+        check('tools: 3-4 brush sizes, 12-16 colors', 3 <= await T.locator('.stuSize').count() <= 4 and 12 <= await T.locator('.stuColor').count() <= 16)
+        await T.locator('.stuTool[data-tool="eraser"]').click(); await T.evaluate(STROKE, ['pen', .6, 14])
+        check('tools: eraser clears to paper', await T.evaluate(PX, [.25, .6]) == W)
+        await T.locator('.stuUndo').click()
+        check('tools: undo brings the stroke back', await T.evaluate(PX, [.25, .6]) != W)
+        await T.locator('.stuColor').nth(6).click(); await T.locator('.stuTool[data-tool="fill"]').click()
+        box = await T.locator('.stuPaper canvas').bounding_box(); await T.mouse.click(box['x'] + box['width'] * .9, box['y'] + box['height'] * .95)
+        filled = await T.evaluate(PX, [.95, .05])
+        check('tools: fill floods the paper', filled != W and filled == await T.evaluate(PX, [.05, .95]), filled)
+        await T.locator('.stuTool[data-tool="stamp"]').click(); await T.locator('.stuStamp').nth(1).click()
+        before = await T.evaluate(INK); await T.mouse.click(box['x'] + box['width'] * .8, box['y'] + box['height'] * .8); await T.wait_for_timeout(400)
+        check('tools: stamps come from the game art', await T.locator('.stuStamp').count() >= 6 and await T.evaluate(INK) != before)
+        await T.locator('.stuClear').click()
+        check('tools: clear makes white paper', await T.evaluate(INK) == 0)
+        await T.locator('.stuUndo').click()
+        check('tools: undo after clear restores', await T.evaluate(INK) > 0)
+        check('tools: no page errors', not eT, eT[:3])
+        await T.context.close()
         # 2. every test size: studio fits, every control on screen
         for (w, h) in SIZES:
             pg, e = await mk(w, h)
@@ -103,6 +139,9 @@ async def main():
         await B.evaluate("h => document.querySelector(`#mapWorld .mapHouse[data-go=\"house:${h}\"]`).click()", hid); await B.wait_for_timeout(1500)
         src = await B.evaluate("id => { const e = document.querySelector(`.item[data-id=\"${id}\"] image`); return e ? (e.getAttribute('href') || '').slice(0, 22) : null }", pa[0]['id'])
         check('street: B sees the painting bitmap', src and src.startswith('data:image/png'), src)
+        HREF = "id => { const e = document.querySelector(`.item[data-id=\"${id}\"] image`); return e ? e.getAttribute('href') : null }"
+        ha = await A.evaluate(HREF, pa[0]['id']); hb = await B.evaluate(HREF, pa[0]['id'])
+        check('street: A and B draw identical pixels', ha and ha == hb, (len(ha or ''), len(hb or '')))
         if OLDWEB:
             O, eO = await mk(820, 1180, web=OLDWEB, hood=True)
             await join(O, 2, False)
