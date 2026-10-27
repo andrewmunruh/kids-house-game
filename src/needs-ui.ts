@@ -123,11 +123,13 @@ export function installNeeds(d: NeedsDeps) {
     if (p) d.dispatch({ type: 'need/drift', id: p.id, need: p.need });
   }
 
-  d.subscribe(() => { paint(); care(); });
+  // Care is sent after this render settles, so the burst lands on the redrawn doll.
+  d.subscribe(() => { paint(); setTimeout(care, 0); });
   // Tapping a doll that already sits at the right spot (a visitor tucking her in, say) gives the care too.
   d.layer.addEventListener('pointerup', e => { if ((e.target as HTMLElement).closest?.('.char[data-cid]')) { asked.clear(); care(); } });
   setInterval(() => { tick(); paint(); }, 1000);
   document.addEventListener('visibilitychange', () => { last = performance.now(); });
   paint();
-  (window as any).__needs = { tick: (ms: number) => tick(ms), visible: () => visibleMs, paint, care };
+  // Test hook only with ?needsqa=1, so a normal session never sees it.
+  if (new URLSearchParams(location.search).has('needsqa')) (window as any).__needs = { tick: (ms: number) => tick(ms), visible: () => visibleMs, paint, care };
 }

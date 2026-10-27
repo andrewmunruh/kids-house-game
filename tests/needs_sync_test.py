@@ -39,7 +39,7 @@ async def main():
             c = await b.new_context(viewport={'width': 820, 'height': 1180}, device_scale_factor=2, has_touch=True, reduced_motion=motion, storage_state=storage)
             await c.add_init_script(SKIP_WN); await c.add_init_script(AUDIO_SPY); pg = await c.new_page()
             errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
-            await pg.goto(f'{web}/kids-house-game/?hood={HOOD}'); await pg.wait_for_timeout(900)
+            await pg.goto(f'{web}/kids-house-game/?hood={HOOD}&needsqa=1'); await pg.wait_for_timeout(900)
             return pg, errs, c
         (A, eA, cA), (B, eB, cB) = await mk(WEB), await mk(WEB)
         # Solo first: A's doll gets a little wishful during (simulated) visible play. Nothing else moves it.
@@ -153,6 +153,7 @@ async def main():
         # Phone shot
         P = await b.new_context(viewport={'width': 844, 'height': 390}, device_scale_factor=3, has_touch=True, storage_state=await cR.storage_state())
         pp = await P.new_page(); await pp.goto(f'{WEB}/kids-house-game/'); await pp.wait_for_timeout(1200)
+        check('test hook is absent in a normal session', await pp.evaluate("typeof window.__needs") == 'undefined')
         await pp.evaluate("() => { __store.dispatch({type:'room/switch', room:'living'}); __store.dispatch({type:'char/add', char:{skin:'#f2c9a0', hair:'#5a3d2b', hairStyle:2, shirt:'#ffd166', pants:'#6b8cff', size:'kid', acc:0, flip:false, held:{left:null, right:null}, id:'pd1', room:'living', x:600, y:600}}); for (let i = 0; i < 80 && Object.values(((__store.get().characters.find(c => c.id === 'pd1') || {}).needs) || {}).filter(v => v <= 1).length < 4; i++) __needs.tick(4 * 60000); }")
         await pp.evaluate("() => { const b = document.querySelector('#btnMenu, .menuBtn, [aria-label=Menu]'); b && b.click(); }"); await pp.wait_for_timeout(500); await pp.screenshot(path=f'{SHOT}needs-phone-menu-844x390.png')
         await pp.keyboard.press('Escape'); await pp.evaluate("() => { const b = document.querySelector('#btnMenu, .menuBtn, [aria-label=Menu]'); const m = document.getElementById('menuPop'); if (m && !m.classList.contains('hidden') && b) b.click(); }")
