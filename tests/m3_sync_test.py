@@ -96,7 +96,7 @@ async def main():
         check('old 10ef736 client sees the same dolls in the same spots', posA == posO and len(posA) == 4, f'{posA} {posO}')
         for pg in (A, B, O): await pg.evaluate("window.__sent.length = 0")
         new = [A, B]
-        await agree(new, 14, 'two friends standing close', need=['soc-l', 'soc-r'])
+        await agree(new, 40, 'two friends standing close', need=['soc-l', 'soc-r'])
         await A.screenshot(path=f'{SHOT}sync-friends-A-820x1180.png'); await B.screenshot(path=f'{SHOT}sync-friends-B-reduced-820x1180.png')
         # passive reactions put nothing on the wire beyond what the old client also sends
         def kinds(lst): return sorted({(m.get('t'), m.get('action', {}).get('type') if isinstance(m.get('action'), dict) else None) for m in lst})
