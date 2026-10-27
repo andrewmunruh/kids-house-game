@@ -60,14 +60,14 @@ async def run(b, w, h, party):
     tag = f"{w}x{h}" + ('-party' if party else '')
     await pg.locator('#stage').screenshot(path=f"{SHOT}screen-{tag}.png")
     await pg.click('#btnMenu'); await pg.wait_for_timeout(200)
-    vis = await pg.is_visible('#btnPhoto'); await pg.click('#btnPhoto')
+    vis = await pg.is_visible('#btnPhoto'); await pg.screenshot(path=f"{SHOT}menu-{tag}.png"); await pg.click('#btnPhoto')
     await pg.wait_for_selector('.pbCard img', timeout=15000); await pg.wait_for_timeout(400)
     data = await pg.evaluate("async () => { const r = await fetch(document.querySelector('.pbImg').src); const b = await r.blob(); return await new Promise(res => { const f = new FileReader(); f.onload = () => res(f.result); f.readAsDataURL(b); }); }")
     open(f"{SHOT}photo-{tag}.png", 'wb').write(base64.b64decode(data.split(',')[1]))
     await pg.screenshot(path=f"{SHOT}card-{tag}.png")
     flush, diff = check_photo(f"{SHOT}photo-{tag}.png", f"{SHOT}screen-{tag}.png")
     async with pg.expect_download(timeout=5000) as dl: await pg.click('.pbSave')  # no Web Share in desktop WebKit: download fallback
-    d = await dl.value
+    d = await dl.value; await d.save_as(f"{SHOT}saved-{tag}.png")
     await pg.click('.pbClose'); closed = await pg.locator('.pbCard').count() == 0
     bad = [r for r in reqs if r[0] != 'GET' or not r[1].startswith(WEB.split('/kids')[0]) ]
     bad = [r for r in bad if not r[1].startswith('blob:') and not r[1].startswith('data:')]
