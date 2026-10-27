@@ -70,7 +70,8 @@
   animation: socHeart 1.8s ease-out infinite; animation-delay: var(--soc-delay, 0s); opacity: 0;
 }
 .layer .char.soc-baby::before { animation-duration: 3.6s; font-size: 16px; }
-@keyframes socHeart { 0% { translate: -50% 6px; scale: .4; opacity: 0; } 20% { scale: 1.15; opacity: 1; } 35% { scale: 1; } 100% { translate: -50% -38px; opacity: 0; } }
+@keyframes socHeart { 0% { transform: translate(-50%, 6px) scale(.4); opacity: 0; } 20% { transform: translate(-50%, 0) scale(1.15); opacity: 1; } 35% { transform: translate(-50%, -6px) scale(1); } 100% { transform: translate(-50%, -38px); opacity: 0; } }
+@keyframes socHeartB { 0% { transform: translateY(6px) scale(.4); opacity: 0; } 20% { transform: scale(1.15); opacity: 1; } 35% { transform: translateY(-6px); } 100% { transform: translateY(-38px); opacity: 0; } }
 .layer .char.soc-heart:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: socNod 1.8s ease-in-out infinite; animation-delay: var(--soc-delay, 0s); }
 /* Duet: lean in toward the partner on the beat (M1 dance still runs underneath). */
 .layer .char.soc-duet.soc-r > .inner { rotate: 4deg; }
@@ -84,13 +85,13 @@
 @keyframes socSnug { 0%, 100% { scale: 1 1; } 50% { scale: 1.02 .98; } }
 
 /* ---- the baby coos and wiggles (mood and clock untouched) ---- */
-.layer > .baby.soc-coo .babyInner { animation: socCoo 2.4s ease-in-out infinite; transform-origin: 50% 80%; }
-@keyframes socCoo { 0%, 60%, 100% { rotate: 0deg; scale: 1 1; } 12% { rotate: -4deg; } 24% { rotate: 4deg; scale: 1.03 .97; } 36% { rotate: -2deg; } 48% { rotate: 0deg; scale: 1 1; } }
-.layer > .baby.soc-coo::after { content: '♡'; position: absolute; left: 60%; top: -10%; color: #ff8fb8; font-size: 18px; pointer-events: none; animation: socHeart 2.4s ease-out infinite; opacity: 0; }
+.layer > .baby.soc-coo .babyInner { animation: socCoo 2.4s ease-in-out infinite; transform-origin: 50% 80%; will-change: transform; }
+@keyframes socCoo { 0%, 48%, 60%, 100% { transform: none; } 12% { transform: rotate(-4deg); } 24% { transform: rotate(4deg) scale(1.03, .97); } 36% { transform: rotate(-2deg); } }
+.layer > .baby.soc-coo::after { content: '♡'; position: absolute; left: 60%; top: -10%; color: #ff8fb8; font-size: 18px; pointer-events: none; animation: socHeartB 2.4s ease-out infinite; opacity: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .layer .char[class*="soc-"] > .inner, .char[class*="soc-"] .arm, .layer > .pet > .inner, .layer > .baby .babyInner, .item.soc-ducky > .inner { animation: none !important; }
   .layer > .pet { transition: none; }
-  .layer .char.soc-heart::before, .layer .char.soc-baby::before, .layer > .baby.soc-coo::after { animation: none; opacity: .9; translate: -50% -10px; }
-  .layer > .baby.soc-coo::after { translate: 0 0; }
+  .layer .char.soc-heart::before, .layer .char.soc-baby::before, .layer > .baby.soc-coo::after { animation: none; opacity: .9; transform: translate(-50%, -10px); }
+  .layer > .baby.soc-coo::after { transform: none; }
 }
