@@ -1,7 +1,7 @@
 // Art Studio: codec, pure bitmap core, Worker art store (opaque blob, own key per house, 12 cap, GC), old clients.
 import { Neighborhood, type KV, type Conn } from '../server/core';
 import { NICKNAMES, PROTOCOL, cleanItem } from '../src/shared/hood';
-import { PAINT_W, PAINT_H, PAINT_MAX, PAINT_PER_HOUSE, PALETTE, cleanPaintData, cleanArtId, cleanFrame, encodePaint, decodePaint } from '../src/shared/paint';
+import { PAINT_W, PAINT_H, PAINT_MAX, PAINT_PER_HOUSE, PAINT_PER_STREET, PALETTE, cleanPaintData, cleanArtId, cleanFrame, encodePaint, decodePaint } from '../src/shared/paint';
 import { Bitmap, CLEAR } from '../src/paint/bitmap';
 
 const mem = new Map<string, any>();
@@ -94,6 +94,16 @@ async function main() {
   check('a hostile get only returns real paintings', JSON.stringify(b.c.last('art')?.arts) === JSON.stringify({ aabcdef01: d1 }));
   const bomb = 'P1' + '/'.repeat(PAINT_MAX - 2 - ((PAINT_MAX - 2) % 4));
   check('a decode bomb stays one bounded bitmap', decodePaint(bomb).length === PAINT_W * PAINT_H);
+  // only members of this street may write
+  const snap = JSON.stringify(mem.get('art:' + a.hid));
+  const stranger = mk(); await hood.onConnect(stranger);
+  await hood.onMessage(stranger, JSON.stringify({ t: 'art', op: 'save', houseId: a.hid, id: 'astrang01', data: d1 }));
+  const forged = mk(); await hood.onConnect(forged);
+  await hood.onMessage(forged, JSON.stringify({ t: 'hello', token: 'x'.repeat(32), v: PROTOCOL, art: 1 }));
+  await hood.onMessage(forged, JSON.stringify({ t: 'art', op: 'save', houseId: a.hid, id: 'astrang02', data: d1 }));
+  check('a non-member cannot write a painting', JSON.stringify(mem.get('art:' + a.hid)) === snap && !stranger.inbox.some((m: any) => m.t === 'art') && !forged.inbox.some((m: any) => m.t === 'art'), JSON.stringify(forged.inbox.map((m: any) => m.t)));
+  await send(a.c, { t: 'art', op: 'save', houseId: 'hNOTHERE', id: 'astrang03', data: d1 });
+  check('a house from another street is refused', a.c.last('artFail')?.reason === 'nohouse' && !mem.get('art:hNOTHERE'));
   // lock: a friend cannot paint into a locked house
   const h = hood.houses.get(a.hid)!; const wasLocked = h.locked; h.locked = true;
   await send(b.c, { t: 'art', op: 'save', houseId: a.hid, id: 'abbbbbb01', data: eb });
@@ -120,6 +130,18 @@ async function main() {
   await hood2.onMessage(r, JSON.stringify({ t: 'hello', token: tok, v: PROTOCOL, art: 1 }));
   await hood2.onMessage(r, JSON.stringify({ t: 'art', op: 'get', houseId: a.hid, ids: ['acap0000'] }));
   check('paintings survive a restart', r.last('art')?.arts?.acap0000 === eb, JSON.stringify(r.inbox.map(m => m.t)) + ' ' + Object.keys(mem.get('art:' + a.hid)));
+  // per-street cap: every house together holds at most PAINT_PER_STREET
+  let streetN = Object.keys(mem.get('art:' + a.hid) ?? {}).length;
+  while (streetN < PAINT_PER_STREET) {
+    const p = await join(1);
+    for (let i = 0; i < PAINT_PER_HOUSE && streetN < PAINT_PER_STREET; i++, streetN++) await send(p.c, { t: 'art', op: 'save', houseId: p.hid, id: 'ast' + p.hid.toLowerCase().replace(/[^0-9a-z]/g, '') + i, data: eb });
+  }
+  const countStreet = () => [...hood.houses.keys()].reduce((n, k) => n + Object.keys(mem.get('art:' + k) ?? {}).length, 0);
+  check('the street holds ' + PAINT_PER_STREET + ' paintings', countStreet() === PAINT_PER_STREET, String(countStreet()));
+  await send(b.c, { t: 'art', op: 'save', houseId: b.hid, id: 'astreet99', data: eb });
+  check('one more on a full street is refused', b.c.last('artFail')?.reason === 'streetfull' && countStreet() === PAINT_PER_STREET);
+  await send(a.c, { t: 'art', op: 'save', houseId: a.hid, id: 'acap0000', data: d1 });
+  check('repainting an existing painting still works on a full street', mem.get('art:' + a.hid)?.acap0000 === d1);
   console.log(`\n${pass} passed` + (process.exitCode ? ' (FAILURES)' : ''));
 }
 main();

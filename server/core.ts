@@ -11,7 +11,7 @@ import {
   MAX_PLAYERS, NICKNAMES, PHRASES, EMOTES, HOUSE_STYLES, cleanAction, cleanHouseState, cleanLook, applyLook, cleanPresence, cleanHouseName,
   filterSay, isNear, sameSpot, cleanFirstName, cleanDog, cleanFx, fxAllowedAt, PROTOCOL, PROTO_PETS, PROTO_RANCH, PROTO_GAMES, RANCH_FX, normCode, validInvite, MAX_ROSTER, cleanMailText, filterMailbox, mailColor, mailSticker, mailIsFree, type RosterEntry, type ClientMsg, type ServerMsg, type Presence, type PlayerPub, type HouseFull, type HouseMeta, type Look, type Bubble, type StreetSettings,
 } from '../src/shared/hood';
-import { cleanArtId, cleanPaintData, PAINT_PER_HOUSE } from '../src/shared/paint';
+import { cleanArtId, cleanPaintData, PAINT_PER_HOUSE, PAINT_PER_STREET } from '../src/shared/paint';
 import { MAIL_CAP, MAIL_RATE_MAX, MAIL_RATE_WINDOW_MS, keepMailbox, projectMailbox, type Letter, type Mailbox } from '../src/shared/mail';
 import { GAMES, TABLES, NUDGE_MS, cleanTableOp, type TablePub, type TablePhase } from '../src/shared/games/index';
 import { cleanBasket, cleanPlots, cleanRanchOp, ranchApply, BASKET_ITEM, type Basket, type Plot } from '../src/shared/ranch';
@@ -496,7 +496,10 @@ export class Neighborhood {
       }
       case 'parent': return this.onParent(c, m);
     }
-    if (!c.pid || !meta.players[c.pid]) return; // everything below needs a joined player
+    if (!c.pid || !meta.players[c.pid]) { // everything below needs a joined player of this street
+      if (m.t === 'art' && (c.art ?? 0) >= 1) this.send(c, { t: 'artFail', houseId: String(m.houseId ?? '').slice(0, 40), id: String(m.id ?? '').slice(0, 30), reason: 'member' });
+      return;
+    }
     const me = meta.players[c.pid];
     switch (m.t) {
       case 'art': return this.onArt(c, me, m);
@@ -712,7 +715,8 @@ export class Neighborhood {
   private async onArt(c: Conn, me: Player, m: Extract<ClientMsg, { t: 'art' }>) {
     if ((c.art ?? 0) < 1) return;
     const houseId = typeof m.houseId === 'string' ? m.houseId : '';
-    const h = this.houses.get(houseId); if (!h) return;
+    const h = this.houses.get(houseId);
+    if (!h) { if (m.op === 'save') this.send(c, { t: 'artFail', houseId: houseId.slice(0, 40), id: String(m.id ?? '').slice(0, 30), reason: 'nohouse' }); return; }
     if (m.op === 'get') {
       const ids = Array.isArray(m.ids) ? m.ids.slice(0, PAINT_PER_HOUSE * 2).map(cleanArtId).filter(Boolean) as string[] : [];
       const all = await this.artsOf(houseId), out: Record<string, string> = {};
@@ -733,6 +737,11 @@ export class Neighborhood {
       for (const ch of h.state.characters) for (const it of [ch.held?.left, ch.held?.right]) if (it?.art) hung.add(it.art);
       for (const k of Object.keys(all)) if (!hung.has(k)) delete all[k];
       if (Object.keys(all).length >= PAINT_PER_HOUSE) return fail('full');
+    }
+    if (!all[id]) {
+      let street = 0;
+      for (const hid of this.houses.keys()) street += hid === houseId ? Object.keys(all).length : Object.keys(await this.artsOf(hid)).length;
+      if (street >= PAINT_PER_STREET) return fail('streetfull');
     }
     all[id] = data;
     await this.kv.put('art:' + houseId, all);

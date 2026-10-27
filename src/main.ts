@@ -2888,7 +2888,7 @@ function enterNeighborhood(client: HoodClient) {
     for (const [id, d] of Object.entries(arts)) putArt(id, d);
     if (view === 'house' && houseId === currentHouseId) renderItems(store.get());
   });
-  client.on('artFail', (_h: string, _id: string, r: string) => { if (hood === client && r === 'full') toast('Your walls are full of art! Take one down to hang a new one.'); });
+  client.on('artFail', (_h: string, _id: string, r: string) => { if (hood !== client) return; if (r === 'full') toast('Your walls are full of art! Take one down to hang a new one.'); else if (r === 'streetfull') toast('The street is full of art! Take one down to hang a new one.'); });
   client.on('ranch', () => { if (hood === client && view === 'ranch') renderPlots(true); });
   client.on('ranchFail', (r: string) => { if (hood === client) ranchFailToast(r); });
   client.on('noride', () => { if (hood !== client) return; const p = myPres(); if (p?.ride !== undefined) { const { ride: _r, ...q } = p; setMyPres(q); renderRanchAvatars(); } toast('Someone is riding that horse!'); });

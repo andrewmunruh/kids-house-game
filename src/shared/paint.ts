@@ -13,6 +13,8 @@ export const PALETTE = [
 export const PAINT_MAX = 8000;
 /** Paintings kept per house. Unhung ones are cleared first when a new one needs room. */
 export const PAINT_PER_HOUSE = 12;
+/** Paintings kept on one whole street (all houses together). Keeps one street's art well under 0.5 MB. */
+export const PAINT_PER_STREET = 60;
 /** Frame styles: wood, plum, gold, rainbow. */
 export const FRAMES = ['wood', 'plum', 'gold', 'rainbow'] as const;
 export const ART_ID_RE = /^a[0-9a-z]{6,24}$/;
