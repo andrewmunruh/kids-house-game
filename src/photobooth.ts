@@ -147,11 +147,13 @@ function cropToView(full: HTMLCanvasElement, stage: HTMLElement): { c: HTMLCanva
   const sr = stage.getBoundingClientRect(), wrap = stage.parentElement?.getBoundingClientRect();
   const rad = (el: Element | null | undefined, k: number) => el ? (parseFloat(getComputedStyle(el).borderTopRightRadius) || 0) * k : 0;
   const kx = full.width / (sr.width || 1), ky = full.height / (sr.height || 1);
-  if (!wrap || !sr.width) return { c: full, radius: rad(stage, kx) };
+  // The canvas is in the stage's own (untransformed) px times the render scale, so its radius uses that scale, not the on-screen one.
+  const own = full.width / Math.max(1, stage.offsetWidth);
+  if (!wrap || !sr.width) return { c: full, radius: rad(stage, own) };
   const l = Math.max(sr.left, wrap.left, 0), t = Math.max(sr.top, wrap.top, 0);
   const r = Math.min(sr.right, wrap.right, innerWidth), b = Math.min(sr.bottom, wrap.bottom, innerHeight);
-  if (r - l >= sr.width - 2 && b - t >= sr.height - 2) return { c: full, radius: rad(stage, kx) };
-  if (r <= l || b <= t) return { c: full, radius: rad(stage, kx) };
+  if (r - l >= sr.width - 2 && b - t >= sr.height - 2) return { c: full, radius: rad(stage, own) };
+  if (r <= l || b <= t) return { c: full, radius: rad(stage, own) };
   const c = document.createElement('canvas'); c.width = Math.round((r - l) * kx); c.height = Math.round((b - t) * ky);
   c.getContext('2d')!.drawImage(full, (l - sr.left) * kx, (t - sr.top) * ky, c.width, c.height, 0, 0, c.width, c.height);
   return { c, radius: rad(stage.parentElement, kx) };

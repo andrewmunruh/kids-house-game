@@ -32,9 +32,14 @@ def check_photo(photo, screen):
     def pale(p): return min(p) > 200 and max(p) - min(p) < 40 and not (p[0] > 240 and p[2] < 225)
     ok = True
     # Inside the scene rect but outside its rounded corner, the frame gradient must show through: compare with a frame pixel just outside.
-    for (x, y, dx, dy) in [(r - 2, t + 2, 5, -5), (r - 2, b - 2, 5, 5), (l + 2, b - 2, -5, 5), (l + 2, t + 2, -5, -5)]:
-        a = im.getpixel((x, y)); z = im.getpixel((x + dx, y + dy))
-        if sum(abs(a[i] - z[i]) for i in range(3)) > 30: ok = False
+    # Walk each corner's diagonal inward from the scene rect's corner: every pixel before the plum border must be frame gradient
+    # (like the frame pixel just outside), never a pale strip of page behind the rounded corner.
+    for (x0, y0, sx, sy) in [(r, t, -1, 1), (r, b, -1, -1), (l, b, 1, -1), (l, t, 1, 1)]:
+        ref = im.getpixel((x0 - sx * 4, y0 - sy * 4))
+        for i in range(0, 60):
+            a = im.getpixel((x0 + sx * i, y0 + sy * i))
+            if plum(a) or sum(abs(a[j] - ref[j]) for j in range(3)) > 40 and i > 2 and plum(im.getpixel((x0 + sx * (i + 2), y0 + sy * (i + 2)))): break
+            if sum(abs(a[j] - ref[j]) for j in range(3)) > 40: ok = False; print('  strip at corner', (x0, y0), 'step', i, a, 'vs frame', ref); break
     sc = Image.open(screen).convert('RGB').resize((r - l + 1, b - t + 1)); pic = im.crop((l, t, r + 1, b + 1))
     diff = sum(ImageStat.Stat(ImageChops.difference(sc, pic)).mean) / 3
     return ok, diff
