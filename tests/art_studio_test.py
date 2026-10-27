@@ -322,7 +322,10 @@ async def wall_piece(mk):
     check('wall: spot and size survive a reload', i4 == i3, [i4, i3])
     # delete with the toolbar: gone everywhere
     if await A.evaluate("document.body.classList.contains('mode-play')"): await A.click('#modeDecorate'); await A.wait_for_timeout(300)
-    await select(A); await A.locator('#toolbar button[data-a="delete"]').click(); await A.wait_for_timeout(1200)
+    for _ in range(3):
+        if await A.locator('#toolbar button[data-a="delete"]').is_visible(): break
+        bb = await A.locator(f'.item[data-id="{pid}"]').bounding_box(); await A.mouse.click(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); await A.wait_for_timeout(400)
+    await A.locator('#toolbar button[data-a="delete"]').click(); await A.wait_for_timeout(1200)
     gone = [await pg.evaluate(ITEMS, pid) for pg in (A, B, C) + ((O,) if O else ())]
     check('wall: put away on every client (incl. old)', all(x is None for x in gone), gone)
     check('wall: handle hides with nothing selected', await A.locator('#artGrip').is_hidden())
