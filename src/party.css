@@ -34,3 +34,15 @@
   .partyFx > .pl2 { left: calc(var(--px, 50%) - 60%); } .partyFx > .pl3 { left: calc(var(--px, 50%) - 10%); }
   .partyFx > .sp { opacity: .5; }
 }
+
+/* perf (X2): one composited wash layer instead of three. The three colors are painted once as
+   gradients on a single wide element that only translates (no scale), so WebKit blends one layer. */
+.partyFx > .pl2, .partyFx > .pl3 { display: none; }
+.partyFx > .pl1 { width: 140%; left: calc(var(--px, 50%) - 70%); border-radius: 0; opacity: .45;
+  background:
+    radial-gradient(closest-side, rgba(255, 120, 200, .9), rgba(255, 120, 200, 0)) 0% 30% / 45% 90% no-repeat,
+    radial-gradient(closest-side, rgba(120, 190, 255, .9), rgba(120, 190, 255, 0)) 55% 70% / 40% 80% no-repeat,
+    radial-gradient(closest-side, rgba(255, 220, 120, .9), rgba(255, 220, 120, 0)) 100% 20% / 40% 80% no-repeat;
+  animation: partyWashOne 7.2s ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
+@keyframes partyWashOne { 0%, 100% { transform: translate(-18%, 0); } 50% { transform: translate(18%, -4%); } }
+@media (prefers-reduced-motion: reduce) { .partyFx > .pl1 { animation: none !important; } }
