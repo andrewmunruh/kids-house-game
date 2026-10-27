@@ -5,9 +5,9 @@ import asyncio, os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from playwright.async_api import async_playwright
 from testnav import SKIP_WN
-WEB = os.environ.get('WEB', 'http://localhost:5610').rstrip('/')
+WEB = os.environ.get('WEB', 'http://localhost:5960').rstrip('/')
 assert 'workers.dev' not in WEB
-SHOT = os.environ.get('X_SHOTS', 'shots/needs/'); os.makedirs(SHOT, exist_ok=True)
+SHOT = os.environ.get('X_SHOTS', '/workspace/t-cross-shots/'); os.makedirs(SHOT, exist_ok=True)
 GEO = """() => { const e = document.querySelector('.char[data-cid="ly1"]'); const b = e && e.querySelector(':scope > .need-bubble.show .nb-cloud'); if (!b) return null;
   const parts = [...e.querySelectorAll('.inner svg *')].map(n => n.getBoundingClientRect()).filter(r => r.width > 0);
   const art = parts.reduce((a, r) => ({l: Math.min(a.l, r.left), t: Math.min(a.t, r.top), r: Math.max(a.r, r.right), b: Math.max(a.b, r.bottom)}), {l: 1e9, t: 1e9, r: -1e9, b: -1e9});
