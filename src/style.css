@@ -739,6 +739,7 @@ body:not(.phone) .drawerBar { gap: 12px; }
 body:not(.phone) .drawerTop { gap: 8px; row-gap: 8px; align-content: flex-start; }
 body:not(.phone) .cats { gap: 8px; }
 body:not(.phone) .cat.pack { gap: 6px; padding: 4px 16px 4px 8px; }
+body:not(.phone) .modeDock.wideDock { gap: 8px; align-self: flex-start; }
 body:not(.phone) .modeDock { padding-right: 12px; border-right: 2px dashed rgba(90,61,92,.22); min-height: 52px; }
 .homeBtn { display: none !important; }
 body.view-street .homeBtn { display: block !important; }

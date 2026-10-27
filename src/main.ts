@@ -660,24 +660,35 @@ function placeStage(sc: number) {
   stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
 }
 /** Phone landscape parks Play/Decorate in the top row. Phone portrait keeps them in the
- *  dock beside the scrolling chips. iPad leads the chip row with them, the way the
- *  room did before the Menu, so the drawer stays two rows and the stage still fills. */
+ *  dock beside the scrolling chips. Portrait iPad (under 900 wide) leads the wrapping chip
+ *  row with them. Wide iPad, where the chip row scrolls sideways, pins Play/Decorate and
+ *  "All rooms" in the dock outside that scroller so a far pack tap can't slide them away. */
 function placeModeToggle() {
   const toggle = $('modeToggle');
   const tools = document.querySelector('.tools');
   const dock = document.getElementById('modeDock');
   const top = document.querySelector('.drawerTop');
-  if (!toggle || !tools || !dock || !top) return false;
+  const rooms = document.getElementById('roomFilter');
+  if (!toggle || !tools || !dock || !top || !rooms) return false;
   const phone = document.body.classList.contains('phone');
   const land = phone && !document.body.classList.contains('phone-portrait');
-  const home = land ? tools : phone ? dock : top;
-  const parked = toggle.parentElement === home;
-  dock.hidden = !phone || land;
-  if (parked) return false;
-  if (land) tools.insertBefore(toggle, tools.firstChild);
-  else if (phone) dock.appendChild(toggle);
-  else top.insertBefore(toggle, top.firstChild);
-  return true;
+  const wide = !phone && window.matchMedia('(min-width: 900px)').matches;
+  const home = land ? tools : phone || wide ? dock : top;
+  dock.hidden = !(phone && !land) && !wide;
+  dock.classList.toggle('wideDock', wide);
+  let moved = false;
+  const roomsHome = wide ? dock : top;
+  if (rooms.parentElement !== roomsHome) {
+    if (wide) dock.appendChild(rooms); else top.insertBefore(rooms, top.firstChild);
+    moved = true;
+  }
+  if (toggle.parentElement !== home || (wide && dock.firstChild !== toggle)) {
+    if (land) tools.insertBefore(toggle, tools.firstChild);
+    else if (phone || wide) dock.insertBefore(toggle, dock.firstChild);
+    else top.insertBefore(toggle, top.firstChild);
+    moved = true;
+  }
+  return moved;
 }
 /**
  * Phone Play portrait only. fit() will not zoom past a 480-wide view, which letterboxes a tall phone.
