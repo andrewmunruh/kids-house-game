@@ -73,7 +73,7 @@ async def run(b, w, h, party):
     bad = [r for r in bad if not r[1].startswith('blob:') and not r[1].startswith('data:')]
     print(tag, 'dolls in frame', inframe, 'flush', flush, 'photo-vs-screen diff', round(diff, 1))
     print(tag, 'menu row visible', vis, 'download', d.suggested_filename, 'closed', closed, 'off-box/non-GET requests', bad, 'errors', errs)
-    await c.close(); return vis and closed and not bad and not errs and (inframe['ok'] and inframe['edge'] if party else True) and flush and diff < 18
+    await c.close(); return vis and closed and not bad and not errs and (inframe['ok'] and inframe['edge'] if party else True) and flush and diff < (25 if party else 8)  # party lights and dancers move between the screen grab and the snap
 async def main():
     async with async_playwright() as p:
         b = await p.webkit.launch(); ok = True
