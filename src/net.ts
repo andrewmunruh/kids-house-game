@@ -57,6 +57,8 @@ export class HoodClient {
   speaksBaby = false;
   /** Server forwards item/power (ambient M1). */
   speaksAmb = false;
+  /** The welcome said jam:1 (Glow Jam taps are relayed). An old Worker never does. */
+  speaksJam = false;
   /** The server closed this socket because the same sign-in connected somewhere else. Do not reconnect on our own. */
   replaced = false;
   /** Rainbow Ranch garden (shared per street) + server clock offset so growth looks the same on every iPad. */
@@ -119,8 +121,8 @@ export class HoodClient {
       this.ws = ws;
       if (prev && prev !== ws) { try { prev.close(); } catch { /* already closed */ } }
       ws.onopen = () => {
-        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1 });
-        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1 });
+        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, jam: 1 });
+        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, jam: 1 });
         else done('notoken');
       };
       ws.onmessage = e => { const m: ServerMsg = JSON.parse(e.data); this.handle(m); if (m.t === 'welcome') { this.armStable(); done('ok'); } if (m.t === 'error') done(m.code + (m.msg ? ':' + m.msg : '')); if (m.t === 'removed') done('removed'); };
@@ -152,6 +154,7 @@ export class HoodClient {
         this.speaksSit = m.sit === 1;
         this.speaksBaby = m.baby === 1;
         this.speaksAmb = m.amb === 1;
+        this.speaksJam = m.jam === 1;
         this.players = new Map(m.players.map(p => [p.pid, p]));
         { const old = this.houses; this.houses = new Map();
           for (const h of m.houses) { const { state, ...meta } = h; const prev = old.get(h.id);
@@ -197,6 +200,7 @@ export class HoodClient {
       case 'noride': this.emit('noride', m.ride); break;
       case 'table': { const t = this.stampTable(m.table); this.tables.set(t.tb, t); this.emit('table', t); break; }
       case 'tblFail': this.emit('tblFail', m.tb, m.reason); break;
+      case 'jam': this.emit('jam', m.pid, m.i, m.c); break;
       case 'sayFail': this.emit('sayFail', m.reason); break;
       case 'mailbox': {
         const h = this.houses.get(m.houseId); if (!h) return;
@@ -257,6 +261,8 @@ export class HoodClient {
   fx(fx: Fx) { this.reliable({ t: 'fx', fx }); }
   ranchOp(o: RanchOp) { this.reliable({ t: 'ranch', o }); }
   tbl(op: TableOp) { this.reliable({ t: 'tbl', ...op }); }
+  /** Glow Jam tap. Fire-and-forget: a dropped tap is simply not heard, never queued. */
+  jam(i: number) { if (this.speaksJam && this.status === 'online') this.send({ t: 'jam', i }); }
   sendMail(houseId: string, text: string, color: number, sticker: number) { this.reliable({ t: 'mail', op: 'send', houseId, text, color, sticker }); }
   readMail(houseId: string, id: string) { this.reliable({ t: 'mail', op: 'read', houseId, id }); }
   dropMail(houseId: string, id: string) { this.reliable({ t: 'mail', op: 'drop', houseId, id }); }

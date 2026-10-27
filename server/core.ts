@@ -13,12 +13,13 @@ import {
 } from '../src/shared/hood';
 import { MAIL_CAP, MAIL_RATE_MAX, MAIL_RATE_WINDOW_MS, keepMailbox, projectMailbox, type Letter, type Mailbox } from '../src/shared/mail';
 import { GAMES, TABLES, NUDGE_MS, cleanTableOp, type TablePub, type TablePhase } from '../src/shared/games/index';
+import { cleanJam, jamBucket, jamColorOf } from '../src/shared/jam';
 import { cleanBasket, cleanPlots, cleanRanchOp, ranchApply, BASKET_ITEM, type Basket, type Plot } from '../src/shared/ranch';
 
 export interface KV { get<T>(k: string): Promise<T | undefined>; put(k: string, v: unknown): Promise<void>; delete(k: string): Promise<void> }
 /** Maps invite codes (case-insensitive, unique across streets) to permanent street ids. */
 export interface CodeRegistry { claim(code: string, id: string): Promise<boolean>; release(code: string, id: string): Promise<void> }
-export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number }
+export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; jam?: number; jamB?: { t: number; n: number } }
 /** Not a real socket. Baby release is broadcast to every baby client, including the kid who just left. */
 const RELEASE_SENDER: Conn = { send() {}, close() {} };
 
@@ -114,7 +115,7 @@ export class Neighborhood {
   private welcome(c: Conn) {
     const presence: Record<string, Presence> = {};
     this.presence.forEach((p, k) => { presence[k] = this.viewPresence(p, c); });
-    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean).map(h => this.wireHouse(h, c)), presence, sit: 1, baby: 1, amb: 1, ranch: { plots: cleanPlots(this.meta!.ranch?.plots), now: Date.now() }, ...((c.v ?? 1) >= PROTO_GAMES ? { tables: this.tables.map((_, i) => this.tablePub(i, c.pid!)) } : {}) });
+    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean).map(h => this.wireHouse(h, c)), presence, sit: 1, baby: 1, amb: 1, jam: 1, ranch: { plots: cleanPlots(this.meta!.ranch?.plots), now: Date.now() }, ...((c.v ?? 1) >= PROTO_GAMES ? { tables: this.tables.map((_, i) => this.tablePub(i, c.pid!)) } : {}) });
   }
   /** Clients that did not say sit:1 draw her standing. The seat field stays off their copy. */
   private viewPresence(p: Presence, c: Conn): Presence {
@@ -439,6 +440,7 @@ export class Neighborhood {
         c.fit = m.fit === 1 ? 1 : 0;
         c.baby = m.baby === 1 ? 1 : 0;
         c.amb = m.amb === 1 ? 1 : 0;
+        c.jam = m.jam === 1 ? 1 : 0;
         const h = typeof m.token === 'string' ? await sha256(m.token) : '';
         const p = h ? Object.values(meta.players).find(p => p.tokenHash === h) : undefined;
         if (!p) { this.send(c, { t: 'error', code: 'badtoken' }); return; }
@@ -454,6 +456,7 @@ export class Neighborhood {
         c.fit = m.fit === 1 ? 1 : 0;
         c.baby = m.baby === 1 ? 1 : 0;
         c.amb = m.amb === 1 ? 1 : 0;
+        c.jam = m.jam === 1 ? 1 : 0;
         const roster = meta.roster ?? [];
         let nickname: string;
         if (roster.length) {
@@ -597,6 +600,14 @@ export class Neighborhood {
         if ((c.v ?? 1) < PROTO_GAMES) return;
         const o = cleanTableOp(m); if (!o) return;
         const r = this.tableOp(me.pid, o); if (r) this.send(c, { t: 'tblFail', tb: o.tb, reason: r });
+        return;
+      }
+      case 'jam': {
+        // Glow Jam: relay a tap to jam:1 kids in the Game Room. Rate-limited per socket; nothing is stored.
+        if ((c.jam ?? 0) < 1 || this.presence.get(me.pid)?.where !== 'gameroom') return;
+        const j = cleanJam(m); if (!j) return;
+        const r = jamBucket(c.jamB, Date.now()); c.jamB = r.b; if (!r.ok) return;
+        this.broadcast({ t: 'jam', pid: me.pid, i: j.i, c: jamColorOf(me.pid) }, x => !!x.pid && x !== c && (x.jam ?? 0) >= 1 && this.presence.get(x.pid)?.where === 'gameroom');
         return;
       }
       case 'dog': {
