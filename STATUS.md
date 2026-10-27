@@ -1,6 +1,4 @@
-# M2 needs status
-Done: model/server gate/net/UI pushed. tsc OK; tests/*.ts pass (art_raster's 2 FAILs also fail on 10ef736); needs_test 50/50 (old-client check included); hood 43/43; pets 46/46.
-In progress (in /tmp/t-needs/gate, chain.sh -> chain2.sh -> chain3.sh): gameroom ranch map ambient_sync b0_compat phone, then needs_sync, then migration.
-The migration crash was a preview-dist built with the wrong base; it's now rebuilt with VITE_BASE=/cozy-preview/.
-needs_sync: the hint check was fixed in e1b27e9 and needs a rerun.
-Left: gate results, PR #43 description, mark ready.
+# M2 needs status: GATE GREEN (Oct 27 2026, 1:30 PM CT)
+- tsc OK; tests/*.ts all pass (needs_test 51/51 incl. 10ef736 old-client check; mail_persist 4/4). art_raster: 2 FAILs pre-existing on 10ef736 (art not touched).
+- migration vs 10ef736 43/43; hood 43/43; gameroom 69/69; pets 46/46; ranch 41/41; map 40/40; ambient_sync 9/9; b0_compat 14/14; phone 357/357; needs_sync (3-client) 26/26.
+- Screenshots: /tmp/t-needs/shots-final (not committed).
