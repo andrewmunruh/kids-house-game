@@ -318,6 +318,7 @@ export function withRandomStarter<T extends { characters: any[] }>(state: T, rng
   return { ...state, characters };
 }
 
-export function lookStamp(c: { skin: string; hair: string; hairStyle: number; shirt: string; pants: string; acc: number; look2?: Look2 | null }): string {
-  return [c.skin, c.hair, c.hairStyle, c.shirt, c.pants, c.acc, c.look2 ? JSON.stringify(c.look2) : ''].join('|');
+export function lookStamp(c: { skin: string; hair: string; hairStyle: number; shirt: string; pants: string; acc: number; look2?: Look2 | null; costume?: string | null }): string {
+  const base = [c.skin, c.hair, c.hairStyle, c.shirt, c.pants, c.acc, c.look2 ? JSON.stringify(c.look2) : ''].join('|');
+  return c.costume ? base + '|cos:' + c.costume : base;
 }

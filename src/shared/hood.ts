@@ -5,6 +5,7 @@ import { RANCH_W, BARN_W, RANCH_Y0, RANCH_Y1, HORSES, ANIMALS, FOODS, type Baske
 import { GAMEROOM_W, type TablePub, type TableOp } from './games/index';
 import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, validKennel, itemSizeOf, ROOM_W, ROOM_H, MAX_CHARS, ROOM_IDS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
 import { sanitizeLook2, type Look2 } from './avatar';
+import { cleanCostume } from './costume';
 import { cleanDollSeat, cleanPresSeat, seatStillThere, type DollSeat, type PresSeat } from './sit';
 import { cleanBaby, packBaby } from './baby';
 import { CATALOG_NAMES } from './catalog-names';
@@ -629,8 +630,8 @@ export function cleanItem(i: any): PlacedItem | null {
   const size = itemSizeOf(i.size);
   return size === 1 ? powered : { ...powered, size };
 }
-export type Look = Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc'> & { look2?: Look2 };
-export function cleanLookPatch(p: any): Partial<Look & { flip: boolean; look2: Look2 | null }> | null {
+export type Look = Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc'> & { look2?: Look2; costume?: string };
+export function cleanLookPatch(p: any): Partial<Look & { flip: boolean; look2: Look2 | null; costume: string | null }> | null {
   if (!p || typeof p !== 'object') return null;
   const out: any = {};
   for (const k of ['skin', 'hair', 'shirt', 'pants'] as const) if (k in p) { const c = str(p[k], COLOR_RE, 9); if (!c) return null; out[k] = c; }
@@ -641,6 +642,7 @@ export function cleanLookPatch(p: any): Partial<Look & { flip: boolean; look2: L
   // Old clients send the legacy colors and omit look2. Leaving the key off keeps her chibi look.
   // look2 is replaced or cleared only when this patch includes it (a B1 "use classic look" sends null).
   if ('look2' in p) out.look2 = sanitizeLook2(p.look2) ?? null;
+  if ('costume' in p) out.costume = cleanCostume(p.costume);
   return Object.keys(out).length ? out : null;
 }
 export function cleanLook(p: any): Look {
@@ -649,12 +651,17 @@ export function cleanLook(p: any): Look {
   const pickOr = <K extends keyof Look>(k: K): Look[K] => ((c as any)[k] ?? base[k]);
   const out: Look = { skin: pickOr('skin'), hair: pickOr('hair'), hairStyle: pickOr('hairStyle'), shirt: pickOr('shirt'), pants: pickOr('pants'), size: pickOr('size'), acc: pickOr('acc') };
   if (p && typeof p === 'object' && 'look2' in p) { const s = sanitizeLook2(p.look2); if (s) out.look2 = s; }
+  // '' is an explicit 'no costume', so taking one off reaches the server; applyLook then drops the key.
+  if (p && typeof p === 'object' && 'costume' in p) { const cc = cleanCostume(p.costume); out.costume = cc ?? ''; }
   return out;
 }
 /** A legacy look update omits look2. Keep the chibi look already stored. An explicit look2 replaces or clears it. */
 export function applyLook(prev: Look | null | undefined, incoming: unknown): Look {
   const next = cleanLook(incoming);
   if (prev?.look2 && !(incoming && typeof incoming === 'object' && 'look2' in incoming)) next.look2 = prev.look2;
+  // An old client's look update omits costume. Keep the one she already wears.
+  if (prev?.costume && !(incoming && typeof incoming === 'object' && 'costume' in incoming)) next.costume = prev.costume;
+  if (next.costume === '') delete next.costume;
   return next;
 }
 function cleanCharacter(c: any): Character | null {
@@ -890,8 +897,8 @@ export interface HouseFull extends HouseMeta { state: GameState }
 export type Bubble = { kind: 'phrase' | 'emote'; v: number } | { kind: 'text'; v: string };
 
 export type ClientMsg =
-  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number }
-  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number }
+  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; cos?: number }
+  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; cos?: number }
   | { t: 'dog'; dog: Dog | null }
   | { t: 'fx'; fx: Fx }
   | { t: 'ranch'; o: RanchOp }
@@ -910,7 +917,7 @@ export type ClientMsg =
 
 export type ServerMsg =
   | { t: 'joined'; token: string; pid: string }
-  | { t: 'welcome'; pid: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[]; sit?: 1; baby?: 1; amb?: 1 }
+  | { t: 'welcome'; pid: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[]; sit?: 1; baby?: 1; amb?: 1; cos?: 1 }
   | { t: 'act'; houseId: string; by: string; cid: number; action: Action }
   | { t: 'nack'; houseId: string; cid: number; reason: string; state?: GameState }
   | { t: 'pres'; pid: string; p: Presence | null }

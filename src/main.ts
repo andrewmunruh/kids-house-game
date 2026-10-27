@@ -27,6 +27,7 @@ import { characterSVG, cradleFrontSVG, handsFor, SIZE_SCALE } from './character'
 import { lookStamp, look2FromLegacy, legacyFromLook2, randomLook2, patchFromLook2, sanitizeLook2, type Look2 } from './shared/avatar';
 import { stampAvatar, richAvatars } from './avatar/motion';
 import { avatarSheetHTML, avatarAct, avatarIntroPending, markAvatarIntro } from './avatar/sheet';
+import { cleanCostume } from './shared/costume';
 import { chibiRideLeg } from './avatar/ride';
 import { sfx, setSound } from './sound';
 import { setAmbientMusic, primeAmbientMusic } from './ambientMusic';
@@ -1970,6 +1971,12 @@ $('sheet').addEventListener('click', e => {
   if (act !== 'delc') confirmDelete = false;
   if (act && act.indexOf('av-') === 0) {
     const cur = id === ME ? myLook() : store.get().characters.find(x => x.id === id);
+    if (act === 'av-costume') {
+      if (cur && !cur.look2) ensureLook(id);
+      const now = id === ME ? myLook() : store.get().characters.find(x => x.id === id);
+      updateChar(id, { costume: (cleanCostume(v) ?? null) as never, ...(now?.look2 ? { look2: now.look2 } : {}), size: now?.size ?? 'kid' });
+      sfx.sparkle(); renderSheet(); bounce(document.querySelector('.avStage')); return;
+    }
     if (act === 'av-surprise') {
       updateChar(id, { ...patchFromLook2(randomLook2()), size: cur?.size ?? 'kid' });
       sfx.sparkle(); renderSheet(); bounce(document.querySelector('.avStage')); return;

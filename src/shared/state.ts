@@ -1,6 +1,7 @@
 import { isPowerable } from './ambient';
 import { storeKey } from './storekey';
 import { sanitizeLook2, withRandomStarter, type Look2 } from './avatar';
+import { cleanCostume } from './costume';
 // All game state is plain serializable JSON. All changes go through `Action`s
 // so a future multiplayer server can validate/relay the same actions.
 import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plot, type RanchOp } from './ranch';
@@ -79,6 +80,8 @@ export interface Character {
   skin: string; hair: string; hairStyle: number; shirt: string; pants: string;
   size: CharSize; acc: number;          // accessory: 0 none, 1 bow, 2 glasses, 3 cap
   look2?: Look2;                     // chibi maker. Missing means the classic drawing.
+  /** Halloween costume overlay (shared/costume.ts). Missing means no costume. Old clients keep and ignore it. */
+  costume?: string;
   room: RoomId; x: number; y: number; flip: boolean;
   /** Items held in each hand travel with the character (x/y of a held item are ignored). */
   held: { left: PlacedItem | null; right: PlacedItem | null };
@@ -143,7 +146,7 @@ export type Action =
   | { type: 'room/wallTile'; room: RoomId; tile: string | null }
   | { type: 'room/floorTile'; room: RoomId; tile: string | null }
   | { type: 'char/add'; char: Character }
-  | { type: 'char/update'; id: string; patch: Partial<Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc' | 'flip'>> & { look2?: Look2 | null } }
+  | { type: 'char/update'; id: string; patch: Partial<Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc' | 'flip'>> & { look2?: Look2 | null; costume?: string | null } }
   | { type: 'char/move'; id: string; room: RoomId; x: number; y: number; seat?: DollSeat | null }
   | { type: 'char/delete'; id: string }
   | { type: 'char/hold'; id: string; hand: Hand; room: RoomId; itemId: string }
@@ -392,9 +395,10 @@ export function reduce(s: GameState, a: Action): GameState {
     case 'room/floorTile': return mapItems(s, a.room, r => ({ ...r, floorTile: a.tile }));
     case 'char/add': return s.characters.length >= MAX_CHARS || s.characters.some(c => c.id === a.char.id) ? s : { ...s, characters: [...s.characters, a.char] };
     case 'char/update': return mapChar(s, a.id, c => {
-      const { look2, ...rest } = a.patch;
+      const { look2, costume, ...rest } = a.patch;
       const next: Character = { ...c, ...rest };
       if ('look2' in a.patch) { if (look2) next.look2 = look2; else delete next.look2; }
+      if ('costume' in a.patch) { const cc = cleanCostume(costume); if (cc) next.costume = cc; else delete next.costume; }
       return next;
     });
     case 'char/move': {
@@ -514,6 +518,7 @@ export function migrate(raw: any): GameState {
       const ch = newCharacter({ ...c, id: String(c.id ?? 'c' + (i + 1)), held: { left: c.held?.left ?? null, right: c.held?.right ?? null } });
       delete ch.look2;
       if (rawLook != null) { const clean = sanitizeLook2(rawLook); if (clean) ch.look2 = clean; }
+      if ('costume' in ch) { const cc = cleanCostume(ch.costume); if (cc) ch.costume = cc; else delete ch.costume; }
       return ch;
     });
   const next = ensureRooms({ ...base, ...s, rooms: { ...base.rooms, ...s.rooms }, characters });

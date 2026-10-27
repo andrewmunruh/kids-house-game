@@ -119,8 +119,8 @@ export class HoodClient {
       this.ws = ws;
       if (prev && prev !== ws) { try { prev.close(); } catch { /* already closed */ } }
       ws.onopen = () => {
-        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1 });
-        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1 });
+        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, cos: 1 });
+        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, cos: 1 });
         else done('notoken');
       };
       ws.onmessage = e => { const m: ServerMsg = JSON.parse(e.data); this.handle(m); if (m.t === 'welcome') { this.armStable(); done('ok'); } if (m.t === 'error') done(m.code + (m.msg ? ':' + m.msg : '')); if (m.t === 'removed') done('removed'); };
