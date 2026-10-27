@@ -1492,6 +1492,27 @@ function renderToolbar(s: GameState) {
     const ay = parseFloat(toolbar.style.top) / 100 * H + dy / sc;
     placeToolbarAnchor(ax, ay);
   }
+  // A painting must stay visible while it is being decorated (its grip is on it): on a tall phone the two-row bar
+  // can end up clamped right over it. Then try the other side and keep whichever covers less of the painting.
+  if (it.kind === 'picture' && it.art) {
+    const pel = layer.querySelector<HTMLElement>(`.item[data-id="${it.id}"]`);
+    const cover = () => { if (!pel) return 0; const a = pel.getBoundingClientRect(), b = toolbar.getBoundingClientRect();
+      return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)); };
+    const c0 = cover();
+    if (c0 > 0) {
+      const keep = { l: toolbar.style.left, t: toolbar.style.top, below: toolbar.classList.contains('below') };
+      toolbar.classList.toggle('below', !keep.below);
+      placeToolbarAnchor(it.x, keep.below ? pieceTop - gap : foot + gap);
+      const b = toolbarScreenBox(), sc = stage.getBoundingClientRect().width / Math.max(1, VIEW_W) || 1;
+      let ex = 0, ey = 0;
+      if (b.left < limits.left) ex = limits.left - b.left;
+      if (b.right + ex > limits.right) ex = limits.right - b.right;
+      if (b.top < limits.top) ey = limits.top - b.top;
+      if (b.bottom + ey > limits.bottom) ey = limits.bottom - b.bottom;
+      if (ex || ey) placeToolbarAnchor(parseFloat(toolbar.style.left) / 100 * W + ex / sc, parseFloat(toolbar.style.top) / 100 * H + ey / sc);
+      if (cover() >= c0) { toolbar.style.left = keep.l; toolbar.style.top = keep.t; toolbar.classList.toggle('below', keep.below); }
+    }
+  }
   const step = itemSizeOf(it.size);
   const at = ITEM_SIZE_STEPS.indexOf(step);
   const smaller = toolbar.querySelector<HTMLButtonElement>('[data-a="smaller"]');

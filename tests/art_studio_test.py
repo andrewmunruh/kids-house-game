@@ -264,7 +264,7 @@ async def wall_piece(mk):
     check('wall: new painting lands clear of the room arrows', await A.evaluate(ARROWS, pid) == [], await A.evaluate(ARROWS, pid))
     if await A.evaluate("document.body.classList.contains('mode-play')"): await A.click('#modeDecorate'); await A.wait_for_timeout(300)
     async def select(pg):
-        if await pg.locator('#artGrip').is_hidden():
+        if not await pg.locator('#artGrip').is_visible():
             bb = await pg.locator(f'.item[data-id="{pid}"]').bounding_box(); await pg.mouse.click(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); await pg.wait_for_timeout(300)
     await select(A)
     g = await A.locator('#artGrip').bounding_box()
@@ -302,6 +302,9 @@ async def wall_piece(mk):
     check('wall: dropped low, it snaps back onto the wall', i3['y'] <= 375, i3)
     check('wall: dropped by the arrow, it moves out from under it', await A.evaluate(ARROWS, pid) == [], await A.evaluate(ARROWS, pid))
     await select(A); await A.screenshot(path=SHOT + 'wallpiece_390x844.png')
+    cov = await A.evaluate("""id => { const a = document.querySelector(`.item[data-id="${id}"]`).getBoundingClientRect(), b = document.getElementById('toolbar').getBoundingClientRect();
+      return Math.round(Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)) / (a.width * a.height) * 100); }""", pid)
+    check('wall 390x844: the toolbar does not cover the selected painting', cov <= 10, f'{cov}% covered')
     await A.set_viewport_size({'width': 1180, 'height': 820}); await A.wait_for_timeout(900); await select(A)
     await A.screenshot(path=SHOT + 'wallpiece_1180x820.png')
     await A.wait_for_timeout(600)
@@ -358,7 +361,7 @@ async def street_more(mk, join, A, B, hid, eA, eB):
         bb = await A.locator(f'.item[data-id="{pid}"]').bounding_box()
         cx, cy = bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2
         await A.mouse.move(cx, cy); await A.mouse.down()
-        for i in range(1, 11): await A.mouse.move(cx + i * 6, cy + i * 2); await A.wait_for_timeout(16)
+        for i in range(1, 11): await A.mouse.move(cx - i * 8, cy + i * 2); await A.wait_for_timeout(16)  # toward the middle (settling keeps it off the arrows)
         await A.mouse.up(); await A.wait_for_timeout(900)
         x1 = (await A.evaluate(ITEM, pid))['x']
         check(f'decorate {tag}: drag re-hangs the painting in a new spot', x1 != x0, [x0, x1])
@@ -369,7 +372,7 @@ async def street_more(mk, join, A, B, hid, eA, eB):
             check(f'decorate {tag}: old client sees the move, art kept', io and io['x'] == x1 and io['art'], io)
         await A.screenshot(path=SHOT + f'decorate_{tag}.png')
         if how == 'toolbar':
-            if await A.locator('#toolbar').is_hidden():
+            if not await A.locator('#toolbar button[data-a="delete"]').is_visible():
                 bb = await A.locator(f'.item[data-id="{pid}"]').bounding_box(); await A.mouse.click(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); await A.wait_for_timeout(300)
             await A.locator('#toolbar button[data-a="delete"]').click()
         else:
