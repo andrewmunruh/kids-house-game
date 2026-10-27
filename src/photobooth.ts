@@ -114,7 +114,7 @@ export async function renderStage(stage: HTMLElement, scale: number): Promise<HT
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 /** The scene inside a soft pastel frame with little stars and hearts (drawn shapes, no art files). */
-export function framePhoto(scene: HTMLCanvasElement, when = new Date()): HTMLCanvasElement {
+export function framePhoto(scene: HTMLCanvasElement, when = new Date(), radius = 0): HTMLCanvasElement {
   const k = scene.width / 600, pad = Math.round(26 * k), foot = Math.round(64 * k);
   const c = document.createElement('canvas'); c.width = scene.width + pad * 2; c.height = scene.height + pad + foot;
   const x = c.getContext('2d')!;
@@ -122,7 +122,9 @@ export function framePhoto(scene: HTMLCanvasElement, when = new Date()): HTMLCan
   x.fillStyle = g; rr(x, 0, 0, c.width, c.height, 30 * k); x.fill();
   x.lineWidth = 5 * k; x.strokeStyle = '#5a3d5c'; rr(x, 2.5 * k, 2.5 * k, c.width - 5 * k, c.height - 5 * k, 28 * k); x.stroke();
   // The stage already wears its own rounded plum border, so the scene drops straight in.
-  x.drawImage(scene, pad, pad);
+  // Clip to the stage's own rounded corners so the page behind them never shows as a pale strip.
+  x.save(); if (radius > 0) { rr(x, pad, pad, scene.width, scene.height, radius); x.clip(); }
+  x.drawImage(scene, pad, pad); x.restore();
   // Confetti dots along the border.
   const cols = ['#ff7aa8', '#ffd166', '#7ec8ff', '#b48cff', '#8ee08e'];
   for (let i = 0; i < 26; i++) { const t = i / 26; const px = t * c.width, py = i % 2 ? pad / 2 : c.height - foot / 2 + ((i % 4) - 1.5) * 8 * k; x.fillStyle = cols[i % 5]; x.beginPath(); x.arc(px + 10 * k, i % 2 ? py : py, 4 * k, 0, Math.PI * 2); x.fill(); }
@@ -141,17 +143,18 @@ function heart(x: CanvasRenderingContext2D, cx: number, cy: number, r: number, f
 }
 
 /** Phones zoom the stage past its frame: keep just the part she can see. */
-function cropToView(full: HTMLCanvasElement, stage: HTMLElement): HTMLCanvasElement {
+function cropToView(full: HTMLCanvasElement, stage: HTMLElement): { c: HTMLCanvasElement, radius: number } {
   const sr = stage.getBoundingClientRect(), wrap = stage.parentElement?.getBoundingClientRect();
-  if (!wrap || !sr.width) return full;
+  const rad = (el: Element | null | undefined, k: number) => el ? (parseFloat(getComputedStyle(el).borderTopRightRadius) || 0) * k : 0;
+  const kx = full.width / (sr.width || 1), ky = full.height / (sr.height || 1);
+  if (!wrap || !sr.width) return { c: full, radius: rad(stage, kx) };
   const l = Math.max(sr.left, wrap.left, 0), t = Math.max(sr.top, wrap.top, 0);
   const r = Math.min(sr.right, wrap.right, innerWidth), b = Math.min(sr.bottom, wrap.bottom, innerHeight);
-  if (r - l >= sr.width - 2 && b - t >= sr.height - 2) return full;
-  if (r <= l || b <= t) return full;
-  const kx = full.width / sr.width, ky = full.height / sr.height;
+  if (r - l >= sr.width - 2 && b - t >= sr.height - 2) return { c: full, radius: rad(stage, kx) };
+  if (r <= l || b <= t) return { c: full, radius: rad(stage, kx) };
   const c = document.createElement('canvas'); c.width = Math.round((r - l) * kx); c.height = Math.round((b - t) * ky);
   c.getContext('2d')!.drawImage(full, (l - sr.left) * kx, (t - sr.top) * ky, c.width, c.height, 0, 0, c.width, c.height);
-  return c;
+  return { c, radius: rad(stage.parentElement, kx) };
 }
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 let busy = false;
@@ -164,7 +167,7 @@ export async function takePhoto(stage: HTMLElement, onSound?: () => void): Promi
     const flash = document.createElement('div'); flash.className = 'pbFlash' + (reduced() ? ' soft' : ''); document.body.appendChild(flash);
     onSound?.();
     setTimeout(() => flash.remove(), 700);
-    const framed = framePhoto(cropToView(await scenePromise, stage));
+    const view = cropToView(await scenePromise, stage); const framed = framePhoto(view.c, new Date(), view.radius);
     const blob = await new Promise<Blob | null>(r => framed.toBlob(r, 'image/png'));
     if (!blob) return;
     showPreview(blob);

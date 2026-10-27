@@ -10,11 +10,12 @@ SETUP = """(spots) => { const s = __store, st = s.get(), room = 'living';
   st.characters.forEach(c => s.dispatch({type:'char/delete', id:c.id}));
   if (st.currentRoom !== room) s.dispatch({type:'room/switch', room});
   s.dispatch({type:'item/add', room, item:{id:'pt-rp', kind:'pack:cc-record-player', x:540, y:560, flip:false, z:40, scale:1}});
-  s.dispatch({type:'item/add', room, item:{id:'pt-ted', kind:'teddy', x:820, y:640, flip:false, z:41, scale:1}});
+  s.dispatch({type:'item/add', room, item:{id:'pt-ted', kind:'teddy', x:820, y:560, flip:false, z:41, scale:1}});
   const base = {skin:'#f2c9a0', hair:'#5a3d2b', hairStyle:1, shirt:'#ff7eb3', pants:'#6b8cff', size:'kid', acc:0, flip:false, held:{left:null, right:null}, room};
   spots.forEach(([cx, cy], i) => s.dispatch({type:'char/add', char:{...base, id:'ptd' + i, x:cx, y:cy, hairStyle:i, shirt:['#ff7eb3','#7ec8ff','#b48cff','#8ee08e'][i]}}));
   s.dispatch({type:'item/power', room, id:'pt-rp', on:true}); __cam.set(150); }"""
-SPOTS = [(380, 640), (700, 640), (470, 585), (620, 590)]
+# The usual floor band: new dolls spawn at y 520-560 (feet), and the room floor ends at ROOM_H = 600.
+SPOTS = [(380, 545), (700, 550), (470, 520), (620, 525)]
 async def main():
     async with async_playwright() as p:
         b = await p.webkit.launch(); ok = True

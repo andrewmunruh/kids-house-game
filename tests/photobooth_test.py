@@ -7,13 +7,45 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from party_shots import SETUP, SPOTS
 WEB = os.environ.get('WEB', 'http://localhost:5770').rstrip('/') + '/kids-house-game/'
 SHOT = os.environ.get('PARTY_SHOTS', '/workspace/t-party-shots/'); os.makedirs(SHOT, exist_ok=True)
+EDGE = """() => { const s = __store, room = s.get().currentRoom, stage = document.getElementById('stage'), wr = document.getElementById('world').getBoundingClientRect();
+  const sr = stage.getBoundingClientRect(), wrap = stage.parentElement.getBoundingClientRect(), right = Math.min(sr.right, wrap.right, innerWidth);
+  const x = Math.round((right - wr.left) * 2400 / wr.width) - 70;
+  s.dispatch({type:'char/add', char:{skin:'#c98e64', hair:'#2b1d14', hairStyle:2, shirt:'#ffd166', pants:'#6b8cff', size:'kid', acc:0, flip:true, held:{left:null, right:null}, room, id:'ptedge', x, y:598}}); }"""
+# Every doll she can partly see on screen must be fully inside the visible stage (what the photo captures).
+INFRAME = """() => { const stage = document.getElementById('stage'), sr = stage.getBoundingClientRect(), w = stage.parentElement.getBoundingClientRect();
+  const v = {l: Math.max(sr.left, w.left, 0), t: Math.max(sr.top, w.top, 0), r: Math.min(sr.right, w.right, innerWidth), b: Math.min(sr.bottom, w.bottom, innerHeight)};
+  const out = [...document.querySelectorAll('.char')].map(e => [e.dataset.id || e.id, e.getBoundingClientRect()]).filter(([, r]) => r.right > v.l && r.left < v.r)
+    .filter(([, r]) => r.left < v.l - 1 || r.right > v.r + 1 || r.top < v.t - 1 || r.bottom > v.b + 1).map(([id, r]) => [id, Math.round(r.right - v.r), Math.round(r.bottom - v.b)]);
+  return {ok: out.length === 0, cut: out}; }"""
+def check_photo(photo, screen):
+    """flush: the picture meets the frame with no pale strip; diff: the picture matches the on-screen stage."""
+    from PIL import Image, ImageChops, ImageStat
+    im = Image.open(photo).convert('RGB'); W, H = im.size
+    # Scene rect inside the frame: scan the middle row and column for the plum stage border.
+    plum = lambda p: abs(p[0] - 90) < 14 and abs(p[1] - 61) < 14 and abs(p[2] - 92) < 14
+    row = [plum(im.getpixel((x, H // 2))) for x in range(W)]; col = [plum(im.getpixel((W // 2, y))) for y in range(H)]
+    l = row.index(True, 12); r = W - 1 - row[::-1].index(True, 12); t = col.index(True, 12)
+    b = max(y for y in range(int(H * .7), int(H * .97)) if col[y])
+    # Just outside each picture corner (diagonally past the rounded border) must be frame gradient, not a pale page strip.
+    def pale(p): return min(p) > 200 and max(p) - min(p) < 40 and not (p[0] > 240 and p[2] < 225)
+    ok = True
+    for (x, y) in [(r + 2, t + 2), (r + 2, b - 2), (l - 2, b - 2), (r - 3, b + 2), (l + 3, b + 2), (r - 3, t - 2)]:
+        a = im.getpixel((x, y)); z = im.getpixel((min(W - 1, x + (6 if x > W / 2 else -6)), y))
+        if sum(abs(a[i] - z[i]) for i in range(3)) > 30: ok = False
+    sc = Image.open(screen).convert('RGB').resize((r - l + 1, b - t + 1)); pic = im.crop((l, t, r + 1, b + 1))
+    diff = sum(ImageStat.Stat(ImageChops.difference(sc, pic)).mean) / 3
+    return ok, diff
 async def run(b, w, h, party):
     c = await b.new_context(viewport={'width': w, 'height': h}, device_scale_factor=2, has_touch=True)
     await c.add_init_script(SKIP_WN); pg = await c.new_page(); errs = []; pg.on('pageerror', lambda e: errs.append(str(e))); pg.on('console', lambda m: print('console', m.type, m.text[:300]))
     await pg.goto(WEB); await pg.wait_for_selector('#stage'); await pg.wait_for_timeout(600)
     await pg.click('#modePlay')
-    if party: await pg.evaluate(SETUP, SPOTS)
+    if party:
+        await pg.evaluate(SETUP, SPOTS); await pg.wait_for_timeout(300)
+        # One more doll at the right/bottom of what she can see: feet on the floor's last row (ROOM_H = 600).
+        await pg.evaluate(EDGE)
     await pg.wait_for_timeout(1500)
+    inframe = await pg.evaluate(INFRAME)
     reqs = []; pg.on('request', lambda r: reqs.append((r.method, r.url)))
     tag = f"{w}x{h}" + ('-party' if party else '')
     await pg.locator('#stage').screenshot(path=f"{SHOT}screen-{tag}.png")
@@ -23,16 +55,18 @@ async def run(b, w, h, party):
     data = await pg.evaluate("async () => { const r = await fetch(document.querySelector('.pbImg').src); const b = await r.blob(); return await new Promise(res => { const f = new FileReader(); f.onload = () => res(f.result); f.readAsDataURL(b); }); }")
     open(f"{SHOT}photo-{tag}.png", 'wb').write(base64.b64decode(data.split(',')[1]))
     await pg.screenshot(path=f"{SHOT}card-{tag}.png")
+    flush, diff = check_photo(f"{SHOT}photo-{tag}.png", f"{SHOT}screen-{tag}.png")
     async with pg.expect_download(timeout=5000) as dl: await pg.click('.pbSave')  # no Web Share in desktop WebKit: download fallback
     d = await dl.value
     await pg.click('.pbClose'); closed = await pg.locator('.pbCard').count() == 0
     bad = [r for r in reqs if r[0] != 'GET' or not r[1].startswith(WEB.split('/kids')[0]) ]
     bad = [r for r in bad if not r[1].startswith('blob:') and not r[1].startswith('data:')]
+    print(tag, 'dolls in frame', inframe, 'flush', flush, 'photo-vs-screen diff', round(diff, 1))
     print(tag, 'menu row visible', vis, 'download', d.suggested_filename, 'closed', closed, 'off-box/non-GET requests', bad, 'errors', errs)
-    await c.close(); return vis and closed and not bad and not errs
+    await c.close(); return vis and closed and not bad and not errs and inframe['ok'] and flush and diff < 18
 async def main():
     async with async_playwright() as p:
         b = await p.webkit.launch(); ok = True
-        for (w, h, party) in [(820, 1180, True), (820, 1180, False), (844, 390, True)]: ok &= await run(b, w, h, party)
+        for (w, h, party) in [(820, 1180, True), (820, 1180, False), (844, 390, True), (390, 844, True)]: ok &= await run(b, w, h, party)
         await b.close(); print('PHOTOBOOTH', 'PASS' if ok else 'FAIL'); sys.exit(0 if ok else 1)
 asyncio.run(main())
