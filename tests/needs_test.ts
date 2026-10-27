@@ -54,6 +54,7 @@ check('drift floors at 0', reduce(s, { type: 'need/drift', id: 'd1', need: 'slee
 const back = reduce(reduce(dr, { type: 'char/move', id: 'd1', room: 'bedroom', x: bed.x, y: bed.y, seat: { item: bed.id, pose: 'lie', n: 0 } }), { type: 'need/meet', id: 'd1', need: 'sleepy' });
 check('all cozy again: needs key is gone', !('needs' in back.characters[0]));
 check('a cat and the baby never get needs', !JSON.stringify(reduce(dr, { type: 'baby/meet', now: 1 }).baby ?? {}).includes('needs'));
+check('no creator field anywhere after drift and care', !/creator/i.test(JSON.stringify(dr) + JSON.stringify(back)));
 check('nothing drifts while closed: no time-based reducer exists (48h later, same state)', JSON.stringify(migrate(JSON.parse(JSON.stringify(dr)))) === JSON.stringify(migrate(dr)));
 check('driftPick is deterministic and picks a full need', JSON.stringify(driftPick(allFull, 0)) === JSON.stringify(driftPick(allFull, 0)) && levelOf(allFull.characters[0], driftPick(allFull, 0)!.need) === 3);
 const bare = { ...allFull, rooms: Object.fromEntries(Object.entries(allFull.rooms).map(([k, r]) => [k, { ...r, items: [] }])) } as GameState;
