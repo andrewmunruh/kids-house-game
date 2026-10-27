@@ -48,7 +48,7 @@ export function artUrl(id: string): string | null {
 }
 
 /** Frame + painting, viewBox 0 0 100 100 (the picture footprint). No url = soft paper placeholder. */
-export function framedSvg(frame: number, url: string | null): string {
+export function framedSvg(frame: number, url: string | null, wire = true): string {
   const f = FRAMES[frame] ?? 'wood';
   const st = `stroke="${O}" stroke-width="3" stroke-linejoin="round"`;
   let body = '';
@@ -59,5 +59,6 @@ export function framedSvg(frame: number, url: string | null): string {
   const pic = url
     ? `<image href="${url}" x="13" y="25" width="74" height="55.5" preserveAspectRatio="none"/>`
     : `<rect x="13" y="25" width="74" height="55.5" fill="#fff6ea"/><circle cx="40" cy="50" r="5" fill="#ffc8dd"/><circle cx="55" cy="56" r="4" fill="#bde0fe"/><circle cx="62" cy="44" r="3.5" fill="#fff3b0"/>`;
-  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M38 18 L50 7 L62 18" fill="none" stroke="${O}" stroke-width="2"/><circle cx="50" cy="7" r="2.4" fill="${O}"/>${body}${pic}<rect x="13" y="25" width="74" height="55.5" fill="none" stroke="${O}" stroke-width="1.6"/></svg>`;
+  const hanger = wire ? `<path d="M38 18 L50 7 L62 18" fill="none" stroke="${O}" stroke-width="2"/><circle cx="50" cy="7" r="2.4" fill="${O}"/>` : '';
+  return `<svg viewBox="${wire ? '0 0 100 100' : '4 16 92 74'}" xmlns="http://www.w3.org/2000/svg">${hanger}${body}${pic}<rect x="13" y="25" width="74" height="55.5" fill="none" stroke="${O}" stroke-width="1.6"/></svg>`;
 }

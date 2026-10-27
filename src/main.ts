@@ -993,21 +993,29 @@ function hungArt(s: GameState): Set<string> {
 }
 const STAMPS: StampSrc[] = [
   ...['Heart', 'Star', 'Flower', 'Kitty', 'Rainbow', 'Sparkle'].map((name, i) => ({ name, svg: STICKER[i] })),
-  ...['dog', 'bunny', 'fish', 'flowers', 'balloon'].filter(k => ITEM_MAP[k]).map(k => ({ name: ITEM_MAP[k].name, svg: `<svg viewBox="${ITEM_MAP[k].vb ?? '0 0 100 100'}" xmlns="http://www.w3.org/2000/svg">${ITEM_MAP[k].svg}</svg>` })),
+  ...['dog', 'bunny', 'fish', 'flowers', 'balloon', 'cake'].filter(k => ITEM_MAP[k]).map(k => ({ name: ITEM_MAP[k].name, svg: `<svg viewBox="${ITEM_MAP[k].vb ?? '0 0 100 100'}" xmlns="http://www.w3.org/2000/svg">${ITEM_MAP[k].svg}</svg>` })),
 ];
 function openArtStudio() {
   if (view !== 'house') { toast('The Art Studio is at home. Pop inside to paint!'); return; }
   if (!canEdit()) { toast('Paint at home, or in a friend\'s open house!'); return; }
   openStudio({ stamps: STAMPS, sfx, onSave: (data, frame) => hangPainting(data, frame) });
 }
+/** Online, a painting waits for the street's OK before it goes on the wall, so a refused one never leaves an empty frame. */
+const pendingArt = new Map<string, { houseId: string; room: RoomId; frame: number; x: number }>();
 function hangPainting(data: string, frame: number) {
   const id = 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const s = store.get(); const room = s.currentRoom;
   putArt(id, data);
-  if (hood && inner !== local && currentHouseId) hood.saveArt(currentHouseId, id, data);
-  else saveLocalArt(id, data, hungArt(s));
+  // Hang it in the open middle of the view, clear of the left/right room arrows (they sit ~80 stage px in).
+  const half = ITEM_MAP.picture.w / 2, safe = Math.max(0, VIEW_W / 2 - 96 - half);
+  const x = Math.max(half, Math.min(W - half, camX + VIEW_W / 2 + (Math.random() - .5) * Math.min(120, safe * 2)));
+  if (hood && inner !== local && currentHouseId) { pendingArt.set(id, { houseId: currentHouseId, room, frame, x }); hood.saveArt(currentHouseId, id, data); return; }
+  saveLocalArt(id, data, hungArt(s));
+  placePainting(room, id, frame, x);
+}
+function placePainting(room: RoomId, art: string, frame: number, x: number) {
   const def = ITEM_MAP.picture;
-  const item: PlacedItem = { id: newId('picture'), kind: 'picture', x: camX + VIEW_W / 2 + (Math.random() - .5) * 120, y: Math.min(WALL_BOTTOM, 200 + hOf(def) / 2), flip: false, z: 0, scale: 1, art: id, ...(frame ? { frame } : {}) };
+  const item: PlacedItem = { id: newId('picture'), kind: 'picture', x, y: Math.min(WALL_BOTTOM, 200 + hOf(def) / 2), flip: false, z: 0, scale: 1, art, ...(frame ? { frame } : {}) };
   store.dispatch({ type: 'item/add', room, item });
   selected = item.id; renderItems(store.get());
   const el = layer.querySelector(`.item[data-id="${item.id}"]`); bounce(el); sparkleAt(el); sfx.sparkle();
@@ -2886,10 +2894,15 @@ function enterNeighborhood(client: HoodClient) {
   client.on('pres', () => { if (hood !== client) return; view === 'street' ? renderMapFaces() : view === 'park' ? renderParkAvatars() : view === 'ranch' ? renderRanchAvatars() : view === 'gameroom' ? renderGamePeople() : renderAvatars(); });
   client.on('art', (houseId: string, arts: Record<string, string>) => {
     if (hood !== client || !arts || typeof arts !== 'object') return;
-    for (const [id, d] of Object.entries(arts)) putArt(id, d);
+    for (const [id, d] of Object.entries(arts)) {
+      putArt(id, d);
+      const p = pendingArt.get(id); if (!p) continue;
+      pendingArt.delete(id);
+      if (view === 'house' && p.houseId === currentHouseId) placePainting(p.room, id, p.frame, p.x);
+    }
     if (view === 'house' && houseId === currentHouseId) renderItems(store.get());
   });
-  client.on('artFail', (_h: string, _id: string, r: string) => { if (hood !== client) return; if (r === 'full') toast('Your walls are full of art! Take one down to hang a new one.'); else if (r === 'streetfull') toast('The street is full of art! Take one down to hang a new one.'); });
+  client.on('artFail', (_h: string, id: string, r: string) => { if (hood !== client) return; pendingArt.delete(id); if (r === 'full') toast('Your walls are full of art! Take one down to hang a new one.'); else if (r === 'streetfull') toast('The street is full of art! Take one down to hang a new one.'); else if (r === 'slow') toast('So much art! Wait a moment, then hang it again.'); else if (r === 'locked') toast('This house is closed right now. Paint at home!'); });
   client.on('ranch', () => { if (hood === client && view === 'ranch') renderPlots(true); });
   client.on('ranchFail', (r: string) => { if (hood === client) ranchFailToast(r); });
   client.on('noride', () => { if (hood !== client) return; const p = myPres(); if (p?.ride !== undefined) { const { ride: _r, ...q } = p; setMyPres(q); renderRanchAvatars(); } toast('Someone is riding that horse!'); });
@@ -3011,6 +3024,8 @@ function uploadLocalArt(c: HoodClient, house: GameState) {
   const hid = c.myHouseId(); if (!hid) return;
   let n = 0;
   for (const id of hungArt(house)) { const d = artData(id); if (d && n++ < PAINT_PER_HOUSE) c.saveArt(hid, id, d); }
+  // Over the cap: the extras keep their frames (friends see a placeholder) and she hears why.
+  if (n > PAINT_PER_HOUSE) toast(`Your first ${PAINT_PER_HOUSE} paintings came along. The rest stay safe on this iPad!`);
 }
 async function connectJoin(url: string, code: string, id: string, nickname: string, bring: boolean | undefined) {
   const s = local.get(); const meChar = s.characters[0];
@@ -3460,7 +3475,7 @@ function onPlaceTap(id: string) {
 function onPlayTap(el: HTMLElement, id: string) {
   const s = store.get();
   const it = s.rooms[s.currentRoom]?.items.find(i => i.id === id); if (!it) return;
-  if (it.art) { sfx.click(); zoomPainting(framedSvg(it.frame ?? 0, artUrl(it.art))); return; }
+  if (it.art) { sfx.click(); zoomPainting(framedSvg(it.frame ?? 0, artUrl(it.art), false)); return; }
   const g = playGesture(it.kind);
   el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle');
   sfx.click();
