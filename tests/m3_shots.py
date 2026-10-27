@@ -13,7 +13,7 @@ def check(name, ok, extra=''):
 # name, items [(kind,x,y,on)], dolls [(x,y,seat_item_index or None)], extra js, expected classes
 SCENES = [
   ('piano-play', [('pack:piano', 540, 560, False)], [(560, 600, None), (760, 620, None)], "tapKeys(0)", ['amb-play', 'amb-listen']),
-  ('keyboard-play', [('pack:keyboard', 540, 560, False)], [(620, 580, None)], "tapKeys(0)", ['amb-play']),
+  ('keyboard-play', [('pack:keyboard', 540, 560, False)], [(630, 570, None)], "tapKeys(0)", ['amb-play']),
   ('stove-stir', [('stove', 540, 540, False)], [(600, 600, None)], "openItem(0)", ['amb-stir']),
   ('aquarium-look', [('pack:aquarium', 540, 540, False)], [(420, 620, None), (690, 620, None)], "", ['amb-look']),
   ('fountain-look', [('pack:pink-fountain', 540, 560, False)], [(420, 620, None)], "", ['amb-look']),
@@ -36,7 +36,7 @@ SETUP = """([items, dolls]) => { const s = __store, st = s.get(), room = 'living
   const base = {skin:'#f2c9a0', hair:'#5a3d2b', hairStyle:1, shirt:'#ff7eb3', pants:'#6b8cff', size:'kid', acc:0, flip:false, held:{left:null, right:null}, room};
   dolls.forEach(([cx, cy, seat], i) => s.dispatch({type:'char/add', char:{...base, id:'m3d' + i, x:cx, y:cy, hairStyle:i % 4, shirt:['#ff7eb3','#7ec8ff','#b48cff','#ffd166'][i % 4], ...(seat !== null ? {seat:{item:'m3-' + seat, pose: items[seat][0] === 'bed' ? 'lie' : 'sit', n:0}} : {})}}));
   __cam.set(150);
-  window.tapKeys = window.openItem = i => setTimeout(() => { const el = document.querySelector('.item[data-id="m3-' + i + '"]'); const r = el.getBoundingClientRect(); const o = {bubbles:true, clientX:r.left + r.width / 2, clientY:r.top + r.height / 2, pointerId:1, isPrimary:true, pointerType:'touch'};
+  window.tapKeys = window.openItem = i => setTimeout(() => { const el = document.querySelector('.item[data-id="m3-' + i + '"]'); el.style.zIndex = '99999'; const r = el.getBoundingClientRect(); const o = {bubbles:true, clientX:r.left + r.width / 2, clientY:r.top + r.height / 2, pointerId:1, isPrimary:true, pointerType:'touch'};
     el.dispatchEvent(new PointerEvent('pointerdown', o)); el.dispatchEvent(new PointerEvent('pointerup', o)); }, 300);
   window.__pinCat = null;
   // hold her where we put her (her wander is clock-driven and can carry her out of reach)
