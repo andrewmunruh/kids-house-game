@@ -1780,7 +1780,9 @@ function forwardPointer(e: PointerEvent): PointerEvent {
 function onItemPointer(el: HTMLElement, e: PointerEvent) {
   const t = e.target as Element | null;
   const img = t && t.closest ? t.closest('img.artimg') as HTMLImageElement | null : null;
-  if (img && !artSolid(img, e.clientX, e.clientY)) {
+  // A kid's painting fills its frame: the whole picture is grabbable, even where the frame sprite is see-through.
+  const s0 = store.get(), isArt = !!s0.rooms[s0.currentRoom]?.items.find(i => i.id === el.dataset.id)?.art;
+  if (img && !isArt && !artSolid(img, e.clientX, e.clientY)) {
     const next = topHit(e.clientX, e.clientY);
     const item = next?.closest('.item') as HTMLElement | null;
     const ch = next?.closest('.char') as HTMLElement | null;

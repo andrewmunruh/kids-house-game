@@ -40,8 +40,10 @@ STAMPFIT = """() => { const W = innerWidth, H = innerHeight, bad = [], rows = {}
     if (r.left < -1 || r.top < -1 || r.right > W + 1 || r.bottom > H + 1 || !el.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2))) bad.push(el.getAttribute('aria-label')); }
   return {min: Math.round(min), rows: Object.values(rows), bad}; }"""
 
-async def paint(pg, frame=2):
-    await tap(pg, '#btnStudio'); await pg.wait_for_selector('.studio canvas')
+async def paint(pg, frame=2, fab=False):
+    if fab: await pg.locator('#artFab').click()
+    else: await tap(pg, '#btnStudio')
+    await pg.wait_for_selector('.studio canvas')
     box = await pg.locator('.stuPaper canvas').bounding_box()
     X = lambda f: box['x'] + box['width'] * f; Y = lambda f: box['y'] + box['height'] * f
     await pg.locator('.stuColor').nth(4).click()
@@ -214,6 +216,7 @@ async def main():
             pa2 = await A.evaluate(PAINTINGS)
             check('after old client: save keeps art id', [x['art'] for x in pa2] == [pa[0]['art']], pa2)
         await street_more(mk, join, A, B, hid, eA, eB)
+        await wall_piece(mk)
         check('street: no page errors', not eA and not eB, (eA + eB)[:3])
         await b.close()
     bad = [k for k, v in res.items() if not v]
@@ -227,6 +230,116 @@ SAVE12 = """([data, n, hang]) => { const hid = __hood().myHouseId(), s = __store
 
 async def hang_ui(pg, frame=0):
     await paint(pg, frame); await pg.locator('.stuHang').click(); await pg.wait_for_timeout(1500)
+
+ITEMS = "id => { const it = Object.values(__store.get().rooms).flatMap(r => r?.items||[]).find(i => i.id === id); return it ? {x: Math.round(it.x), y: Math.round(it.y), size: it.size || 1, art: it.art || null} : null }"
+RECT = "id => { const e = document.querySelector(`.item[data-id=\"${id}\"]`); if (!e) return null; const b = e.getBoundingClientRect(); return {w: b.width, h: b.height, l: b.left, t: b.top, vw: innerWidth}; }"
+PEN = """([x0, y0, x1, y1]) => { const g = document.getElementById('artGrip'); const o = {pointerType: 'pen', pointerId: 7, isPrimary: true, bubbles: true, pressure: .5};
+  g.dispatchEvent(new PointerEvent('pointerdown', {...o, clientX: x0, clientY: y0}));
+  for (let i = 1; i <= 10; i++) window.dispatchEvent(new PointerEvent('pointermove', {...o, clientX: x0 + (x1 - x0) * i / 10, clientY: y0 + (y1 - y0) * i / 10}));
+  window.dispatchEvent(new PointerEvent('pointerup', {...o, clientX: x1, clientY: y1})); }"""
+
+async def wall_piece(mk):
+    # 8. A hung painting is a normal wall piece: Paint button in the room, move, corner resize (finger + Pencil), persist, 3-client + old-client sync, delete.
+    A, eA = await mk(820, 1180, hood=True)
+    code = (await A.evaluate("fetch(__hood_url() + '/api/create', {method:'POST'}).then(r => r.json())"))['code']
+    async def join2(pg, nick_i):
+        await pg.evaluate("document.querySelector('#btnHood').click()"); await pg.click('[data-m="join"]')
+        await pg.fill('#codeInput', code.lower()); await pg.click('#codeForm button')
+        await pg.click(f'.nicks button[data-nick="{nick_i}"]'); await pg.click('[data-m="fresh"]')
+        await pg.wait_for_selector('body.view-map .mapHouse', timeout=10000)
+    await join2(A, 0)
+    await A.evaluate("document.querySelector('#mapWorld .mapHouse.mine').click()"); await A.wait_for_timeout(1000)
+    hid = await A.evaluate("__hood().myHouseId()")
+    B, eB = await mk(844, 390, hood=True); C, eC = await mk(390, 844, hood=True)
+    await join2(B, 1); await join2(C, 2)
+    O = eO = None
+    if OLDWEB: O, eO = await mk(1180, 820, web=OLDWEB, hood=True); await join2(O, 3)
+    for pg in [x for x in (B, C, O) if x]: await pg.evaluate(GO_HOUSE, hid); await pg.wait_for_timeout(1000)
+    fab = await A.locator('#artFab').bounding_box()
+    check('wall: a Paint button is in the room (not only the menu), big enough', fab and fab['width'] >= 56 and fab['height'] >= 56, fab)
+    await paint(A, 1, fab=True); await A.locator('.stuHang').click(); await A.wait_for_timeout(1500)
+    ps = await A.evaluate(PAINTINGS); check('wall: Paint button opens the studio and the painting hangs', len(ps) == 1, ps)
+    if not ps: return
+    pid = ps[0]['id']
+    check('wall: new painting lands clear of the room arrows', await A.evaluate(ARROWS, pid) == [], await A.evaluate(ARROWS, pid))
+    if await A.evaluate("document.body.classList.contains('mode-play')"): await A.click('#modeDecorate'); await A.wait_for_timeout(300)
+    async def select(pg):
+        if await pg.locator('#artGrip').is_hidden():
+            bb = await pg.locator(f'.item[data-id="{pid}"]').bounding_box(); await pg.mouse.click(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); await pg.wait_for_timeout(300)
+    await select(A)
+    g = await A.locator('#artGrip').bounding_box()
+    check('wall: selected painting shows a corner resize handle >= 44px', g and g['width'] >= 44 and g['height'] >= 44, g)
+    r0 = await A.evaluate(RECT, pid)
+    # finger/mouse: drag the handle out
+    gx, gy = g['x'] + g['width'] / 2, g['y'] + g['height'] / 2
+    await A.mouse.move(gx, gy); await A.mouse.down()
+    for i in range(1, 13): await A.mouse.move(gx + i * 9, gy + i * 7); await A.wait_for_timeout(16)
+    await A.mouse.up(); await A.wait_for_timeout(900)
+    i1 = await A.evaluate(ITEMS, pid); r1 = await A.evaluate(RECT, pid)
+    check('wall: dragging the handle out makes it bigger', i1['size'] > 1 and r1['w'] > r0['w'] * 1.15, [i1, r0, r1])
+    check('wall: resize keeps the shape', abs(r1['w'] / r1['h'] - r0['w'] / r0['h']) < .03, [r0, r1])
+    await A.screenshot(path=SHOT + 'wallpiece_820x1180.png')
+    for pg, nm in [(B, 'iPhone landscape'), (C, 'iPhone portrait')]:
+        await pg.wait_for_timeout(300); it = await pg.evaluate(ITEMS, pid)
+        check(f'wall: {nm} client sees the new size', it and it['size'] == i1['size'] and it['x'] == i1['x'], [it, i1])
+    # Apple Pencil (pointerType pen) at 844x390: drag the handle in
+    await A.set_viewport_size({'width': 844, 'height': 390}); await A.wait_for_timeout(900); await select(A)
+    g = await A.locator('#artGrip').bounding_box(); gx, gy = g['x'] + g['width'] / 2, g['y'] + g['height'] / 2
+    await A.evaluate(PEN, [gx, gy, gx - 70, gy - 50]); await A.wait_for_timeout(800)
+    i2 = await A.evaluate(ITEMS, pid)
+    check('wall: Pencil drag on the handle makes it smaller', i2['size'] < i1['size'], [i1, i2])
+    check('wall: size stays within the kid steps (0.75-1.5)', .75 <= i2['size'] <= 1.5, i2)
+    await A.screenshot(path=SHOT + 'wallpiece_844x390.png')
+    # move: drag the painting itself (portrait phone), it stays on the wall and off the arrows
+    await A.set_viewport_size({'width': 390, 'height': 844}); await A.wait_for_timeout(900)
+    if await A.locator('#phoneOk').is_visible(): await A.click('#phoneOk'); await A.wait_for_timeout(300)
+    bb = await A.locator(f'.item[data-id="{pid}"]').bounding_box(); cx, cy = bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2
+    await A.mouse.move(cx, cy); await A.mouse.down()
+    for i in range(1, 16): await A.mouse.move(cx + i * 30, cy + i * 30); await A.wait_for_timeout(16)  # toward the right arrow and down onto the floor
+    await A.mouse.up(); await A.wait_for_timeout(900)
+    i3 = await A.evaluate(ITEMS, pid)
+    check('wall: dragging moves it', i3['x'] != i2['x'], [i2, i3])
+    check('wall: dropped low, it snaps back onto the wall', i3['y'] <= 375, i3)
+    check('wall: dropped by the arrow, it moves out from under it', await A.evaluate(ARROWS, pid) == [], await A.evaluate(ARROWS, pid))
+    await select(A); await A.screenshot(path=SHOT + 'wallpiece_390x844.png')
+    await A.set_viewport_size({'width': 1180, 'height': 820}); await A.wait_for_timeout(900); await select(A)
+    await A.screenshot(path=SHOT + 'wallpiece_1180x820.png')
+    await A.wait_for_timeout(600)
+    for pg, nm in [(B, 'second'), (C, 'third')]:
+        it = await pg.evaluate(ITEMS, pid)
+        check(f'wall: {nm} client has the same spot and size', it == i3, [it, i3])
+    if O:
+        it = await O.evaluate(ITEMS, pid); rr = await O.evaluate(RECT, pid)
+        check('wall: old 10ef736 client follows the move and keeps the art id', it and it['x'] == i3['x'] and it['art'] == ps[0]['art'], [it, i3])
+        check('wall: old client draws the plain picture at a sane size', rr and 30 < rr['w'] < rr['vw'] * .6 and .9 < rr['w'] / rr['h'] < 2, rr)
+    # persistence: reload, same spot and size
+    await A.reload(); await A.wait_for_timeout(2500)
+    if not await A.evaluate("__ui().view === 'house'"): await A.evaluate("document.querySelector('#mapWorld .mapHouse.mine')?.click()"); await A.wait_for_timeout(1200)
+    i4 = await A.evaluate(ITEMS, pid)
+    check('wall: spot and size survive a reload', i4 == i3, [i4, i3])
+    # delete with the toolbar: gone everywhere
+    if await A.evaluate("document.body.classList.contains('mode-play')"): await A.click('#modeDecorate'); await A.wait_for_timeout(300)
+    await select(A); await A.locator('#toolbar button[data-a="delete"]').click(); await A.wait_for_timeout(1200)
+    gone = [await pg.evaluate(ITEMS, pid) for pg in (A, B, C) + ((O,) if O else ())]
+    check('wall: put away on every client (incl. old)', all(x is None for x in gone), gone)
+    check('wall: handle hides with nothing selected', await A.locator('#artGrip').is_hidden())
+    check('wall: no page errors', not eA and not eB and not eC and not eO, (eA + eB + eC + (eO or []))[:3])
+    for pg in [x for x in (A, B, C, O) if x]: await pg.context.close()
+    # solo (no street): size and spot persist across a reload too
+    S, eS = await mk(1180, 820)
+    await paint(S, 0, fab=True); await S.locator('.stuHang').click(); await S.wait_for_timeout(900)
+    sid = (await S.evaluate(PAINTINGS))[0]['id']
+    if await S.evaluate("document.body.classList.contains('mode-play')"): await S.click('#modeDecorate'); await S.wait_for_timeout(300)
+    if await S.locator('#artGrip').is_hidden():
+        bb = await S.locator(f'.item[data-id="{sid}"]').bounding_box(); await S.mouse.click(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); await S.wait_for_timeout(300)
+    g = await S.locator('#artGrip').bounding_box(); gx, gy = g['x'] + g['width'] / 2, g['y'] + g['height'] / 2
+    await S.mouse.move(gx, gy); await S.mouse.down()
+    for i in range(1, 13): await S.mouse.move(gx + i * 8, gy + i * 6)
+    await S.mouse.up(); await S.wait_for_timeout(800)
+    s1 = await S.evaluate(ITEMS, sid); await S.reload(); await S.wait_for_selector('#stage .char'); await S.wait_for_timeout(800)
+    s2 = await S.evaluate(ITEMS, sid)
+    check('wall solo: resized painting keeps size and spot after reload', s1['size'] > 1 and s2 == s1, [s1, s2])
+    check('wall solo: no page errors', not eS, eS[:3]); await S.context.close()
 
 async def street_more(mk, join, A, B, hid, eA, eB):
     # 4. Decorate tools on a painting, iPad then phone: move it (re-hang in a new spot), put it away, hang a new one.
