@@ -33,6 +33,7 @@ import { setAmbientMusic, primeAmbientMusic } from './ambientMusic';
 import { BEAT_MS, MUSIC_BOX_MS, isFridge, isPowerable, isTub, reactionsFor, roleOf, syncDelayMs, type AmbChar, type AmbItem, type Reaction, type ReactionKind } from './shared/ambient';
 import './ambient.css';
 import { catalogShows, seasonHidden } from './roomfilter';
+import { candyCount, knockTreat, trickOrTreatOn, knockNote } from './candy';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
@@ -2466,6 +2467,26 @@ function portraitPlan(n: number) {
     park: { x: 96, y: 122 }, club: { x: 280, y: 116 }, ranch: { x: 458, y: 120 },
   };
 }
+/** Trick-or-treat: a little pumpkin by each neighbor's door. Her own house never gets one. */
+function knockBtn(h: MapHouse, x: number, y: number, px: (v: number) => string) {
+  if (!h || h.mine || !trickOrTreatOn()) return '';
+  return `<button class="mapKnock" data-knock="${h.id}" aria-label="Knock at ${esc(h.name)} for a treat" style="left:${px(x)};top:${px(y)}"><span>🎃</span></button>`;
+}
+function renderCandyBucket() {
+  const st = $('street'); let b = document.getElementById('candyBucket');
+  if (!trickOrTreatOn()) { b?.remove(); return; }
+  if (!b) { b = document.createElement('div'); b.id = 'candyBucket'; b.className = 'candyBucket'; b.setAttribute('aria-live', 'polite'); st.appendChild(b); }
+  const n = candyCount(localStorage);
+  b.innerHTML = `<span class="pail">🎃</span><b>${n}</b>`; b.setAttribute('aria-label', `${n} treats in your bucket`);
+}
+function knockDoor(btn: HTMLElement) {
+  const { treat } = knockTreat(localStorage);
+  renderCandyBucket(); bounce(btn); sfx.pop();
+  const pop = document.createElement('span'); pop.className = 'treatPop'; pop.textContent = treat; btn.appendChild(pop);
+  setTimeout(() => pop.remove(), 900);
+  const b = document.getElementById('candyBucket'); if (b) bounce(b);
+  if (hood) hood.knock(btn.dataset.knock!);
+}
 function renderMap(force = false) {
   if (view !== 'street') return;
   const w = $('mapWorld');
@@ -2503,7 +2524,7 @@ function renderMap(force = false) {
         : Math.min(plan.w - mw - 4, c.x + hw / 2 + 8);
       const my = Math.max(4, Math.min(plan.h - mh - 4, c.y - hh * 0.42));
       spots += `<button class="mapSpot mapHouse ${h?.mine || !h ? 'mine' : ''}" data-go="${go}" aria-label="${esc(name)}" style="left:${px(c.x - hw / 2)};top:${px(c.y - hh / 2)};width:${px(hw)};height:${px(hh)}">${houseSVG(h ? h.style : 0, { lit: h ? h.lit : true })}${h?.locked ? '<span class="lockBadge">🔒</span>' : ''}${h?.mine || !h ? '<span class="homeBadge">★</span>' : ''}</button>
-        <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>`;
+        <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>${knockBtn(h, leftCol ? c.x + hw / 2 - 30 : c.x - hw / 2 - 10, c.y + hh * 0.12, px)}`;
       signs += `<div class="mapSign ${h?.mine || !h ? 'mine' : ''}" style="left:${px(c.x)};top:${px(c.y + hh / 2 + 2)}">${esc(name)}</div>`;
     });
     const place = (cls: string, go: string, label: string, art: string, x: number, y: number, wd: number, ht: number, signDy: number) => {
@@ -2544,7 +2565,7 @@ function renderMap(force = false) {
       const mx = Math.max(4, Math.min(MAP_W - mw - 4, c.x + hw / 2 + slop));
       const my = Math.max(4, Math.min(MAP_H - mh - 4, c.y - hh * 0.22));
       spots += `<button class="mapSpot mapHouse ${h?.mine || !h ? 'mine' : ''}" data-go="${go}" aria-label="${esc(name)}" style="left:${px(c.x - hw / 2)};top:${px(c.y - hh / 2)};width:${px(hw)};height:${px(hh)}">${houseSVG(h ? h.style : 0, { lit: h ? h.lit : true })}${h?.locked ? '<span class="lockBadge">🔒</span>' : ''}${h?.mine || !h ? '<span class="homeBadge">★</span>' : ''}</button>
-        <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>`;
+        <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>${knockBtn(h, Math.max(4, c.x - hw / 2 - 40 / sc), c.y - hh * 0.05, px)}`;
       signs += `<div class="mapSign ${h?.mine || !h ? 'mine' : ''}" style="left:${px(c.x)};top:${px(c.y + hh / 2 - 2)}">${esc(name)}</div>`;
     });
     spots += `<button class="mapSpot mapPark" data-go="park" aria-label="The park" style="left:${px(PARK.x - 100)};top:${px(PARK.y - 85)};width:${px(200)};height:${px(170)}">${parkMiniSVG}</button>`;
@@ -2558,6 +2579,7 @@ function renderMap(force = false) {
     clip.insertAdjacentHTML('beforeend', mapTreesSVG(taken, onRoad) + spots + '<div class="mapFaces" id="mapFaces"></div>');
   }
   w.insertAdjacentHTML('beforeend', signs);
+  renderCandyBucket();
   renderMapFaces();
   placeMap(sc);
 }
@@ -2767,6 +2789,8 @@ function openMailbox(id: string) {
 }
 $('mapWorld').addEventListener('click', e => {
   const t = e.target as HTMLElement; if (view !== 'street') return;
+  const kn = t.closest<HTMLElement>('.mapKnock');
+  if (kn) { knockDoor(kn); return; }
   const box = t.closest<HTMLElement>('.mapMail');
   if (box) { openMailbox(box.dataset.mail || 'home'); return; }
   const f = t.closest<HTMLElement>('.mapFace');
@@ -2838,6 +2862,7 @@ function enterNeighborhood(client: HoodClient) {
   client.on('noride', () => { if (hood !== client) return; const p = myPres(); if (p?.ride !== undefined) { const { ride: _r, ...q } = p; setMyPres(q); renderRanchAvatars(); } toast('Someone is riding that horse!'); });
   client.on('fx', (pid: string, fx: Fx) => { if (hood === client) onFx(pid, fx); });
   client.on('bubble', (pid: string, b: Bubble) => { if (hood === client) showBubble(pid, b); });
+  client.on('knocked', (_houseId: string, name: string) => { if (hood === client) toast(knockNote(name)); });
   client.on('sayFail', (r: string) => toast(r === 'presetsOnly' ? 'Typing is turned off: pick a bubble!' : FILTER_MSG[r] || "Couldn't send that"));
   client.on('mailbox', () => { if (hood !== client) return; if (view === 'street') renderMap(true); syncMailCue(); mailUI.refresh(); paintBadges(); });
   client.on('mailFail', (r: string) => { if (hood === client) mailUI.fail(r); });

@@ -890,8 +890,10 @@ export interface HouseFull extends HouseMeta { state: GameState }
 export type Bubble = { kind: 'phrase' | 'emote'; v: number } | { kind: 'text'; v: string };
 
 export type ClientMsg =
-  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number }
-  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number }
+  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; halloween?: number }
+  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; halloween?: number }
+  /** Trick-or-treat (join flag halloween:1). Nothing is stored; the owner sees a note if she is online. */
+  | { t: 'knock'; houseId: string }
   | { t: 'dog'; dog: Dog | null }
   | { t: 'fx'; fx: Fx }
   | { t: 'ranch'; o: RanchOp }
@@ -919,6 +921,8 @@ export type ServerMsg =
   | { t: 'settings'; settings: StreetSettings }
   | { t: 'bubble'; pid: string; b: Bubble }
   | { t: 'fx'; pid: string; fx: Fx }
+  /** Sent only to a house owner who said halloween:1. `name` is the knocker's first name. */
+  | { t: 'knocked'; houseId: string; name: string }
   | { t: 'ranch'; plots: (Plot | null)[]; now: number }
   | { t: 'ranchFail'; reason: string; plots: (Plot | null)[]; now: number }
   | { t: 'noride'; ride: number }
