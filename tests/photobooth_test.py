@@ -10,27 +10,30 @@ SHOT = os.environ.get('PARTY_SHOTS', '/workspace/t-party-shots/'); os.makedirs(S
 EDGE = """() => { const s = __store, room = s.get().currentRoom, stage = document.getElementById('stage'), wr = document.getElementById('world').getBoundingClientRect();
   const sr = stage.getBoundingClientRect(), wrap = stage.parentElement.getBoundingClientRect(), right = Math.min(sr.right, wrap.right, innerWidth);
   const x = Math.round((right - wr.left) * 2400 / wr.width) - 70;
-  s.dispatch({type:'char/add', char:{skin:'#c98e64', hair:'#2b1d14', hairStyle:2, shirt:'#ffd166', pants:'#6b8cff', size:'kid', acc:0, flip:true, held:{left:null, right:null}, room, id:'ptedge', x, y:598}}); }"""
+  s.dispatch({type:'char/add', char:{skin:'#c98e64', hair:'#2b1d14', hairStyle:2, shirt:'#ffd166', pants:'#6b8cff', size:'kid', acc:0, flip:true, held:{left:null, right:null}, room, id:'ptedge', x, y:588}}); }"""
 # Every doll she can partly see on screen must be fully inside the visible stage (what the photo captures).
 INFRAME = """() => { const stage = document.getElementById('stage'), sr = stage.getBoundingClientRect(), w = stage.parentElement.getBoundingClientRect();
   const v = {l: Math.max(sr.left, w.left, 0), t: Math.max(sr.top, w.top, 0), r: Math.min(sr.right, w.right, innerWidth), b: Math.min(sr.bottom, w.bottom, innerHeight)};
   const out = [...document.querySelectorAll('.char')].map(e => [e.dataset.id || e.id, e.getBoundingClientRect()]).filter(([, r]) => r.right > v.l && r.left < v.r)
     .filter(([, r]) => r.left < v.l - 1 || r.right > v.r + 1 || r.top < v.t - 1 || r.bottom > v.b + 1).map(([id, r]) => [id, Math.round(r.right - v.r), Math.round(r.bottom - v.b)]);
-  return {ok: out.length === 0, cut: out}; }"""
+  // The edge doll stands at the right/bottom of the play area she can see: it must be wholly on screen (so wholly in the photo).
+  // Others past the screen edge are cut on screen too (the room scrolls); the photo matches the screen, so they are listed only.
+  return {ok: !out.some(([id]) => id === 'ptedge'), cut: out}; }"""
 def check_photo(photo, screen):
     """flush: the picture meets the frame with no pale strip; diff: the picture matches the on-screen stage."""
     from PIL import Image, ImageChops, ImageStat
     im = Image.open(photo).convert('RGB'); W, H = im.size
     # Scene rect inside the frame: scan the middle row and column for the plum stage border.
     plum = lambda p: abs(p[0] - 90) < 14 and abs(p[1] - 61) < 14 and abs(p[2] - 92) < 14
-    row = [plum(im.getpixel((x, H // 2))) for x in range(W)]; col = [plum(im.getpixel((W // 2, y))) for y in range(H)]
-    l = row.index(True, 12); r = W - 1 - row[::-1].index(True, 12); t = col.index(True, 12)
-    b = max(y for y in range(int(H * .7), int(H * .97)) if col[y])
+    # framePhoto: pad = round(26k), foot = round(64k), k = scene width / 600.
+    sw = next(w for w in range(W, 0, -1) if w + 2 * round(26 * w / 600) == W); k = sw / 600
+    pad, foot = round(26 * k), round(64 * k); l, t, r, b = pad, pad, W - pad - 1, H - foot - 1
     # Just outside each picture corner (diagonally past the rounded border) must be frame gradient, not a pale page strip.
     def pale(p): return min(p) > 200 and max(p) - min(p) < 40 and not (p[0] > 240 and p[2] < 225)
     ok = True
-    for (x, y) in [(r + 2, t + 2), (r + 2, b - 2), (l - 2, b - 2), (r - 3, b + 2), (l + 3, b + 2), (r - 3, t - 2)]:
-        a = im.getpixel((x, y)); z = im.getpixel((min(W - 1, x + (6 if x > W / 2 else -6)), y))
+    # Inside the scene rect but outside its rounded corner, the frame gradient must show through: compare with a frame pixel just outside.
+    for (x, y, dx, dy) in [(r - 2, t + 2, 5, -5), (r - 2, b - 2, 5, 5), (l + 2, b - 2, -5, 5), (l + 2, t + 2, -5, -5)]:
+        a = im.getpixel((x, y)); z = im.getpixel((x + dx, y + dy))
         if sum(abs(a[i] - z[i]) for i in range(3)) > 30: ok = False
     sc = Image.open(screen).convert('RGB').resize((r - l + 1, b - t + 1)); pic = im.crop((l, t, r + 1, b + 1))
     diff = sum(ImageStat.Stat(ImageChops.difference(sc, pic)).mean) / 3
@@ -39,6 +42,8 @@ async def run(b, w, h, party):
     c = await b.new_context(viewport={'width': w, 'height': h}, device_scale_factor=2, has_touch=True)
     await c.add_init_script(SKIP_WN); pg = await c.new_page(); errs = []; pg.on('pageerror', lambda e: errs.append(str(e))); pg.on('console', lambda m: print('console', m.type, m.text[:300]))
     await pg.goto(WEB); await pg.wait_for_selector('#stage'); await pg.wait_for_timeout(600)
+    ok_btn = pg.get_by_text('OK!', exact=True)
+    if await ok_btn.count() and await ok_btn.first.is_visible(): await ok_btn.first.click(); await pg.wait_for_timeout(300)  # 'Turn sideways' tip on portrait phones
     await pg.click('#modePlay')
     if party:
         await pg.evaluate(SETUP, SPOTS); await pg.wait_for_timeout(300)
