@@ -1,6 +1,6 @@
 # Art Studio slice 1: paint, hang, zoom, persist; all 7 sizes; street sync; un-updated 10ef736 client keeps paintings.
 # usage: python tests/art_studio_test.py  (env WEB=http://localhost:5851, OLDWEB=http://localhost:5852, HOOD=http://localhost:5850)
-import asyncio, os, sys
+import re, asyncio, os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from playwright.async_api import async_playwright
 from testnav import SKIP_WN, tap
@@ -14,6 +14,31 @@ res = {}
 def check(name, ok, extra=''):
     res[name] = bool(ok); print(('PASS ' if ok else 'FAIL ') + name + (' ' + str(extra) if extra else ''), flush=True)
 PAINTINGS = "() => Object.values(__store.get().rooms).flatMap(r => (r && r.items || []).filter(i => i.art)).map(i => ({id: i.id, art: i.art, frame: i.frame||0}))"
+
+def pdata(c):
+    # a valid painting blob: the whole paper one palette color (same run-length codec as src/shared/paint.ts)
+    import base64
+    n, out = 256 * 192, []
+    while n > 0:
+        k = min(n, 2056)
+        if k <= 8: out.append(((k - 1) << 4) | c)
+        else: r = k - 9; out += [0x80 | ((r >> 8) << 4) | c, r & 255]
+        n -= k
+    return 'P1' + base64.b64encode(bytes(out)).decode()
+TOASTS = "() => [...document.querySelectorAll('.toast')].map(t => t.textContent)"
+ARROWS = """id => { const e = document.querySelector(`.item[data-id="${id}"]`); if (!e) return 'missing'; const a = e.getBoundingClientRect();
+  return ['nudgeL', 'nudgeR'].filter(n => { const el = document.getElementById(n); if (!el || el.classList.contains('off')) return false; const b = el.getBoundingClientRect();
+    return b.width > 0 && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top; }); }"""
+UX = """() => { const r = e => e.getBoundingClientRect();
+  const tools = [...document.querySelectorAll('.stuTool')].map(e => Math.round(r(e).height));
+  const labels = [...document.querySelectorAll('.stuTool span')].every(s => r(s).width > 8 && s.textContent.trim().length > 2);
+  const c = r(document.querySelector('.studio canvas')), t = r(document.querySelector('.stuTool'));
+  return {tools: Math.min(...tools), labels, band: Math.round(t.top - c.bottom), portrait: innerHeight > innerWidth}; }"""
+STAMPFIT = """() => { const W = innerWidth, H = innerHeight, bad = [], rows = {}; let min = 999;
+  for (const el of document.querySelectorAll('.stuStamp')) { const r = el.getBoundingClientRect(); min = Math.min(min, r.width, r.height);
+    rows[Math.round(r.top)] = (rows[Math.round(r.top)] || 0) + 1;
+    if (r.left < -1 || r.top < -1 || r.right > W + 1 || r.bottom > H + 1 || !el.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2))) bad.push(el.getAttribute('aria-label')); }
+  return {min: Math.round(min), rows: Object.values(rows), bad}; }"""
 
 async def paint(pg, frame=2):
     await tap(pg, '#btnStudio'); await pg.wait_for_selector('.studio canvas')
@@ -34,7 +59,7 @@ async def main():
         b = await p.webkit.launch()
         async def mk(w, h, web=WEB, hood=False):
             c = await b.new_context(viewport={'width': w, 'height': h}, device_scale_factor=2, has_touch=True)
-            await c.add_init_script(SKIP_WN); pg = await c.new_page()
+            await c.add_init_script(SKIP_WN); await c.route(re.compile(r'workers\.dev|github\.io'), lambda r: r.abort()); pg = await c.new_page()
             errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
             await pg.goto(f'{web}/kids-house-game/' + (f'?hood={HOOD}' if hood else '')); await pg.wait_for_selector('#stage .char'); await pg.wait_for_timeout(500)
             return pg, errs
@@ -47,6 +72,7 @@ async def main():
         await P.locator('.stuHang').click(); await P.wait_for_timeout(500)
         ps = await P.evaluate(PAINTINGS)
         check('solo: painting hung as framed picture', len(ps) == 1 and ps[0]['frame'] == 2, ps)
+        check('hang: clear of the room arrows 820x1180', await P.evaluate(ARROWS, ps[0]['id']) == [], await P.evaluate(ARROWS, ps[0]['id']))
         check('studio closed after hanging', await P.locator('.studio').count() == 0)
         await P.evaluate("() => { const b = document.querySelector('#btnDone, .doneBtn'); b && b.click(); }")
         await P.wait_for_timeout(600); await P.reload(); await P.wait_for_selector('#stage .char'); await P.wait_for_timeout(800)
@@ -67,7 +93,9 @@ async def main():
             await P.wait_for_timeout(800); bb = await el.bounding_box()
             await P.touchscreen.tap(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); await P.wait_for_timeout(400)
             z = await P.locator('.paintZoom').count()
-        if z: await P.screenshot(path=SHOT + 'zoom_820x1180.png')
+        if z:
+            await P.screenshot(path=SHOT + 'zoom_820x1180.png')
+            check('zoom: no hanger wire over the room', await P.evaluate("document.querySelector('.paintZoom svg').getAttribute('viewBox')") == '4 16 92 74')
         hit = await P.evaluate("([x, y]) => { const e = document.elementFromPoint(x, y); return e ? (e.closest('.item')?.getAttribute('data-id') || e.className?.baseVal || e.className || e.tagName) : null }", [bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2])
         check('tap a hung painting zooms it big', z == 1, [bb, hit, await P.evaluate("document.body.className")])
         if z: await P.locator('.paintZoom').click(); await P.wait_for_timeout(300)
@@ -97,13 +125,24 @@ async def main():
         await T.locator('.stuUndo').click()
         check('tools: undo brings the stroke back', await T.evaluate(PX, [.25, .6]) != W)
         await T.locator('.stuColor').nth(6).click(); await T.locator('.stuTool[data-tool="fill"]').click()
+        pressed = await T.evaluate("() => [...document.querySelectorAll('.stuTool[data-tool], .stuColor, .stuSize')].filter(b => b.getAttribute('aria-pressed') === 'true').map(b => b.getAttribute('aria-label'))")
+        check('tools: one clear selected tool, color and size', sorted(pressed) == ['Fill', 'Green', 'Size 4'], pressed)
+        icons = await T.evaluate("() => { const q = t => document.querySelector(`.stuTool[data-tool=${t}]`); return [q('fill').textContent.trim(), q('eraser').textContent.trim(), q('fill').querySelector('svg').innerHTML !== q('eraser').querySelector('svg').innerHTML]; }")
+        check('tools: fill and eraser are labeled and look different', icons == ['Fill', 'Eraser', True], icons)
         box = await T.locator('.stuPaper canvas').bounding_box(); await T.mouse.click(box['x'] + box['width'] * .9, box['y'] + box['height'] * .95)
         filled = await T.evaluate(PX, [.95, .05])
         check('tools: fill floods the paper', filled != W and filled == await T.evaluate(PX, [.05, .95]), filled)
         await T.locator('.stuTool[data-tool="stamp"]').click(); await T.locator('.stuStamp').nth(1).click()
         before = await T.evaluate(SUM); await T.mouse.click(box['x'] + box['width'] * .8, box['y'] + box['height'] * .8); await T.wait_for_timeout(400)
         check('tools: stamps come from the game art', await T.locator('.stuStamp').count() >= 6 and await T.evaluate(SUM) != before)
+        await T.wait_for_timeout(200)
+        check('frames: each frame choice shows her painting', await T.locator('.stuFrame image').count() == 4)
+        ink0 = await T.evaluate(INK)
         await T.locator('.stuClear').click()
+        check('clear: asks first', await T.locator('.stuAsk:not(.hidden)').count() == 1 and await T.evaluate(INK) == ink0)
+        await T.locator('.stuAskNo').click()
+        check('clear: Keep it keeps the picture', await T.evaluate(INK) == ink0 and await T.locator('.stuAsk:not(.hidden)').count() == 0)
+        await T.locator('.stuClear').click(); await T.locator('.stuAskYes').click()
         check('tools: clear makes white paper', await T.evaluate(INK) == 0)
         await T.locator('.stuUndo').click()
         check('tools: undo after clear restores', await T.evaluate(INK) > 0)
@@ -119,12 +158,19 @@ async def main():
               const c = document.querySelector('.studio canvas').getBoundingClientRect();
               return {bad, canvas: [Math.round(c.width), Math.round(c.height)], ta: getComputedStyle(document.querySelector('.studio canvas')).touchAction}; }""")
             check(f'studio fits {w}x{h}', not fit['bad'] and fit['canvas'][0] >= 200 and fit['ta'] == 'none', fit)
+            ux = await pg.evaluate(UX)
+            check(f'studio: tools >= 56px, labeled, no empty band {w}x{h}', ux['tools'] >= 56 and ux['labels'] and (not ux['portrait'] or 0 <= ux['band'] <= 40), ux)
+            await pg.locator('.stuTool[data-tool="stamp"]').click(); await pg.wait_for_timeout(150)
+            sf = await pg.evaluate(STAMPFIT)
+            check(f'studio: stamps in a clean grid {w}x{h}', not sf['bad'] and sf['min'] >= 36 and len(set(sf['rows'])) == 1, sf)
+            if (w, h) == (844, 390): await pg.screenshot(path=SHOT + f'stamps_{w}x{h}.png')
             await pg.locator('.stuX').click(); await pg.wait_for_timeout(200)
             check(f'studio closes {w}x{h}', await pg.locator('.studio').count() == 0)
             if (w, h) in [(390, 844), (844, 390)]:
                 await paint(pg, 3); await pg.screenshot(path=SHOT + f'studio_{w}x{h}.png')
                 await pg.locator('.stuHang').click(); await pg.wait_for_timeout(500)
                 pid = (await pg.evaluate(PAINTINGS))[0]['id']
+                check(f'hang: clear of the room arrows {w}x{h}', await pg.evaluate(ARROWS, pid) == [], await pg.evaluate(ARROWS, pid))
                 await pg.locator(f'.item[data-id="{pid}"]').scroll_into_view_if_needed(); await pg.screenshot(path=SHOT + f'hung_{w}x{h}.png')
             check(f'no page errors {w}x{h}', not e, e[:3])
             await pg.context.close()
@@ -167,8 +213,143 @@ async def main():
                 await A.evaluate("document.querySelector('#mapWorld .mapHouse.mine')?.click()"); await A.wait_for_timeout(1200)
             pa2 = await A.evaluate(PAINTINGS)
             check('after old client: save keeps art id', [x['art'] for x in pa2] == [pa[0]['art']], pa2)
+        await street_more(mk, join, A, B, hid, eA, eB)
         check('street: no page errors', not eA and not eB, (eA + eB)[:3])
         await b.close()
     bad = [k for k, v in res.items() if not v]
     print(f'\n{len(res) - len(bad)}/{len(res)} passed' + (' FAILED: ' + ', '.join(bad) if bad else '')); sys.exit(1 if bad else 0)
+ITEM = "id => { const it = Object.values(__store.get().rooms).flatMap(r => r?.items||[]).find(i => i.id === id); return it ? {x: Math.round(it.x), art: it.art || null, kind: it.kind} : null }"
+GO_HOUSE = "h => document.querySelector(`#mapWorld .mapHouse[data-go=\"house:${h}\"]`).click()"
+SAVE12 = """([data, n, hang]) => { const hid = __hood().myHouseId(), s = __store.get(), room = s.currentRoom, ids = [];
+  for (let i = 0; i < n; i++) { const id = 'a' + Date.now().toString(36) + 'f' + i.toString(36).padStart(2, '0'); ids.push(id); __hood().saveArt(hid, id, data);
+    if (hang) __store.dispatch({type: 'item/add', room, item: {id: 'picture-f' + i + Date.now().toString(36), kind: 'picture', x: 200 + i * 90, y: 200, flip: false, z: 0, scale: .6, art: id}}); }
+  return ids; }"""
+
+async def hang_ui(pg, frame=0):
+    await paint(pg, frame); await pg.locator('.stuHang').click(); await pg.wait_for_timeout(1500)
+
+async def street_more(mk, join, A, B, hid, eA, eB):
+    # 4. Decorate tools on a painting, iPad then phone: move it (re-hang in a new spot), put it away, hang a new one.
+    #    B (second client, in A's house) and an un-updated 10ef736 client both follow.
+    O2 = None
+    if OLDWEB:
+        O2, eO2 = await mk(820, 1180, web=OLDWEB, hood=True); await join(O2, 3, False)
+        await O2.evaluate(GO_HOUSE, hid); await O2.wait_for_timeout(1200)
+    for (vw, vh), how in [((820, 1180), 'toolbar'), ((844, 390), 'bin')]:
+        tag = f'{vw}x{vh}'
+        await A.set_viewport_size({'width': vw, 'height': vh}); await A.wait_for_timeout(800)
+        if await A.evaluate("document.body.classList.contains('mode-play')"): await A.click('#modeDecorate'); await A.wait_for_timeout(300)
+        pid = (await A.evaluate(PAINTINGS))[-1]['id']
+        await A.evaluate("id => { const it = Object.values(__store.get().rooms).flatMap(r => r?.items||[]).find(i => i.id === id); __cam.set(it.x - 300); }", pid); await A.wait_for_timeout(500)
+        x0 = (await A.evaluate(ITEM, pid))['x']
+        bb = await A.locator(f'.item[data-id="{pid}"]').bounding_box()
+        cx, cy = bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2
+        await A.mouse.move(cx, cy); await A.mouse.down()
+        for i in range(1, 11): await A.mouse.move(cx + i * 6, cy + i * 2); await A.wait_for_timeout(16)
+        await A.mouse.up(); await A.wait_for_timeout(900)
+        x1 = (await A.evaluate(ITEM, pid))['x']
+        check(f'decorate {tag}: drag re-hangs the painting in a new spot', x1 != x0, [x0, x1])
+        ib = await B.evaluate(ITEM, pid)
+        check(f'decorate {tag}: second client sees the move, art kept', ib and ib['x'] == x1 and ib['art'], ib)
+        if O2:
+            io = await O2.evaluate(ITEM, pid)
+            check(f'decorate {tag}: old client sees the move, art kept', io and io['x'] == x1 and io['art'], io)
+        await A.screenshot(path=SHOT + f'decorate_{tag}.png')
+        if how == 'toolbar':
+            if await A.locator('#toolbar').is_hidden():
+                bb = await A.locator(f'.item[data-id="{pid}"]').bounding_box(); await A.mouse.click(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); await A.wait_for_timeout(300)
+            await A.locator('#toolbar button[data-a="delete"]').click()
+        else:
+            bb = await A.locator(f'.item[data-id="{pid}"]').bounding_box(); cx, cy = bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2
+            await A.mouse.move(cx, cy); await A.mouse.down(); await A.mouse.move(cx + 10, cy + 10); await A.wait_for_timeout(100)
+            bin_ = await A.locator('#bin').bounding_box()
+            for i in range(1, 11): await A.mouse.move(cx + (bin_['x'] + bin_['width'] / 2 - cx) * i / 10, cy + (bin_['y'] + bin_['height'] / 2 - cy) * i / 10); await A.wait_for_timeout(16)
+            await A.mouse.up()
+        await A.wait_for_timeout(1000)
+        check(f'decorate {tag}: put away by {how}', await A.evaluate(ITEM, pid) is None)
+        check(f'decorate {tag}: second client sees it put away', await B.evaluate(ITEM, pid) is None)
+        if O2: check(f'decorate {tag}: old client sees it put away', await O2.evaluate(ITEM, pid) is None)
+        before = {p['id'] for p in await A.evaluate(PAINTINGS)}
+        await hang_ui(A, 3)
+        new = [p for p in await A.evaluate(PAINTINGS) if p['id'] not in before]
+        check(f'decorate {tag}: a new painting hangs after putting one away', len(new) == 1, new)
+        if new:
+            check(f'decorate {tag}: clear of the room arrows', await A.evaluate(ARROWS, new[0]['id']) == [], await A.evaluate(ARROWS, new[0]['id']))
+            await B.wait_for_timeout(600)
+            src = await B.evaluate("id => { const e = document.querySelector(`.item[data-id=\"${id}\"] image`); return e ? (e.getAttribute('href') || '').slice(0, 22) : null }", new[0]['id'])
+            check(f'decorate {tag}: second client sees the new bitmap', src and src.startswith('data:image/png'), src)
+            if O2:
+                io = await O2.evaluate(ITEM, new[0]['id'])
+                check(f'decorate {tag}: old client gets the new painting as a picture', io and io['kind'] == 'picture' and io['art'] == new[0]['art'], io)
+    if O2:
+        check('decorate: old client no page errors', not eO2, eO2[:3]); await O2.context.close()
+    await A.set_viewport_size({'width': 820, 'height': 1180}); await A.wait_for_timeout(500)
+
+    # 5. Offline paintings come along when a house is brought to a street (12 max; the rest stay as placeholders with a toast).
+    I, eI = await mk(820, 1180, hood=True)
+    await hang_ui(I, 1)
+    first = (await I.evaluate(PAINTINGS))[0]
+    await I.evaluate("""([n, data]) => { const k = Object.keys(localStorage).find(k => k.includes('cozy-art')); const raw = JSON.parse(localStorage.getItem(k));
+      const room = __store.get().currentRoom;
+      for (let i = 0; i < n; i++) { const id = 'a' + Date.now().toString(36) + 'off' + i.toString(36).padStart(2, '0'); raw[id] = data;
+        __store.dispatch({type: 'item/add', room, item: {id: 'picture-off' + i + Date.now().toString(36), kind: 'picture', x: 150 + i * 80, y: 200, flip: false, z: 0, scale: .6, art: id}}); }
+      localStorage.setItem(k, JSON.stringify(raw)); }""", [12, pdata(8)])
+    await I.wait_for_timeout(800); await I.reload(); await I.wait_for_selector('#stage .char'); await I.wait_for_timeout(800)
+    off = await I.evaluate(PAINTINGS)
+    check('offline: 13 paintings at home before joining', len(off) == 13, len(off))
+    await I.evaluate("() => { window.__toasts = []; new MutationObserver(() => document.querySelectorAll('.toast').forEach(t => __toasts.includes(t.textContent) || __toasts.push(t.textContent))).observe(document.body, {childList: true, subtree: true}); }")
+    await join(I, 4, True); await I.wait_for_timeout(2500)
+    ihid = await I.evaluate("__hood().myHouseId()")
+    tl = await I.evaluate("window.__toasts")
+    check('offline: over-cap import tells her the rest stay home', any('stay safe' in t for t in tl), tl)
+    J, eJ = await mk(820, 1180, hood=True); await join(J, 9, False)
+    await J.evaluate(GO_HOUSE, ihid); await J.wait_for_timeout(2500)
+    shown = await J.evaluate("ids => ids.map(id => { const e = document.querySelector(`.item[data-id=\"${id}\"]`); if (!e) return 'none'; const im = e.querySelector('image'); return im && (im.getAttribute('href') || '').startsWith('data:image/png') ? 'bitmap' : 'placeholder'; })", [p['id'] for p in off])
+    check('offline: a friend sees the first 12 brought paintings as bitmaps', shown.count('bitmap') == 12, shown)
+    check('offline: the 13th shows the friendly placeholder', shown.count('placeholder') == 1, shown)
+    check('offline: the painting she made in the studio came along', shown[[p['id'] for p in off].index(first['id'])] == 'bitmap')
+    await J.screenshot(path=SHOT + 'brought_820x1180.png')
+    check('offline: no page errors', not eI and not eJ, (eI + eJ)[:3])
+    await I.context.close()
+
+    # 6. B2: a refused save leaves no frame on the wall (D's 12 paintings are all hung, so a 13th is refused).
+    D, eD = await mk(390, 844, hood=True); await join(D, 5, False)
+    await D.evaluate("document.querySelector('#mapWorld .mapHouse.mine').click()"); await D.wait_for_timeout(1000)
+    await D.evaluate(SAVE12, [pdata(2), 12, True]); await D.wait_for_timeout(1500)
+    n0 = len(await D.evaluate(PAINTINGS))
+    await D.evaluate("() => { window.__toasts = []; new MutationObserver(() => document.querySelectorAll('.toast').forEach(t => __toasts.includes(t.textContent) || __toasts.push(t.textContent))).observe(document.body, {childList: true, subtree: true}); }")
+    await hang_ui(D, 2)
+    n1 = len(await D.evaluate(PAINTINGS)); tl = await D.evaluate("window.__toasts")
+    check('B2: house full of hung art: no new frame on the wall', n0 == 12 and n1 == 12, [n0, n1])
+    check('B2: refusal explains with a toast', any('walls are full' in t for t in tl), tl)
+    check('B2: no page errors', not eD, eD[:3])
+    await D.context.close()
+
+    # 7. B1 through the UI: other houses fill the street to 60, then new saves still succeed.
+    #    So far: A 3 (1 hung), I 12 hung, D 12 hung = 27. B 12 + E 12 + F 9 unhung = 60.
+    E, eE = await mk(400, 600, hood=True); await join(E, 6, False)
+    F, eF = await mk(400, 600, hood=True); await join(F, 7, False)
+    for pg, n, c in [(B, 12, 3), (E, 12, 4), (F, 9, 5)]:
+        await pg.evaluate(SAVE12, [pdata(c), n, False]); await pg.wait_for_timeout(400)
+    await A.wait_for_timeout(1500)
+    before = {p['id'] for p in await A.evaluate(PAINTINGS)}
+    await hang_ui(A, 0)
+    new = [p for p in await A.evaluate(PAINTINGS) if p['id'] not in before]
+    check('B1 UI: full street, owner with unhung art: new painting hangs', len(new) == 1, new)
+    H, eH = await mk(820, 1180, hood=True); await join(H, 8, False)
+    await H.evaluate("document.querySelector('#mapWorld .mapHouse.mine').click()"); await H.wait_for_timeout(1000)
+    await H.evaluate("() => { window.__toasts = []; new MutationObserver(() => document.querySelectorAll('.toast').forEach(t => __toasts.includes(t.textContent) || __toasts.push(t.textContent))).observe(document.body, {childList: true, subtree: true}); }")
+    await hang_ui(H, 1)
+    ph = await H.evaluate(PAINTINGS); tl = await H.evaluate("window.__toasts")
+    check('B1 UI: full street, new girl with no art: her painting hangs (oldest unhung elsewhere cleared)', len(ph) == 1 and not any('full' in t for t in tl), [ph, tl])
+    if ph:
+        K, eK = await mk(820, 1180, hood=True); await join(K, 10, False)
+        await K.evaluate(GO_HOUSE, await H.evaluate("__hood().myHouseId()")); await K.wait_for_timeout(2000)
+        src = await K.evaluate("id => { const e = document.querySelector(`.item[data-id=\"${id}\"] image`); return e ? (e.getAttribute('href') || '').slice(0, 22) : null }", ph[0]['id'])
+        check('B1 UI: a friend sees that painting', src and src.startswith('data:image/png'), src)
+        check('B1 UI: friend no page errors', not eK, eK[:3]); await K.context.close()
+    check('B1 UI: no page errors', not eE and not eF and not eH and not eJ, (eE + eF + eH + eJ)[:3])
+    for pg in (E, F, H, J): await pg.context.close()
+
 asyncio.run(main())
+
