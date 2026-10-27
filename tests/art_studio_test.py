@@ -295,7 +295,7 @@ async def wall_piece(mk):
     if await A.locator('#phoneOk').is_visible(): await A.click('#phoneOk'); await A.wait_for_timeout(300)
     bb = await A.locator(f'.item[data-id="{pid}"]').bounding_box(); cx, cy = bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2
     await A.mouse.move(cx, cy); await A.mouse.down()
-    for i in range(1, 16): await A.mouse.move(cx + i * 30, cy + i * 30); await A.wait_for_timeout(16)  # toward the right arrow and down onto the floor
+    for i in range(1, 16): await A.mouse.move(cx - i * 30, cy + i * 30); await A.wait_for_timeout(16)  # left (it already sits by the right arrow, which would clamp it back) and down onto the floor
     await A.mouse.up(); await A.wait_for_timeout(900)
     i3 = await A.evaluate(ITEMS, pid)
     check('wall: dragging moves it', i3['x'] != i2['x'], [i2, i3])
