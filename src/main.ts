@@ -32,6 +32,10 @@ import { sfx, setSound } from './sound';
 import { setAmbientMusic, primeAmbientMusic } from './ambientMusic';
 import { BEAT_MS, MUSIC_BOX_MS, isFridge, isPowerable, isTub, reactionsFor, roleOf, syncDelayMs, type AmbChar, type AmbItem, type Reaction, type ReactionKind } from './shared/ambient';
 import './ambient.css';
+import { partyFor, PARTY_PET_RADIUS, type Party } from './shared/party';
+import './party.css';
+import { takePhoto } from './photobooth';
+import './photobooth.css';
 import { catalogShows } from './roomfilter';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
@@ -138,6 +142,7 @@ app.innerHTML = `
   <div class="menuCard" role="dialog" aria-label="Menu">
     <button type="button" class="close" id="menuClose" aria-label="Close">✕</button>
     <p class="menuGroup">My stuff</p>
+    <button type="button" class="menuRow photoRow" id="btnPhoto" aria-label="Take a photo"><span class="mIco">📸</span><span class="mLabel">Take a photo</span></button>
     <button type="button" class="menuRow" id="btnPets" aria-label="Pets"><span class="mIco">${pawIcon}</span><span class="mLabel">Pets</span></button>
     <button type="button" class="menuRow" id="btnDress" aria-label="Characters"><span class="mIco">${ICON.shirt}</span><span class="mLabel">Characters</span></button>
     <button type="button" class="menuRow" id="btnPaint" aria-label="Colors"><span class="mIco">${ICON.paint}</span><span class="mLabel">Wall &amp; floor colors</span></button>
@@ -160,6 +165,7 @@ app.innerHTML = `
     <div class="world" id="world">
       <div class="wall" id="wall"></div><div class="floor" id="floor"></div><div class="baseboard"></div>
       <div class="scenery" id="scenery"></div>
+      <div class="partyFx" id="partyFx" aria-hidden="true"><i class="pl pl1"></i><i class="pl pl2"></i><i class="pl pl3"></i><i class="sp s1"></i><i class="sp s2"></i><i class="sp s3"></i><i class="sp s4"></i><i class="sp s5"></i><i class="sp s6"></i><i class="sp s7"></i><i class="sp s8"></i></div>
       <div class="layer" id="layer"></div>
       <div class="toolbar hidden" id="toolbar">
         <button data-a="smaller" aria-label="Smaller">${ICON.smaller}</button><button data-a="bigger" aria-label="Bigger">${ICON.bigger}</button><button data-a="flip" aria-label="Flip">${ICON.flip}</button><button data-a="front" aria-label="Bring forward">${ICON.front}</button><button data-a="back" aria-label="Send back">${ICON.back}</button><button data-a="delete" class="danger" aria-label="Put away">${ICON.trash}</button>
@@ -2739,9 +2745,15 @@ function setMenuOpen(open: boolean) {
   if (open) document.querySelectorAll('.toast').forEach(el => el.remove());
   $('menuPop').classList.toggle('hidden', !open);
   $('btnMenu').setAttribute('aria-expanded', open ? 'true' : 'false');
+  $('btnPhoto').classList.toggle('ok', view === 'house');
   if (open) paintBadges();
   placeHouseTag();
 }
+$('btnPhoto').addEventListener('click', () => {
+  // Close the menu first, so the photo is just the room. Made on this iPad only; nothing is sent.
+  setMenuOpen(false);
+  requestAnimationFrame(() => requestAnimationFrame(() => { void takePhoto(stage, () => sfx.click()); }));
+});
 /** The menu card sits over the top of the stage. Slide the house name clear of it. */
 function placeHouseTag() {
   const tag = $('houseTag');
@@ -3508,6 +3520,9 @@ function syncAmbient() {
     }
   }
   const rx = reactionsFor(items, chars, { fridgesOpen, musicBoxDone: done });
+  // Dance Party: 2+ dolls dancing to one stereo. Dancers share one phase so they move in sync.
+  const party = partyFor(items, rx);
+  if (party) for (const id of party.dancers) { const r = rx.get(id); if (r) rx.set(id, { ...r, phase: 0, face: r.face }); }
   for (const el of [...charEls.values(), ...avatarEls.values()]) if (![...els.values()].includes(el)) applyReaction(el, undefined, now);
   els.forEach((el, id) => applyReaction(el, rx.get(id), now));
   const bathing = new Set([...rx.values()].filter(r => r.kind === 'bathe').map(r => r.item));
@@ -3527,7 +3542,34 @@ function syncAmbient() {
     else if (isFridge(it.kind) && fridgesOpen.has(it.id)) setFx(el, AMB_ITEM_FX.fridge, 'fridge');
     else { delete el.dataset.amb; setFx(el, null, ''); }
   }
+  syncParty(party, now);
   setAmbientMusic(music);
+}
+let partyKey = '';
+/** Lights, sparkles, toy bounce and pet hops. Local visuals only; fades out over 1s. */
+function syncParty(p: Party | null, now: number) {
+  const fx = $('partyFx');
+  const on = !!p && view === 'house';
+  document.body.classList.toggle('party-on', on);
+  fx.classList.toggle('on', on);
+  if (on) {
+    fx.style.setProperty('--px', (p!.x / W * 100) + '%');
+    if (partyKey !== p!.stereo) { fx.style.setProperty('--amb-delay', syncDelayMs(0, BEAT_MS, now) + 'ms'); partyKey = p!.stereo; }
+  } else partyKey = '';
+  const toys = new Set(on ? p!.toys : []);
+  layer.querySelectorAll<HTMLElement>('.item').forEach(el => {
+    const b = toys.has(el.dataset.id || '');
+    if (b !== el.classList.contains('party-bounce')) { el.classList.toggle('party-bounce', b); if (b) el.style.setProperty('--amb-delay', syncDelayMs(0, BEAT_MS, now) + 'ms'); }
+  });
+  // Pets: measured on screen against the stereo, in room units.
+  const st = on ? layer.querySelector<HTMLElement>(`.item[data-id="${p!.stereo}"]`) : null;
+  const wr = world.getBoundingClientRect(); const k = wr.width ? W / wr.width : 1;
+  const sr = st?.getBoundingClientRect();
+  layer.querySelectorAll<HTMLElement>('.pet').forEach(el => {
+    let hop = false;
+    if (sr) { const r = el.getBoundingClientRect(); hop = Math.hypot((r.left + r.width / 2 - sr.left - sr.width / 2) * k, (r.bottom - sr.bottom) * k * 1.5) <= PARTY_PET_RADIUS && !el.classList.contains('leap') && !el.classList.contains('curl'); }
+    if (hop !== el.classList.contains('party-hop')) { el.classList.toggle('party-hop', hop); if (hop) el.style.setProperty('--amb-delay', syncDelayMs(0.5, BEAT_MS * 2, now) + 'ms'); }
+  });
 }
 /** TV on: the tapper's own kid sits on the nearest free seat if she may, otherwise everyone just stands and watches. */
 function tvSeat(tv: PlacedItem) {
