@@ -154,6 +154,7 @@ async def main():
         P = await b.new_context(viewport={'width': 844, 'height': 390}, device_scale_factor=3, has_touch=True, storage_state=await cR.storage_state())
         pp = await P.new_page(); await pp.goto(f'{WEB}/kids-house-game/'); await pp.wait_for_timeout(1200)
         check('test hook is absent in a normal session', await pp.evaluate("typeof window.__needs") == 'undefined')
+        await pp.goto(f'{WEB}/kids-house-game/?needsqa=1'); await pp.wait_for_timeout(1200)
         await pp.evaluate("() => { __store.dispatch({type:'room/switch', room:'living'}); __store.dispatch({type:'char/add', char:{skin:'#f2c9a0', hair:'#5a3d2b', hairStyle:2, shirt:'#ffd166', pants:'#6b8cff', size:'kid', acc:0, flip:false, held:{left:null, right:null}, id:'pd1', room:'living', x:600, y:600}}); for (let i = 0; i < 80 && Object.values(((__store.get().characters.find(c => c.id === 'pd1') || {}).needs) || {}).filter(v => v <= 1).length < 4; i++) __needs.tick(4 * 60000); }")
         await pp.evaluate("() => { const b = document.querySelector('#btnMenu, .menuBtn, [aria-label=Menu]'); b && b.click(); }"); await pp.wait_for_timeout(500); await pp.screenshot(path=f'{SHOT}needs-phone-menu-844x390.png')
         await pp.keyboard.press('Escape'); await pp.evaluate("() => { const b = document.querySelector('#btnMenu, .menuBtn, [aria-label=Menu]'); const m = document.getElementById('menuPop'); if (m && !m.classList.contains('hidden') && b) b.click(); }")
