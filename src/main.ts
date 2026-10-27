@@ -34,6 +34,8 @@ import { BEAT_MS, MUSIC_BOX_MS, isFridge, isPowerable, isTub, reactionsFor, role
 import './ambient.css';
 import { partyFor, PARTY_PET_RADIUS, type Party } from './shared/party';
 import './party.css';
+import { takePhoto } from './photobooth';
+import './photobooth.css';
 import { catalogShows } from './roomfilter';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
@@ -140,6 +142,7 @@ app.innerHTML = `
   <div class="menuCard" role="dialog" aria-label="Menu">
     <button type="button" class="close" id="menuClose" aria-label="Close">✕</button>
     <p class="menuGroup">My stuff</p>
+    <button type="button" class="menuRow photoRow" id="btnPhoto" aria-label="Take a photo"><span class="mIco">📸</span><span class="mLabel">Take a photo</span></button>
     <button type="button" class="menuRow" id="btnPets" aria-label="Pets"><span class="mIco">${pawIcon}</span><span class="mLabel">Pets</span></button>
     <button type="button" class="menuRow" id="btnDress" aria-label="Characters"><span class="mIco">${ICON.shirt}</span><span class="mLabel">Characters</span></button>
     <button type="button" class="menuRow" id="btnPaint" aria-label="Colors"><span class="mIco">${ICON.paint}</span><span class="mLabel">Wall &amp; floor colors</span></button>
@@ -2726,9 +2729,15 @@ function setMenuOpen(open: boolean) {
   if (open) document.querySelectorAll('.toast').forEach(el => el.remove());
   $('menuPop').classList.toggle('hidden', !open);
   $('btnMenu').setAttribute('aria-expanded', open ? 'true' : 'false');
+  $('btnPhoto').classList.toggle('ok', view === 'house');
   if (open) paintBadges();
   placeHouseTag();
 }
+$('btnPhoto').addEventListener('click', () => {
+  // Close the menu first, so the photo is just the room. Made on this iPad only; nothing is sent.
+  setMenuOpen(false);
+  requestAnimationFrame(() => requestAnimationFrame(() => { void takePhoto(stage, () => sfx.click()); }));
+});
 /** The menu card sits over the top of the stage. Slide the house name clear of it. */
 function placeHouseTag() {
   const tag = $('houseTag');

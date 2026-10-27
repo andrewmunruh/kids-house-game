@@ -1,0 +1,14 @@
+/* Photo Booth: one soft white flash (not a strobe), and a small preview card. */
+.pbFlash { position: fixed; inset: 0; background: #fff; pointer-events: none; z-index: 9998; animation: pbFlash .6s ease-out forwards; }
+.pbFlash.soft { animation-duration: .9s; background: rgba(255, 255, 255, .45); }
+@keyframes pbFlash { 0% { opacity: 0; } 15% { opacity: .85; } 100% { opacity: 0; } }
+.pbCard { position: fixed; inset: 0; z-index: 9997; display: flex; align-items: center; justify-content: center; background: rgba(90, 61, 92, .35); padding: 16px; }
+.pbInner { background: #fff; border: 3px solid #5a3d5c; border-radius: 22px; padding: 12px; max-width: min(520px, 92vw); box-shadow: 0 10px 30px rgba(90, 61, 92, .3); animation: pbPop .35s cubic-bezier(.3, 1.5, .5, 1); }
+.pbImg { display: block; width: 100%; max-height: 62vh; object-fit: contain; border-radius: 14px; }
+.pbBtns { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+.pbBtns button { font: inherit; font-weight: 800; font-size: 18px; min-height: 48px; padding: 0 22px; border-radius: 999px; border: 3px solid #5a3d5c; color: #5a3d5c; background: #fff; }
+.pbBtns .pbSave { background: #ffd166; }
+@keyframes pbPop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.menuRow.photoRow { display: none; }
+body.mode-play .menuRow.photoRow.ok { display: flex; }
+@media (prefers-reduced-motion: reduce) { .pbInner { animation: none; } }

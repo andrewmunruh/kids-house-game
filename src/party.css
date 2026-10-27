@@ -6,7 +6,7 @@
 .partyFx:not(.on) > i { animation-play-state: paused; }
 .partyFx > i { position: absolute; display: block; will-change: transform, opacity; }
 /* Color washes: big soft ellipses sweeping slowly across wall and floor, centered near the stereo. */
-.partyFx > .pl { width: 70%; height: 120%; top: -10%; left: calc(var(--px, 50%) - 35%); border-radius: 50%; opacity: .26; }
+.partyFx > .pl { width: 70%; height: 120%; top: -10%; left: calc(var(--px, 50%) - 35%); border-radius: 50%; opacity: .4; }
 .partyFx > .pl1 { background: radial-gradient(closest-side, rgba(255, 120, 200, .9), rgba(255, 120, 200, 0)); animation: partySweepA 7.2s ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
 .partyFx > .pl2 { background: radial-gradient(closest-side, rgba(120, 190, 255, .9), rgba(120, 190, 255, 0)); animation: partySweepB 7.2s ease-in-out infinite; animation-delay: calc(var(--amb-delay, 0s) - 2.4s); }
 .partyFx > .pl3 { background: radial-gradient(closest-side, rgba(255, 220, 120, .9), rgba(255, 220, 120, 0)); animation: partySweepA 10.8s ease-in-out infinite reverse; animation-delay: calc(var(--amb-delay, 0s) - 4.8s); }
