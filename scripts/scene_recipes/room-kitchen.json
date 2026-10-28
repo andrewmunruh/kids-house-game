@@ -1,0 +1,20 @@
+{
+ "geom": "room-kitchen/room-kitchen__geom.json",
+ "out": "../../assets/art/scene/room-kitchen.webp",
+ "wall": "room-kitchen/C_wall.png",
+ "wall_note": "C_wall.png = scripts/scene_pattern_tex.py 3 #cdf3dc room-kitchen/B_grain.jpg (vector pattern + AI gouache grain; grain source here is the smooth attempt-A texture, the gingham B was too busy for 150 KB)",
+ "wall_tile_h": 300,
+ "wall_color": "#b7e4c9",
+ "wall_blend": 0,
+ "wall_flatten": false,
+ "wall_keep": 0.95,
+ "floor": "room-living/floor1.jpg",
+ "floor_crop": [
+  0,
+  40,
+  1024,
+  576
+ ],
+ "floor_tile_w": 1000,
+ "floor_color": "#f0d998"
+}
