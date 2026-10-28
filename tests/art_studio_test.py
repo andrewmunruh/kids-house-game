@@ -409,6 +409,26 @@ async def wall_piece(mk):
     q3 = await P.evaluate(ITEMS, qid); check('844x390 regression: finger drag (hit-tested) reaches the handle and grows it', 'artGrip' in t and q3['size'] > q2['size'], [t, q2, q3])
     gx, gy = await gripc(P); t = await P.evaluate(HIT, ['pen', gx, gy, gx - 60, gy - 45]); await P.wait_for_timeout(800)
     q4 = await P.evaluate(ITEMS, qid); check('844x390 regression: Pencil drag (hit-tested) reaches the handle and shrinks it', 'artGrip' in t and q4['size'] < q3['size'], [t, q3, q4])
+    # Regression (preview full-order smoke): a painting hung near the back door, where the door's "Go outside" label box
+    # reaches over it. A tap on the painting walked her into the yard (the door rescue took it). Now it selects the painting.
+    over = 0
+    for fx in (740, 992):
+        await P.evaluate("([id, x]) => { const s = __store.get(), r = s.currentRoom, it = s.rooms[r].items.find(i => i.id === id); __store.dispatch({type: 'item/move', room: r, id, x, y: it.y}); }", [qid, fx])
+        await P.reload(); await P.wait_for_selector('#stage .char'); await P.wait_for_timeout(900)
+        if await P.evaluate("document.body.classList.contains('mode-play')"): await P.click('#modeDecorate'); await P.wait_for_timeout(300)
+        await into_view(P, qid); await P.wait_for_timeout(400)
+        pt = await P.evaluate("""id => { const a = document.querySelector(`.item[data-id="${id}"]`).getBoundingClientRect(), d = document.querySelector('.yardDoor');
+          const ls = d ? [d.querySelector('.yardHintLabel'), d.querySelector('.doorArt'), d].map(e => e && e.getBoundingClientRect()) : [];
+          for (const l of ls) { if (!l) continue; const x0 = Math.max(a.left, l.left) + 3, x1 = Math.min(a.right, l.right) - 3, y0 = Math.max(a.top, l.top) + 3, y1 = Math.min(a.bottom, l.bottom) - 3;
+            if (x1 > x0 && y1 > y0) return {x: (x0 + x1) / 2, y: (y0 + y1) / 2, over: true}; }
+          return {x: a.left + a.width / 2, y: a.top + a.height / 2, over: false}; }""", qid)
+        over += pt['over']
+        tb0 = await P.locator('#toolbar').is_visible()
+        await P.mouse.move(pt['x'], pt['y']); await P.mouse.down(); await P.mouse.up(); await P.wait_for_timeout(700)
+        st = await P.evaluate("id => ({room: __store.get().currentRoom, view: __ui().view, here: !!document.querySelector(`.item[data-id=\"${id}\"]`), tb: !document.getElementById('toolbar').classList.contains('hidden')})", qid)
+        check(f'844x390 regression: tap on a painting at x={fx} (over the door box: {pt["over"]}) selects it and she stays in the room',
+              not tb0 and st['room'] == 'living' and st['view'] == 'house' and st['here'] and st['tb'] and await P.locator('#toolbar').is_visible(), [pt, tb0, st])
+    check('844x390 regression: at least one tap landed inside the door\'s tap box', over >= 1, over)
     check('844x390 regression: no page errors', not eP, eP[:3]); await P.context.close()
 
 async def street_more(mk, join, A, B, hid, eA, eB):

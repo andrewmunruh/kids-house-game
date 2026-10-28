@@ -912,6 +912,23 @@ async def tap_yard_door(pg, tag):
     room = await pg.evaluate("() => __store.get().currentRoom")
     check(f'{tag} a real touch on Back inside still works with a pet on the door', room == 'living', str(room))
     await pg.evaluate("() => { window.__pinCat = null; }")
+    # A furniture piece standing in front of the door must not eat the tap either (the door rescue, shipped in production).
+    # Hung paintings are the one exception (they are the painting's taps); this pins that the exception stays narrow.
+    await pg.evaluate("""() => { const s = __store.get(); if (s.currentRoom !== 'living') __store.dispatch({type:'room/switch', room:'living'});
+      __store.dispatch({type: 'item/add', room: 'living', item: {id: 'bookshelf-doortest', kind: 'bookshelf', x: 872, y: 640, flip: false, z: 40, scale: 1.4}}); }""")
+    await pg.wait_for_timeout(400)
+    spot = await pg.evaluate("""() => { const d = document.querySelector('.yardDoor'), f = document.querySelector('.item[data-id="bookshelf-doortest"]');
+      if (!d || !f) return null; const fr = f.getBoundingClientRect(), parts = [d.querySelector('.yardHintLabel'), d.querySelector('.doorArt'), d].map(e => e && e.getBoundingClientRect());
+      const cov = parts.some(r => r && fr.left < r.right && fr.right > r.left && fr.top < r.bottom && fr.bottom > r.top);
+      for (const r of parts) { if (!r) continue; for (let y = r.top + 3; y < r.bottom - 2; y += 4) for (let x = r.left + 3; x < r.right - 2; x += 4) { const t = document.elementFromPoint(x, y);
+        if (t && f.contains(t)) return {x, y, cov, onPiece: true}; } }
+      const r = d.getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2, cov, onPiece: false}; }""")
+    check(f'{tag} a furniture piece stands in front of the back door', spot and spot['cov'], str(spot))
+    if spot:
+        await pg.mouse.move(spot['x'], spot['y']); await pg.mouse.down(); await pg.mouse.up(); await pg.wait_for_timeout(400)
+        room = await pg.evaluate("() => __store.get().currentRoom")
+        check(f'{tag} a real tap on the door with furniture in front still opens the yard', room == 'backyard', str({'room': room, **spot}))
+    await pg.evaluate("() => { __store.dispatch({type: 'item/delete', room: 'living', id: 'bookshelf-doortest'}); if (__store.get().currentRoom !== 'living') __store.dispatch({type:'room/switch', room:'living'}); }")
 
 async def check_secrets(pg, tag, short):
     """Surprises lives in the Menu. Closed, it must not cover the room."""
