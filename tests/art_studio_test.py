@@ -327,6 +327,11 @@ async def wall_piece(mk):
     check('wall: spot and size survive a reload', i4 == i3, [i4, i3])
     # delete with the toolbar: gone everywhere
     if await A.evaluate("document.body.classList.contains('mode-play')"): await A.click('#modeDecorate'); await A.wait_for_timeout(300)
+    for _ in range(8):  # after a reload the camera can start away from the painting: walk the view to it
+        side = await A.evaluate("""id => { const r = document.querySelector(`.item[data-id="${id}"]`).getBoundingClientRect(), s = document.getElementById('stage').getBoundingClientRect(), c = r.left + r.width / 2;
+          return c < s.left + 40 ? 'L' : c > s.right - 40 ? 'R' : ''; }""", pid)
+        if not side: break
+        await A.click('#nudge' + side); await A.wait_for_timeout(700)
     for _ in range(3):
         if await A.locator('#toolbar button[data-a="delete"]').is_visible(): break
         # tap a spot of the painting that is really on top (a kid or a label can stand in front of its middle)
