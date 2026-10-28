@@ -31,6 +31,8 @@ async def shoot(b, name, w, h, v1):
             d.dispatchEvent(new PointerEvent('pointerdown', o)); window.dispatchEvent(new PointerEvent('pointerup', o)); }""")
         await pg.wait_for_selector('#stage.room-yard', timeout=8000)
     elif SCENE == 'clubhouse':
+        # WebKit 820x1180: the stage overlaps the Map button on base dda1839 too; open the map by its own click.
+        await pg.evaluate("() => { if (!document.body.classList.contains('view-map')) document.getElementById('btnMap').click(); }")
         await go(pg, 'gameroom'); mark = '#grWorld'
     try:
         await pg.wait_for_function("(m) => !!document.querySelector(m + '.sceneArtOn')", arg=mark, timeout=6000 if not v1 else 1500)

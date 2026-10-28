@@ -17,3 +17,7 @@
    photo frames (which differ phone vs iPad) stay vector on top, drawn at the same spots. */
 .grWorld > .sceneArtHost { z-index: 0; }
 .grWorld.sceneArtOn > svg.grScene > :not(defs):not(.bulb):not(.neonSign):not(.photoFrame) { visibility: hidden; }
+/* Painted clubhouse: the portrait wall/floor strips take the painting's (one step darker) edge colours. */
+.grWorld.sceneArtOn .grExt-top > rect:first-of-type { fill: #f4d5e9; }
+.grWorld.sceneArtOn .grExt-bottom stop:first-child { stop-color: #c16f8f; }
+.grWorld.sceneArtOn .grExt-bottom stop:last-child { stop-color: #b46383; }

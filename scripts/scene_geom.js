@@ -14,7 +14,8 @@
     return {
       scene, logical: [LW, 600],
       // painted things the test finds in the painting: the MAP door frame and the floor trim's ink line
-      door: mapDoor ? box(mapDoor.querySelector('rect')) : null,
+      // the frame's outer ink edge: the fill box grown by half the stroke (4)
+      door: mapDoor ? (b => [b[0] - 2, b[1] - 2, b[2] + 4, b[3] + 4])(box(mapDoor.querySelector('rect'))) : null,
       lines: trim ? [{ name: 'floor trim', y: box(trim)[1] }] : [],
       doorTap: box(world.querySelector('.grDoor')),
       spots: [...world.querySelectorAll('.grDoor, .grTable, .grChair')].map(e => ({ name: e.className + (e.dataset.tb ? ' ' + e.dataset.tb : '') + (e.dataset.seat ? '/' + e.dataset.seat : ''), box: box(e) })),

@@ -47,6 +47,11 @@ async def main():
           const host = document.createElement('div'); host.id = 'layerHost';
           Object.assign(host.style, {position:'fixed', left:'0', top:'0', width:W+'px', height:H+'px', zIndex:'999999', background:'transparent'});
           const svg = src.cloneNode(true); svg.setAttribute('width', W); svg.setAttribute('height', H);
+          // Ids like #grWall also live in hidden copies elsewhere in the page; url(#id) would resolve to
+          // the first (display:none) one and paint nothing, so give the clone's ids their own names.
+          svg.querySelectorAll('[id]').forEach(e => { const o = e.id, n = 'L_' + o; e.id = n;
+            svg.querySelectorAll('*').forEach(x => { for (const a of ['fill', 'stroke', 'filter', 'clip-path', 'mask', 'href', 'xlink:href'])
+              { const v = x.getAttribute(a); if (v && v.includes('#' + o)) x.setAttribute(a, v.split('#' + o + ')').join('#' + n + ')').replace(new RegExp('^#' + o + '$'), '#' + n)); } }); });
           svg.style.cssText = 'position:absolute;left:0;top:0;width:'+W+'px;height:'+H+'px';
           host.appendChild(svg); src.remove();
           [...document.body.children].forEach(c => { c.style.display = 'none'; }); document.body.appendChild(host);

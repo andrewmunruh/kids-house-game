@@ -4,6 +4,7 @@ import { stampAvatar } from './avatar/motion';
 import { confetti } from './eggs';
 import { createTableUI, type TableApi } from './games/ui';
 import { GR_H, gameRoomSVG, gameRoomExtSVG, seatLayout } from './gameroom';
+import { showSceneArt } from './art/scene';
 import type { HoodClient } from './net';
 import rugUrl from '../assets/art/any/rug.webp?url';
 import beanUrl from '../assets/art/living/pack~bean-bag.webp?url';
@@ -78,7 +79,7 @@ export function renderGameRoom() {
   const room = document.getElementById('gameroom'), spare = (room?.clientHeight || 0) - 6 - GR_H * sc;
   const top = spare > 1 ? Math.round(spare * 0.55) : 0, bot = spare > 1 ? Math.ceil(spare - top) + 6 : 0;
   w.style.marginTop = top ? top + 'px' : '';
-  let html = gameRoomSVG();
+  let html = '<div class="sceneArtHost" id="grSceneArt"></div>' + gameRoomSVG();
   // Continue the wall up and the floor down so the spare height isn't flat bands.
   if (top) html += `<div class="grExtWrap" style="top:${-top}px;height:${top}px">${gameRoomExtSVG('top', top / sc)}</div>`;
   // The scroller stops 6px short of the bottom: keep that strip floor-coloured too.
@@ -100,6 +101,7 @@ export function renderGameRoom() {
   });
   html += '<div class="savatars" id="gavatars"></div>';
   w.innerHTML = html;
+  showSceneArt(document.getElementById('grSceneArt')!, 'clubhouse', w);
   renderGamePeople();
 }
 

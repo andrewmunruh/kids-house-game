@@ -78,7 +78,8 @@ def paint_checks(scene, L, geom, path=None):
         for nm, want in (('left', round(dx)), ('right', round(dx + dw))):
             e = edge_at(prof, want)
             check(f'{scene}: door {nm} edge at x={want}', abs(e - want) <= TOL, f'(painted {e})')
-        e = edge_at(row_profile(L, round(dx + dw * 0.3), round(dx + dw * 0.7)), round(dy))
+        # +-12: just past the frame's ink is the next strong step (the clubhouse door's MAP plate)
+        e = edge_at(row_profile(L, round(dx + dw * 0.3), round(dx + dw * 0.7)), round(dy), 12)
         check(f'{scene}: door top edge at y={round(dy)}', abs(e - round(dy)) <= TOL, f'(painted {e})')
 
 HIT_JS = r"""() => {
@@ -144,6 +145,8 @@ async def enter(pg, scene):
         await pg.wait_for_selector('#stage.room-yard', timeout=8000); await pg.wait_for_timeout(700)
         return HIT_JS, '#stage.sceneArtOn[data-scene-art="backyard"]'
     if scene == 'clubhouse':
+        # WebKit 820x1180: the stage overlaps the Map button on base dda1839 too; open the map by its own click.
+        await pg.evaluate("() => { if (!document.body.classList.contains('view-map')) document.getElementById('btnMap').click(); }")
         await go(pg, 'gameroom'); return CLUB_HIT_JS, '#grWorld.sceneArtOn[data-scene-art="clubhouse"]'
     return None, None
 ADAPTED = lambda scene: scene.startswith('room-') or scene in ('backyard', 'clubhouse')
@@ -199,7 +202,9 @@ async def main():
                 # too (same with ?art=v1), so open the map by its button's own click there.
                 if not await pg.evaluate("() => { const m = document.getElementById('btnMap').getBoundingClientRect(); const h = document.elementFromPoint(m.left + m.width / 2, m.top + m.height / 2); return !!h && !!h.closest('#btnMap'); }"):
                     print(f'NOTE {tag} Map button covered by the stage (pre-existing on base)')
-                    await pg.evaluate("() => document.getElementById('btnMap').click()")
+                # Playwright's own hit test can still see the stage over the button edge in WebKit at
+                # 820x1180 (same on base): open the map by the button's click either way; the places are what's tested.
+                await pg.evaluate("() => { if (!document.body.classList.contains('view-map')) document.getElementById('btnMap').click(); }")
                 await to_map(pg)
                 places = await pg.evaluate("() => [...new Set([...document.querySelectorAll('#mapWorld [data-go]')].map(e => e.dataset.go))]")
                 check(f'{tag} map lists park, ranch, gameroom, home', all(x in places for x in ('park', 'ranch', 'gameroom', 'home')), str(places))
