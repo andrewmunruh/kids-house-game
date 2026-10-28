@@ -144,3 +144,30 @@ Not on the list: art_bounds_test.ts, art_raster_test.ts and mail_persist_test.ts
   - src/shared/hood.ts: both PROTOCOL notes are kept, the hello/join/welcome types are unions, and `knock` from main is kept.
   - tsc ok.
 - Gate on the merged head: running (gate 11), see below.
+
+### Gate 11 on the merged head (app/server = f4ab7ab; 9be35a7 adds STATUS only). One suite at a time under the gate lock, fresh hood each time, screens/ restored after each
+| Suite | Result |
+|---|---|
+| tsc | ok |
+| paint_test | 51/51 |
+| art_studio_test, old client 10ef736 | 139/139 |
+| art_studio_test, old production client 18ee50c | 139/139 |
+| phone_test | 359/359 |
+| hood | 44/44 |
+| gameroom | 69/69 |
+| map | 40/40 |
+| b0_compat | 14/14 |
+| migration (built 10ef736) | 43/43 |
+| needs_sync (old client 18ee50c) | 27/27 |
+| needs_bubble_fit | ALL OK |
+| needs_test.ts, needs_first_hint_test.ts | pass |
+| m3_sync | 29/29 |
+| costume_sync (old client 10ef736) | 23/23. The first run used 18ee50c as the "old" client; that build already draws costumes, so its 3 checks expecting the plain avatar could not pass. The re-run with 10ef736 passed. |
+| ambient_sync | 12/12 |
+| cross_feature | 35/35 |
+
+Known, ignored:
+- art_raster_test.ts fails 2 checks (on the known list).
+- art_bounds_test.ts fails 1 check, the same as before the merge.
+- mail_persist_test.ts is a harness that needs a mode argument (node, worker or b0); it is not a standalone unit test.
+- None of the listed known flakes (photobooth 820x1180, tot_sync note, cross_feature trick-or-treat note) showed up in these runs. photobooth_test and tot_sync were not in this run.
