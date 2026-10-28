@@ -57,6 +57,8 @@ export class HoodClient {
   speaksBaby = false;
   /** Server forwards item/power (ambient M1). */
   speaksAmb = false;
+  /** Server forwards need/* (M2). */
+  speaksNeeds = false;
   /** The server closed this socket because the same sign-in connected somewhere else. Do not reconnect on our own. */
   replaced = false;
   /** Rainbow Ranch garden (shared per street) + server clock offset so growth looks the same on every iPad. */
@@ -119,8 +121,8 @@ export class HoodClient {
       this.ws = ws;
       if (prev && prev !== ws) { try { prev.close(); } catch { /* already closed */ } }
       ws.onopen = () => {
-        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, halloween: 1, cos: 1 });
-        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, halloween: 1, cos: 1 });
+        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, halloween: 1, cos: 1, needs: 1 });
+        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, halloween: 1, cos: 1, needs: 1 });
         else done('notoken');
       };
       ws.onmessage = e => { const m: ServerMsg = JSON.parse(e.data); this.handle(m); if (m.t === 'welcome') { this.armStable(); done('ok'); } if (m.t === 'error') done(m.code + (m.msg ? ':' + m.msg : '')); if (m.t === 'removed') done('removed'); };
@@ -152,6 +154,7 @@ export class HoodClient {
         this.speaksSit = m.sit === 1;
         this.speaksBaby = m.baby === 1;
         this.speaksAmb = m.amb === 1;
+        this.speaksNeeds = m.needs === 1;
         this.players = new Map(m.players.map(p => [p.pid, p]));
         { const old = this.houses; this.houses = new Map();
           for (const h of m.houses) { const { state, ...meta } = h; const prev = old.get(h.id);
@@ -287,6 +290,7 @@ export function houseStore(client: HoodClient, houseId: string, localSound: { ge
         if (!client.canEdit(houseId)) return;
         if (a.type.startsWith('baby/') && !client.speaksBaby) return;
         if (a.type === 'item/power' && !client.speaksAmb) return;
+        if (a.type.startsWith('need/') && !client.speaksNeeds) return;
         client.dispatch(houseId, a);
       }
       emit(a);

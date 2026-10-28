@@ -4,7 +4,8 @@
 
 export type AmbRole = 'stereo' | 'musicbox' | 'tv' | 'fire';
 export type ToyRole = 'bounce' | 'hug';
-export type ReactionKind = 'dance' | 'sway' | 'watch' | 'warm' | 'hug' | 'bounce' | 'bathe' | 'nibble';
+import { moreReaction, type MoreKind, type MoreOpts } from './ambientMore';
+export type ReactionKind = 'dance' | 'sway' | 'watch' | 'warm' | 'hug' | 'bounce' | 'bathe' | 'nibble' | MoreKind;
 
 const slugOf = (kind: string) => String(kind || '').replace(/^pack:/, '').toLowerCase();
 
@@ -43,7 +44,7 @@ const PRIORITY: AmbRole[] = ['stereo', 'tv', 'fire', 'musicbox'];
 export interface AmbItem { id: string; kind: string; x: number; y: number; on?: boolean; w?: number }
 export interface AmbChar { id: string; x: number; y: number; seated?: boolean; lying?: boolean }
 export interface Reaction { kind: ReactionKind; item: string; phase: number; face: -1 | 1 }
-export interface AmbOpts { fridgesOpen?: ReadonlySet<string>; musicBoxDone?: ReadonlySet<string> }
+export interface AmbOpts extends MoreOpts { fridgesOpen?: ReadonlySet<string>; musicBoxDone?: ReadonlySet<string> }
 
 /** Stable 0..1 phase from (itemId, charId), so a group of dancers is not in lockstep. */
 export function phaseOf(itemId: string, charId: string): number {
@@ -76,8 +77,11 @@ export function reactionsFor(items: readonly AmbItem[], chars: readonly AmbChar[
       }
       if (best) break;
     }
-    if (!best && !c.seated) {
+    if (!best) {
       for (const it of items) {
+        const m = moreReaction(it.kind, it.id, dist(c, it), !!c.seated, { ...opts, opened: opts.opened ?? opts.fridgesOpen });
+        if (m && (!best || m.d < best.d || (m.d === best.d && it.id < best.it.id))) best = { c, it, d: m.d, kind: m.kind };
+        if (c.seated) continue;
         const toy = toyRoleOf(it.kind);
         let kind: ReactionKind | null = null, d = dist(c, it);
         if (toy && d <= TOY_RADIUS) kind = toy;

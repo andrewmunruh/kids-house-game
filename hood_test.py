@@ -120,6 +120,8 @@ async def run(P, K2, K3, mk, errs, check):
         k2_ui = await K2.evaluate("__ui()"); await check('K2 entered Sunny Bunny house', k2_ui['currentHouseId'] == pid_home and k2_ui['view'] == 'house')
         await P.wait_for_timeout(500)
         await check('P sees K2 avatar inside', await P.locator('.char.avatar.other').count() == 1)
+        pos = await asyncio.gather(*(pg.evaluate("() => { const h = __hood(); const p = h.myPresence(); return p ? {x: p.x, y: p.y, room: p.room, house: p.houseId} : null; }") for pg in (P, K2)))
+        await check('K2 arrives apart from host (not stacked)', all(pos) and pos[0]['room'] == pos[1]['room'] and (abs(pos[0]['x'] - pos[1]['x']) >= 150 or abs(pos[0]['y'] - pos[1]['y']) >= 90) and pos[1]['y'] >= 430, str(pos))
         # ---- K2 decorates P's house live ----
         before = await items(P)
         await K2.click('#modeDecorate'); await K2.wait_for_timeout(200)

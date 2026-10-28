@@ -1,4 +1,5 @@
 import './style.css';
+import { arriveSpot } from './shared/arrive';
 import './juice.css';
 import './scenery.css';
 import './mail.css';
@@ -39,6 +40,8 @@ import { takePhoto } from './photobooth';
 import './photobooth.css';
 import { catalogShows, seasonHidden } from './roomfilter';
 import { candyCount, knockTreat, trickOrTreatOn, knockNote } from './candy';
+import { MORE_CHAR_FX, MORE_ITEM_FX, MORE_PERIOD, keysPlaying, moreItemFx, syncSocial, tapMore } from './social';
+import { installNeeds } from './needs-ui';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
@@ -2115,6 +2118,7 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js');
 (window as any).__store = store; // handy for debugging / tests
+installNeeds({ get: () => store.get(), dispatch: a => store.dispatch(a), subscribe: fn => store.subscribe(fn), canDrift: () => view === 'house' && ownsDolls(), speaks: () => !hood || inner === local || hood.speaksNeeds, layer, menuAfter: $('btnSound') });
 (window as any).__items = Object.fromEntries(ITEMS.filter(i => i.img).map(i => [i.kind, { w: i.w, h: hOf(i), cat: i.cat, holdable: i.holdable, svg: i.img!.includes('.svg') }]));
 (window as any).__cam = { get: () => camX, set: setCam };
 (window as any).__phoneShowKids = () => phoneShowKids();
@@ -2147,7 +2151,13 @@ function updateChar(id: string, patch: Partial<Character>) {
   store.dispatch({ type: 'char/update', id, patch });
 }
 function setMyPres(p: Presence) { hood?.setPresence(p); }
-function moveMeToRoom(room: RoomId) { const p = myPres(); if (p && p.where === 'house') setMyPres({ ...p, room }); }
+/** Visitors arrive apart from the host and anyone else already standing in the room. */
+function apartIn(houseId: string, room: RoomId, want: { x: number; y: number }) {
+  const others: { x: number; y: number }[] = [];
+  hood?.presence.forEach((q, pid) => { if (pid !== hood!.pid && q.where === 'house' && q.houseId === houseId && q.room === room) others.push(q); });
+  return arriveSpot(want, others, { minX: 80, maxX: W - 80, minY: FLOOR_Y + 60, maxY: H - 20 });
+}
+function moveMeToRoom(room: RoomId) { const p = myPres(); if (p && p.where === 'house') { const at = p.houseId ? apartIn(p.houseId, room, p) : p; setMyPres({ ...p, room, x: at.x, y: at.y }); } }
 
 function useStore(next: AnyStore) {
   inner = next; hookStore(next); selected = null; setTimeout(() => eggs.update());
@@ -2858,7 +2868,7 @@ function enterHouse(houseId: string, room: RoomId = 'living') {
   let st = houseStores.get(houseId);
   if (!st) { st = houseStore(hood, houseId, { get: () => local.get().soundOn, set: on => local.dispatch({ type: 'settings/sound', on }) }); houseStores.set(houseId, st); }
   st.dispatch({ type: 'room/switch', room });
-  setMyPres({ where: 'house', houseId, room, x: 900 + Math.random() * 300, y: 540, flip: false });
+  { const at = apartIn(houseId, room, { x: 900 + Math.random() * 300, y: 540 }); setMyPres({ where: 'house', houseId, room, x: at.x, y: at.y, flip: false }); }
   hideScenes();
   useStore(st); sceneIn($('stageWrap')); sfx.sparkle();
   fitPhone();
@@ -3473,6 +3483,7 @@ function onPlayTap(el: HTMLElement, id: string) {
     queueAmbient();
     return;
   }
+  if (tapMore(it.kind, id, s.soundOn, queueAmbient)) return;
   if (g === 'open') { el.classList.toggle('opened'); queueAmbient(); return; }
   if (g === 'lamp') { el.classList.toggle('lamp-on'); return; }
   if (g === 'sit') sitAt(it);
@@ -3480,16 +3491,16 @@ function onPlayTap(el: HTMLElement, id: string) {
 }
 // ---------- ambient reactions (M1) ----------
 // Only an item's `on` flag is synced. Every iPad derives the same reactions from the same state.
-const AMB_PERIOD: Record<ReactionKind, number> = { dance: BEAT_MS * 2, sway: BEAT_MS * 4, watch: BEAT_MS * 5, warm: BEAT_MS * 3, hug: BEAT_MS * 2, bounce: BEAT_MS, bathe: BEAT_MS * 3, nibble: BEAT_MS };
+const AMB_PERIOD: Record<ReactionKind, number> = { dance: BEAT_MS * 2, sway: BEAT_MS * 4, watch: BEAT_MS * 5, warm: BEAT_MS * 3, hug: BEAT_MS * 2, bounce: BEAT_MS, bathe: BEAT_MS * 3, nibble: BEAT_MS, ...MORE_PERIOD };
 const AMB_CHAR_FX: Partial<Record<ReactionKind, string>> = {
   dance: '<span>♪</span><span>♫</span>', sway: '<span>♪</span>', hug: '<span>♥</span>',
-  bathe: '<span class="bub"></span><span class="bub"></span><span class="bub"></span>', nibble: '<span>✦</span>',
+  bathe: '<span class="bub"></span><span class="bub"></span><span class="bub"></span>', nibble: '<span>✦</span>', ...MORE_CHAR_FX,
 };
 const AMB_ITEM_FX: Record<string, string> = {
   stereo: '<span>♪</span><span>♫</span><span>♪</span>', musicbox: '<span>♪</span><span>♩</span>',
   tv: '<span class="glow"></span>', fire: '<span class="glow"></span><span class="ember"></span><span class="ember"></span>',
   tub: '<span class="bub"></span><span class="bub"></span><span class="bub"></span><span class="bub"></span>',
-  fridge: '<span class="food">🍓</span><span class="food">🧁</span>',
+  fridge: '<span class="food">🍓</span><span class="food">🧁</span>', ...MORE_ITEM_FX,
 };
 const musicBoxSince = new Map<string, number>();
 let ambRaf = 0;
@@ -3555,7 +3566,8 @@ function syncAmbient() {
       chars.push({ id: 'p:' + pid, x: p.x, y: p.y, seated: pose === 'sit', lying: pose === 'lie' }); els.set('p:' + pid, el);
     }
   }
-  const rx = reactionsFor(items, chars, { fridgesOpen, musicBoxDone: done });
+  const playing = keysPlaying(now);
+  const rx = reactionsFor(items, chars, { fridgesOpen, musicBoxDone: done, keysPlaying: playing });
   // Dance Party: 2+ dolls dancing to one stereo. Dancers share one phase so they move in sync.
   const party = partyFor(items, rx);
   if (party) for (const id of party.dancers) { const r = rx.get(id); if (r) rx.set(id, { ...r, phase: 0, face: r.face }); }
@@ -3576,10 +3588,14 @@ function syncAmbient() {
       setFx(el, AMB_ITEM_FX[role!], role!);
     } else if (isTub(it.kind) && bathing.has(it.id)) setFx(el, AMB_ITEM_FX.tub, 'tub');
     else if (isFridge(it.kind) && fridgesOpen.has(it.id)) setFx(el, AMB_ITEM_FX.fridge, 'fridge');
-    else { delete el.dataset.amb; setFx(el, null, ''); }
+    else { const m = moreItemFx(it.kind, it.id, rx, playing, fridgesOpen, bathing.size > 0); el.classList.toggle('soc-ducky', m === 'ducky'); if (m) setFx(el, AMB_ITEM_FX[m] || null, m); else { delete el.dataset.amb; setFx(el, null, ''); } }
   }
   syncParty(party, now);
   setAmbientMusic(music);
+  const dolls = new Map<string, { el: HTMLElement; d: AmbChar }>();
+  for (const c of chars) dolls.set(c.id, { el: els.get(c.id)!, d: c });
+  const b = s.baby && s.baby.room === s.currentRoom && !s.baby.holder ? { x: s.baby.x, y: s.baby.y } : null;
+  syncSocial({ layer, roomW: ROOM_W, seed: currentHouseId || 'local', now, reduced: prefersReducedMotion(), dolls, baby: b }, rx);
 }
 let partyKey = '';
 /** Lights, sparkles, toy bounce and pet hops. Local visuals only; fades out over 1s. */
@@ -4758,7 +4774,7 @@ function goThroughYardDoor(go: 'backyard' | 'living') {
   store.dispatch({ type: 'room/switch', room: go });
   if (hood && inner !== local) {
     const p = myPres();
-    if (p && p.where === 'house') setMyPres({ ...p, room: go, x: spot.x, y: spot.y, flip: spot.flip });
+    if (p && p.where === 'house') { const at = p.houseId ? apartIn(p.houseId, go, spot) : spot; setMyPres({ ...p, room: go, x: at.x, y: at.y, flip: spot.flip }); }
   }
   requestAnimationFrame(() => frameYardCam());
 }

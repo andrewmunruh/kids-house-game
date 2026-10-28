@@ -34,3 +34,6 @@
   .partyFx > .pl2 { left: calc(var(--px, 50%) - 60%); } .partyFx > .pl3 { left: calc(var(--px, 50%) - 10%); }
   .partyFx > .sp { opacity: .5; }
 }
+
+/* perf (X2): two washes instead of three; WebKit software paths pay per full-room translucent layer. */
+.partyFx > .pl3 { display: none; }

@@ -7,6 +7,7 @@ import { cleanCostume } from './costume';
 import { ranchApply, cleanPlots, cleanBasket, BASKET_ITEM, type Basket, type Plot, type RanchOp } from './ranch';
 import { keepMailbox, type Mailbox } from './mail';
 import { STAND_Y, cleanDollSeat, pieceWidth, seatStillThere, standBeside, type DollSeat } from './sit';
+import { cleanNeeds, reduceDrift, reduceMeet, type Need, type Needs } from './needs';
 import { babyAfterFurniture, careBaby, cleanBaby, easeBaby, holdBaby, meetBaby, packBaby, placeBaby, type Baby } from './baby';
 export type RoomId = 'living' | 'bedroom' | 'kitchen' | 'salon' | 'nursery' | 'bathroom' | 'backyard';
 /** Display order is the client's tab list. The backyard is a room, not a tab. */
@@ -87,6 +88,8 @@ export interface Character {
   held: { left: PlacedItem | null; right: PlacedItem | null };
   /** Omitted when she is standing, so a standing kid matches an old save. */
   seat?: DollSeat;
+  /** Gentle needs (M2). Omitted when all cozy, so an old save stays identical. Never on pets or the baby. */
+  needs?: Needs;
 }
 export const MAX_CHARS = 8;
 
@@ -163,7 +166,9 @@ export type Action =
   | { type: 'baby/care'; care: 'feed' | 'burp' | 'change' | 'rock'; now: number }
   | { type: 'baby/hold'; holder: string | null; room: RoomId; x: number; y: number; now: number }
   | { type: 'baby/place'; room: RoomId; x: number; y: number; spot: 'crib' | 'bassinet' | 'mat'; bed: string | null; seat: DollSeat | null; now: number }
-  | { type: 'baby/ease'; now: number };
+  | { type: 'baby/ease'; now: number }
+  | { type: 'need/meet'; id: string; need: Need }
+  | { type: 'need/drift'; id: string; need: Need };
 
 const it = (kind: string, x: number, y: number, z: number, scale = 1): PlacedItem =>
   ({ id: kind + '-' + z, kind, x: x + V1_OFFSET, y, flip: false, z, scale });
@@ -486,6 +491,8 @@ export function reduce(s: GameState, a: Action): GameState {
       if (!next) return s;
       return { ...s, baby: next };
     }
+    case 'need/meet': return reduceMeet(s, a.id, a.need);
+    case 'need/drift': return reduceDrift(s, a.id, a.need);
   }
 }
 
@@ -519,6 +526,8 @@ export function migrate(raw: any): GameState {
       delete ch.look2;
       if (rawLook != null) { const clean = sanitizeLook2(rawLook); if (clean) ch.look2 = clean; }
       if ('costume' in ch) { const cc = cleanCostume(ch.costume); if (cc) ch.costume = cc; else delete ch.costume; }
+      delete ch.needs;
+      const needs = cleanNeeds(c?.needs); if (needs) ch.needs = needs;
       return ch;
     });
   const next = ensureRooms({ ...base, ...s, rooms: { ...base.rooms, ...s.rooms }, characters });
