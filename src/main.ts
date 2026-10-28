@@ -1028,12 +1028,16 @@ $('artGrip').addEventListener('pointerdown', e => {
   const it = store.get().rooms[room].items.find(i => i.id === id); const el = layer.querySelector<HTMLElement>(`.item[data-id="${id}"]`);
   if (!it || !el) return;
   const b = el.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
-  const d0 = Math.max(20, Math.hypot(e.clientX - cx, e.clientY - cy)), s0 = itemSizeOf(it.size);
+  // Measure along the centre-to-corner diagonal (not plain distance), so pushing the handle in past the middle of a
+  // small painting keeps shrinking it instead of growing it again.
+  const ux0 = b.width / 2, uy0 = b.height / 2, ul = Math.max(1, Math.hypot(ux0, uy0)), ux = ux0 / ul, uy = uy0 / ul;
+  const along = (x: number, y: number) => (x - cx) * ux + (y - cy) * uy;
+  const d0 = Math.max(20, along(e.clientX, e.clientY)), s0 = itemSizeOf(it.size);
   $('artGrip').classList.remove('pulse'); $('artGrip').classList.add('active'); toolbar.classList.add('hidden');
   startDrag(e, {
     edgeScroll: false,
     onMove(ev) {
-      const want = s0 * Math.hypot(ev.clientX - cx, ev.clientY - cy) / d0;
+      const want = s0 * Math.max(0, along(ev.clientX, ev.clientY)) / d0;
       let best: number = ITEM_SIZE_STEPS[0]; for (const st of ITEM_SIZE_STEPS) if (Math.abs(st - want) < Math.abs(best - want)) best = st;
       const cur = store.get().rooms[room].items.find(i => i.id === id);
       if (cur && itemSizeOf(cur.size) !== best) { store.dispatch({ type: 'item/size', room, id, size: best }); sfx.click(); }
