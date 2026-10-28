@@ -16,4 +16,4 @@ Branch cursor/art-studio, PR #48. Nothing deployed. Local servers only (ports 58
 | map | 40/40 |
 | ambient_sync | 12/12 |
 | b0_compat | FAIL in run 8 (timed out waiting for #btnHood); rerun pending |
-| art_studio_test | run 8 crashed in street join (timeout on [data-m=fresh]); rerun pending on 07dd75c |
+| art_studio_test | 128/128 on f025479 (run art10). Run 8 crashed in the street join (flaky timeout); run 9 found a test bug (camera away from the painting after reload), fixed in f025479 |
