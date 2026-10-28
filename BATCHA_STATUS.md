@@ -35,3 +35,9 @@ NOT changed (still have faces, per brief): shipped in-room paintings living/egg~
 Chips (furniture/decor/plants/food/pets, pack chips) now preload their item paintings at boot and swap to them once loaded (refreshChipArt); the Secrets chip shows the faceless star-lamp painting instead of 🎁 (SVG under ?art=v1). TAB_ICO (compact room tabs) refit: plum #5b3d5c stroke + door, same 14x12 box. PEOPLE_ICON stroke #5a3d5c → #5b3d5c. Chip/tab sizes and hit areas unchanged (no size CSS touched). Checked in screenshots at 1180x820 and 844x390.
 
 ## Step 4 — draft PR https://github.com/andrewmunruh/kids-house-game/pull/50
+
+## Step 5 — merged paint branch (FINAL d59253e) → 4015199; STOPPED at art_bounds lint
+Normal merge, clean; brings scripts/art_process_peel.py + 10 backyard webps.
+tests/art_bounds.py (items re-dumped, 30 backyard kinds), rc=1: 16 OK, 13 WARN over 3%, 1 FAIL.
+FAIL patio-lights (2 interior holes, w .050). WARN w/h: picnic-blanket .136/.194, pinwheel h .111, seesaw w .102, butterfly-bush w .095, rain-barrel w .088, sprinkler h .084, lemonade-cup h .084, stepping-stones w .084, birdhouse h .050, hedge-row w .050, patio-umbrella w .036, splash-pool w .033, sun-lounger w .032.
+Not on base dda1839 (no backyard paintings there), so not a base-identical failure → stopped before the full gate, Step 6 and the rest of Step 7. Contact sheet: /workspace/t-batchA-shots/pr-4015199__backyard-contact.png
