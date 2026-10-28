@@ -50,3 +50,10 @@ Throwaway worktree /tmp/artst-merge (detached, `git merge --no-commit origin/cur
 Conflicts in server/core.ts, src/net.ts and src/shared/hood.ts were all flag unions: Conn/hello/join get both `needs`/`halloween`/`cos` and `art`; the welcome sends `needs: 1, art: 1`; net.ts keeps speaksArt and speaksNeeds; the PROTOCOL comment keeps both notes.
 On the merged tree: tsc OK, vite build OK, paint_test 47/47, art_studio_test 128/128 (merged6; web 5856, hood 5857, run under flock).
 Found along the way: on integration a fresh painting could land over the back door, and the door button swallowed its drag. Fixed in 57006b0 (paintings avoid the door and render in front of it). 541180c makes the test drag far enough that the door rule doesn't snap it back.
+
+## Resize-handle rework (Oct 27, 2026)
+- Handle: a yellow disc (52px visible) with a diagonal two-headed arrow and no pencil, with a 64px touch target. It sits on the painting's bottom-right corner (inset 14px, or centred on the corner when the painting is small). It pulses on first pick, or shows a static glow under reduced motion. Resize is measured along the diagonal, keeping the aspect ratio and min/max steps.
+- Toolbar keeps off the handle and the painting: 12/12 shot checks show toolbarOnGrip 0, toolbarOnArt 0 and onCorner True.
+- Gate (app src unchanged since fcc79fa; each suite run alone under flock): tsc pass · paint_test 47/47 · art_studio_test 132/132 · phone_test 357/357.
+- Shots in /workspace/surprise/art-studio-shots/pr/: {1_paint_button,2_studio,3_hung,4_selected_handle,6_mid_resize,5_resized_toolbar,7_small_painting}_{820x1180,1180x820,844x390,390x844}.png
+- OPEN: at 844x390, after the painting is grown to 1.5 there, a second drag on the handle (mouse or Pencil, even after a reload) does not reach the handle's pointerdown handler, so 7_small_painting_844x390 still shows size 1.5. The test's Pencil shrink at 844x390 (on a painting resized at 820x1180) passes. Not yet root-caused.

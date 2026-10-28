@@ -37,9 +37,13 @@ async def run():
             print(t, 'grip after', await pg.evaluate(GRIPCHK, pid))
             await pg.screenshot(path=OUT + f'5_resized_toolbar_{t}.png')
             g = await pg.locator('#artGrip').bounding_box(); gx, gy = g['x'] + g['width'] / 2, g['y'] + g['height'] / 2
-            await pg.mouse.move(gx, gy); await pg.mouse.down()
-            for i in range(1, 16): await pg.mouse.move(gx - i * 4, gy - i * 3); await pg.wait_for_timeout(16)
-            await pg.mouse.up(); await pg.wait_for_timeout(800)
+            # Pull in with a Pencil (pen) drag, the same path the test uses; a second mouse drag in headless Chromium at 844x390 never reached the grip handler.
+            await pg.evaluate(PEN, [gx, gy, gx - 60, gy - 45]); await pg.wait_for_timeout(800)
+            if (await pg.evaluate(ITEMS, pid))['size'] >= 1.5:  # 844x390: retry once after a reload, and say so
+                print(t, 'pull-in did not take; retrying after reload'); await pg.reload(); await pg.wait_for_timeout(1500)
+                bb = await pg.locator(f'.item[data-id="{pid}"]').bounding_box(); await pg.mouse.click(bb['x'] + bb['width'] * .3, bb['y'] + bb['height'] * .3); await pg.wait_for_timeout(600)
+                g = await pg.locator('#artGrip').bounding_box(); gx, gy = g['x'] + g['width'] / 2, g['y'] + g['height'] / 2
+                await pg.evaluate(PEN, [gx, gy, gx - 60, gy - 45]); await pg.wait_for_timeout(800)
             print(t, 'small size', (await pg.evaluate(ITEMS, pid))['size'], 'grip', await pg.evaluate(GRIPCHK, pid))
             await pg.screenshot(path=OUT + f'7_small_painting_{t}.png')
             await ctx.close()
