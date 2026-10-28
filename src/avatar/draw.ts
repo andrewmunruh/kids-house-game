@@ -106,6 +106,22 @@ function armPart(side: 'l' | 'r'): string {
   return out;
 }
 
+/** Pull the wardrobe/costume sleeve groups out of a clothing string, one inner per side. */
+export function liftSleeves(svg: string): { rest: string; l: string; r: string } {
+  const out = { rest: svg, l: '', r: '' };
+  out.rest = svg.replace(/<g class="arm sleeve (l|r) hang"[^>]*>((?:(?!<g[ >]|<\/g>)[\s\S])*)<\/g>/g, (_m, side: 'l' | 'r', inner: string) => {
+    out[side] += inner;
+    return '';
+  });
+  return out;
+}
+
+/** One arm: skin, then its sleeve inside the same group so both swing together. */
+function armGroup(side: 'l' | 'r', sleeveInner: string, pose: Pose): string {
+  const sleeve = sleeveInner ? `<g class="arm sleeve ${side} hang">${sleeveInner}</g>` : '';
+  return limb('arm', side, `<g class="hand">${armPart(side)}</g>${sleeve}`, pose);
+}
+
 function legPart(side: 'l' | 'r'): string {
   const m = side === 'l' ? -1 : 1;
   const x = side === 'l' ? 88 : 112;
@@ -221,9 +237,21 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean; pose
     '--frame:#6e4a5e',
   ].join(';');
   const legs = limb('leg', 'l', legPart('l'), pose) + limb('leg', 'r', legPart('r'), pose);
-  const arms = limb('arm', 'l', `<g class="hand">${armPart('l')}</g>`, pose) + limb('arm', 'r', `<g class="hand">${armPart('r')}</g>`, pose);
-  const body = `<g data-layer="body">${legs}${wrapHip(torso() + arms, pose)}${wrapHead(headShape(u), pose, true)}</g>`;
-  const top = L.dress ? dressLayer(pose, L, u, rich, hem) : topLayer(pose, L, u, rich, hem);
+  const holdPose = opt?.poseName === 'sit' || opt?.poseName === 'lie' ? opt.poseName : null;
+  // Costume overlays are additive: with no costume this stack is unchanged.
+  const cos = opt?.costume ? costumeParts(opt.costume, pose, L.hair) : null;
+  // Arms draw over the shirt body, and each sleeve rides inside its own arm group so it
+  // swings with the arm (walk, dance, reactions) instead of the arm sliding out under the shirt.
+  const topRaw = L.dress ? dressLayer(pose, L, u, rich, hem) : topLayer(pose, L, u, rich, hem);
+  const lifted = liftSleeves(topRaw);
+  const cosLift = cos && !cos.coversArms ? liftSleeves(cos.over) : null;
+  const useCos = !!cosLift && (cosLift.l || cosLift.r);
+  const sl = useCos ? cosLift! : lifted;
+  const arms = armGroup('l', sl.l, pose) + armGroup('r', sl.r, pose);
+  const armsUnder = !!cos?.coversArms;
+  const body = `<g data-layer="body">${legs}${wrapHip(torso() + (armsUnder ? arms : ''), pose)}${wrapHead(headShape(u), pose, true)}</g>`;
+  const top = lifted.rest;
+  const armLayer = armsUnder ? '' : `<g data-layer="arms">${wrapHip(arms, pose)}</g>`;
   const shadow = `<g class="shadow"><ellipse cx="100" cy="308" rx="52" ry="9" fill="url(#${u}s)"/><ellipse cx="87" cy="307" rx="15" ry="3.6" fill="#3a1d3c" opacity=".16"/><ellipse cx="113" cy="307" rx="15" ry="3.6" fill="#3a1d3c" opacity=".16"/></g>`;
   const mask = hatHairMask(u, L.hair, L.acc);
   const clip = mask ? ` mask="url(#${u}hm)"` : '';
@@ -234,20 +262,19 @@ export function chibiSVG(look: Look2, opt?: { uid?: string; rich?: boolean; pose
     wrapHip(bottomLayer(pose, L, u, rich), pose),
     wrapHip(top, pose),
     wrapHip(bottomOverLayer(pose, L, u, rich), pose),
+    `<g data-layer="costume">${cos ? (useCos ? cosLift!.rest : cos.over) : ''}</g>`,
+    armLayer,
     `<g data-layer="face">${wrapHead(face(L, u, rich, opt?.poseName === 'lie'), pose)}</g>`,
     `<g data-layer="hair-front">${wrapHead(`<g${clip}>${hairFront(L.hair, u, rich)}</g>`, pose)}</g>`,
     wrapHead(accessoryLayer(L), pose),
   ];
-  const holdPose = opt?.poseName === 'sit' || opt?.poseName === 'lie' ? opt.poseName : null;
-  // Costume overlays are additive: with no costume this stack is unchanged.
-  const cos = opt?.costume ? costumeParts(opt.costume, pose, L.hair) : null;
-  if (opt?.holding) layers.splice(6, 0, wrapHip(cradleArm('under', true, L.skin, holdPose, cos?.sleeve ?? topHex), pose));
+  // Cradle arm sits just under the face, above the clothes and hanging arms (as before).
+  if (opt?.holding) layers.splice(layers.findIndex(x => x.indexOf('data-layer="face"') >= 0), 0, wrapHip(cradleArm('under', true, L.skin, holdPose, cos?.sleeve ?? topHex), pose));
   if (cos) {
     if (cos.head) layers.push(`<g data-layer="costume-head">${wrapHead(cos.head, pose)}</g>`);
-    if (cos.over) layers.splice(6, 0, `<g data-layer="costume">${cos.over}</g>`);
     if (cos.back) layers.splice(1, 0, `<g data-layer="costume-back">${cos.back}</g>`);
   }
-  const layersHtml = layers.join('');
+  const layersHtml = layers.filter(x => x && x !== '<g data-layer="costume"></g>').join('');
   const shownTop = L.dress || L.top;
   const poseAttr = opt?.poseName ? ` data-pose="${opt.poseName}"` : '';
   const cosAttr = opt?.costume ? ` data-costume="${opt.costume}"` : '';

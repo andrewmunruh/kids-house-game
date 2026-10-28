@@ -20,6 +20,8 @@ export interface CostumeParts {
   head: string;
   /** Sleeve color for the cradling arm, if the costume has sleeves. */
   sleeve: string | null;
+  /** The costume drapes over her arms (ghost sheet): arms stay under it. */
+  coversArms?: boolean;
 }
 
 function tube(d: string, color: string, w: number): string {
@@ -121,6 +123,7 @@ function ghost(pose: Pose): CostumeParts {
     over: wrapHip(`<g data-costume-part="ghost-sheet"><path d="${body}" fill="${SHEET}" ${S(3)}/>${shade}</g>`, pose),
     head: '',
     sleeve: SHEET,
+    coversArms: true,
   };
 }
 
