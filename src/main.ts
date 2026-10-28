@@ -3384,6 +3384,7 @@ function renderPark() {
     + `<button class="pspot pond" data-act="splash" aria-label="Pond" style="left:${px(1235)};top:${px(462)};width:${px(370)};height:${px(105)}"></button>`
     + `<button class="pspot gate" data-act="exit" aria-label="Back to the street" style="left:${px(25)};top:${px(240)};width:${px(180)};height:${px(260)}"></button>`
     + `<div class="ripples" id="ripples"></div><button class="ball" id="ball" aria-label="Ball">${ballSVG}</button><div class="savatars" id="pavatars"></div>`;
+  showSceneArt(w, 'park');
   placeBall(); renderParkAvatars();
   phoneShowKids();
 }
