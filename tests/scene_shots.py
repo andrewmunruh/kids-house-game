@@ -25,6 +25,10 @@ async def shoot(b, name, w, h, v1):
     try:
         await pg.wait_for_function("() => !!document.querySelector('#stage.sceneArtOn') || !document.querySelector('#sceneArt')", timeout=6000 if not v1 else 1500)
     except Exception: pass
+    if SCENE.startswith('room-') and SCENE != 'room-living':  # walk to that room (same as the hotspot test)
+        await pg.evaluate("(r) => document.querySelector(`[data-room=\"${r}\"]`)?.click()", SCENE[5:])
+        try: await pg.wait_for_function("() => !!document.querySelector('#stage.sceneArtOn') || !document.querySelector('#sceneArt')", timeout=6000 if not v1 else 1500)
+        except Exception: pass
     await pg.wait_for_timeout(1200)
     on = await pg.evaluate("() => !!document.querySelector('#stage.sceneArtOn')")
     f = f"{OUT}/{LABEL}__{SCENE}__{w}x{h}__{name}{'__artv1' if v1 else ''}.png"

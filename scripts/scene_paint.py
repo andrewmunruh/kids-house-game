@@ -6,6 +6,7 @@ RECIPE keys (paths relative to the recipe file):
   geom        <scene>__geom.json from scripts/scene_guide.py (logical px)
   out         output .webp (opaque, 2x logical)
   wall        AI wall texture (flat, straight-on); wall_crop [x0,y0,x1,y1] optional
+  wall_flatten/wall_blend  false/0 for a texture that already tiles at its pattern period
   wall_tile_h logical px of the wall that one texture tile height covers (default = wall height)
   wall_color  target mean colour (hex) — the room's vector wallpaper one step darker
   floor, floor_crop, floor_tile_w (logical px of one texture width), floor_color
@@ -116,7 +117,8 @@ def main():
     canvas = Image.new('RGB', (W, H))
     wt = Image.open(P('wall')).convert('RGB')
     if R.get('wall_crop'): wt = wt.crop(tuple(R['wall_crop']))
-    wt = seamless_h(flatten(recolor(wt, R['wall_color'], R.get('wall_keep', 0.85))), R.get('wall_blend', 0.12))
+    wt = flatten(recolor(wt, R['wall_color'], R.get('wall_keep', 0.85))) if R.get('wall_flatten', True) else recolor(wt, R['wall_color'], R.get('wall_keep', 0.85))
+    if R.get('wall_blend', 0.12) > 0: wt = seamless_h(wt, R.get('wall_blend', 0.12))  # 0: texture already tiles exactly (pattern period)
     canvas.paste(tile_fill(wt, W, wall_h, tile_h=R.get('wall_tile_h', g['wall'][3]) * S), (0, 0))
     ft = Image.open(P('floor')).convert('RGB')
     if R.get('floor_crop'): ft = ft.crop(tuple(R['floor_crop']))

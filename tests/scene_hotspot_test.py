@@ -26,8 +26,12 @@ res = {}
 def check(name, ok, extra=''):
     res[name] = bool(ok); print(('PASS ' if ok else 'FAIL ') + name, extra, flush=True)
 
+SHIFT = tuple(int(v) for v in os.environ.get('SCENE_SHIFT', '0,0').split(','))  # negative check: e.g. SCENE_SHIFT=12,10 must FAIL
 def lum(path):
-    return Image.open(path).convert('L')
+    L = Image.open(path).convert('L')
+    if SHIFT != (0, 0):  # paste the painting moved by (dx, dy) px at 2x, as a drifted painting would be
+        M = Image.new('L', L.size, 128); M.paste(L, SHIFT); L = M
+    return L
 
 def col_profile(L, y0, y1):
     """Mean brightness of each column between rows y0..y1."""
