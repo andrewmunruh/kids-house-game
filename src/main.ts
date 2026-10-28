@@ -45,7 +45,8 @@ import { installNeeds } from './needs-ui';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
-import { emptyRoomStarters, setRoomScenery, syncScenery } from './scenery';
+import { emptyRoomStarters, setRoomScenery, syncScenery, roomSceneArt } from './scenery';
+import { showSceneArt } from './art/scene';
 import { DOOR_CAT_X, DOOR_KID, LIVE_DOOR, YARD_CAM, YARD_CAT, YARD_DOG, YARD_DOOR, YARD_KID, YARD_STAGE, registerYardItems, yardBackyardScenery, yardCompareHTML, yardDoorMarkup, yardLookPatch, yardPreviewOn, yardSheetHTML, yardShot } from './yard';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { isLightKind } from './sky';
@@ -176,6 +177,7 @@ app.innerHTML = `
   <div class="stage" id="stage">
     <div class="world" id="world">
       <div class="wall" id="wall"></div><div class="floor" id="floor"></div><div class="baseboard"></div>
+      <div class="sceneArtHost" id="sceneArt"></div>
       <div class="scenery" id="scenery"></div>
       <div class="partyFx" id="partyFx" aria-hidden="true"><i class="pl pl1"></i><i class="pl pl2"></i><i class="pl pl3"></i><i class="sp s1"></i><i class="sp s2"></i><i class="sp s3"></i><i class="sp s4"></i><i class="sp s5"></i><i class="sp s6"></i><i class="sp s7"></i><i class="sp s8"></i></div>
       <div class="layer" id="layer"></div>
@@ -938,6 +940,7 @@ function renderRoomBg(s: GameState) {
   floor.style.backgroundImage = ft ? `${cssUrl(ft.url)}, linear-gradient(rgba(0,0,0,.06), transparent 50%)` : FLOOR_BOARDS;
   floor.style.backgroundSize = ft ? '180px auto, auto' : 'auto';
   $('mmWall').style.background = room.wallpaper; $('mmFloor').style.background = room.floor;
+  showSceneArt($('sceneArt'), roomSceneArt(s.currentRoom, room), stage);
   paintScenery(s);
 }
 function renderMinimap(s: GameState) {

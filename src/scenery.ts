@@ -1,6 +1,8 @@
 // View-only room dressing. Nothing here is written into the house save.
 // An empty room gets a rug, a lamp, and a plant. A room with no window or curtains gets a window.
 
+import { initialState } from './shared/state';
+
 const O = '#5a3d5c';
 const s = `stroke="${O}" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"`;
 
@@ -91,4 +93,18 @@ export function syncScenery(root: HTMLElement, room: string, items: { kind: stri
   sig = next;
   root.innerHTML = (hasWindow ? '' : windowSVG(room)) + (empty ? startersSVG() : '');
   root.dataset.room = room;
+}
+
+/** Room shells: 'room-<id>' (assets/art/scene/room-<id>.webp) while the room still has its
+    starting wall and floor. A wallpaper, floor, pattern or tile she picked always wins, so the
+    vector shell (her choice) draws and the painting stays off. The backyard has its own scene. */
+let defaults: ReturnType<typeof initialState>['rooms'] | null = null;
+type Shell = { wallpaper: string; floor: string; pattern: number; wallTile?: string | null; floorTile?: string | null };
+export function roomSceneArt(room: string, r: Shell): string | null {
+  if (room === 'backyard') return null;
+  defaults ??= initialState().rooms;
+  const d = (defaults as Record<string, Shell>)[room];
+  if (!d || r.wallTile || r.floorTile) return null;
+  if (r.wallpaper.toLowerCase() !== d.wallpaper.toLowerCase() || r.floor.toLowerCase() !== d.floor.toLowerCase() || r.pattern !== d.pattern) return null;
+  return 'room-' + room;
 }
