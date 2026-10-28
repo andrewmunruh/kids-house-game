@@ -1,4 +1,5 @@
 import './style.css';
+import { arriveSpot } from './shared/arrive';
 import './juice.css';
 import './scenery.css';
 import './mail.css';
@@ -2150,7 +2151,13 @@ function updateChar(id: string, patch: Partial<Character>) {
   store.dispatch({ type: 'char/update', id, patch });
 }
 function setMyPres(p: Presence) { hood?.setPresence(p); }
-function moveMeToRoom(room: RoomId) { const p = myPres(); if (p && p.where === 'house') setMyPres({ ...p, room }); }
+/** Visitors arrive apart from the host and anyone else already standing in the room. */
+function apartIn(houseId: string, room: RoomId, want: { x: number; y: number }) {
+  const others: { x: number; y: number }[] = [];
+  hood?.presence.forEach((q, pid) => { if (pid !== hood!.pid && q.where === 'house' && q.houseId === houseId && q.room === room) others.push(q); });
+  return arriveSpot(want, others, { minX: 80, maxX: W - 80, minY: FLOOR_Y + 60, maxY: H - 20 });
+}
+function moveMeToRoom(room: RoomId) { const p = myPres(); if (p && p.where === 'house') { const at = p.houseId ? apartIn(p.houseId, room, p) : p; setMyPres({ ...p, room, x: at.x, y: at.y }); } }
 
 function useStore(next: AnyStore) {
   inner = next; hookStore(next); selected = null; setTimeout(() => eggs.update());
@@ -2861,7 +2868,7 @@ function enterHouse(houseId: string, room: RoomId = 'living') {
   let st = houseStores.get(houseId);
   if (!st) { st = houseStore(hood, houseId, { get: () => local.get().soundOn, set: on => local.dispatch({ type: 'settings/sound', on }) }); houseStores.set(houseId, st); }
   st.dispatch({ type: 'room/switch', room });
-  setMyPres({ where: 'house', houseId, room, x: 900 + Math.random() * 300, y: 540, flip: false });
+  { const at = apartIn(houseId, room, { x: 900 + Math.random() * 300, y: 540 }); setMyPres({ where: 'house', houseId, room, x: at.x, y: at.y, flip: false }); }
   hideScenes();
   useStore(st); sceneIn($('stageWrap')); sfx.sparkle();
   fitPhone();
@@ -4767,7 +4774,7 @@ function goThroughYardDoor(go: 'backyard' | 'living') {
   store.dispatch({ type: 'room/switch', room: go });
   if (hood && inner !== local) {
     const p = myPres();
-    if (p && p.where === 'house') setMyPres({ ...p, room: go, x: spot.x, y: spot.y, flip: spot.flip });
+    if (p && p.where === 'house') { const at = p.houseId ? apartIn(p.houseId, go, spot) : spot; setMyPres({ ...p, room: go, x: at.x, y: at.y, flip: spot.flip }); }
   }
   requestAnimationFrame(() => frameYardCam());
 }
