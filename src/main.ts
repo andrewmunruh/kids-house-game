@@ -1232,6 +1232,9 @@ stage.addEventListener('pointerdown', e => {
   const door = doorAtPoint(e.clientX, e.clientY);
   if (!door) return;
   if (e.target instanceof Node && door.contains(e.target)) return;
+  // The painting's resize handle and the piece toolbar sit above everything on purpose: a press on them is never a
+  // door tap, even when a grown painting's corner lands over the door (844x390 after growing to 1.5).
+  if (e.target instanceof Element && e.target.closest('#artGrip, #toolbar')) return;
   e.stopPropagation();
   e.preventDefault();
   const go: 'backyard' | 'living' = door.dataset.yardGo === 'backyard' ? 'backyard' : 'living';
