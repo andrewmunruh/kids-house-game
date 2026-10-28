@@ -37,3 +37,4 @@ Branch cursor/art-batch-b0 from dda1839. Preview-only; no deploys from this job.
 | scene_hotspot (new) | 59 passed, 0 failed | n/a | ok |
 
 Shots: /workspace/t-batchB-work/shots/final (cur-dda1839__ / pr-c25d612__ [+__artv1], 820x1180, 844x390, 390x844, chromium and webkit).
+PR: https://github.com/andrewmunruh/kids-house-game/pull/51 (draft)
