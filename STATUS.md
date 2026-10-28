@@ -15,5 +15,15 @@ Branch cursor/art-studio, PR #48. Nothing deployed. Local servers only (ports 58
 | ranch | 41/41 |
 | map | 40/40 |
 | ambient_sync | 12/12 |
-| b0_compat | FAIL in run 8 (timed out waiting for #btnHood); rerun pending |
+| b0_compat | 14/14 (rerun b09). Run 8 failed only because my gate script passed --port-b1 5858 = --port-hood 5858 (a sed typo), not a code issue |
 | art_studio_test | 128/128 on f025479 (run art10). Run 8 crashed in the street join (flaky timeout); run 9 found a test bug (camera away from the painting after reload), fixed in f025479 |
+
+## Migration proof vs BUILT 10ef736 (43/43, gate run 8)
+```
+rm -rf /tmp/artst-old10 && mkdir /tmp/artst-old10 && git archive 10ef736 | tar -x -C /tmp/artst-old10
+ln -s /workspace/t-artstudio/node_modules /tmp/artst-old10/node_modules && (cd /tmp/artst-old10 && npx vite build)
+npx vite build && cp -r dist /tmp/artst-new-dist            # this branch
+VITE_BASE=/cozy-preview/ VITE_HOOD_URL=http://localhost:5859 VITE_STORE_PREFIX=preview: npx vite build --outDir /tmp/artst-prev-dist --emptyOutDir
+flock -o /workspace/surprise/gate.lock env ART_DIR=/tmp/artst-artifacts /workspace/.pwvenv/bin/python migration_test.py --prod-tree /tmp/artst-old10 --prod-dist /tmp/artst-old10/dist --new-dist /tmp/artst-new-dist --preview-dist /tmp/artst-prev-dist --port-web 5853 --port-hood 5854 --port-prev 5855 --work /tmp/artst-migr
+```
+Earlier migration run 4 (40/43) failed only because its preview build lacked VITE_STORE_PREFIX=preview:.
