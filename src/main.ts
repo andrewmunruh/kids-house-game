@@ -127,7 +127,7 @@ const ICON = {
   smaller: `<svg viewBox="0 0 48 48"><rect x="16" y="16" width="16" height="16" rx="4" fill="#bde0fe" stroke="#5a3d5c" stroke-width="3"/><path d="M8 24 H14 M34 24 H40" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/></svg>`,
   bigger: `<svg viewBox="0 0 48 48"><rect x="12" y="12" width="24" height="24" rx="5" fill="#ffd166" stroke="#5a3d5c" stroke-width="3"/><path d="M24 6 V11 M24 37 V42 M6 24 H11 M37 24 H42" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/></svg>`,
 };
-const PEOPLE_ICON = `<svg viewBox="0 0 48 48"><circle cx="17" cy="18" r="8" fill="#ffd166" stroke="#5a3d5c" stroke-width="3"/><circle cx="32" cy="20" r="7" fill="#ff8fab" stroke="#5a3d5c" stroke-width="3"/><path d="M5 42 Q6 28 17 28 Q28 28 29 42 Z" fill="#8ecae6" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/><path d="M24 42 Q25 30 32 30 Q42 30 43 42 Z" fill="#c9a0dc" stroke="#5a3d5c" stroke-width="3" stroke-linejoin="round"/></svg>`;
+const PEOPLE_ICON = `<svg viewBox="0 0 48 48"><circle cx="17" cy="18" r="8" fill="#ffd166" stroke="#5b3d5c" stroke-width="3"/><circle cx="32" cy="20" r="7" fill="#ff8fab" stroke="#5b3d5c" stroke-width="3"/><path d="M5 42 Q6 28 17 28 Q28 28 29 42 Z" fill="#8ecae6" stroke="#5b3d5c" stroke-width="3" stroke-linejoin="round"/><path d="M24 42 Q25 30 32 30 Q42 30 43 42 Z" fill="#c9a0dc" stroke="#5b3d5c" stroke-width="3" stroke-linejoin="round"/></svg>`;
 const MENU_ICON = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 15 H37 M11 24 H37 M11 33 H37" fill="none" stroke="#5a3d5c" stroke-width="4" stroke-linecap="round"/></svg>`;
 const MAIL_ICON = `<svg class="mailGlyph" viewBox="0 0 48 48" aria-hidden="true"><g transform="translate(0 2)"><rect x="6" y="14" width="36" height="24" rx="4" fill="#8ecae6" stroke="#5a3d5c" stroke-width="3"/><path d="M6 16 L24 30 L42 16" fill="none" stroke="#5a3d5c" stroke-width="3"/><path d="M34 12 V6" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/><path d="M34 6 H44 L40 10 L44 14 H34 Z" fill="#ff6b6b" stroke="#5a3d5c" stroke-width="2"/></g></svg>`;
 const PLUS = `<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="#fff3b0" stroke="#5a3d5c" stroke-width="3"/><path d="M24 15 V33 M15 24 H33" stroke="#5a3d5c" stroke-width="4" stroke-linecap="round"/></svg>`;
@@ -632,7 +632,7 @@ function syncMinimap() {
   const show = inHouse && (portrait ? decorate : (decorate || wider));
   document.body.classList.toggle('show-minimap', show);
 }
-const TAB_ICO = `<svg class="tabIco" width="14" height="12" viewBox="0 0 16 12" aria-hidden="true"><path d="M1 6 L8 1 L15 6 V11 H1 Z" fill="currentColor"/></svg>`;
+const TAB_ICO = `<svg class="tabIco" width="14" height="12" viewBox="0 0 16 12" aria-hidden="true"><path d="M1.6 6 L8 1.4 L14.4 6 V10.8 H1.6 Z" fill="currentColor" stroke="#5b3d5c" stroke-width="1.4" stroke-linejoin="round"/><rect x="6.6" y="7" width="2.8" height="3.8" rx=".8" fill="#fff6ea" stroke="#5b3d5c" stroke-width="1"/></svg>`;
 function tabsCompact() {
   // Every phone uses the short names so six tabs, Menu, Map, and Chat share one row.
   // A wide landscape phone (844×390) still has body.phone; full names overlap the minimap once Chat is up.
@@ -1752,6 +1752,20 @@ function markShelfArt(): void {
 function refreshShelfArt(): void {
   if (currentTab === '__people') { renderDrawer(); return; }
   markShelfArt();
+  refreshChipArt();
+}
+/** The chip icons are the item paintings once they load (the SVG until then, or with ?art=v1). */
+const SECRET_ICON = () => ITEM_MAP['egg:chloe-starlamp'] ? svgOf(ITEM_MAP['egg:chloe-starlamp']) : '🎁';
+function refreshChipArt(): void {
+  document.querySelectorAll<HTMLElement>('#cats .cat[data-cat]').forEach(b => {
+    if (b.querySelector('img.artimg')) return;
+    const id = b.dataset.cat, t = TABS.find(x => x.id === id);
+    if (id === 'secrets') { b.innerHTML = SECRET_ICON(); return; }
+    const def = t && t.kind !== 'people' ? ITEM_MAP[t.icon] : undefined;
+    if (!def || !rasterOn() || !rasterUrl(def.kind)) return;
+    const host = t!.kind === 'pack' ? b.querySelector<HTMLElement>('.packicon') : b;
+    if (host) host.innerHTML = svgOf(def);
+  });
 }
 
 function clearMySeatIfFurniture(a: Action) {
@@ -2103,7 +2117,7 @@ function renderDrawer() {
   const visible = TABS.filter(t => t.id !== 'secrets' && (t.kind === 'people' || (t.kind === 'pack' && room !== 'backyard') || tabItems(t.id).length));
   if (!(currentTab === 'secrets' && hasSecrets) && !visible.some(t => t.id === currentTab)) currentTab = visible[1]?.id ?? '__people';
   $('cats').innerHTML = visible.map(t => `<button class="cat ${t.kind} ${t.id === currentTab ? 'on' : ''}" data-cat="${t.id}" aria-label="${t.name}" title="${t.name}">${t.kind === 'people' ? PEOPLE_ICON : t.kind === 'pack' ? `<span class="packicon">${svgOf(ITEM_MAP[t.icon])}</span><span class="packname">${t.name}</span>` : svgOf(ITEM_MAP[t.icon])}</button>`).join('')
-    + (hasSecrets ? `<button class="cat secretTab ${currentTab === 'secrets' ? 'on' : ''}" data-cat="secrets" aria-label="Secrets" title="Secrets">🎁</button>` : '');
+    + (hasSecrets ? `<button class="cat secretTab ${currentTab === 'secrets' ? 'on' : ''}" data-cat="secrets" aria-label="Secrets" title="Secrets">${SECRET_ICON()}</button>` : '');
   const shelf = $('shelf'); shelfWaiters.length = 0; shelf.innerHTML = '';
   if (!canEdit()) { shelf.innerHTML = `<div class="empty locked">🔒 This house is look-only right now</div>`; return; }
   if (currentTab === '__people') {
@@ -4845,6 +4859,7 @@ function artKinds(s: GameState): string[] {
     if (c.held.right) kinds.add(c.held.right.kind);
   }
   if (s.baby) kinds.add('baby');
+  for (const t of TABS) if (t.icon && ITEM_MAP[t.icon]) kinds.add(t.icon);   // drawer chip icons
   return [...kinds];
 }
 let artBoot: Promise<void> | null = null;

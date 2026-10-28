@@ -30,3 +30,6 @@ Pop-up paintings (seen from behind, no faces): assets/art/living/_pop~cada-mouse
 Chloe's star lamp has no pop-up (no hello); its shipped painting is already faceless, and it is the Secrets tab icon.
 Vector fallbacks for egg:cada-mouse, sloane-snail, chloe-starlamp, quinn-pup: eyes/mouth/nose/blush removed; shapes and bounds kept.
 NOT changed (still have faces, per brief): shipped in-room paintings living/egg~cada-mouse.webp, egg~quinn-pup.webp (and the snail's eye stalks).
+
+## Step 3 — drawer tab icons and chips
+Chips (furniture/decor/plants/food/pets, pack chips) now preload their item paintings at boot and swap to them once loaded (refreshChipArt); the Secrets chip shows the faceless star-lamp painting instead of 🎁 (SVG under ?art=v1). TAB_ICO (compact room tabs) refit: plum #5b3d5c stroke + door, same 14x12 box. PEOPLE_ICON stroke #5a3d5c → #5b3d5c. Chip/tab sizes and hit areas unchanged (no size CSS touched). Checked in screenshots at 1180x820 and 844x390.

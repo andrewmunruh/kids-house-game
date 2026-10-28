@@ -421,7 +421,7 @@ body:has(#tableOverlay:not(.hidden)) .toast { bottom: auto; top: 210px; }
 .secrets.pulse { animation: pulse2 .8s ease 3; opacity: 1; }
 @keyframes pulse2 { 50% { transform: scale(1.3); background: #fff3b0; } }
 body.view-street .secrets { display: none; }
-.cat.secretTab { font-size: 22px; background: linear-gradient(135deg, #fff3b0, #ffe8f6); box-shadow: 0 3px 0 #f0b8da; }
+.cat.secretTab { font-size: 22px; line-height: 1; background: linear-gradient(135deg, #fff3b0, #ffe8f6); box-shadow: 0 3px 0 #f0b8da; }
 .cat.secretTab.on { border-color: var(--ink); }
 /* roster + custom code (grown-up screen) */
 .nicks.roster button { font-size: 22px; min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
