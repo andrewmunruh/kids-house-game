@@ -61,6 +61,9 @@ export function showSceneArt(host: HTMLElement, scene: string | null, mark: HTML
   const job = load(want);
   const put = (url: string) => {
     if (host.dataset.sceneWant !== want) return; // she left the scene before it loaded
+    // Re-read: two calls made while the file loads each resolve here, and a stale null would add a second <img>
+    // (that one kept the previous scene's painting on top after a switch, e.g. living -> backyard).
+    img = host.querySelector<HTMLImageElement>(':scope > img.sceneArt');
     if (!img) {
       img = document.createElement('img');
       img.className = 'sceneArt';

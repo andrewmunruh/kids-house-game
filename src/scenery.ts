@@ -97,11 +97,11 @@ export function syncScenery(root: HTMLElement, room: string, items: { kind: stri
 
 /** Room shells: 'room-<id>' (assets/art/scene/room-<id>.webp) while the room still has its
     starting wall and floor. A wallpaper, floor, pattern or tile she picked always wins, so the
-    vector shell (her choice) draws and the painting stays off. The backyard has its own scene. */
+    vector shell (her choice) draws and the painting stays off. The backyard paints its outdoor scene. */
 let defaults: ReturnType<typeof initialState>['rooms'] | null = null;
 type Shell = { wallpaper: string; floor: string; pattern: number; wallTile?: string | null; floorTile?: string | null };
 export function roomSceneArt(room: string, r: Shell): string | null {
-  if (room === 'backyard') return null;
+  if (room === 'backyard') return 'backyard'; // the yard has no wallpaper/floor pick: always its painting
   defaults ??= initialState().rooms;
   const d = (defaults as Record<string, Shell>)[room];
   if (!d || r.wallTile || r.floorTile) return null;

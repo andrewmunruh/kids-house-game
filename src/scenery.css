@@ -11,3 +11,9 @@
 .sceneArtHost > img.sceneArt[hidden] { display: none; }
 /* The painting includes the door and its frame; the button stays as the tap target. */
 .stage.sceneArtOn .yardDoor .doorArt { visibility: hidden; }
+/* Backyard: the painting carries the sky, lawn, fence, tree and house wall (src/yard.ts yardBackyardScenery). */
+.stage.sceneArtOn .yardWorld { visibility: hidden; }
+/* Clubhouse: the painting carries the room; the animated bits (light bulbs, neon sign) and the
+   photo frames (which differ phone vs iPad) stay vector on top, drawn at the same spots. */
+.grWorld > .sceneArtHost { z-index: 0; }
+.grWorld.sceneArtOn > svg.grScene > :not(defs):not(.bulb):not(.neonSign):not(.photoFrame) { visibility: hidden; }

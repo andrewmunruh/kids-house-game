@@ -1,0 +1,43 @@
+{
+ "geom": "backyard/backyard__geom.json",
+ "layers_dir": "/workspace/t-batchB-yard-work/guide",
+ "scene": "backyard",
+ "door": "backyard/door.jpg",
+ "max_kb": 150,
+ "out": "/workspace/t-batchB-yard-work/att/backyard_B.webp",
+ "preview": "/workspace/t-batchB-yard-work/att/backyard_B.png",
+ "dL": -8,
+ "grain": 1.5,
+ "layers": {
+  "sky": {
+   "tex": "backyard/paper.jpg",
+   "amt": 3.0,
+   "med": 7,
+   "tile_w": 700
+  },
+  "ground": {
+   "tex": "backyard/paper.jpg",
+   "amt": 3.0,
+   "med": 7,
+   "tile_w": 700
+  },
+  "fence": {
+   "tex": "backyard/paper.jpg",
+   "amt": 3.0,
+   "med": 7,
+   "tile_w": 700
+  },
+  "tree": {
+   "tex": "backyard/paper.jpg",
+   "amt": 3.0,
+   "med": 7,
+   "tile_w": 700
+  },
+  "house": {
+   "tex": "backyard/paper.jpg",
+   "amt": 3.0,
+   "med": 7,
+   "tile_w": 700
+  }
+ }
+}
