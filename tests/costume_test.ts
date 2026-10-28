@@ -10,9 +10,11 @@ import { initialState, migrate, reduce } from '../src/shared/state';
 let pass = 0;
 const check = (n: string, ok: boolean, x = '') => { console.log((ok ? 'PASS ' : 'FAIL ') + n, x); if (ok) pass++; else process.exitCode = 1; };
 
-// Hash of the same corpus rendered by 10ef736 (before costumes).
-const BASE = 'e5371abb1c48e0c808495bdca0dfaada08f14a2f9010f90952a07881705ec4b6';
-check('no-costume avatars identical to 10ef736', createHash('sha256').update(corpus().join('\n')).digest('hex') === BASE);
+// Hash of the same corpus rendered by 10ef736 (before costumes), re-pinned once for the
+// arm-layer fix: arms + sleeves moved to their own layer above clothes (markup order only,
+// no art changed; tests/arm_layer_test.ts guards the order). Old hash e5371abb...ec4b6.
+const BASE = 'c2b695a735daebd4ad1366a6169e79688e731a0a9a5f6c3d52dba3e6606ce3c9';
+check('no-costume avatars identical to 10ef736 (+arm-layer re-pin)', createHash('sha256').update(corpus().join('\n')).digest('hex') === BASE);
 check('protocol stays 4', PROTOCOL === 4);
 
 check('clean ok ids', COSTUME_IDS.every(id => cleanCostume(id) === id));
