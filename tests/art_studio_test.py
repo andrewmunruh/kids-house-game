@@ -392,9 +392,10 @@ async def street_more(mk, join, A, B, hid, eA, eB):
         x0 = (await A.evaluate(ITEM, pid))['x']
         bb = await A.locator(f'.item[data-id="{pid}"]').bounding_box()
         cx, cy = bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2
-        for gy, dx in [(cy, -20), (bb['y'] + bb['height'] * .25, -20), (bb['y'] + bb['height'] * .25, 25)]:  # retry from a spot a kid is not standing on
-            await A.mouse.move(cx, gy); await A.mouse.down()
-            for i in range(1, 11): await A.mouse.move(cx + i * dx, gy + i * 2); await A.wait_for_timeout(16)
+        gx = bb['x'] + bb['width'] * .3  # grab the top-left part: the resize handle owns the bottom-right corner
+        for gy, dx in [(bb['y'] + bb['height'] * .3, -20), (bb['y'] + bb['height'] * .2, -20), (bb['y'] + bb['height'] * .2, 25)]:  # retry from a spot a kid is not standing on
+            await A.mouse.move(gx, gy); await A.mouse.down()
+            for i in range(1, 11): await A.mouse.move(gx + i * dx, gy + i * 2); await A.wait_for_timeout(16)
             await A.mouse.up(); await A.wait_for_timeout(900)
             x1 = (await A.evaluate(ITEM, pid))['x']
             if x1 != x0: break
@@ -410,7 +411,7 @@ async def street_more(mk, join, A, B, hid, eA, eB):
                 bb = await A.locator(f'.item[data-id="{pid}"]').bounding_box(); await A.mouse.click(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); await A.wait_for_timeout(300)
             await A.locator('#toolbar button[data-a="delete"]').click()
         else:
-            bb = await A.locator(f'.item[data-id="{pid}"]').bounding_box(); cx, cy = bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2
+            bb = await A.locator(f'.item[data-id="{pid}"]').bounding_box(); cx, cy = bb['x'] + bb['width'] * .3, bb['y'] + bb['height'] * .3
             await A.mouse.move(cx, cy); await A.mouse.down(); await A.mouse.move(cx + 10, cy + 10); await A.wait_for_timeout(100)
             bin_ = await A.locator('#bin').bounding_box()
             for i in range(1, 11): await A.mouse.move(cx + (bin_['x'] + bin_['width'] / 2 - cx) * i / 10, cy + (bin_['y'] + bin_['height'] / 2 - cy) * i / 10); await A.wait_for_timeout(16)

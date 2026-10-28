@@ -1011,7 +1011,7 @@ function renderArtGrip(s: GameState) {
   if (play.isPlay() || !it || it.kind !== 'picture' || !it.art || !el || !canEdit()) { g.classList.add('hidden'); return; }
   // Centre the handle just inside the painting's bottom-right corner so it sits ON the corner (overlapping it),
   // not floating off it. 64 screen px touch target, 52 px visible disc, at any zoom.
-  const b = el.getBoundingClientRect(), inset = Math.min(14, b.width / 4, b.height / 4), p = toRoom(b.right - inset, b.bottom - inset);
+  const b = el.getBoundingClientRect(), inset = Math.min(b.width, b.height) >= 120 ? 14 : 0 /* small piece: centre on the corner, so most of it stays grabbable */, p = toRoom(b.right - inset, b.bottom - inset);
   const sc = stage.getBoundingClientRect().width / Math.max(1, VIEW_W) || 1;
   g.style.left = (p.x / W) * 100 + '%'; g.style.top = (p.y / H) * 100 + '%';
   g.style.width = g.style.height = 64 / sc + 'px';
