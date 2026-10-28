@@ -61,6 +61,7 @@ export function showSceneArt(host: HTMLElement, scene: string | null, mark: HTML
   const job = load(want);
   const put = (url: string) => {
     if (host.dataset.sceneWant !== want) return; // she left the scene before it loaded
+    img = host.querySelector<HTMLImageElement>(':scope > img.sceneArt'); // re-query: an earlier pending put may have made it
     if (!img) {
       img = document.createElement('img');
       img.className = 'sceneArt';
