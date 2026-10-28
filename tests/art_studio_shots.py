@@ -36,7 +36,7 @@ async def run():
             await pg.screenshot(path=OUT + f'5_resized_toolbar_{t}.png')
             g = await pg.locator('#artGrip').bounding_box(); gx, gy = g['x'] + g['width'] / 2, g['y'] + g['height'] / 2
             await pg.mouse.move(gx, gy); await pg.mouse.down()
-            for i in range(1, 16): await pg.mouse.move(gx - i * 12, gy - i * 9); await pg.wait_for_timeout(16)
+            for i in range(1, 16): await pg.mouse.move(gx - i * 4, gy - i * 3); await pg.wait_for_timeout(16)
             await pg.mouse.up(); await pg.wait_for_timeout(800)
             print(t, 'small size', (await pg.evaluate(ITEMS, pid))['size'], 'grip', await pg.evaluate(GRIPCHK, pid))
             await pg.screenshot(path=OUT + f'7_small_painting_{t}.png')
