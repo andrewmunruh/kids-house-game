@@ -78,3 +78,17 @@ Bundle (fresh --emptyOutDir builds, all JS gzip -9): dist 16,138,804 → 7,870,2
 - Worker cozy-hood-preview version 42fe087f-13f9-45e4-8db7-6c06e0a2c982
 - cozy-preview gh-pages 1b38f18f52032723fb442ded2ffb448b06c1341b
 - preview bundle index-BJ-2qTB5.js
+
+## Step 6 — preview deploy (done 12:0x CT, from c33af1e tree; 7b2e283 is status-only)
+NOTE: deploy ran right after recording rollback values (before the 12:38 brief); rollback values were verified live immediately before it.
+- Preview now: gh-pages 961a7bbc24f6f6978ffc94b80b7442723be90e01, bundle index-CDznc5xW.js (842,992 B, curl-verified, points at cozy-hood-preview), Worker cozy-hood-preview version 77ef9bfc-382f-4485-98dd-9678ee34c052
+- Rollback: Worker 42fe087f-13f9-45e4-8db7-6c06e0a2c982, gh-pages 1b38f18f52032723fb442ded2ffb448b06c1341b, bundle index-BJ-2qTB5.js
+- Smoke (preview + old 10ef736 client served from local dist via route at the github.io origin, joining the preview Worker):
+| browser | 820x1180 | 844x390 | 390x844 |
+|---|---|---|---|
+| chromium | OK | OK (1st try flake: nick list not ready; rerun OK) | OK |
+| webkit | OK | OK | OK |
+Each: chips 13/13 with 12 painted after first drawer touch (3 before = kinds already in save → lazy load works), map shows 2 houses (old client joined), 0 page errors new/old, hosts only andrewmunruh.github.io + cozy-hood-preview.andrewmunruh.workers.dev.
+Backyard on preview (1180x820, chromium+webkit): placed 2/2 painted, shelf 14/15 painted (base: 0/2, 2/15), 0 errors.
+## Step 7 — shots
+/workspace/t-batchA-shots/pr-7b2e283__* (22 + backyard + 2 preview) and side-by-side cur-dda1839-vs-pr-7b2e283__* sheets. Popups: no faces.
