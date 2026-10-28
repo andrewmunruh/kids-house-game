@@ -4,7 +4,7 @@
 usage: scene_paint.py RECIPE.json
 RECIPE keys (paths relative to the recipe file):
   geom        <scene>__geom.json from scripts/scene_guide.py (logical px)
-  out         output .webp (opaque, 2x logical) ; also writes <out>.png preview
+  out         output .webp (opaque, 2x logical)
   wall        AI wall texture (flat, straight-on); wall_crop [x0,y0,x1,y1] optional
   wall_tile_h logical px of the wall that one texture tile height covers (default = wall height)
   wall_color  target mean colour (hex) — the room's vector wallpaper one step darker
