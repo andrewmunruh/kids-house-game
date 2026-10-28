@@ -27,3 +27,9 @@ VITE_BASE=/cozy-preview/ VITE_HOOD_URL=http://localhost:5859 VITE_STORE_PREFIX=p
 flock -o /workspace/surprise/gate.lock env ART_DIR=/tmp/artst-artifacts /workspace/.pwvenv/bin/python migration_test.py --prod-tree /tmp/artst-old10 --prod-dist /tmp/artst-old10/dist --new-dist /tmp/artst-new-dist --preview-dist /tmp/artst-prev-dist --port-web 5853 --port-hood 5854 --port-prev 5855 --work /tmp/artst-migr
 ```
 Earlier migration run 4 (40/43) failed only because its preview build lacked VITE_STORE_PREFIX=preview:.
+
+## Merge check with origin/cursor/integration3 (eb57e47)
+Throwaway worktree /tmp/artst-merge (detached, `git merge --no-commit origin/cursor/integration3`, never committed or pushed).
+Conflicts in server/core.ts, src/net.ts and src/shared/hood.ts were all flag unions: Conn/hello/join get both `needs`/`halloween`/`cos` and `art`; the welcome sends `needs: 1, art: 1`; net.ts keeps speaksArt and speaksNeeds; the PROTOCOL comment keeps both notes.
+On the merged tree: tsc OK, vite build OK, paint_test 47/47, art_studio_test 128/128 (merged6; web 5856, hood 5857, run under flock).
+Found along the way: on integration a fresh painting could land over the back door, and the door button swallowed its drag. Fixed in 57006b0 (paintings avoid the door and render in front of it). 541180c makes the test drag far enough that the door rule doesn't snap it back.
