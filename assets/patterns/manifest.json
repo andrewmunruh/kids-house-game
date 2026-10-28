@@ -4,120 +4,105 @@
     "name": "Leafy Cream",
     "type": "wallpaper",
     "pack": "welcome-home",
-    "svg": "welcome-home/leafy-cream.svg",
-    "png": "welcome-home/leafy-cream.png"
+    "svg": "welcome-home/leafy-cream.svg"
   },
   {
     "slug": "orange-gingham",
     "name": "Orange Gingham",
     "type": "wallpaper",
     "pack": "welcome-home",
-    "svg": "welcome-home/orange-gingham.svg",
-    "png": "welcome-home/orange-gingham.png"
+    "svg": "welcome-home/orange-gingham.svg"
   },
   {
     "slug": "wood-panel",
     "name": "Wood Panel",
     "type": "wallpaper",
     "pack": "welcome-home",
-    "svg": "welcome-home/wood-panel.svg",
-    "png": "welcome-home/wood-panel.png"
+    "svg": "welcome-home/wood-panel.svg"
   },
   {
     "slug": "wood-planks",
     "name": "Wood Planks",
     "type": "floor",
     "pack": "welcome-home",
-    "svg": "welcome-home/wood-planks.svg",
-    "png": "welcome-home/wood-planks.png"
+    "svg": "welcome-home/wood-planks.svg"
   },
   {
     "slug": "terracotta-tiles",
     "name": "Terracotta Tiles",
     "type": "floor",
     "pack": "welcome-home",
-    "svg": "welcome-home/terracotta-tiles.svg",
-    "png": "welcome-home/terracotta-tiles.png"
+    "svg": "welcome-home/terracotta-tiles.svg"
   },
   {
     "slug": "sunny-stars",
     "name": "Sunny Stars",
     "type": "wallpaper",
     "pack": "sunny-vibes",
-    "svg": "sunny-vibes/sunny-stars.svg",
-    "png": "sunny-vibes/sunny-stars.png"
+    "svg": "sunny-vibes/sunny-stars.svg"
   },
   {
     "slug": "mint-checks",
     "name": "Mint Checks",
     "type": "wallpaper",
     "pack": "sunny-vibes",
-    "svg": "sunny-vibes/mint-checks.svg",
-    "png": "sunny-vibes/mint-checks.png"
+    "svg": "sunny-vibes/mint-checks.svg"
   },
   {
     "slug": "sky-clouds",
     "name": "Sky Clouds",
     "type": "wallpaper",
     "pack": "sunny-vibes",
-    "svg": "sunny-vibes/sky-clouds.svg",
-    "png": "sunny-vibes/sky-clouds.png"
+    "svg": "sunny-vibes/sky-clouds.svg"
   },
   {
     "slug": "butter-check-floor",
     "name": "Butter Check Floor",
     "type": "floor",
     "pack": "sunny-vibes",
-    "svg": "sunny-vibes/butter-check-floor.svg",
-    "png": "sunny-vibes/butter-check-floor.png"
+    "svg": "sunny-vibes/butter-check-floor.svg"
   },
   {
     "slug": "sky-tiles",
     "name": "Sky Tiles",
     "type": "floor",
     "pack": "sunny-vibes",
-    "svg": "sunny-vibes/sky-tiles.svg",
-    "png": "sunny-vibes/sky-tiles.png"
+    "svg": "sunny-vibes/sky-tiles.svg"
   },
   {
     "slug": "pink-hearts",
     "name": "Pink Hearts",
     "type": "wallpaper",
     "pack": "glossy",
-    "svg": "glossy/pink-hearts.svg",
-    "png": "glossy/pink-hearts.png"
+    "svg": "glossy/pink-hearts.svg"
   },
   {
     "slug": "lilac-stripes",
     "name": "Lilac Stripes",
     "type": "wallpaper",
     "pack": "glossy",
-    "svg": "glossy/lilac-stripes.svg",
-    "png": "glossy/lilac-stripes.png"
+    "svg": "glossy/lilac-stripes.svg"
   },
   {
     "slug": "mint-bubbles",
     "name": "Mint Bubbles",
     "type": "wallpaper",
     "pack": "glossy",
-    "svg": "glossy/mint-bubbles.svg",
-    "png": "glossy/mint-bubbles.png"
+    "svg": "glossy/mint-bubbles.svg"
   },
   {
     "slug": "pink-check-floor",
     "name": "Pink Check Floor",
     "type": "floor",
     "pack": "glossy",
-    "svg": "glossy/pink-check-floor.svg",
-    "png": "glossy/pink-check-floor.png"
+    "svg": "glossy/pink-check-floor.svg"
   },
   {
     "slug": "lilac-terrazzo",
     "name": "Lilac Terrazzo",
     "type": "floor",
     "pack": "glossy",
-    "svg": "glossy/lilac-terrazzo.svg",
-    "png": "glossy/lilac-terrazzo.png"
+    "svg": "glossy/lilac-terrazzo.svg"
   },
   {
     "slug": "cloud-sky",
@@ -159,80 +144,70 @@
     "name": "Lilac Gingham",
     "type": "wallpaper",
     "pack": "cottage",
-    "svg": "cottage/cc-lilac-gingham.svg",
-    "png": "cottage/cc-lilac-gingham.png"
+    "svg": "cottage/cc-lilac-gingham.svg"
   },
   {
     "slug": "cc-peach-scallops",
     "name": "Peach Scallops",
     "type": "wallpaper",
     "pack": "cottage",
-    "svg": "cottage/cc-peach-scallops.svg",
-    "png": "cottage/cc-peach-scallops.png"
+    "svg": "cottage/cc-peach-scallops.svg"
   },
   {
     "slug": "cc-mint-florals",
     "name": "Mint Florals",
     "type": "wallpaper",
     "pack": "cottage",
-    "svg": "cottage/cc-mint-florals.svg",
-    "png": "cottage/cc-mint-florals.png"
+    "svg": "cottage/cc-mint-florals.svg"
   },
   {
     "slug": "cc-pink-plaid",
     "name": "Pink Plaid",
     "type": "wallpaper",
     "pack": "cottage",
-    "svg": "cottage/cc-pink-plaid.svg",
-    "png": "cottage/cc-pink-plaid.png"
+    "svg": "cottage/cc-pink-plaid.svg"
   },
   {
     "slug": "cc-butter-polka",
     "name": "Butter Polka",
     "type": "wallpaper",
     "pack": "cottage",
-    "svg": "cottage/cc-butter-polka.svg",
-    "png": "cottage/cc-butter-polka.png"
+    "svg": "cottage/cc-butter-polka.svg"
   },
   {
     "slug": "cc-lavender-lattice",
     "name": "Lavender Lattice",
     "type": "wallpaper",
     "pack": "cottage",
-    "svg": "cottage/cc-lavender-lattice.svg",
-    "png": "cottage/cc-lavender-lattice.png"
+    "svg": "cottage/cc-lavender-lattice.svg"
   },
   {
     "slug": "cc-rose-herringbone",
     "name": "Rose Herringbone",
     "type": "floor",
     "pack": "cottage",
-    "svg": "cottage/cc-rose-herringbone.svg",
-    "png": "cottage/cc-rose-herringbone.png"
+    "svg": "cottage/cc-rose-herringbone.svg"
   },
   {
     "slug": "cc-cream-hex",
     "name": "Cream Hex Tiles",
     "type": "floor",
     "pack": "cottage",
-    "svg": "cottage/cc-cream-hex.svg",
-    "png": "cottage/cc-cream-hex.png"
+    "svg": "cottage/cc-cream-hex.svg"
   },
   {
     "slug": "cc-rag-planks",
     "name": "Pastel Rag Rug",
     "type": "floor",
     "pack": "cottage",
-    "svg": "cottage/cc-rag-planks.svg",
-    "png": "cottage/cc-rag-planks.png"
+    "svg": "cottage/cc-rag-planks.svg"
   },
   {
     "slug": "cc-mint-checks",
     "name": "Mint Gingham Floor",
     "type": "floor",
     "pack": "cottage",
-    "svg": "cottage/cc-mint-checks.svg",
-    "png": "cottage/cc-mint-checks.png"
+    "svg": "cottage/cc-mint-checks.svg"
   },
   {
     "slug": "wc-snowflake-sky",

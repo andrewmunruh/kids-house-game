@@ -8,7 +8,6 @@
     "tag": "furniture",
     "size": "large",
     "svg": "living/comfy-armchair.svg",
-    "png": "living/comfy-armchair.png",
     "widthUnits": 161.7,
     "heightUnits": 162.5,
     "gameW": 161.7,
@@ -17,10 +16,6 @@
       2.5,
       98.0,
       98.5
-    ],
-    "pngPx": [
-      1082,
-      1088
     ]
   },
   {
@@ -32,7 +27,6 @@
     "tag": "rug",
     "size": "large",
     "svg": "living/daisy-rug.svg",
-    "png": "living/daisy-rug.png",
     "widthUnits": 306.0,
     "heightUnits": 108.0,
     "gameW": 306.0,
@@ -41,10 +35,6 @@
       64.0,
       102.0,
       36.0
-    ],
-    "pngPx": [
-      2048,
-      723
     ]
   },
   {
@@ -56,7 +46,6 @@
     "tag": "plant",
     "size": "medium",
     "svg": "living/monstera-plant.svg",
-    "png": "living/monstera-plant.png",
     "widthUnits": 158.2,
     "heightUnits": 145.6,
     "gameW": 158.2,
@@ -65,10 +54,6 @@
       -3.0,
       113.0,
       104.0
-    ],
-    "pngPx": [
-      1059,
-      974
     ]
   },
   {
@@ -80,7 +65,6 @@
     "tag": "furniture",
     "size": "large",
     "svg": "bedroom/canopy-bed.svg",
-    "png": "bedroom/canopy-bed.png",
     "widthUnits": 294.0,
     "heightUnits": 294.0,
     "gameW": 294.0,
@@ -89,10 +73,6 @@
       3.0,
       98.0,
       98.0
-    ],
-    "pngPx": [
-      1968,
-      1968
     ]
   },
   {
@@ -104,7 +84,6 @@
     "tag": "pet",
     "size": "medium",
     "svg": "bedroom/cat-bed.svg",
-    "png": "bedroom/cat-bed.png",
     "widthUnits": 112.8,
     "heightUnits": 91.2,
     "gameW": 112.8,
@@ -113,10 +92,6 @@
       25.0,
       94.0,
       76.0
-    ],
-    "pngPx": [
-      755,
-      610
     ]
   },
   {
@@ -128,7 +103,6 @@
     "tag": "lighting",
     "size": "small",
     "svg": "bedroom/moon-night-light.svg",
-    "png": "bedroom/moon-night-light.png",
     "widthUnits": 57.7,
     "heightUnits": 70.0,
     "gameW": 57.7,
@@ -138,10 +112,6 @@
       1.0,
       82.5,
       100.0
-    ],
-    "pngPx": [
-      386,
-      468
     ]
   },
   {
@@ -153,7 +123,6 @@
     "tag": "toy",
     "size": "small",
     "svg": "bedroom/dino-plush.svg",
-    "png": "bedroom/dino-plush.png",
     "widthUnits": 78.3,
     "heightUnits": 90.9,
     "gameW": 78.3,
@@ -163,10 +132,6 @@
       0.0,
       87.0,
       101.0
-    ],
-    "pngPx": [
-      524,
-      608
     ]
   },
   {
@@ -178,7 +143,6 @@
     "tag": "appliance",
     "size": "large",
     "svg": "kitchen/happy-fridge.svg",
-    "png": "kitchen/happy-fridge.png",
     "widthUnits": 132.6,
     "heightUnits": 170.0,
     "gameW": 132.6,
@@ -187,10 +151,6 @@
       1.0,
       78.0,
       100.0
-    ],
-    "pngPx": [
-      887,
-      1138
     ]
   },
   {
@@ -202,7 +162,6 @@
     "tag": "appliance",
     "size": "small",
     "svg": "kitchen/toaster.svg",
-    "png": "kitchen/toaster.png",
     "widthUnits": 70.4,
     "heightUnits": 73.6,
     "gameW": 70.4,
@@ -212,10 +171,6 @@
       9.0,
       88.0,
       92.0
-    ],
-    "pngPx": [
-      471,
-      493
     ]
   },
   {
@@ -227,7 +182,6 @@
     "tag": "food",
     "size": "small",
     "svg": "kitchen/fruit-bowl.svg",
-    "png": "kitchen/fruit-bowl.png",
     "widthUnits": 75.2,
     "heightUnits": 70.0,
     "gameW": 75.2,
@@ -237,10 +191,6 @@
       13.5,
       94.0,
       87.5
-    ],
-    "pngPx": [
-      503,
-      468
     ]
   },
   {
@@ -252,7 +202,6 @@
     "tag": "furniture",
     "size": "medium",
     "svg": "living/coffee-table.svg",
-    "png": "living/coffee-table.png",
     "widthUnits": 159.8,
     "heightUnits": 102.0,
     "gameW": 159.8,
@@ -261,10 +210,6 @@
       41.0,
       94.0,
       60.0
-    ],
-    "pngPx": [
-      1070,
-      683
     ]
   },
   {
@@ -276,7 +221,6 @@
     "tag": "furniture",
     "size": "medium",
     "svg": "living/bean-bag.svg",
-    "png": "living/bean-bag.png",
     "widthUnits": 112.8,
     "heightUnits": 87.6,
     "gameW": 112.8,
@@ -285,10 +229,6 @@
       28.0,
       94.0,
       73.0
-    ],
-    "pngPx": [
-      755,
-      586
     ]
   },
   {
@@ -300,7 +240,6 @@
     "tag": "seating",
     "size": "small",
     "svg": "living/pouf.svg",
-    "png": "living/pouf.png",
     "widthUnits": 62.4,
     "heightUnits": 52.0,
     "gameW": 62.4,
@@ -309,10 +248,6 @@
       36.0,
       78.0,
       65.0
-    ],
-    "pngPx": [
-      418,
-      348
     ]
   },
   {
@@ -324,7 +259,6 @@
     "tag": "furniture",
     "size": "medium",
     "svg": "living/rocking-chair.svg",
-    "png": "living/rocking-chair.png",
     "widthUnits": 137.2,
     "heightUnits": 136.5,
     "gameW": 137.2,
@@ -333,10 +267,6 @@
       3.5,
       98.0,
       97.5
-    ],
-    "pngPx": [
-      918,
-      914
     ]
   },
   {
@@ -348,7 +278,6 @@
     "tag": "storage",
     "size": "medium",
     "svg": "living/cubby-shelf.svg",
-    "png": "living/cubby-shelf.png",
     "widthUnits": 159.8,
     "heightUnits": 125.8,
     "gameW": 159.8,
@@ -357,10 +286,6 @@
       27.0,
       94.0,
       74.0
-    ],
-    "pngPx": [
-      1070,
-      842
     ]
   },
   {
@@ -372,7 +297,6 @@
     "tag": "furniture",
     "size": "medium",
     "svg": "living/piano.svg",
-    "png": "living/piano.png",
     "widthUnits": 186.2,
     "heightUnits": 174.8,
     "gameW": 186.2,
@@ -381,10 +305,6 @@
       9.0,
       98.0,
       92.0
-    ],
-    "pngPx": [
-      1246,
-      1170
     ]
   },
   {
@@ -396,7 +316,6 @@
     "tag": "furniture",
     "size": "large",
     "svg": "living/fireplace.svg",
-    "png": "living/fireplace.png",
     "widthUnits": 204.0,
     "heightUnits": 180.0,
     "gameW": 204.0,
@@ -405,10 +324,6 @@
       11.0,
       102.0,
       90.0
-    ],
-    "pngPx": [
-      1365,
-      1205
     ]
   },
   {
@@ -420,7 +335,6 @@
     "tag": "storage",
     "size": "medium",
     "svg": "living/tv-stand.svg",
-    "png": "living/tv-stand.png",
     "widthUnits": 176.4,
     "heightUnits": 90.0,
     "gameW": 176.4,
@@ -429,10 +343,6 @@
       51.0,
       98.0,
       50.0
-    ],
-    "pngPx": [
-      1181,
-      602
     ]
   },
   {
@@ -444,7 +354,6 @@
     "tag": "lighting",
     "size": "medium",
     "svg": "living/arc-floor-lamp.svg",
-    "png": "living/arc-floor-lamp.png",
     "widthUnits": 135.0,
     "heightUnits": 146.2,
     "gameW": 135.0,
@@ -453,10 +362,6 @@
       3.5,
       90.0,
       97.5
-    ],
-    "pngPx": [
-      904,
-      978
     ]
   },
   {
@@ -468,7 +373,6 @@
     "tag": "lighting",
     "size": "large",
     "svg": "living/string-lights.svg",
-    "png": "living/string-lights.png",
     "widthUnits": 262.6,
     "heightUnits": 68.9,
     "gameW": 262.6,
@@ -478,10 +382,6 @@
       17.5,
       101.0,
       26.5
-    ],
-    "pngPx": [
-      1758,
-      461
     ]
   },
   {
@@ -493,7 +393,6 @@
     "tag": "rug",
     "size": "large",
     "svg": "living/tassel-rug.svg",
-    "png": "living/tassel-rug.png",
     "widthUnits": 294.0,
     "heightUnits": 100.5,
     "gameW": 294.0,
@@ -502,10 +401,6 @@
       67.0,
       98.0,
       33.5
-    ],
-    "pngPx": [
-      1968,
-      673
     ]
   },
   {
@@ -517,7 +412,6 @@
     "tag": "rug",
     "size": "large",
     "svg": "living/rainbow-rug.svg",
-    "png": "living/rainbow-rug.png",
     "widthUnits": 254.8,
     "heightUnits": 66.3,
     "gameW": 254.8,
@@ -526,10 +420,6 @@
       68.5,
       98.0,
       25.5
-    ],
-    "pngPx": [
-      1705,
-      444
     ]
   },
   {
@@ -541,7 +431,6 @@
     "tag": "wall-art",
     "size": "medium",
     "svg": "living/rainbow-wall-art.svg",
-    "png": "living/rainbow-wall-art.png",
     "widthUnits": 130.2,
     "heightUnits": 67.2,
     "gameW": 130.2,
@@ -551,10 +440,6 @@
       27.0,
       108.5,
       56.0
-    ],
-    "pngPx": [
-      871,
-      450
     ]
   },
   {
@@ -566,7 +451,6 @@
     "tag": "decor",
     "size": "medium",
     "svg": "living/wall-shelf.svg",
-    "png": "living/wall-shelf.png",
     "widthUnits": 156.8,
     "heightUnits": 100.0,
     "gameW": 156.8,
@@ -576,10 +460,6 @@
       14.5,
       98.0,
       62.5
-    ],
-    "pngPx": [
-      1049,
-      669
     ]
   },
   {
@@ -591,7 +471,6 @@
     "tag": "decor",
     "size": "small",
     "svg": "living/globe.svg",
-    "png": "living/globe.png",
     "widthUnits": 49.7,
     "heightUnits": 63.7,
     "gameW": 49.7,
@@ -601,10 +480,6 @@
       10.0,
       71.0,
       91.0
-    ],
-    "pngPx": [
-      333,
-      426
     ]
   },
   {
@@ -616,7 +491,6 @@
     "tag": "plant",
     "size": "small",
     "svg": "living/tulip-vase.svg",
-    "png": "living/tulip-vase.png",
     "widthUnits": 44.8,
     "heightUnits": 76.4,
     "gameW": 44.8,
@@ -626,10 +500,6 @@
       5.5,
       56.0,
       95.5
-    ],
-    "pngPx": [
-      300,
-      511
     ]
   },
   {
@@ -641,7 +511,6 @@
     "tag": "plant",
     "size": "large",
     "svg": "living/fiddle-leaf-fig.svg",
-    "png": "living/fiddle-leaf-fig.png",
     "widthUnits": 118.8,
     "heightUnits": 195.7,
     "gameW": 118.8,
@@ -650,10 +519,6 @@
       -2.0,
       62.5,
       103.0
-    ],
-    "pngPx": [
-      795,
-      1310
     ]
   },
   {
@@ -665,7 +530,6 @@
     "tag": "plant",
     "size": "small",
     "svg": "living/hanging-planter.svg",
-    "png": "living/hanging-planter.png",
     "widthUnits": 67.0,
     "heightUnits": 98.0,
     "gameW": 67.0,
@@ -675,10 +539,6 @@
       -2.5,
       67.0,
       98.0
-    ],
-    "pngPx": [
-      448,
-      656
     ]
   },
   {
@@ -690,7 +550,6 @@
     "tag": "plant",
     "size": "medium",
     "svg": "living/snake-plant.svg",
-    "png": "living/snake-plant.png",
     "widthUnits": 68.2,
     "heightUnits": 103.4,
     "gameW": 68.2,
@@ -699,10 +558,6 @@
       7.0,
       62.0,
       94.0
-    ],
-    "pngPx": [
-      456,
-      692
     ]
   },
   {
@@ -714,7 +569,6 @@
     "tag": "plant",
     "size": "small",
     "svg": "living/succulent-trio.svg",
-    "png": "living/succulent-trio.png",
     "widthUnits": 81.0,
     "heightUnits": 66.2,
     "gameW": 81.0,
@@ -724,10 +578,6 @@
       27.5,
       90.0,
       73.5
-    ],
-    "pngPx": [
-      542,
-      443
     ]
   },
   {
@@ -739,7 +589,6 @@
     "tag": "decor",
     "size": "small",
     "svg": "living/throw-pillow.svg",
-    "png": "living/throw-pillow.png",
     "widthUnits": 53.4,
     "heightUnits": 52.2,
     "gameW": 53.4,
@@ -749,10 +598,6 @@
       14.0,
       89.0,
       87.0
-    ],
-    "pngPx": [
-      357,
-      349
     ]
   },
   {
@@ -764,7 +609,6 @@
     "tag": "decor",
     "size": "small",
     "svg": "living/blanket-basket.svg",
-    "png": "living/blanket-basket.png",
     "widthUnits": 77.4,
     "heightUnits": 72.9,
     "gameW": 77.4,
@@ -773,10 +617,6 @@
       20.0,
       86.0,
       81.0
-    ],
-    "pngPx": [
-      518,
-      488
     ]
   },
   {
@@ -788,7 +628,6 @@
     "tag": "toy",
     "size": "small",
     "svg": "living/building-blocks.svg",
-    "png": "living/building-blocks.png",
     "widthUnits": 69.0,
     "heightUnits": 63.0,
     "gameW": 69.0,
@@ -798,10 +637,6 @@
       17.0,
       92.0,
       84.0
-    ],
-    "pngPx": [
-      462,
-      422
     ]
   },
   {
@@ -813,7 +648,6 @@
     "tag": "toy",
     "size": "small",
     "svg": "living/toy-car.svg",
-    "png": "living/toy-car.png",
     "widthUnits": 65.8,
     "heightUnits": 54.6,
     "gameW": 65.8,
@@ -823,10 +657,6 @@
       23.0,
       94.0,
       78.0
-    ],
-    "pngPx": [
-      440,
-      365
     ]
   },
   {
@@ -838,7 +668,6 @@
     "tag": "toy",
     "size": "medium",
     "svg": "living/rocking-horse.svg",
-    "png": "living/rocking-horse.png",
     "widthUnits": 128.7,
     "heightUnits": 127.4,
     "gameW": 128.7,
@@ -847,10 +676,6 @@
       3.0,
       99.0,
       98.0
-    ],
-    "pngPx": [
-      861,
-      853
     ]
   },
   {
@@ -862,7 +687,6 @@
     "tag": "food",
     "size": "small",
     "svg": "living/popcorn.svg",
-    "png": "living/popcorn.png",
     "widthUnits": 41.8,
     "heightUnits": 50.9,
     "gameW": 41.8,
@@ -872,10 +696,6 @@
       8.5,
       76.0,
       92.5
-    ],
-    "pngPx": [
-      280,
-      341
     ]
   },
   {
@@ -887,7 +707,6 @@
     "tag": "pet",
     "size": "medium",
     "svg": "living/bird-cage.svg",
-    "png": "living/bird-cage.png",
     "widthUnits": 99.0,
     "heightUnits": 111.7,
     "gameW": 99.0,
@@ -896,10 +715,6 @@
       -0.5,
       90.0,
       101.5
-    ],
-    "pngPx": [
-      663,
-      748
     ]
   },
   {
@@ -911,7 +726,6 @@
     "tag": "pet",
     "size": "small",
     "svg": "living/turtle.svg",
-    "png": "living/turtle.png",
     "widthUnits": 67.9,
     "heightUnits": 46.2,
     "gameW": 67.9,
@@ -921,10 +735,6 @@
       35.0,
       97.0,
       66.0
-    ],
-    "pngPx": [
-      454,
-      309
     ]
   },
   {
@@ -936,7 +746,6 @@
     "tag": "pet",
     "size": "medium",
     "svg": "living/aquarium.svg",
-    "png": "living/aquarium.png",
     "widthUnits": 163.2,
     "heightUnits": 134.4,
     "gameW": 163.2,
@@ -945,10 +754,6 @@
       17.0,
       102.0,
       84.0
-    ],
-    "pngPx": [
-      1092,
-      900
     ]
   },
   {
@@ -960,7 +765,6 @@
     "tag": "furniture",
     "size": "large",
     "svg": "bedroom/bunk-bed.svg",
-    "png": "bedroom/bunk-bed.png",
     "widthUnits": 294.0,
     "heightUnits": 300.0,
     "gameW": 294.0,
@@ -969,10 +773,6 @@
       1.0,
       98.0,
       100.0
-    ],
-    "pngPx": [
-      1968,
-      2008
     ]
   },
   {
@@ -984,7 +784,6 @@
     "tag": "storage",
     "size": "medium",
     "svg": "bedroom/dresser.svg",
-    "png": "bedroom/dresser.png",
     "widthUnits": 141.0,
     "heightUnits": 126.0,
     "gameW": 141.0,
@@ -993,10 +792,6 @@
       17.0,
       94.0,
       84.0
-    ],
-    "pngPx": [
-      944,
-      843
     ]
   },
   {
@@ -1008,7 +803,6 @@
     "tag": "furniture",
     "size": "small",
     "svg": "bedroom/nightstand.svg",
-    "png": "bedroom/nightstand.png",
     "widthUnits": 69.7,
     "heightUnits": 59.5,
     "gameW": 69.7,
@@ -1017,10 +811,6 @@
       31.0,
       82.0,
       70.0
-    ],
-    "pngPx": [
-      466,
-      398
     ]
   },
   {
@@ -1032,7 +822,6 @@
     "tag": "storage",
     "size": "medium",
     "svg": "bedroom/wardrobe.svg",
-    "png": "bedroom/wardrobe.png",
     "widthUnits": 150.5,
     "heightUnits": 178.5,
     "gameW": 150.5,
@@ -1041,10 +830,6 @@
       -1.0,
       86.0,
       102.0
-    ],
-    "pngPx": [
-      1007,
-      1195
     ]
   },
   {
@@ -1056,7 +841,6 @@
     "tag": "furniture",
     "size": "medium",
     "svg": "bedroom/desk.svg",
-    "png": "bedroom/desk.png",
     "widthUnits": 166.6,
     "heightUnits": 166.6,
     "gameW": 166.6,
@@ -1065,10 +849,6 @@
       3.0,
       98.0,
       98.0
-    ],
-    "pngPx": [
-      1115,
-      1115
     ]
   },
   {
@@ -1080,7 +860,6 @@
     "tag": "storage",
     "size": "medium",
     "svg": "bedroom/toy-chest.svg",
-    "png": "bedroom/toy-chest.png",
     "widthUnits": 126.0,
     "heightUnits": 114.8,
     "gameW": 126.0,
@@ -1089,10 +868,6 @@
       19.0,
       90.0,
       82.0
-    ],
-    "pngPx": [
-      843,
-      768
     ]
   },
   {
@@ -1104,7 +879,6 @@
     "tag": "toy",
     "size": "large",
     "svg": "bedroom/play-tent.svg",
-    "png": "bedroom/play-tent.png",
     "widthUnits": 180.0,
     "heightUnits": 200.0,
     "gameW": 180.0,
@@ -1113,10 +887,6 @@
       1.0,
       90.0,
       100.0
-    ],
-    "pngPx": [
-      1205,
-      1339
     ]
   },
   {
@@ -1128,7 +898,6 @@
     "tag": "seating",
     "size": "medium",
     "svg": "bedroom/egg-chair.svg",
-    "png": "bedroom/egg-chair.png",
     "widthUnits": 126.0,
     "heightUnits": 154.5,
     "gameW": 126.0,
@@ -1137,10 +906,6 @@
       -2.0,
       84.0,
       103.0
-    ],
-    "pngPx": [
-      843,
-      1034
     ]
   },
   {
@@ -1152,7 +917,6 @@
     "tag": "decor",
     "size": "small",
     "svg": "bedroom/alarm-clock.svg",
-    "png": "bedroom/alarm-clock.png",
     "widthUnits": 40.7,
     "heightUnits": 51.2,
     "gameW": 40.7,
@@ -1162,10 +926,6 @@
       8.0,
       74.0,
       93.0
-    ],
-    "pngPx": [
-      272,
-      343
     ]
   },
   {
@@ -1177,7 +937,6 @@
     "tag": "lighting",
     "size": "small",
     "svg": "bedroom/lava-lamp.svg",
-    "png": "bedroom/lava-lamp.png",
     "widthUnits": 33.0,
     "heightUnits": 50.0,
     "gameW": 33.0,
@@ -1187,10 +946,6 @@
       1.0,
       66.0,
       100.0
-    ],
-    "pngPx": [
-      221,
-      335
     ]
   },
   {
@@ -1202,7 +957,6 @@
     "tag": "lighting",
     "size": "small",
     "svg": "bedroom/paper-lantern.svg",
-    "png": "bedroom/paper-lantern.png",
     "widthUnits": 91.8,
     "heightUnits": 98.5,
     "gameW": 91.8,
@@ -1212,10 +966,6 @@
       -2.5,
       102.0,
       109.5
-    ],
-    "pngPx": [
-      614,
-      659
     ]
   },
   {
@@ -1227,7 +977,6 @@
     "tag": "rug",
     "size": "large",
     "svg": "bedroom/heart-rug.svg",
-    "png": "bedroom/heart-rug.png",
     "widthUnits": 217.8,
     "heightUnits": 77.0,
     "gameW": 217.8,
@@ -1236,10 +985,6 @@
       65.0,
       99.0,
       35.0
-    ],
-    "pngPx": [
-      1458,
-      515
     ]
   },
   {
@@ -1251,7 +996,6 @@
     "tag": "rug",
     "size": "large",
     "svg": "bedroom/cloud-rug.svg",
-    "png": "bedroom/cloud-rug.png",
     "widthUnits": 258.7,
     "heightUnits": 98.8,
     "gameW": 258.7,
@@ -1260,10 +1004,6 @@
       63.0,
       99.5,
       38.0
-    ],
-    "pngPx": [
-      1731,
-      661
     ]
   },
   {
@@ -1275,7 +1015,6 @@
     "tag": "decor",
     "size": "medium",
     "svg": "bedroom/cloud-shelf.svg",
-    "png": "bedroom/cloud-shelf.png",
     "widthUnits": 118.2,
     "heightUnits": 60.6,
     "gameW": 118.2,
@@ -1285,10 +1024,6 @@
       20.5,
       98.5,
       50.5
-    ],
-    "pngPx": [
-      791,
-      406
     ]
   },
   {
@@ -1300,7 +1035,6 @@
     "tag": "decor",
     "size": "medium",
     "svg": "bedroom/star-mobile.svg",
-    "png": "bedroom/star-mobile.png",
     "widthUnits": 102.3,
     "heightUnits": 105.1,
     "gameW": 102.3,
@@ -1310,10 +1044,6 @@
       -2.5,
       93.0,
       95.5
-    ],
-    "pngPx": [
-      685,
-      703
     ]
   },
   {
@@ -1325,7 +1055,6 @@
     "tag": "wall-art",
     "size": "medium",
     "svg": "bedroom/cork-board.svg",
-    "png": "bedroom/cork-board.png",
     "widthUnits": 127.4,
     "heightUnits": 98.8,
     "gameW": 127.4,
@@ -1335,10 +1064,6 @@
       11.0,
       98.0,
       76.0
-    ],
-    "pngPx": [
-      853,
-      661
     ]
   },
   {
@@ -1350,7 +1075,6 @@
     "tag": "decor",
     "size": "small",
     "svg": "bedroom/bunny-slippers.svg",
-    "png": "bedroom/bunny-slippers.png",
     "widthUnits": 54.0,
     "heightUnits": 45.6,
     "gameW": 54.0,
@@ -1360,10 +1084,6 @@
       25.0,
       90.0,
       76.0
-    ],
-    "pngPx": [
-      361,
-      305
     ]
   },
   {
@@ -1375,7 +1095,6 @@
     "tag": "decor",
     "size": "small",
     "svg": "bedroom/book-stack.svg",
-    "png": "bedroom/book-stack.png",
     "widthUnits": 47.3,
     "heightUnits": 38.5,
     "gameW": 47.3,
@@ -1385,10 +1104,6 @@
       31.0,
       86.0,
       70.0
-    ],
-    "pngPx": [
-      317,
-      258
     ]
   },
   {
@@ -1400,7 +1115,6 @@
     "tag": "toy",
     "size": "small",
     "svg": "bedroom/piggy-bank.svg",
-    "png": "bedroom/piggy-bank.png",
     "widthUnits": 52.8,
     "heightUnits": 51.6,
     "gameW": 52.8,
@@ -1410,10 +1124,6 @@
       15.0,
       88.0,
       86.0
-    ],
-    "pngPx": [
-      353,
-      345
     ]
   },
   {
@@ -1425,7 +1135,6 @@
     "tag": "toy",
     "size": "medium",
     "svg": "bedroom/doll-house.svg",
-    "png": "bedroom/doll-house.png",
     "widthUnits": 109.2,
     "heightUnits": 131.6,
     "gameW": 109.2,
@@ -1434,10 +1143,6 @@
       7.0,
       78.0,
       94.0
-    ],
-    "pngPx": [
-      731,
-      881
     ]
   },
   {
@@ -1449,7 +1154,6 @@
     "tag": "toy",
     "size": "small",
     "svg": "bedroom/toy-robot.svg",
-    "png": "bedroom/toy-robot.png",
     "widthUnits": 60.2,
     "heightUnits": 72.4,
     "gameW": 60.2,
@@ -1459,10 +1163,6 @@
       -2.5,
       86.0,
       103.5
-    ],
-    "pngPx": [
-      403,
-      485
     ]
   },
   {
@@ -1474,7 +1174,6 @@
     "tag": "toy",
     "size": "small",
     "svg": "bedroom/unicorn-plush.svg",
-    "png": "bedroom/unicorn-plush.png",
     "widthUnits": 66.3,
     "heightUnits": 90.1,
     "gameW": 66.3,
@@ -1484,10 +1183,6 @@
       -5.0,
       78.0,
       106.0
-    ],
-    "pngPx": [
-      444,
-      603
     ]
   },
   {
@@ -1499,7 +1194,6 @@
     "tag": "toy",
     "size": "medium",
     "svg": "bedroom/toy-train.svg",
-    "png": "bedroom/toy-train.png",
     "widthUnits": 114.4,
     "heightUnits": 115.0,
     "gameW": 114.4,
@@ -1508,10 +1202,6 @@
       -3.5,
       104.0,
       104.5
-    ],
-    "pngPx": [
-      766,
-      770
     ]
   },
   {
@@ -1523,7 +1213,6 @@
     "tag": "plant",
     "size": "medium",
     "svg": "bedroom/plant-stand.svg",
-    "png": "bedroom/plant-stand.png",
     "widthUnits": 78.1,
     "heightUnits": 107.8,
     "gameW": 78.1,
@@ -1532,10 +1221,6 @@
       3.0,
       71.0,
       98.0
-    ],
-    "pngPx": [
-      523,
-      721
     ]
   },
   {
@@ -1547,7 +1232,6 @@
     "tag": "plant",
     "size": "small",
     "svg": "bedroom/daisy-pot.svg",
-    "png": "bedroom/daisy-pot.png",
     "widthUnits": 37.7,
     "heightUnits": 57.2,
     "gameW": 37.7,
@@ -1557,10 +1241,6 @@
       13.0,
       58.0,
       88.0
-    ],
-    "pngPx": [
-      252,
-      383
     ]
   },
   {
@@ -1572,7 +1252,6 @@
     "tag": "pet",
     "size": "medium",
     "svg": "bedroom/hamster-cage.svg",
-    "png": "bedroom/hamster-cage.png",
     "widthUnits": 112.8,
     "heightUnits": 119.4,
     "gameW": 112.8,
@@ -1581,10 +1260,6 @@
       1.5,
       94.0,
       99.5
-    ],
-    "pngPx": [
-      755,
-      799
     ]
   },
   {
@@ -1596,7 +1271,6 @@
     "tag": "pet",
     "size": "small",
     "svg": "bedroom/guinea-pig.svg",
-    "png": "bedroom/guinea-pig.png",
     "widthUnits": 51.6,
     "heightUnits": 41.7,
     "gameW": 51.6,
@@ -1606,10 +1280,6 @@
       31.5,
       86.0,
       69.5
-    ],
-    "pngPx": [
-      345,
-      279
     ]
   },
   {
@@ -1621,7 +1291,6 @@
     "tag": "furniture",
     "size": "medium",
     "svg": "kitchen/kitchen-counter.svg",
-    "png": "kitchen/kitchen-counter.png",
     "widthUnits": 166.6,
     "heightUnits": 146.2,
     "gameW": 166.6,
@@ -1630,10 +1299,6 @@
       15.0,
       98.0,
       86.0
-    ],
-    "pngPx": [
-      1115,
-      978
     ]
   },
   {
@@ -1645,7 +1310,6 @@
     "tag": "furniture",
     "size": "medium",
     "svg": "kitchen/kitchen-sink.svg",
-    "png": "kitchen/kitchen-sink.png",
     "widthUnits": 166.6,
     "heightUnits": 162.3,
     "gameW": 166.6,
@@ -1654,10 +1318,6 @@
       5.5,
       98.0,
       95.5
-    ],
-    "pngPx": [
-      1115,
-      1086
     ]
   },
   {
@@ -1669,7 +1329,6 @@
     "tag": "seating",
     "size": "small",
     "svg": "kitchen/bar-stool.svg",
-    "png": "kitchen/bar-stool.png",
     "widthUnits": 52.8,
     "heightUnits": 68.8,
     "gameW": 52.8,
@@ -1678,10 +1337,6 @@
       15.0,
       66.0,
       86.0
-    ],
-    "pngPx": [
-      353,
-      460
     ]
   },
   {
@@ -1693,7 +1348,6 @@
     "tag": "furniture",
     "size": "small",
     "svg": "kitchen/high-chair.svg",
-    "png": "kitchen/high-chair.png",
     "widthUnits": 88.0,
     "heightUnits": 99.0,
     "gameW": 88.0,
@@ -1702,10 +1356,6 @@
       11.0,
       80.0,
       90.0
-    ],
-    "pngPx": [
-      589,
-      663
     ]
   },
   {
@@ -1717,7 +1367,6 @@
     "tag": "storage",
     "size": "medium",
     "svg": "kitchen/china-hutch.svg",
-    "png": "kitchen/china-hutch.png",
     "widthUnits": 164.5,
     "heightUnits": 171.5,
     "gameW": 164.5,
@@ -1726,10 +1375,6 @@
       3.0,
       94.0,
       98.0
-    ],
-    "pngPx": [
-      1101,
-      1148
     ]
   },
   {
@@ -1741,7 +1386,6 @@
     "tag": "storage",
     "size": "medium",
     "svg": "kitchen/pantry-shelf.svg",
-    "png": "kitchen/pantry-shelf.png",
     "widthUnits": 137.6,
     "heightUnits": 153.6,
     "gameW": 137.6,
@@ -1750,10 +1394,6 @@
       5.0,
       86.0,
       96.0
-    ],
-    "pngPx": [
-      921,
-      1028
     ]
   },
   {
@@ -1765,7 +1405,6 @@
     "tag": "appliance",
     "size": "small",
     "svg": "kitchen/microwave.svg",
-    "png": "kitchen/microwave.png",
     "widthUnits": 89.3,
     "heightUnits": 70.3,
     "gameW": 89.3,
@@ -1774,10 +1413,6 @@
       27.0,
       94.0,
       74.0
-    ],
-    "pngPx": [
-      598,
-      471
     ]
   },
   {
@@ -1789,7 +1424,6 @@
     "tag": "appliance",
     "size": "small",
     "svg": "kitchen/kettle.svg",
-    "png": "kitchen/kettle.png",
     "widthUnits": 49.2,
     "heightUnits": 56.4,
     "gameW": 49.2,
@@ -1799,10 +1433,6 @@
       7.0,
       82.0,
       94.0
-    ],
-    "pngPx": [
-      329,
-      377
     ]
   },
   {
@@ -1814,7 +1444,6 @@
     "tag": "appliance",
     "size": "small",
     "svg": "kitchen/rice-cooker.svg",
-    "png": "kitchen/rice-cooker.png",
     "widthUnits": 55.9,
     "heightUnits": 53.0,
     "gameW": 55.9,
@@ -1824,10 +1453,6 @@
       19.5,
       86.0,
       81.5
-    ],
-    "pngPx": [
-      374,
-      355
     ]
   },
   {
@@ -1839,7 +1464,6 @@
     "tag": "appliance",
     "size": "small",
     "svg": "kitchen/stand-mixer.svg",
-    "png": "kitchen/stand-mixer.png",
     "widthUnits": 64.5,
     "heightUnits": 67.5,
     "gameW": 64.5,
@@ -1848,10 +1472,6 @@
       11.0,
       86.0,
       90.0
-    ],
-    "pngPx": [
-      432,
-      452
     ]
   },
   {
@@ -1863,7 +1483,6 @@
     "tag": "lighting",
     "size": "medium",
     "svg": "kitchen/pendant-lamp.svg",
-    "png": "kitchen/pendant-lamp.png",
     "widthUnits": 78.0,
     "heightUnits": 103.5,
     "gameW": 78.0,
@@ -1873,10 +1492,6 @@
       -2.5,
       78.0,
       103.5
-    ],
-    "pngPx": [
-      522,
-      693
     ]
   },
   {
@@ -1888,7 +1503,6 @@
     "tag": "rug",
     "size": "large",
     "svg": "kitchen/runner-rug.svg",
-    "png": "kitchen/runner-rug.png",
     "widthUnits": 207.2,
     "heightUnits": 105.0,
     "gameW": 207.2,
@@ -1897,10 +1511,6 @@
       63.0,
       74.0,
       37.5
-    ],
-    "pngPx": [
-      1387,
-      703
     ]
   },
   {
@@ -1912,7 +1522,6 @@
     "tag": "decor",
     "size": "medium",
     "svg": "kitchen/utensil-rail.svg",
-    "png": "kitchen/utensil-rail.png",
     "widthUnits": 127.4,
     "heightUnits": 94.2,
     "gameW": 127.4,
@@ -1922,10 +1531,6 @@
       7.0,
       98.0,
       72.5
-    ],
-    "pngPx": [
-      853,
-      630
     ]
   },
   {
@@ -1937,7 +1542,6 @@
     "tag": "decor",
     "size": "medium",
     "svg": "kitchen/spice-rack.svg",
-    "png": "kitchen/spice-rack.png",
     "widthUnits": 107.8,
     "heightUnits": 56.7,
     "gameW": 107.8,
@@ -1947,10 +1551,6 @@
       25.5,
       98.0,
       51.5
-    ],
-    "pngPx": [
-      721,
-      379
     ]
   },
   {
@@ -1962,7 +1562,6 @@
     "tag": "food",
     "size": "small",
     "svg": "kitchen/cookie-jar.svg",
-    "png": "kitchen/cookie-jar.png",
     "widthUnits": 43.8,
     "heightUnits": 54.0,
     "gameW": 43.8,
@@ -1972,10 +1571,6 @@
       11.0,
       73.0,
       90.0
-    ],
-    "pngPx": [
-      293,
-      361
     ]
   },
   {
@@ -1987,7 +1582,6 @@
     "tag": "decor",
     "size": "small",
     "svg": "kitchen/teapot.svg",
-    "png": "kitchen/teapot.png",
     "widthUnits": 55.5,
     "heightUnits": 43.8,
     "gameW": 55.5,
@@ -1997,10 +1591,6 @@
       28.0,
       92.5,
       73.0
-    ],
-    "pngPx": [
-      371,
-      293
     ]
   },
   {
@@ -2012,7 +1602,6 @@
     "tag": "drink",
     "size": "small",
     "svg": "kitchen/cocoa-mug.svg",
-    "png": "kitchen/cocoa-mug.png",
     "widthUnits": 33.8,
     "heightUnits": 36.6,
     "gameW": 33.8,
@@ -2022,10 +1611,6 @@
       9.5,
       84.5,
       91.5
-    ],
-    "pngPx": [
-      226,
-      245
     ]
   },
   {
@@ -2037,7 +1622,6 @@
     "tag": "decor",
     "size": "small",
     "svg": "kitchen/cooking-pot.svg",
-    "png": "kitchen/cooking-pot.png",
     "widthUnits": 73.5,
     "heightUnits": 66.0,
     "gameW": 73.5,
@@ -2047,10 +1631,6 @@
       13.0,
       98.0,
       88.0
-    ],
-    "pngPx": [
-      492,
-      442
     ]
   },
   {
@@ -2062,7 +1642,6 @@
     "tag": "decor",
     "size": "small",
     "svg": "kitchen/frying-pan.svg",
-    "png": "kitchen/frying-pan.png",
     "widthUnits": 80.4,
     "heightUnits": 40.4,
     "gameW": 80.4,
@@ -2072,10 +1651,6 @@
       50.5,
       100.5,
       50.5
-    ],
-    "pngPx": [
-      538,
-      270
     ]
   },
   {
@@ -2087,7 +1662,6 @@
     "tag": "plant",
     "size": "medium",
     "svg": "kitchen/herb-box.svg",
-    "png": "kitchen/herb-box.png",
     "widthUnits": 110.0,
     "heightUnits": 83.6,
     "gameW": 110.0,
@@ -2096,10 +1670,6 @@
       25.0,
       100.0,
       76.0
-    ],
-    "pngPx": [
-      736,
-      560
     ]
   },
   {
@@ -2111,7 +1681,6 @@
     "tag": "plant",
     "size": "medium",
     "svg": "kitchen/lemon-tree.svg",
-    "png": "kitchen/lemon-tree.png",
     "widthUnits": 79.8,
     "heightUnits": 120.0,
     "gameW": 79.8,
@@ -2120,10 +1689,6 @@
       1.0,
       66.5,
       100.0
-    ],
-    "pngPx": [
-      534,
-      803
     ]
   },
   {
@@ -2135,7 +1700,6 @@
     "tag": "food",
     "size": "small",
     "svg": "kitchen/bananas.svg",
-    "png": "kitchen/bananas.png",
     "widthUnits": 44.5,
     "heightUnits": 42.5,
     "gameW": 44.5,
@@ -2145,10 +1709,6 @@
       17.0,
       89.0,
       85.0
-    ],
-    "pngPx": [
-      298,
-      284
     ]
   },
   {
@@ -2160,7 +1720,6 @@
     "tag": "food",
     "size": "small",
     "svg": "kitchen/watermelon-slice.svg",
-    "png": "kitchen/watermelon-slice.png",
     "widthUnits": 45.0,
     "heightUnits": 34.0,
     "gameW": 45.0,
@@ -2170,10 +1729,6 @@
       33.0,
       90.0,
       68.0
-    ],
-    "pngPx": [
-      301,
-      228
     ]
   },
   {
@@ -2185,7 +1740,6 @@
     "tag": "food",
     "size": "small",
     "svg": "kitchen/pancakes.svg",
-    "png": "kitchen/pancakes.png",
     "widthUnits": 56.4,
     "heightUnits": 47.1,
     "gameW": 56.4,
@@ -2195,10 +1749,6 @@
       22.5,
       94.0,
       78.5
-    ],
-    "pngPx": [
-      377,
-      315
     ]
   },
   {
@@ -2210,7 +1760,6 @@
     "tag": "food",
     "size": "small",
     "svg": "kitchen/ice-cream.svg",
-    "png": "kitchen/ice-cream.png",
     "widthUnits": 18.4,
     "heightUnits": 39.8,
     "gameW": 18.4,
@@ -2220,10 +1769,6 @@
       -0.5,
       46.0,
       99.5
-    ],
-    "pngPx": [
-      123,
-      266
     ]
   },
   {
@@ -2235,7 +1780,6 @@
     "tag": "drink",
     "size": "small",
     "svg": "kitchen/milk-bottle.svg",
-    "png": "kitchen/milk-bottle.png",
     "widthUnits": 23.2,
     "heightUnits": 37.6,
     "gameW": 23.2,
@@ -2245,10 +1789,6 @@
       7.0,
       58.0,
       94.0
-    ],
-    "pngPx": [
-      155,
-      252
     ]
   },
   {
@@ -2260,7 +1800,6 @@
     "tag": "food",
     "size": "small",
     "svg": "kitchen/bread-loaf.svg",
-    "png": "kitchen/bread-loaf.png",
     "widthUnits": 48.4,
     "heightUnits": 44.0,
     "gameW": 48.4,
@@ -2270,10 +1809,6 @@
       21.0,
       88.0,
       80.0
-    ],
-    "pngPx": [
-      324,
-      294
     ]
   },
   {
@@ -2285,7 +1820,6 @@
     "tag": "food",
     "size": "small",
     "svg": "kitchen/cupcake.svg",
-    "png": "kitchen/cupcake.png",
     "widthUnits": 32.9,
     "heightUnits": 44.8,
     "gameW": 32.9,
@@ -2295,10 +1829,6 @@
       1.5,
       73.0,
       99.5
-    ],
-    "pngPx": [
-      220,
-      300
     ]
   },
   {
@@ -2310,7 +1840,6 @@
     "tag": "decor",
     "size": "small",
     "svg": "kitchen/dish-rack.svg",
-    "png": "kitchen/dish-rack.png",
     "widthUnits": 76.5,
     "heightUnits": 67.6,
     "gameW": 76.5,
@@ -2319,10 +1848,6 @@
       21.5,
       90.0,
       79.5
-    ],
-    "pngPx": [
-      512,
-      452
     ]
   },
   {
@@ -2334,7 +1859,6 @@
     "tag": "pet",
     "size": "small",
     "svg": "kitchen/pet-bowl.svg",
-    "png": "kitchen/pet-bowl.png",
     "widthUnits": 49.5,
     "heightUnits": 34.4,
     "gameW": 49.5,
@@ -2344,10 +1868,6 @@
       38.5,
       90.0,
       62.5
-    ],
-    "pngPx": [
-      331,
-      230
     ]
   },
   {
@@ -2359,7 +1879,6 @@
     "tag": "pet",
     "size": "small",
     "svg": "kitchen/chick.svg",
-    "png": "kitchen/chick.png",
     "widthUnits": 37.4,
     "heightUnits": 37.6,
     "gameW": 37.4,
@@ -2369,10 +1888,6 @@
       17.5,
       83.0,
       83.5
-    ],
-    "pngPx": [
-      250,
-      252
     ]
   },
   {
@@ -2384,7 +1899,6 @@
     "tag": "appliance",
     "size": "small",
     "svg": "living/retro-radio.svg",
-    "png": "living/retro-radio.png",
     "widthUnits": 63.0,
     "heightUnits": 70.0,
     "gameW": 63.0,
@@ -2394,10 +1908,6 @@
       1.0,
       90.0,
       100.0
-    ],
-    "pngPx": [
-      422,
-      468
     ]
   },
   {
@@ -2409,7 +1919,6 @@
     "tag": "appliance",
     "size": "small",
     "svg": "bedroom/floor-fan.svg",
-    "png": "bedroom/floor-fan.png",
     "widthUnits": 52.8,
     "heightUnits": 78.4,
     "gameW": 52.8,
@@ -2418,10 +1927,6 @@
       3.0,
       66.0,
       98.0
-    ],
-    "pngPx": [
-      353,
-      525
     ]
   },
   {
@@ -2433,7 +1938,6 @@
     "tag": "food",
     "size": "small",
     "svg": "bedroom/bedtime-snack.svg",
-    "png": "bedroom/bedtime-snack.png",
     "widthUnits": 56.4,
     "heightUnits": 44.4,
     "gameW": 56.4,
@@ -2443,10 +1947,6 @@
       27.0,
       94.0,
       74.0
-    ],
-    "pngPx": [
-      377,
-      297
     ]
   },
   {
@@ -2468,8 +1968,7 @@
       62.0,
       100.0
     ],
-    "svg": "packs/welcome-home/wood-bookshelf.svg",
-    "png": "packs/welcome-home/wood-bookshelf.png"
+    "svg": "packs/welcome-home/wood-bookshelf.svg"
   },
   {
     "slug": "lattice-bench",
@@ -2490,8 +1989,7 @@
       98.0,
       90.0
     ],
-    "svg": "packs/welcome-home/lattice-bench.svg",
-    "png": "packs/welcome-home/lattice-bench.png"
+    "svg": "packs/welcome-home/lattice-bench.svg"
   },
   {
     "slug": "wood-coffee-table",
@@ -2512,8 +2010,7 @@
       90.0,
       64.0
     ],
-    "svg": "packs/welcome-home/wood-coffee-table.svg",
-    "png": "packs/welcome-home/wood-coffee-table.png"
+    "svg": "packs/welcome-home/wood-coffee-table.svg"
   },
   {
     "slug": "wood-desk",
@@ -2534,8 +2031,7 @@
       94.0,
       86.0
     ],
-    "svg": "packs/welcome-home/wood-desk.svg",
-    "png": "packs/welcome-home/wood-desk.png"
+    "svg": "packs/welcome-home/wood-desk.svg"
   },
   {
     "slug": "big-wardrobe",
@@ -2556,8 +2052,7 @@
       70.0,
       100.0
     ],
-    "svg": "packs/welcome-home/big-wardrobe.svg",
-    "png": "packs/welcome-home/big-wardrobe.png"
+    "svg": "packs/welcome-home/big-wardrobe.svg"
   },
   {
     "slug": "glass-cabinet",
@@ -2578,8 +2073,7 @@
       66.0,
       100.0
     ],
-    "svg": "packs/welcome-home/glass-cabinet.svg",
-    "png": "packs/welcome-home/glass-cabinet.png"
+    "svg": "packs/welcome-home/glass-cabinet.svg"
   },
   {
     "slug": "ladder-shelf",
@@ -2600,8 +2094,7 @@
       58.0,
       101.0
     ],
-    "svg": "packs/welcome-home/ladder-shelf.svg",
-    "png": "packs/welcome-home/ladder-shelf.png"
+    "svg": "packs/welcome-home/ladder-shelf.svg"
   },
   {
     "slug": "moving-box",
@@ -2623,7 +2116,6 @@
       82.0
     ],
     "svg": "packs/welcome-home/moving-box.svg",
-    "png": "packs/welcome-home/moving-box.png",
     "holdable": true
   },
   {
@@ -2645,8 +2137,7 @@
       92.0,
       82.0
     ],
-    "svg": "packs/welcome-home/box-stack.svg",
-    "png": "packs/welcome-home/box-stack.png"
+    "svg": "packs/welcome-home/box-stack.svg"
   },
   {
     "slug": "wh-fiddle-leaf-fig",
@@ -2667,8 +2158,7 @@
       50.0,
       105.5
     ],
-    "svg": "packs/welcome-home/wh-fiddle-leaf-fig.svg",
-    "png": "packs/welcome-home/wh-fiddle-leaf-fig.png"
+    "svg": "packs/welcome-home/wh-fiddle-leaf-fig.svg"
   },
   {
     "slug": "apple-tree",
@@ -2689,8 +2179,7 @@
       78.0,
       98.0
     ],
-    "svg": "packs/welcome-home/apple-tree.svg",
-    "png": "packs/welcome-home/apple-tree.png"
+    "svg": "packs/welcome-home/apple-tree.svg"
   },
   {
     "slug": "mini-greenhouse",
@@ -2711,8 +2200,7 @@
       78.0,
       94.0
     ],
-    "svg": "packs/welcome-home/mini-greenhouse.svg",
-    "png": "packs/welcome-home/mini-greenhouse.png"
+    "svg": "packs/welcome-home/mini-greenhouse.svg"
   },
   {
     "slug": "brick-fireplace",
@@ -2733,8 +2221,7 @@
       98.0,
       94.0
     ],
-    "svg": "packs/welcome-home/brick-fireplace.svg",
-    "png": "packs/welcome-home/brick-fireplace.png"
+    "svg": "packs/welcome-home/brick-fireplace.svg"
   },
   {
     "slug": "wh-string-lights",
@@ -2756,7 +2243,6 @@
       26.5
     ],
     "svg": "packs/welcome-home/wh-string-lights.svg",
-    "png": "packs/welcome-home/wh-string-lights.png",
     "holdable": true
   },
   {
@@ -2778,8 +2264,7 @@
       54.0,
       107.5
     ],
-    "svg": "packs/welcome-home/wh-pendant-lamp.svg",
-    "png": "packs/welcome-home/wh-pendant-lamp.png"
+    "svg": "packs/welcome-home/wh-pendant-lamp.svg"
   },
   {
     "slug": "wh-arc-floor-lamp",
@@ -2800,8 +2285,7 @@
       70.0,
       94.5
     ],
-    "svg": "packs/welcome-home/wh-arc-floor-lamp.svg",
-    "png": "packs/welcome-home/wh-arc-floor-lamp.png"
+    "svg": "packs/welcome-home/wh-arc-floor-lamp.svg"
   },
   {
     "slug": "cream-sofa",
@@ -2822,8 +2306,7 @@
       102.0,
       82.0
     ],
-    "svg": "packs/welcome-home/cream-sofa.svg",
-    "png": "packs/welcome-home/cream-sofa.png"
+    "svg": "packs/welcome-home/cream-sofa.svg"
   },
   {
     "slug": "wooden-bed",
@@ -2844,8 +2327,7 @@
       98.0,
       80.0
     ],
-    "svg": "packs/welcome-home/wooden-bed.svg",
-    "png": "packs/welcome-home/wooden-bed.png"
+    "svg": "packs/welcome-home/wooden-bed.svg"
   },
   {
     "slug": "bulletin-board",
@@ -2867,7 +2349,6 @@
       66.0
     ],
     "svg": "packs/welcome-home/bulletin-board.svg",
-    "png": "packs/welcome-home/bulletin-board.png",
     "holdable": true
   },
   {
@@ -2890,7 +2371,6 @@
       70.0
     ],
     "svg": "packs/welcome-home/landscape-art.svg",
-    "png": "packs/welcome-home/landscape-art.png",
     "holdable": true
   },
   {
@@ -2912,8 +2392,7 @@
       58.0,
       94.0
     ],
-    "svg": "packs/welcome-home/sale-sign.svg",
-    "png": "packs/welcome-home/sale-sign.png"
+    "svg": "packs/welcome-home/sale-sign.svg"
   },
   {
     "slug": "fire-pit",
@@ -2934,8 +2413,7 @@
       90.0,
       76.0
     ],
-    "svg": "packs/welcome-home/fire-pit.svg",
-    "png": "packs/welcome-home/fire-pit.png"
+    "svg": "packs/welcome-home/fire-pit.svg"
   },
   {
     "slug": "hanging-lantern",
@@ -2956,8 +2434,7 @@
       66.0,
       91.5
     ],
-    "svg": "packs/welcome-home/hanging-lantern.svg",
-    "png": "packs/welcome-home/hanging-lantern.png"
+    "svg": "packs/welcome-home/hanging-lantern.svg"
   },
   {
     "slug": "round-rug",
@@ -2978,8 +2455,7 @@
       102.0,
       36.0
     ],
-    "svg": "packs/welcome-home/round-rug.svg",
-    "png": "packs/welcome-home/round-rug.png"
+    "svg": "packs/welcome-home/round-rug.svg"
   },
   {
     "slug": "stripe-runner",
@@ -3000,8 +2476,7 @@
       98.0,
       27.0
     ],
-    "svg": "packs/welcome-home/stripe-runner.svg",
-    "png": "packs/welcome-home/stripe-runner.png"
+    "svg": "packs/welcome-home/stripe-runner.svg"
   },
   {
     "slug": "wood-armchair",
@@ -3022,8 +2497,7 @@
       98.0,
       90.0
     ],
-    "svg": "packs/welcome-home/wood-armchair.svg",
-    "png": "packs/welcome-home/wood-armchair.png"
+    "svg": "packs/welcome-home/wood-armchair.svg"
   },
   {
     "slug": "wh-nightstand",
@@ -3044,8 +2518,7 @@
       74.0,
       90.0
     ],
-    "svg": "packs/welcome-home/wh-nightstand.svg",
-    "png": "packs/welcome-home/wh-nightstand.png"
+    "svg": "packs/welcome-home/wh-nightstand.svg"
   },
   {
     "slug": "wh-kitchen-counter",
@@ -3066,8 +2539,7 @@
       98.0,
       91.5
     ],
-    "svg": "packs/welcome-home/wh-kitchen-counter.svg",
-    "png": "packs/welcome-home/wh-kitchen-counter.png"
+    "svg": "packs/welcome-home/wh-kitchen-counter.svg"
   },
   {
     "slug": "wood-stool",
@@ -3088,8 +2560,7 @@
       66.0,
       68.0
     ],
-    "svg": "packs/welcome-home/wood-stool.svg",
-    "png": "packs/welcome-home/wood-stool.png"
+    "svg": "packs/welcome-home/wood-stool.svg"
   },
   {
     "slug": "wh-dresser",
@@ -3110,8 +2581,7 @@
       86.0,
       93.0
     ],
-    "svg": "packs/welcome-home/wh-dresser.svg",
-    "png": "packs/welcome-home/wh-dresser.png"
+    "svg": "packs/welcome-home/wh-dresser.svg"
   },
   {
     "slug": "wh-snake-plant",
@@ -3132,8 +2602,7 @@
       55.5,
       97.5
     ],
-    "svg": "packs/welcome-home/wh-snake-plant.svg",
-    "png": "packs/welcome-home/wh-snake-plant.png"
+    "svg": "packs/welcome-home/wh-snake-plant.svg"
   },
   {
     "slug": "sprout-pot",
@@ -3155,7 +2624,6 @@
       74.5
     ],
     "svg": "packs/welcome-home/sprout-pot.svg",
-    "png": "packs/welcome-home/sprout-pot.png",
     "holdable": true
   },
   {
@@ -3178,7 +2646,6 @@
       88.5
     ],
     "svg": "packs/welcome-home/trailing-plant.svg",
-    "png": "packs/welcome-home/trailing-plant.png",
     "holdable": true
   },
   {
@@ -3201,7 +2668,6 @@
       90.0
     ],
     "svg": "packs/welcome-home/acorn-friend.svg",
-    "png": "packs/welcome-home/acorn-friend.png",
     "holdable": true
   },
   {
@@ -3224,7 +2690,6 @@
       78.0
     ],
     "svg": "packs/welcome-home/wh-teapot.svg",
-    "png": "packs/welcome-home/wh-teapot.png",
     "holdable": true
   },
   {
@@ -3247,7 +2712,6 @@
       91.5
     ],
     "svg": "packs/welcome-home/cozy-mug.svg",
-    "png": "packs/welcome-home/cozy-mug.png",
     "holdable": true
   },
   {
@@ -3270,7 +2734,6 @@
       74.0
     ],
     "svg": "packs/welcome-home/wh-book-stack.svg",
-    "png": "packs/welcome-home/wh-book-stack.png",
     "holdable": true
   },
   {
@@ -3293,7 +2756,6 @@
       74.0
     ],
     "svg": "packs/welcome-home/knit-cushion.svg",
-    "png": "packs/welcome-home/knit-cushion.png",
     "holdable": true
   },
   {
@@ -3316,7 +2778,6 @@
       84.5
     ],
     "svg": "packs/welcome-home/picnic-basket.svg",
-    "png": "packs/welcome-home/picnic-basket.png",
     "holdable": true
   },
   {
@@ -3338,8 +2799,7 @@
       120.0,
       120.0
     ],
-    "svg": "packs/welcome-home/leaf-wreath.svg",
-    "png": "packs/welcome-home/leaf-wreath.png"
+    "svg": "packs/welcome-home/leaf-wreath.svg"
   },
   {
     "slug": "wall-clock",
@@ -3361,7 +2821,6 @@
       86.0
     ],
     "svg": "packs/welcome-home/wall-clock.svg",
-    "png": "packs/welcome-home/wall-clock.png",
     "holdable": true
   },
   {
@@ -3383,8 +2842,7 @@
       62.0,
       102.0
     ],
-    "svg": "packs/sunny-vibes/ring-light.svg",
-    "png": "packs/sunny-vibes/ring-light.png"
+    "svg": "packs/sunny-vibes/ring-light.svg"
   },
   {
     "slug": "phone-stand",
@@ -3406,7 +2864,6 @@
       90.0
     ],
     "svg": "packs/sunny-vibes/phone-stand.svg",
-    "png": "packs/sunny-vibes/phone-stand.png",
     "holdable": true
   },
   {
@@ -3428,8 +2885,7 @@
       78.0,
       100.0
     ],
-    "svg": "packs/sunny-vibes/gaming-chair.svg",
-    "png": "packs/sunny-vibes/gaming-chair.png"
+    "svg": "packs/sunny-vibes/gaming-chair.svg"
   },
   {
     "slug": "curvy-desk",
@@ -3450,8 +2906,7 @@
       90.0,
       84.0
     ],
-    "svg": "packs/sunny-vibes/curvy-desk.svg",
-    "png": "packs/sunny-vibes/curvy-desk.png"
+    "svg": "packs/sunny-vibes/curvy-desk.svg"
   },
   {
     "slug": "cloud-sofa",
@@ -3472,8 +2927,7 @@
       106.0,
       84.0
     ],
-    "svg": "packs/sunny-vibes/cloud-sofa.svg",
-    "png": "packs/sunny-vibes/cloud-sofa.png"
+    "svg": "packs/sunny-vibes/cloud-sofa.svg"
   },
   {
     "slug": "arched-mirror",
@@ -3494,8 +2948,7 @@
       70.0,
       100.0
     ],
-    "svg": "packs/sunny-vibes/arched-mirror.svg",
-    "png": "packs/sunny-vibes/arched-mirror.png"
+    "svg": "packs/sunny-vibes/arched-mirror.svg"
   },
   {
     "slug": "clothes-rail",
@@ -3516,8 +2969,7 @@
       90.0,
       92.0
     ],
-    "svg": "packs/sunny-vibes/clothes-rail.svg",
-    "png": "packs/sunny-vibes/clothes-rail.png"
+    "svg": "packs/sunny-vibes/clothes-rail.svg"
   },
   {
     "slug": "cube-shelf",
@@ -3538,8 +2990,7 @@
       82.0,
       94.0
     ],
-    "svg": "packs/sunny-vibes/cube-shelf.svg",
-    "png": "packs/sunny-vibes/cube-shelf.png"
+    "svg": "packs/sunny-vibes/cube-shelf.svg"
   },
   {
     "slug": "big-monitor",
@@ -3560,8 +3011,7 @@
       94.0,
       98.0
     ],
-    "svg": "packs/sunny-vibes/big-monitor.svg",
-    "png": "packs/sunny-vibes/big-monitor.png"
+    "svg": "packs/sunny-vibes/big-monitor.svg"
   },
   {
     "slug": "keyboard",
@@ -3583,7 +3033,6 @@
       46.0
     ],
     "svg": "packs/sunny-vibes/keyboard.svg",
-    "png": "packs/sunny-vibes/keyboard.png",
     "holdable": true
   },
   {
@@ -3606,7 +3055,6 @@
       78.0
     ],
     "svg": "packs/sunny-vibes/vlog-camera.svg",
-    "png": "packs/sunny-vibes/vlog-camera.png",
     "holdable": true
   },
   {
@@ -3629,7 +3077,6 @@
       94.0
     ],
     "svg": "packs/sunny-vibes/desk-mic.svg",
-    "png": "packs/sunny-vibes/desk-mic.png",
     "holdable": true
   },
   {
@@ -3651,8 +3098,7 @@
       82.0,
       102.0
     ],
-    "svg": "packs/sunny-vibes/star-lamp.svg",
-    "png": "packs/sunny-vibes/star-lamp.png"
+    "svg": "packs/sunny-vibes/star-lamp.svg"
   },
   {
     "slug": "flower-lamp",
@@ -3673,8 +3119,7 @@
       60.0,
       97.0
     ],
-    "svg": "packs/sunny-vibes/flower-lamp.svg",
-    "png": "packs/sunny-vibes/flower-lamp.png"
+    "svg": "packs/sunny-vibes/flower-lamp.svg"
   },
   {
     "slug": "boba-cup",
@@ -3696,7 +3141,6 @@
       103.5
     ],
     "svg": "packs/sunny-vibes/boba-cup.svg",
-    "png": "packs/sunny-vibes/boba-cup.png",
     "holdable": true
   },
   {
@@ -3718,8 +3162,7 @@
       70.0,
       80.0
     ],
-    "svg": "packs/sunny-vibes/mini-fridge.svg",
-    "png": "packs/sunny-vibes/mini-fridge.png"
+    "svg": "packs/sunny-vibes/mini-fridge.svg"
   },
   {
     "slug": "bubble-bath",
@@ -3740,8 +3183,7 @@
       98.0,
       92.0
     ],
-    "svg": "packs/sunny-vibes/bubble-bath.svg",
-    "png": "packs/sunny-vibes/bubble-bath.png"
+    "svg": "packs/sunny-vibes/bubble-bath.svg"
   },
   {
     "slug": "checker-rug",
@@ -3762,8 +3204,7 @@
       102.0,
       36.0
     ],
-    "svg": "packs/sunny-vibes/checker-rug.svg",
-    "png": "packs/sunny-vibes/checker-rug.png"
+    "svg": "packs/sunny-vibes/checker-rug.svg"
   },
   {
     "slug": "sv-cloud-rug",
@@ -3784,8 +3225,7 @@
       102.0,
       38.0
     ],
-    "svg": "packs/sunny-vibes/sv-cloud-rug.svg",
-    "png": "packs/sunny-vibes/sv-cloud-rug.png"
+    "svg": "packs/sunny-vibes/sv-cloud-rug.svg"
   },
   {
     "slug": "caterpillar-plush",
@@ -3807,7 +3247,6 @@
       74.0
     ],
     "svg": "packs/sunny-vibes/caterpillar-plush.svg",
-    "png": "packs/sunny-vibes/caterpillar-plush.png",
     "holdable": true
   },
   {
@@ -3830,7 +3269,6 @@
       75.0
     ],
     "svg": "packs/sunny-vibes/frog-plush.svg",
-    "png": "packs/sunny-vibes/frog-plush.png",
     "holdable": true
   },
   {
@@ -3853,7 +3291,6 @@
       82.0
     ],
     "svg": "packs/sunny-vibes/hamster-pet.svg",
-    "png": "packs/sunny-vibes/hamster-pet.png",
     "holdable": true
   },
   {
@@ -3876,7 +3313,6 @@
       94.0
     ],
     "svg": "packs/sunny-vibes/sunny-art.svg",
-    "png": "packs/sunny-vibes/sunny-art.png",
     "holdable": true
   },
   {
@@ -3898,8 +3334,7 @@
       54.0,
       69.5
     ],
-    "svg": "packs/sunny-vibes/pothos-plant.svg",
-    "png": "packs/sunny-vibes/pothos-plant.png"
+    "svg": "packs/sunny-vibes/pothos-plant.svg"
   },
   {
     "slug": "cactus-buddy",
@@ -3921,7 +3356,6 @@
       93.0
     ],
     "svg": "packs/sunny-vibes/cactus-buddy.svg",
-    "png": "packs/sunny-vibes/cactus-buddy.png",
     "holdable": true
   },
   {
@@ -3943,8 +3377,7 @@
       98.0,
       72.0
     ],
-    "svg": "packs/sunny-vibes/checker-bed.svg",
-    "png": "packs/sunny-vibes/checker-bed.png"
+    "svg": "packs/sunny-vibes/checker-bed.svg"
   },
   {
     "slug": "puffy-stool",
@@ -3965,8 +3398,7 @@
       67.0,
       75.5
     ],
-    "svg": "packs/sunny-vibes/puffy-stool.svg",
-    "png": "packs/sunny-vibes/puffy-stool.png"
+    "svg": "packs/sunny-vibes/puffy-stool.svg"
   },
   {
     "slug": "sv-wall-shelf",
@@ -3987,8 +3419,7 @@
       94.0,
       43.5
     ],
-    "svg": "packs/sunny-vibes/sv-wall-shelf.svg",
-    "png": "packs/sunny-vibes/sv-wall-shelf.png"
+    "svg": "packs/sunny-vibes/sv-wall-shelf.svg"
   },
   {
     "slug": "headphones",
@@ -4010,7 +3441,6 @@
       73.5
     ],
     "svg": "packs/sunny-vibes/headphones.svg",
-    "png": "packs/sunny-vibes/headphones.png",
     "holdable": true
   },
   {
@@ -4033,7 +3463,6 @@
       72.0
     ],
     "svg": "packs/sunny-vibes/game-controller.svg",
-    "png": "packs/sunny-vibes/game-controller.png",
     "holdable": true
   },
   {
@@ -4055,8 +3484,7 @@
       86.0,
       86.0
     ],
-    "svg": "packs/sunny-vibes/heart-light.svg",
-    "png": "packs/sunny-vibes/heart-light.png"
+    "svg": "packs/sunny-vibes/heart-light.svg"
   },
   {
     "slug": "sv-bean-bag",
@@ -4077,8 +3505,7 @@
       88.0,
       75.5
     ],
-    "svg": "packs/sunny-vibes/sv-bean-bag.svg",
-    "png": "packs/sunny-vibes/sv-bean-bag.png"
+    "svg": "packs/sunny-vibes/sv-bean-bag.svg"
   },
   {
     "slug": "cute-speaker",
@@ -4100,7 +3527,6 @@
       90.0
     ],
     "svg": "packs/sunny-vibes/cute-speaker.svg",
-    "png": "packs/sunny-vibes/cute-speaker.png",
     "holdable": true
   },
   {
@@ -4122,8 +3548,7 @@
       50.0,
       96.0
     ],
-    "svg": "packs/sunny-vibes/wavy-floor-lamp.svg",
-    "png": "packs/sunny-vibes/wavy-floor-lamp.png"
+    "svg": "packs/sunny-vibes/wavy-floor-lamp.svg"
   },
   {
     "slug": "pastel-wardrobe",
@@ -4144,8 +3569,7 @@
       66.0,
       100.0
     ],
-    "svg": "packs/sunny-vibes/pastel-wardrobe.svg",
-    "png": "packs/sunny-vibes/pastel-wardrobe.png"
+    "svg": "packs/sunny-vibes/pastel-wardrobe.svg"
   },
   {
     "slug": "desk-lamp",
@@ -4167,7 +3591,6 @@
       86.0
     ],
     "svg": "packs/sunny-vibes/desk-lamp.svg",
-    "png": "packs/sunny-vibes/desk-lamp.png",
     "holdable": true
   },
   {
@@ -4189,8 +3612,7 @@
       86.0,
       80.0
     ],
-    "svg": "packs/sunny-vibes/side-table-round.svg",
-    "png": "packs/sunny-vibes/side-table-round.png"
+    "svg": "packs/sunny-vibes/side-table-round.svg"
   },
   {
     "slug": "sticker-board",
@@ -4212,7 +3634,6 @@
       70.0
     ],
     "svg": "packs/sunny-vibes/sticker-board.svg",
-    "png": "packs/sunny-vibes/sticker-board.png",
     "holdable": true
   },
   {
@@ -4234,8 +3655,7 @@
       86.0,
       98.0
     ],
-    "svg": "packs/glossy/salon-chair.svg",
-    "png": "packs/glossy/salon-chair.png"
+    "svg": "packs/glossy/salon-chair.svg"
   },
   {
     "slug": "wash-chair",
@@ -4256,8 +3676,7 @@
       98.0,
       92.0
     ],
-    "svg": "packs/glossy/wash-chair.svg",
-    "png": "packs/glossy/wash-chair.png"
+    "svg": "packs/glossy/wash-chair.svg"
   },
   {
     "slug": "glow-mirror",
@@ -4278,8 +3697,7 @@
       94.0,
       94.0
     ],
-    "svg": "packs/glossy/glow-mirror.svg",
-    "png": "packs/glossy/glow-mirror.png"
+    "svg": "packs/glossy/glow-mirror.svg"
   },
   {
     "slug": "pink-vanity",
@@ -4300,8 +3718,7 @@
       94.0,
       98.0
     ],
-    "svg": "packs/glossy/pink-vanity.svg",
-    "png": "packs/glossy/pink-vanity.png"
+    "svg": "packs/glossy/pink-vanity.svg"
   },
   {
     "slug": "polish-rack",
@@ -4322,8 +3739,7 @@
       90.0,
       94.0
     ],
-    "svg": "packs/glossy/polish-rack.svg",
-    "png": "packs/glossy/polish-rack.png"
+    "svg": "packs/glossy/polish-rack.svg"
   },
   {
     "slug": "polish-bottle",
@@ -4345,7 +3761,6 @@
       98.0
     ],
     "svg": "packs/glossy/polish-bottle.svg",
-    "png": "packs/glossy/polish-bottle.png",
     "holdable": true
   },
   {
@@ -4368,7 +3783,6 @@
       62.0
     ],
     "svg": "packs/glossy/cream-jars.svg",
-    "png": "packs/glossy/cream-jars.png",
     "holdable": true
   },
   {
@@ -4390,8 +3804,7 @@
       82.0,
       72.0
     ],
-    "svg": "packs/glossy/lotion-trio.svg",
-    "png": "packs/glossy/lotion-trio.png"
+    "svg": "packs/glossy/lotion-trio.svg"
   },
   {
     "slug": "hair-dryer",
@@ -4413,7 +3826,6 @@
       80.0
     ],
     "svg": "packs/glossy/hair-dryer.svg",
-    "png": "packs/glossy/hair-dryer.png",
     "holdable": true
   },
   {
@@ -4435,8 +3847,7 @@
       78.0,
       94.0
     ],
-    "svg": "packs/glossy/towel-cart.svg",
-    "png": "packs/glossy/towel-cart.png"
+    "svg": "packs/glossy/towel-cart.svg"
   },
   {
     "slug": "nail-table",
@@ -4457,8 +3868,7 @@
       94.0,
       78.0
     ],
-    "svg": "packs/glossy/nail-table.svg",
-    "png": "packs/glossy/nail-table.png"
+    "svg": "packs/glossy/nail-table.svg"
   },
   {
     "slug": "arched-shelf",
@@ -4479,8 +3889,7 @@
       58.0,
       100.0
     ],
-    "svg": "packs/glossy/arched-shelf.svg",
-    "png": "packs/glossy/arched-shelf.png"
+    "svg": "packs/glossy/arched-shelf.svg"
   },
   {
     "slug": "pink-fountain",
@@ -4501,8 +3910,7 @@
       90.0,
       94.0
     ],
-    "svg": "packs/glossy/pink-fountain.svg",
-    "png": "packs/glossy/pink-fountain.png"
+    "svg": "packs/glossy/pink-fountain.svg"
   },
   {
     "slug": "fancy-sofa",
@@ -4523,8 +3931,7 @@
       102.0,
       88.0
     ],
-    "svg": "packs/glossy/fancy-sofa.svg",
-    "png": "packs/glossy/fancy-sofa.png"
+    "svg": "packs/glossy/fancy-sofa.svg"
   },
   {
     "slug": "lilac-curtain",
@@ -4545,8 +3952,7 @@
       98.0,
       96.0
     ],
-    "svg": "packs/glossy/lilac-curtain.svg",
-    "png": "packs/glossy/lilac-curtain.png"
+    "svg": "packs/glossy/lilac-curtain.svg"
   },
   {
     "slug": "reception-desk",
@@ -4567,8 +3973,7 @@
       98.0,
       86.0
     ],
-    "svg": "packs/glossy/reception-desk.svg",
-    "png": "packs/glossy/reception-desk.png"
+    "svg": "packs/glossy/reception-desk.svg"
   },
   {
     "slug": "bubbly-plant",
@@ -4589,8 +3994,7 @@
       59.0,
       90.0
     ],
-    "svg": "packs/glossy/bubbly-plant.svg",
-    "png": "packs/glossy/bubbly-plant.png"
+    "svg": "packs/glossy/bubbly-plant.svg"
   },
   {
     "slug": "vine-planter",
@@ -4611,8 +4015,7 @@
       63.0,
       111.0
     ],
-    "svg": "packs/glossy/vine-planter.svg",
-    "png": "packs/glossy/vine-planter.png"
+    "svg": "packs/glossy/vine-planter.svg"
   },
   {
     "slug": "droplet-buddy",
@@ -4634,7 +4037,6 @@
       98.0
     ],
     "svg": "packs/glossy/droplet-buddy.svg",
-    "png": "packs/glossy/droplet-buddy.png",
     "holdable": true
   },
   {
@@ -4656,8 +4058,7 @@
       102.0,
       90.0
     ],
-    "svg": "packs/glossy/flower-cart.svg",
-    "png": "packs/glossy/flower-cart.png"
+    "svg": "packs/glossy/flower-cart.svg"
   },
   {
     "slug": "globe-pendants",
@@ -4678,8 +4079,7 @@
       84.0,
       76.5
     ],
-    "svg": "packs/glossy/globe-pendants.svg",
-    "png": "packs/glossy/globe-pendants.png"
+    "svg": "packs/glossy/globe-pendants.svg"
   },
   {
     "slug": "drop-lamp",
@@ -4700,8 +4100,7 @@
       54.0,
       97.5
     ],
-    "svg": "packs/glossy/drop-lamp.svg",
-    "png": "packs/glossy/drop-lamp.png"
+    "svg": "packs/glossy/drop-lamp.svg"
   },
   {
     "slug": "gold-floor-mirror",
@@ -4722,8 +4121,7 @@
       58.0,
       100.0
     ],
-    "svg": "packs/glossy/gold-floor-mirror.svg",
-    "png": "packs/glossy/gold-floor-mirror.png"
+    "svg": "packs/glossy/gold-floor-mirror.svg"
   },
   {
     "slug": "heart-pouf",
@@ -4744,8 +4142,7 @@
       73.0,
       77.5
     ],
-    "svg": "packs/glossy/heart-pouf.svg",
-    "png": "packs/glossy/heart-pouf.png"
+    "svg": "packs/glossy/heart-pouf.svg"
   },
   {
     "slug": "swivel-stool",
@@ -4766,8 +4163,7 @@
       66.0,
       74.0
     ],
-    "svg": "packs/glossy/swivel-stool.svg",
-    "png": "packs/glossy/swivel-stool.png"
+    "svg": "packs/glossy/swivel-stool.svg"
   },
   {
     "slug": "spray-bottle",
@@ -4789,7 +4185,6 @@
       94.0
     ],
     "svg": "packs/glossy/spray-bottle.svg",
-    "png": "packs/glossy/spray-bottle.png",
     "holdable": true
   },
   {
@@ -4812,7 +4207,6 @@
       89.0
     ],
     "svg": "packs/glossy/comb-brush.svg",
-    "png": "packs/glossy/comb-brush.png",
     "holdable": true
   },
   {
@@ -4835,7 +4229,6 @@
       72.0
     ],
     "svg": "packs/glossy/towel-stack.svg",
-    "png": "packs/glossy/towel-stack.png",
     "holdable": true
   },
   {
@@ -4857,8 +4250,7 @@
       93.5,
       38.5
     ],
-    "svg": "packs/glossy/blob-rug.svg",
-    "png": "packs/glossy/blob-rug.png"
+    "svg": "packs/glossy/blob-rug.svg"
   },
   {
     "slug": "pebble-rug",
@@ -4879,8 +4271,7 @@
       98.0,
       36.0
     ],
-    "svg": "packs/glossy/pebble-rug.svg",
-    "png": "packs/glossy/pebble-rug.png"
+    "svg": "packs/glossy/pebble-rug.svg"
   },
   {
     "slug": "heart-plant",
@@ -4902,7 +4293,6 @@
       90.5
     ],
     "svg": "packs/glossy/heart-plant.svg",
-    "png": "packs/glossy/heart-plant.png",
     "holdable": true
   },
   {
@@ -4925,7 +4315,6 @@
       99.0
     ],
     "svg": "packs/glossy/bud-vase.svg",
-    "png": "packs/glossy/bud-vase.png",
     "holdable": true
   },
   {
@@ -4948,7 +4337,6 @@
       93.0
     ],
     "svg": "packs/glossy/perfume-bottle.svg",
-    "png": "packs/glossy/perfume-bottle.png",
     "holdable": true
   },
   {
@@ -4971,7 +4359,6 @@
       95.5
     ],
     "svg": "packs/glossy/scent-candle.svg",
-    "png": "packs/glossy/scent-candle.png",
     "holdable": true
   },
   {
@@ -4993,8 +4380,7 @@
       94.0,
       69.0
     ],
-    "svg": "packs/glossy/foot-spa.svg",
-    "png": "packs/glossy/foot-spa.png"
+    "svg": "packs/glossy/foot-spa.svg"
   },
   {
     "slug": "mani-lamp",
@@ -5016,7 +4402,6 @@
       74.0
     ],
     "svg": "packs/glossy/mani-lamp.svg",
-    "png": "packs/glossy/mani-lamp.png",
     "holdable": true
   },
   {
@@ -5039,7 +4424,6 @@
       100.0
     ],
     "svg": "packs/glossy/tiered-tray.svg",
-    "png": "packs/glossy/tiered-tray.png",
     "holdable": true
   },
   {
@@ -5061,8 +4445,7 @@
       95.0,
       95.0
     ],
-    "svg": "packs/glossy/star-wall-sign.svg",
-    "png": "packs/glossy/star-wall-sign.png"
+    "svg": "packs/glossy/star-wall-sign.svg"
   },
   {
     "slug": "waiting-bench",
@@ -5083,8 +4466,7 @@
       98.0,
       64.0
     ],
-    "svg": "packs/glossy/waiting-bench.svg",
-    "png": "packs/glossy/waiting-bench.png"
+    "svg": "packs/glossy/waiting-bench.svg"
   },
   {
     "type": "item",
@@ -5095,7 +4477,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-scallop-loveseat.svg",
-    "png": "packs/cottage/cc-scallop-loveseat.png",
     "widthUnits": 96,
     "heightUnits": 82,
     "gameW": 248,
@@ -5116,7 +4497,6 @@
     "size": "medium",
     "pack": "cottage",
     "svg": "packs/cottage/cc-heart-pouf.svg",
-    "png": "packs/cottage/cc-heart-pouf.png",
     "widthUnits": 80,
     "heightUnits": 72,
     "gameW": 124,
@@ -5137,7 +4517,6 @@
     "size": "medium",
     "pack": "cottage",
     "svg": "packs/cottage/cc-flower-lamp.svg",
-    "png": "packs/cottage/cc-flower-lamp.png",
     "widthUnits": 56,
     "heightUnits": 98,
     "gameW": 86,
@@ -5158,7 +4537,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-petal-table.svg",
-    "png": "packs/cottage/cc-petal-table.png",
     "widthUnits": 96,
     "heightUnits": 72,
     "gameW": 196,
@@ -5179,7 +4557,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-heart-rug.svg",
-    "png": "packs/cottage/cc-heart-rug.png",
     "widthUnits": 100,
     "heightUnits": 68,
     "gameW": 250,
@@ -5200,7 +4577,6 @@
     "size": "medium",
     "pack": "cottage",
     "svg": "packs/cottage/cc-record-player.svg",
-    "png": "packs/cottage/cc-record-player.png",
     "widthUnits": 88,
     "heightUnits": 78,
     "gameW": 148,
@@ -5221,7 +4597,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-macrame-swing.svg",
-    "png": "packs/cottage/cc-macrame-swing.png",
     "widthUnits": 84,
     "heightUnits": 98,
     "gameW": 168,
@@ -5242,7 +4617,6 @@
     "size": "medium",
     "pack": "cottage",
     "svg": "packs/cottage/cc-fairy-shelf.svg",
-    "png": "packs/cottage/cc-fairy-shelf.png",
     "widthUnits": 92,
     "heightUnits": 70,
     "gameW": 176,
@@ -5265,7 +4639,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-canopy-daybed.svg",
-    "png": "packs/cottage/cc-canopy-daybed.png",
     "widthUnits": 96,
     "heightUnits": 98,
     "gameW": 276,
@@ -5286,7 +4659,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-star-dresser.svg",
-    "png": "packs/cottage/cc-star-dresser.png",
     "widthUnits": 76,
     "heightUnits": 92,
     "gameW": 156,
@@ -5307,7 +4679,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-heart-bed.svg",
-    "png": "packs/cottage/cc-heart-bed.png",
     "widthUnits": 96,
     "heightUnits": 96,
     "gameW": 236,
@@ -5328,7 +4699,6 @@
     "size": "medium",
     "pack": "cottage",
     "svg": "packs/cottage/cc-fairy-garland.svg",
-    "png": "packs/cottage/cc-fairy-garland.png",
     "widthUnits": 100,
     "heightUnits": 48,
     "gameW": 210,
@@ -5351,7 +4721,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-cloud-beanbag.svg",
-    "png": "packs/cottage/cc-cloud-beanbag.png",
     "widthUnits": 92,
     "heightUnits": 74,
     "gameW": 156,
@@ -5372,7 +4741,6 @@
     "size": "small",
     "pack": "cottage",
     "svg": "packs/cottage/cc-jewel-box.svg",
-    "png": "packs/cottage/cc-jewel-box.png",
     "widthUnits": 68,
     "heightUnits": 80,
     "gameW": 72,
@@ -5394,7 +4762,6 @@
     "size": "small",
     "pack": "cottage",
     "svg": "packs/cottage/cc-cloud-lamp.svg",
-    "png": "packs/cottage/cc-cloud-lamp.png",
     "widthUnits": 64,
     "heightUnits": 94,
     "gameW": 74,
@@ -5416,7 +4783,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-window-seat.svg",
-    "png": "packs/cottage/cc-window-seat.png",
     "widthUnits": 92,
     "heightUnits": 94,
     "gameW": 214,
@@ -5437,7 +4803,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-pastel-range.svg",
-    "png": "packs/cottage/cc-pastel-range.png",
     "widthUnits": 88,
     "heightUnits": 88,
     "gameW": 172,
@@ -5458,7 +4823,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-mint-fridge.svg",
-    "png": "packs/cottage/cc-mint-fridge.png",
     "widthUnits": 68,
     "heightUnits": 96,
     "gameW": 132,
@@ -5479,7 +4843,6 @@
     "size": "medium",
     "pack": "cottage",
     "svg": "packs/cottage/cc-cupcake-stand.svg",
-    "png": "packs/cottage/cc-cupcake-stand.png",
     "widthUnits": 76,
     "heightUnits": 90,
     "gameW": 128,
@@ -5501,7 +4864,6 @@
     "size": "medium",
     "pack": "cottage",
     "svg": "packs/cottage/cc-teapot-set.svg",
-    "png": "packs/cottage/cc-teapot-set.png",
     "widthUnits": 92,
     "heightUnits": 72,
     "gameW": 150,
@@ -5523,7 +4885,6 @@
     "size": "medium",
     "pack": "cottage",
     "svg": "packs/cottage/cc-bakery-shelf.svg",
-    "png": "packs/cottage/cc-bakery-shelf.png",
     "widthUnits": 84,
     "heightUnits": 94,
     "gameW": 156,
@@ -5544,7 +4905,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-breakfast-table.svg",
-    "png": "packs/cottage/cc-breakfast-table.png",
     "widthUnits": 92,
     "heightUnits": 78,
     "gameW": 186,
@@ -5565,7 +4925,6 @@
     "size": "small",
     "pack": "cottage",
     "svg": "packs/cottage/cc-macaron-jar.svg",
-    "png": "packs/cottage/cc-macaron-jar.png",
     "widthUnits": 56,
     "heightUnits": 92,
     "gameW": 64,
@@ -5587,7 +4946,6 @@
     "size": "small",
     "pack": "cottage",
     "svg": "packs/cottage/cc-flower-kettle.svg",
-    "png": "packs/cottage/cc-flower-kettle.png",
     "widthUnits": 76,
     "heightUnits": 84,
     "gameW": 78,
@@ -5609,7 +4967,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-light-vanity.svg",
-    "png": "packs/cottage/cc-light-vanity.png",
     "widthUnits": 92,
     "heightUnits": 98,
     "gameW": 196,
@@ -5630,7 +4987,6 @@
     "size": "medium",
     "pack": "cottage",
     "svg": "packs/cottage/cc-bubble-chair.svg",
-    "png": "packs/cottage/cc-bubble-chair.png",
     "widthUnits": 84,
     "heightUnits": 92,
     "gameW": 142,
@@ -5651,7 +5007,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-mani-chair.svg",
-    "png": "packs/cottage/cc-mani-chair.png",
     "widthUnits": 96,
     "heightUnits": 84,
     "gameW": 188,
@@ -5672,7 +5027,6 @@
     "size": "medium",
     "pack": "cottage",
     "svg": "packs/cottage/cc-ribbon-mirror.svg",
-    "png": "packs/cottage/cc-ribbon-mirror.png",
     "widthUnits": 68,
     "heightUnits": 94,
     "gameW": 112,
@@ -5695,7 +5049,6 @@
     "size": "small",
     "pack": "cottage",
     "svg": "packs/cottage/cc-perfume-tray.svg",
-    "png": "packs/cottage/cc-perfume-tray.png",
     "widthUnits": 92,
     "heightUnits": 62,
     "gameW": 108,
@@ -5717,7 +5070,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-dryer-chair.svg",
-    "png": "packs/cottage/cc-dryer-chair.png",
     "widthUnits": 88,
     "heightUnits": 96,
     "gameW": 164,
@@ -5739,7 +5091,6 @@
     "size": "small",
     "pack": "cottage",
     "svg": "packs/cottage/cc-heart-clock.svg",
-    "png": "packs/cottage/cc-heart-clock.png",
     "widthUnits": 72,
     "heightUnits": 82,
     "gameW": 84,
@@ -5762,7 +5113,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-scallop-curtains.svg",
-    "png": "packs/cottage/cc-scallop-curtains.png",
     "widthUnits": 96,
     "heightUnits": 94,
     "gameW": 196,
@@ -5785,7 +5135,6 @@
     "size": "medium",
     "pack": "cottage",
     "svg": "packs/cottage/cc-mushroom-stool.svg",
-    "png": "packs/cottage/cc-mushroom-stool.png",
     "widthUnits": 80,
     "heightUnits": 84,
     "gameW": 112,
@@ -5806,7 +5155,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-plant-wall.svg",
-    "png": "packs/cottage/cc-plant-wall.png",
     "widthUnits": 92,
     "heightUnits": 90,
     "gameW": 176,
@@ -5829,7 +5177,6 @@
     "size": "medium",
     "pack": "cottage",
     "svg": "packs/cottage/cc-cottage-aquarium.svg",
-    "png": "packs/cottage/cc-cottage-aquarium.png",
     "widthUnits": 84,
     "heightUnits": 90,
     "gameW": 136,
@@ -5850,7 +5197,6 @@
     "size": "large",
     "pack": "cottage",
     "svg": "packs/cottage/cc-reading-nook.svg",
-    "png": "packs/cottage/cc-reading-nook.png",
     "widthUnits": 92,
     "heightUnits": 96,
     "gameW": 210,
