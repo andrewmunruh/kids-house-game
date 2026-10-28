@@ -511,29 +511,35 @@ async def street_more(mk, join, A, B, hid, eA, eB):
     check('B2: no page errors', not eD, eD[:3])
     await D.context.close()
 
-    # 7. B1 through the UI: other houses fill the street to 60, then new saves still succeed.
+    # 7. B1 through the UI: other houses fill the street to 60. The server never clears another child's paintings:
+    #    a save on a full street either frees the saver's OWN old unhung draft (never one saved in the last 90 s)
+    #    or is refused with 'streetfull' and a toast. Either way B, E and F keep every painting.
     #    So far: A 3 (1 hung), I 12 hung, D 12 hung = 27. B 12 + E 12 + F 9 unhung = 60.
     E, eE = await mk(400, 600, hood=True); await join(E, 6, False)
     F, eF = await mk(400, 600, hood=True); await join(F, 7, False)
-    for pg, n, c in [(B, 12, 3), (E, 12, 4), (F, 9, 5)]:
-        await pg.evaluate(SAVE12, [pdata(c), n, False]); await pg.wait_for_timeout(400)
+    saved = {}
+    for nm, pg, n, c in [('B', B, 12, 3), ('E', E, 12, 4), ('F', F, 9, 5)]:
+        saved[nm] = await pg.evaluate(SAVE12, [pdata(c), n, False]); await pg.wait_for_timeout(400)
     await A.wait_for_timeout(1500)
+    TOASTS = "() => { window.__toasts = []; new MutationObserver(() => document.querySelectorAll('.toast').forEach(t => __toasts.includes(t.textContent) || __toasts.push(t.textContent))).observe(document.body, {childList: true, subtree: true}); }"
     before = {p['id'] for p in await A.evaluate(PAINTINGS)}
+    await A.evaluate(TOASTS)
     await hang_ui(A, 0)
-    new = [p for p in await A.evaluate(PAINTINGS) if p['id'] not in before]
-    check('B1 UI: full street, owner with unhung art: new painting hangs', len(new) == 1, new)
+    after = await A.evaluate(PAINTINGS); new = [p for p in after if p['id'] not in before]; tl = await A.evaluate("window.__toasts")
+    gone = [i for i in before if i not in {p['id'] for p in after}]
+    ok_hung = len(new) == 1
+    ok_refused = len(new) == 0 and not gone and any('street is full' in t for t in tl)
+    check('B1 UI: full street, owner with unhung art: either her own old draft is freed or the save is refused with a toast (no orphan frame)', ok_hung or ok_refused, [len(new), gone, tl])
     H, eH = await mk(820, 1180, hood=True); await join(H, 8, False)
     await H.evaluate("document.querySelector('#mapWorld .mapHouse.mine').click()"); await H.wait_for_timeout(1000)
-    await H.evaluate("() => { window.__toasts = []; new MutationObserver(() => document.querySelectorAll('.toast').forEach(t => __toasts.includes(t.textContent) || __toasts.push(t.textContent))).observe(document.body, {childList: true, subtree: true}); }")
+    await H.evaluate(TOASTS)
     await hang_ui(H, 1)
     ph = await H.evaluate(PAINTINGS); tl = await H.evaluate("window.__toasts")
-    check('B1 UI: full street, new girl with no art: her painting hangs (oldest unhung elsewhere cleared)', len(ph) == 1 and not any('full' in t for t in tl), [ph, tl])
-    if ph:
-        K, eK = await mk(820, 1180, hood=True); await join(K, 10, False)
-        await K.evaluate(GO_HOUSE, await H.evaluate("__hood().myHouseId()")); await K.wait_for_timeout(2000)
-        src = await K.evaluate("id => { const e = document.querySelector(`.item[data-id=\"${id}\"] image`); return e ? (e.getAttribute('href') || '').slice(0, 22) : null }", ph[0]['id'])
-        check('B1 UI: a friend sees that painting', src and src.startswith('data:image/png'), src)
-        check('B1 UI: friend no page errors', not eK, eK[:3]); await K.context.close()
+    check('B1 UI: full street, new girl with no art of her own: refused with the street-full toast, no frame left on her wall', len(ph) == 0 and any('street is full' in t for t in tl), [ph, tl])
+    HAS = """ids => new Promise(res => { const h = __hood(), hid = h.myHouseId(); h.on('art', (house, arts) => { if (house === hid) res(Object.keys(arts || {}).length); }); h.getArt(hid, ids); setTimeout(() => res(-1), 5000); })"""
+    for nm, pg in (('B', B), ('E', E), ('F', F)):
+        have = await pg.evaluate(HAS, saved[nm])
+        check(f'B1 UI: no painting deleted in house {nm} (server still has all {len(saved[nm])})', have == len(saved[nm]), [have, len(saved[nm])])
     check('B1 UI: no page errors', not eE and not eF and not eH and not eJ, (eE + eF + eH + eJ)[:3])
     for pg in (E, F, H, J): await pg.context.close()
 
