@@ -1,4 +1,5 @@
 import { storeKey } from './shared/storekey';
+import { artRasterOn } from './art/flag';
 // Hidden surprises: one per name. Tap a small, innocent-looking detail a few times to reveal it.
 // Progress is saved only on this device. Nothing in the UI explains where they are.
 import type { ItemDef } from './items';
@@ -6,8 +7,6 @@ import type { RoomId } from './shared/state';
 
 const O = '#5a3d5c';
 const s = `stroke="${O}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"`;
-const eyes = (x1: number, x2: number, y: number) => `<circle cx="${x1}" cy="${y}" r="3" fill="${O}"/><circle cx="${x2}" cy="${y}" r="3" fill="${O}"/><circle cx="${x1 + 1}" cy="${y - 1}" r="1" fill="#fff"/><circle cx="${x2 + 1}" cy="${y - 1}" r="1" fill="#fff"/>`;
-const blush = (x1: number, x2: number, y: number) => `<ellipse cx="${x1}" cy="${y}" rx="4" ry="2.5" fill="#ff9bb5" opacity=".7"/><ellipse cx="${x2}" cy="${y}" rx="4" ry="2.5" fill="#ff9bb5" opacity=".7"/>`;
 const shadow = `<ellipse cx="50" cy="97" rx="34" ry="3" fill="#000" opacity=".12"/>`;
 
 interface Egg { name: string; room: RoomId; x: number; y: number; w: number; h: number; taps: number; spot: string; item: ItemDef; hello?: string }
@@ -21,13 +20,13 @@ const HEART = `<svg viewBox="0 0 30 28"><path d="M15 26 C3 18 1 10 6 5 C10 1 14 
 
 export const EGGS: Egg[] = [
   { name: 'Cada', room: 'living', x: 150, y: 382, w: 40, h: 30, taps: 3, spot: MOUSEHOLE, hello: 'Squeak! Hi Cada!',
-    item: { kind: 'egg:cada-mouse', name: "Cada's Mouse", cat: 'secrets', w: 80, holdable: true, svg: `${shadow}<path d="M78 74 Q96 68 92 52" stroke="#ff9bb5" stroke-width="5" fill="none" stroke-linecap="round"/><ellipse cx="54" cy="76" rx="28" ry="18" fill="#d6d6e8" ${s}/><circle cx="28" cy="40" r="13" fill="#d6d6e8" ${s}/><circle cx="62" cy="38" r="13" fill="#d6d6e8" ${s}/><circle cx="28" cy="40" r="7" fill="#ffc8dd"/><circle cx="62" cy="38" r="7" fill="#ffc8dd"/><circle cx="45" cy="56" r="20" fill="#e4e4f2" ${s}/>${eyes(38, 52, 54)}<circle cx="45" cy="64" r="3" fill="#ff8fab"/>${blush(32, 58, 62)}<text x="50" y="96" font-size="11" font-weight="900" text-anchor="middle" fill="${O}">C</text>` } },
+    item: { kind: 'egg:cada-mouse', name: "Cada's Mouse", cat: 'secrets', w: 80, holdable: true, svg: `${shadow}<path d="M78 74 Q96 68 92 52" stroke="#ff9bb5" stroke-width="5" fill="none" stroke-linecap="round"/><ellipse cx="54" cy="76" rx="28" ry="18" fill="#d6d6e8" ${s}/><circle cx="28" cy="40" r="13" fill="#d6d6e8" ${s}/><circle cx="62" cy="38" r="13" fill="#d6d6e8" ${s}/><circle cx="28" cy="40" r="7" fill="#ffc8dd"/><circle cx="62" cy="38" r="7" fill="#ffc8dd"/><circle cx="45" cy="56" r="20" fill="#e4e4f2" ${s}/><text x="50" y="96" font-size="11" font-weight="900" text-anchor="middle" fill="${O}">C</text>` } },
   { name: 'Sloane', room: 'living', x: 2290, y: 383, w: 48, h: 30, taps: 3, spot: SNAIL, hello: 'Hi Sloane! ✨',
-    item: { kind: 'egg:sloane-snail', name: "Sloane's Rainbow Snail", cat: 'secrets', w: 110, holdable: true, svg: `${shadow}<path d="M6 92 Q14 80 36 82 L84 82 Q94 90 84 94 H10 Z" fill="#cdeccf" ${s}/><circle cx="56" cy="52" r="32" fill="#ff8fab" ${s}/><circle cx="56" cy="52" r="24" fill="#ffd166"/><circle cx="56" cy="52" r="17" fill="#80ed99"/><circle cx="56" cy="52" r="10" fill="#8ecae6"/><circle cx="56" cy="52" r="4" fill="#c9a0dc"/><circle cx="56" cy="52" r="32" fill="none" ${s}/><path d="M14 82 L8 60 M24 82 L24 60" ${s}/><circle cx="8" cy="58" r="4" fill="${O}"/><circle cx="24" cy="58" r="4" fill="${O}"/>${blush(14, 30, 76)}` } },
+    item: { kind: 'egg:sloane-snail', name: "Sloane's Rainbow Snail", cat: 'secrets', w: 110, holdable: true, svg: `${shadow}<path d="M6 92 Q14 80 36 82 L84 82 Q94 90 84 94 H10 Z" fill="#cdeccf" ${s}/><circle cx="56" cy="52" r="32" fill="#ff8fab" ${s}/><circle cx="56" cy="52" r="24" fill="#ffd166"/><circle cx="56" cy="52" r="17" fill="#80ed99"/><circle cx="56" cy="52" r="10" fill="#8ecae6"/><circle cx="56" cy="52" r="4" fill="#c9a0dc"/><circle cx="56" cy="52" r="32" fill="none" ${s}/><path d="M14 82 L8 60 M24 82 L24 60" ${s}/><circle cx="8" cy="58" r="4" fill="${O}"/><circle cx="24" cy="58" r="4" fill="${O}"/>` } },
   { name: 'Chloe', room: 'bedroom', x: 2230, y: 92, w: 30, h: 30, taps: 5, spot: STAR,
-    item: { kind: 'egg:chloe-starlamp', name: "Chloe's Star Lamp", cat: 'secrets', w: 100, holdable: true, svg: `${shadow}<circle cx="50" cy="38" r="34" fill="#fff3b0" opacity=".6"/><path d="M50 6 l8 17 19 2.5 -14 13 4 19 -17 -9.5 -17 9.5 4 -19 -14 -13 19 -2.5z" fill="#ffd166" ${s}/>${eyes(43, 57, 38)}<path d="M45 46 q5 4 10 0" ${s} fill="none"/><rect x="46" y="66" width="8" height="22" rx="4" fill="#c9a0dc" ${s}/><ellipse cx="50" cy="90" rx="22" ry="6" fill="#b388d6" ${s}/><text x="50" y="93" font-size="8" font-weight="900" text-anchor="middle" fill="#fff">CHLOE</text>` } },
+    item: { kind: 'egg:chloe-starlamp', name: "Chloe's Star Lamp", cat: 'secrets', w: 100, holdable: true, svg: `${shadow}<circle cx="50" cy="38" r="34" fill="#fff3b0" opacity=".6"/><path d="M50 6 l8 17 19 2.5 -14 13 4 19 -17 -9.5 -17 9.5 4 -19 -14 -13 19 -2.5z" fill="#ffd166" ${s}/><rect x="46" y="66" width="8" height="22" rx="4" fill="#c9a0dc" ${s}/><ellipse cx="50" cy="90" rx="22" ry="6" fill="#b388d6" ${s}/><text x="50" y="93" font-size="8" font-weight="900" text-anchor="middle" fill="#fff">CHLOE</text>` } },
   { name: 'Quinn', room: 'kitchen', x: 80, y: 588, w: 30, h: 22, taps: 4, spot: COOKIE, hello: 'Woof! Hi Quinn!',
-    item: { kind: 'egg:quinn-pup', name: "Quinn's Cookie Pup", cat: 'secrets', w: 110, holdable: true, svg: `${shadow}<ellipse cx="56" cy="76" rx="30" ry="20" fill="#e6b88a" ${s}/><circle cx="50" cy="44" r="27" fill="#f2d0a4" ${s}/><ellipse cx="24" cy="46" rx="10" ry="17" fill="#b07d54" ${s}/><ellipse cx="76" cy="46" rx="10" ry="17" fill="#b07d54" ${s}/>${eyes(41, 59, 42)}<ellipse cx="50" cy="53" rx="5" ry="4" fill="${O}"/>${blush(34, 66, 54)}<circle cx="84" cy="80" r="10" fill="#e6b88a" ${s}/><circle cx="81" cy="78" r="1.8" fill="${O}"/><circle cx="87" cy="82" r="1.8" fill="${O}"/><text x="50" y="30" font-size="10" font-weight="900" text-anchor="middle" fill="${O}">Q</text>` } },
+    item: { kind: 'egg:quinn-pup', name: "Quinn's Cookie Pup", cat: 'secrets', w: 110, holdable: true, svg: `${shadow}<ellipse cx="56" cy="76" rx="30" ry="20" fill="#e6b88a" ${s}/><circle cx="50" cy="44" r="27" fill="#f2d0a4" ${s}/><ellipse cx="24" cy="46" rx="10" ry="17" fill="#b07d54" ${s}/><ellipse cx="76" cy="46" rx="10" ry="17" fill="#b07d54" ${s}/><circle cx="84" cy="80" r="10" fill="#e6b88a" ${s}/><circle cx="81" cy="78" r="1.8" fill="${O}"/><circle cx="87" cy="82" r="1.8" fill="${O}"/><text x="50" y="30" font-size="10" font-weight="900" text-anchor="middle" fill="${O}">Q</text>` } },
   { name: 'Reagan', room: 'salon', x: 2300, y: 352, w: 30, h: 28, taps: 5, spot: HEART,
     item: { kind: 'egg:reagan-frame', name: "Reagan's Frame", cat: 'secrets', w: 120, wall: true, svg: `<rect x="8" y="10" width="84" height="84" rx="16" fill="#ff8fab" ${s}/><rect x="18" y="20" width="64" height="64" rx="10" fill="#fff3f7" ${s}/><text x="50" y="72" font-size="52" font-weight="900" text-anchor="middle" fill="#e879c6" stroke="${O}" stroke-width="2.5">R</text><circle cx="14" cy="16" r="6" fill="#ffd166" ${s}/><circle cx="86" cy="88" r="6" fill="#ffd166" ${s}/><path d="M76 24 l2 4 4 .5 -3 3 .7 4 -3.7 -2 -3.7 2 .7 -4 -3 -3 4 -.5z" fill="#ffd166"/>` } },
 ];
@@ -68,11 +67,24 @@ export function initEggs(ctx: EggCtx) {
   return { update };
 }
 
+// Pop-up paintings, seen from behind so they have no faces. The leading _ keeps the
+// art loader from treating them as item art (the in-room paintings stay as they are).
+const POP_FILES = import.meta.glob('../assets/art/living/_pop~*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const POP_ART: Record<string, string> = {};
+for (const p in POP_FILES) POP_ART['egg:' + p.split('_pop~').pop()!.slice(0, -5)] = POP_FILES[p];
+
 function reveal(e: Egg, spot: HTMLElement) {
   // a friend pops out and says hi (where it makes sense)
   if (e.hello) {
     const pop = document.createElement('div'); pop.className = 'eggpop';
+    const pic = artRasterOn() ? POP_ART[e.item.kind] : undefined;
     pop.innerHTML = `<div class="eggcritter"><svg viewBox="0 0 100 100">${e.item.svg}</svg></div><div class="bubble">${e.hello}</div>`;
+    if (pic) {
+      // a faceless painting for the pop-up; the SVG stays if it fails to load
+      const box = pop.querySelector('.eggcritter')!, svg = box.innerHTML, img = new Image();
+      img.alt = ''; img.className = 'eggpic'; img.onerror = () => { box.innerHTML = svg; };
+      img.src = pic; box.replaceChildren(img);
+    }
     spot.appendChild(pop); setTimeout(() => pop.remove(), 3200);
   }
   const banner = document.createElement('div'); banner.className = 'eggbanner';

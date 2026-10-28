@@ -24,3 +24,9 @@ Browser (gate, fresh servers): phone 383/383, hood 44/44, eggs ok, avatar 34/34,
 ## Step 1 — drop 279 PNGs with SVG siblings
 Removed 279 PNGs (items 254, patterns 25); app icons icon-180/192/512 kept. Manifest: png+pngPx dropped on those entries, svg filled in where missing (78 entries). The png fields that point at winter/halloween .webp files were left alone. art_catalog 13 passed, tsc ok.
 dist bytes: 16,469,213 before → 7,843,986 after (−8.6 MB); hashed PNGs in dist/assets 279 → 0.
+
+## Step 2 — faceless secret pop-ups
+Pop-up paintings (seen from behind, no faces): assets/art/living/_pop~cada-mouse.webp (6236 B), _pop~quinn-pup.webp (6950 B), _pop~sloane-snail.webp (9962 B), 300x300 (3x of the 100 viewBox), stretch 1.00. Loader ignores `_` names; eggs.ts reveal() shows them (SVG if ?art=v1 or the load fails).
+Chloe's star lamp has no pop-up (no hello); its shipped painting is already faceless, and it is the Secrets tab icon.
+Vector fallbacks for egg:cada-mouse, sloane-snail, chloe-starlamp, quinn-pup: eyes/mouth/nose/blush removed; shapes and bounds kept.
+NOT changed (still have faces, per brief): shipped in-room paintings living/egg~cada-mouse.webp, egg~quinn-pup.webp (and the snail's eye stalks).
