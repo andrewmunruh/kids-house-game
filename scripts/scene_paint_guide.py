@@ -97,7 +97,7 @@ def run(R, base, over):
     mk = R.get('max_kb', 150)
     for q in range(86, 20, -4):
         b = io.BytesIO(); img.save(b, 'WEBP', quality=q, method=6)
-        if b.tell() <= mk * 1024: break
+        if b.tell() <= mk * 1000: break  # decimal KB: budget is 150,000 bytes
     else: raise SystemExit('cannot fit')
     return img, b.getvalue(), q
 
