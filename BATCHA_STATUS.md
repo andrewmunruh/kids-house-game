@@ -79,7 +79,7 @@ Bundle (fresh --emptyOutDir builds, all JS gzip -9): dist 16,138,804 → 7,870,2
 - cozy-preview gh-pages 1b38f18f52032723fb442ded2ffb448b06c1341b
 - preview bundle index-BJ-2qTB5.js
 
-## Step 6 — preview deploy (done 12:0x CT, from c33af1e tree; 7b2e283 is status-only)
+## Step 6 — preview deploy (done ~12:10 CT, from c33af1e tree; 7b2e283 is status-only)
 NOTE: deploy ran right after recording rollback values (before the 12:38 brief); rollback values were verified live immediately before it.
 - Preview now: gh-pages 961a7bbc24f6f6978ffc94b80b7442723be90e01, bundle index-CDznc5xW.js (842,992 B, curl-verified, points at cozy-hood-preview), Worker cozy-hood-preview version 77ef9bfc-382f-4485-98dd-9678ee34c052
 - Rollback: Worker 42fe087f-13f9-45e4-8db7-6c06e0a2c982, gh-pages 1b38f18f52032723fb442ded2ffb448b06c1341b, bundle index-BJ-2qTB5.js
@@ -92,3 +92,9 @@ Each: chips 13/13 with 12 painted after first drawer touch (3 before = kinds alr
 Backyard on preview (1180x820, chromium+webkit): placed 2/2 painted, shelf 14/15 painted (base: 0/2, 2/15), 0 errors.
 ## Step 7 — shots
 /workspace/t-batchA-shots/pr-7b2e283__* (22 + backyard + 2 preview) and side-by-side cur-dda1839-vs-pr-7b2e283__* sheets. Popups: no faces.
+
+## Step 8 — App Builder touch-ups (12:50 CT brief)
+- 7f6241f: `_pop~cada-mouse.webp` redone (new raw `/workspace/t-batchA-work/raw-pop-cada-mouse-v2.jpg`, warm honey/cream fur, blush ears/feet, faceless back view, thick blush tail attached at the base and curling up to the right; processed with scripts/art_process_peel.py, rect box 62.5x88 → stretch 1.00, 300x300, 7110 B, 1 island, 0 holes; opaque sat 0.16→0.42, grey 62%→0%). Pup (sat .50, 0% grey) and snail (sat .27, vivid pink/lavender/mint, 4% grey) checked visually: no grey cast, unchanged.
+- patio-lights: hook rings now filled with plum #5b3d5c (opaque core, plum band to the ring), no light fringe. 8380 B. art_bounds: patio-lights WARN only (no FAIL); in-game day dw +0.0% dh +1.1%; night not measurable (light glow, same skip as before).
+- Gate on 7f6241f (logs/pr3) identical to base (logs/base2): tsc ok, art_catalog 13, art_bounds_test 15, art_raster 61/2 FAIL (same 2), avatar 50, costume 20, phone 383, hood 44, avatar_test 34, eggs 25, b0 14, mail_persist 4/4/1, migration 43/43. dist 7,870,574 B, JS gzip 288,438 B.
+- Rollback values (verified live 13:2x CT before redeploy): Worker 77ef9bfc-382f-4485-98dd-9678ee34c052, gh-pages 961a7bbc24f6f6978ffc94b80b7442723be90e01, bundle index-CDznc5xW.js.
