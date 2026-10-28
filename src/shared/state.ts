@@ -33,6 +33,10 @@ export interface PlacedItem {
   size?: number;
   /** Play-mode power (stereo, TV, fire, music box). Omitted when off so an old save stays identical. */
   on?: true;
+  /** Art Studio: id of her own painting, kept beside the house (not inline). Only on a 'picture', so an old client draws the plain picture frame. */
+  art?: string;
+  /** Art Studio frame style (0 wood, 1 plum, 2 gold, 3 rainbow). Omitted when 0. */
+  frame?: number;
 }
 
 /** Kid steps from smaller to bigger. Missing, or anything that snaps to 1, is the old size. */

@@ -51,6 +51,11 @@ import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { isLightKind } from './sky';
 import { dockSkyChrome, mountSkyToggle } from './sky-toggle';
 import './sky.css';
+import './paint/studio.css';
+import { openStudio, zoomPainting, type StampSrc } from './paint/studio';
+import { PAINT_PER_HOUSE } from './shared/paint';
+import { framedSvg, artUrl, hasArt, putArt, loadLocalArt, saveLocalArt, artData } from './paint/gallery';
+import { STICKER } from './mail';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
 import { bindGameRoom, renderGameRoom, renderGamePeople, tickGameRoom, mySeat, grScale, tableApi, GR_PORTRAIT_VIEW } from './gameroom-view';
@@ -127,6 +132,7 @@ const MENU_ICON = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 15 H
 const MAIL_ICON = `<svg class="mailGlyph" viewBox="0 0 48 48" aria-hidden="true"><g transform="translate(0 2)"><rect x="6" y="14" width="36" height="24" rx="4" fill="#8ecae6" stroke="#5a3d5c" stroke-width="3"/><path d="M6 16 L24 30 L42 16" fill="none" stroke="#5a3d5c" stroke-width="3"/><path d="M34 12 V6" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/><path d="M34 6 H44 L40 10 L44 14 H34 Z" fill="#ff6b6b" stroke="#5a3d5c" stroke-width="2"/></g></svg>`;
 const PLUS = `<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="#fff3b0" stroke="#5a3d5c" stroke-width="3"/><path d="M24 15 V33 M15 24 H33" stroke="#5a3d5c" stroke-width="4" stroke-linecap="round"/></svg>`;
 
+const STUDIO_ICON = '<svg viewBox="0 0 40 40" width="28" height="28"><path d="M12 36 L18 8 M28 36 L22 8 M20 30 V38" stroke="#a86f3e" stroke-width="3" stroke-linecap="round"/><rect x="8" y="8" width="24" height="18" rx="3" fill="#fff" stroke="#5a3d5c" stroke-width="2.5"/><circle cx="16" cy="16" r="3" fill="#ff8fab"/><path d="M12 24 L20 17 L28 24" fill="#69db7c" stroke="#5a3d5c" stroke-width="1.5" stroke-linejoin="round"/></svg>';
 // ---------- DOM skeleton ----------
 const app = document.getElementById('app')!;
 app.innerHTML = `
@@ -150,6 +156,7 @@ app.innerHTML = `
     <button type="button" class="menuRow photoRow" id="btnPhoto" aria-label="Take a photo"><span class="mIco">📸</span><span class="mLabel">Take a photo</span></button>
     <button type="button" class="menuRow" id="btnPets" aria-label="Pets"><span class="mIco">${pawIcon}</span><span class="mLabel">Pets</span></button>
     <button type="button" class="menuRow" id="btnDress" aria-label="Characters"><span class="mIco">${ICON.shirt}</span><span class="mLabel">Characters</span></button>
+    <button type="button" class="menuRow" id="btnStudio" aria-label="Art Studio"><span class="mIco">${STUDIO_ICON}</span><span class="mLabel">Art Studio</span></button>
     <button type="button" class="menuRow" id="btnPaint" aria-label="Colors"><span class="mIco">${ICON.paint}</span><span class="mLabel">Wall &amp; floor colors</span></button>
     <button type="button" class="menuRow" id="secrets" aria-label="Surprises, 0 of 5"><span class="mIco secGift">🎁</span><span class="mLabel"><span class="secWord">Surprises </span><span class="secCount">0/5</span></span></button>
     <p class="menuGroup houseGroup">House</p>
@@ -172,6 +179,7 @@ app.innerHTML = `
       <div class="scenery" id="scenery"></div>
       <div class="partyFx" id="partyFx" aria-hidden="true"><i class="pl pl1"></i><i class="pl pl2"></i><i class="pl pl3"></i><i class="sp s1"></i><i class="sp s2"></i><i class="sp s3"></i><i class="sp s4"></i><i class="sp s5"></i><i class="sp s6"></i><i class="sp s7"></i><i class="sp s8"></i></div>
       <div class="layer" id="layer"></div>
+      <div class="artGrip hidden" id="artGrip" role="button" aria-label="Drag to make the painting bigger or smaller"><span class="artGripDot"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M11 29 L29 11" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/><path d="M9 19 L9 31 L21 31 Z M31 21 L31 9 L19 9 Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span></div>
       <div class="toolbar hidden" id="toolbar">
         <button data-a="smaller" aria-label="Smaller">${ICON.smaller}</button><button data-a="bigger" aria-label="Bigger">${ICON.bigger}</button><button data-a="flip" aria-label="Flip">${ICON.flip}</button><button data-a="front" aria-label="Bring forward">${ICON.front}</button><button data-a="back" aria-label="Send back">${ICON.back}</button><button data-a="delete" class="danger" aria-label="Put away">${ICON.trash}</button>
       </div>
@@ -179,6 +187,7 @@ app.innerHTML = `
     <button class="nudge left" id="nudgeL" aria-label="Look left"><svg viewBox="0 0 40 40"><path d="M24 10 L14 20 L24 30" fill="none" stroke="#5a3d5c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button class="nudge right" id="nudgeR" aria-label="Look right"><svg viewBox="0 0 40 40"><path d="M16 10 L26 20 L16 30" fill="none" stroke="#5a3d5c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
+  <button type="button" class="artFab" id="artFab" aria-label="Art Studio: paint a picture">${STUDIO_ICON}<span>Paint</span></button>
   <div class="bin" id="bin">${ICON.trash}</div>
   <div class="houseTag" id="houseTag"></div>
 </div>
@@ -988,6 +997,154 @@ function placedBox(def: ItemDef, scale: number) {
   }
   return { w, h };
 }
+// ---------- Art Studio: hung paintings ----------
+/** A painting is a 'picture' item with an art id. Draw its frame; ask for the bitmap if this iPad has not got it yet. */
+function paintFrameEl(el: HTMLElement, art: string, frame: number) {
+  const url = artUrl(art);
+  const sig = art + ':' + frame + ':' + (url ? 1 : 0);
+  if (el.dataset.sig === sig) return;
+  el.dataset.sig = sig;
+  el.innerHTML = `<div class="inner">${framedSvg(frame, url)}</div>`;
+  if (!url) askArt(art);
+}
+const artAsked = new Set<string>(); let artAskT = 0; const artQueue = new Set<string>();
+function askArt(id: string) {
+  if (!hood || inner === local || artAsked.has(id) || hasArt(id)) return;
+  artAsked.add(id); artQueue.add(id);
+  if (!artAskT) artAskT = window.setTimeout(() => { artAskT = 0; const ids = [...artQueue]; artQueue.clear(); if (hood && currentHouseId) hood.getArt(currentHouseId, ids); ids.forEach(i => setTimeout(() => artAsked.delete(i), 8000)); }, 60);
+}
+function hungArt(s: GameState): Set<string> {
+  const out = new Set<string>();
+  for (const r of Object.values(s.rooms)) for (const it of r?.items ?? []) if (it.art) out.add(it.art);
+  return out;
+}
+const STAMPS: StampSrc[] = [
+  ...['Heart', 'Star', 'Flower', 'Kitty', 'Rainbow', 'Sparkle'].map((name, i) => ({ name, svg: STICKER[i] })),
+  ...['dog', 'bunny', 'fish', 'flowers', 'balloon', 'cake'].filter(k => ITEM_MAP[k]).map(k => ({ name: ITEM_MAP[k].name, svg: `<svg viewBox="${ITEM_MAP[k].vb ?? '0 0 100 100'}" xmlns="http://www.w3.org/2000/svg">${ITEM_MAP[k].svg}</svg>` })),
+];
+function openArtStudio() {
+  if (view !== 'house') { toast('The Art Studio is at home. Pop inside to paint!'); return; }
+  if (!canEdit()) { toast('Paint at home, or in a friend\'s open house!'); return; }
+  openStudio({ stamps: STAMPS, sfx, onSave: (data, frame) => hangPainting(data, frame) });
+}
+/** Decorate: a big corner handle on the selected painting. Drag it out or in to resize (keeps the shape, snaps to the kid size steps). */
+const gripSeen = new Set<string>(); // the handle glows the first time each painting is picked
+function renderArtGrip(s: GameState) {
+  const g = $('artGrip');
+  const it = selected ? s.rooms[s.currentRoom].items.find(i => i.id === selected) : undefined;
+  const el = it && layer.querySelector<HTMLElement>(`.item[data-id="${it.id}"]`);
+  if (play.isPlay() || !it || it.kind !== 'picture' || !it.art || !el || !canEdit()) { g.classList.add('hidden'); return; }
+  // Centre the handle just inside the painting's bottom-right corner so it sits ON the corner (overlapping it),
+  // not floating off it. 64 screen px touch target, 52 px visible disc, at any zoom.
+  const b = el.getBoundingClientRect(), inset = Math.min(b.width, b.height) >= 120 ? 14 : 0 /* small piece: centre on the corner, so most of it stays grabbable */, p = toRoom(b.right - inset, b.bottom - inset);
+  const sc = stage.getBoundingClientRect().width / Math.max(1, VIEW_W) || 1;
+  g.style.left = (p.x / W) * 100 + '%'; g.style.top = (p.y / H) * 100 + '%';
+  g.style.width = g.style.height = 64 / sc + 'px';
+  if (g.classList.contains('hidden') || g.dataset.for !== it.id) {
+    g.dataset.for = it.id;
+    if (!gripSeen.has(it.id)) { gripSeen.add(it.id); g.classList.remove('pulse'); void g.offsetWidth; g.classList.add('pulse'); }
+  }
+  g.classList.remove('hidden');
+}
+$('artGrip').addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation();
+  if (!canEdit() || !selected) return;
+  const room = store.get().currentRoom, id = selected;
+  const it = store.get().rooms[room].items.find(i => i.id === id); const el = layer.querySelector<HTMLElement>(`.item[data-id="${id}"]`);
+  if (!it || !el) return;
+  const b = el.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+  // Measure along the centre-to-corner diagonal (not plain distance), so pushing the handle in past the middle of a
+  // small painting keeps shrinking it instead of growing it again.
+  const ux0 = b.width / 2, uy0 = b.height / 2, ul = Math.max(1, Math.hypot(ux0, uy0)), ux = ux0 / ul, uy = uy0 / ul;
+  const along = (x: number, y: number) => (x - cx) * ux + (y - cy) * uy;
+  const d0 = Math.max(20, along(e.clientX, e.clientY)), s0 = itemSizeOf(it.size);
+  $('artGrip').classList.remove('pulse'); $('artGrip').classList.add('active'); toolbar.classList.add('hidden');
+  startDrag(e, {
+    edgeScroll: false,
+    onMove(ev) {
+      const want = s0 * Math.max(0, along(ev.clientX, ev.clientY)) / d0;
+      let best: number = ITEM_SIZE_STEPS[0]; for (const st of ITEM_SIZE_STEPS) if (Math.abs(st - want) < Math.abs(best - want)) best = st;
+      const cur = store.get().rooms[room].items.find(i => i.id === id);
+      if (cur && itemSizeOf(cur.size) !== best) { store.dispatch({ type: 'item/size', room, id, size: best }); sfx.click(); }
+    },
+    onUp() { $('artGrip').classList.remove('active'); settlePainting(room, id); renderItems(store.get()); },
+  });
+});
+$('artFab').addEventListener('click', () => { sfx.click(); openArtStudio(); });
+/** The Paint button shows in a house she can paint in. */
+function renderArtFab() { $('artFab').classList.toggle('hidden', view !== 'house' || !canEdit()); }
+/** Online, a painting waits for the street's OK before it goes on the wall, so a refused one never leaves an empty frame. */
+const pendingArt = new Map<string, { houseId: string; room: RoomId; frame: number; x: number }>();
+/** Room x range (for a piece half-width `half`) that is on screen and clear of the left/right room arrows. */
+function wallSafeRange(half: number): { lo: number; hi: number } {
+  const sr = stage.getBoundingClientRect();
+  const L = $('nudgeL').getBoundingClientRect(), R = $('nudgeR').getBoundingClientRect();
+  const visible = (b: DOMRect, el: HTMLElement) => b.width > 0 && !el.classList.contains('off') && getComputedStyle(el).visibility !== 'hidden' && getComputedStyle(el).display !== 'none' && +getComputedStyle(el).opacity > 0.05;
+  const left = visible(L, $('nudgeL')) ? L.right + 10 : sr.left + 6, right = visible(R, $('nudgeR')) ? R.left - 10 : sr.right - 6;
+  let lo = toRoom(left, 0).x + half, hi = toRoom(right, 0).x - half;
+  lo = Math.max(half, lo); hi = Math.min(W - half, hi);
+  if (hi < lo) { const m = (lo + hi) / 2; lo = hi = Math.max(half, Math.min(W - half, m)); }
+  return { lo, hi };
+}
+/** A clear spot on the wall in view for a new painting: the least overlap with furniture, doors and windows, near the middle. */
+function findWallSpot(): number {
+  const def = ITEM_MAP.picture, half = def.w / 2, h = hOf(def), foot = Math.min(WALL_BOTTOM, 200 + h / 2), top = foot - h;
+  let { lo, hi } = wallSafeRange(half);
+  const boxes: { l: number; r: number; t: number; b: number; k: number }[] = [];
+  for (const el of document.querySelectorAll<HTMLElement>('#layer > :not(.char), #scenery > *')) {
+    const b = el.getBoundingClientRect(); if (!b.width) continue;
+    const a = toRoom(b.left, b.top), z = toRoom(b.right, b.bottom), k = el.classList.contains('yardDoor') ? 50 : 1; boxes.push({ l: a.x, r: z.x, t: a.y, b: z.y, k });
+  }
+  const mid = camX + VIEW_W / 2;
+  // Stay in the middle part of the view, where she is looking (not the far edge behind the Paint button).
+  lo = Math.min(Math.max(lo, mid - VIEW_W * .3), hi); hi = Math.max(Math.min(hi, mid + VIEW_W * .3), lo);
+  let best = Math.max(lo, Math.min(hi, mid)), bestScore = Infinity;
+  for (let x = lo; x <= hi + .1; x += Math.max(4, (hi - lo) / 60)) {
+    let ov = 0;
+    for (const o of boxes) ov += o.k * Math.max(0, Math.min(x + half + 12, o.r) - Math.max(x - half - 12, o.l)) * Math.max(0, Math.min(foot + 12, o.b) - Math.max(top - 12, o.t));
+    const score = ov * 10 + Math.abs(x - mid);
+    if (score < bestScore) { bestScore = score; best = x; }
+  }
+  return best;
+}
+/** After a painting is dragged: keep it on the wall, below the ceiling, and out from under the room arrows when it sits in view. */
+function settlePainting(room: RoomId, id: string) {
+  const it = store.get().rooms[room].items.find(i => i.id === id); if (!it || it.kind !== 'picture' || !it.art) return;
+  const def = ITEM_MAP.picture, sc = drawnScale(it), half = def.w * sc / 2, h = hOf(def) * sc;
+  const sr = stage.getBoundingClientRect(), v0 = toRoom(sr.left, 0).x, v1 = toRoom(sr.right, 0).x;
+  let x = it.x, y = Math.min(WALL_BOTTOM, Math.max(h + 16, it.y));
+  if (x + half > v0 && x - half < v1) {
+    const { lo, hi } = wallSafeRange(half); x = Math.max(lo, Math.min(hi, x));
+    // Never hang over the back door: the door button sits on top and would swallow every tap/drag on the painting.
+    const door = layer.querySelector<HTMLElement>('.yardDoor'), db = door?.getBoundingClientRect();
+    if (db && db.width) {
+      const l = toRoom(db.left, db.top), r = toRoom(db.right, db.bottom);
+      if (x + half > l.x - 8 && x - half < r.x + 8 && y > l.y && y - h < r.y) {
+        const left = l.x - 8 - half, right = r.x + 8 + half, ok = (v: number) => v >= lo - .5 && v <= hi + .5;
+        const opts = [left, right].filter(ok).sort((p, q) => Math.abs(p - x) - Math.abs(q - x));
+        if (opts.length) x = opts[0];
+      }
+    }
+  }
+  if (Math.abs(x - it.x) > .5 || Math.abs(y - it.y) > .5) store.dispatch({ type: 'item/move', room, id, x, y });
+}
+function hangPainting(data: string, frame: number) {
+  const id = 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const s = store.get(); const room = s.currentRoom;
+  putArt(id, data);
+  // Hang it in a clear wall spot in view: between the left/right room arrows, away from other wall things.
+  const x = findWallSpot();
+  if (hood && inner !== local && currentHouseId) { pendingArt.set(id, { houseId: currentHouseId, room, frame, x }); hood.saveArt(currentHouseId, id, data); return; }
+  saveLocalArt(id, data, hungArt(s));
+  placePainting(room, id, frame, x);
+}
+function placePainting(room: RoomId, art: string, frame: number, x: number) {
+  const def = ITEM_MAP.picture;
+  const item: PlacedItem = { id: newId('picture'), kind: 'picture', x, y: Math.min(WALL_BOTTOM, 200 + hOf(def) / 2), flip: false, z: 0, scale: 1, art, ...(frame ? { frame } : {}) };
+  store.dispatch({ type: 'item/add', room, item });
+  selected = item.id; renderItems(store.get());
+  const el = layer.querySelector(`.item[data-id="${item.id}"]`); bounce(el); sparkleAt(el); sfx.sparkle();
+}
 function renderItems(s: GameState) {
   const room = s.rooms[s.currentRoom];
   const seen = new Set<string>();
@@ -1003,12 +1160,17 @@ function renderItems(s: GameState) {
       el.addEventListener('pointerdown', e => onItemPointer(el!, e));
     }
     el.dataset.kind = it.kind;
+    if (it.art) paintFrameEl(el, it.art, it.frame ?? 0);
     el.classList.toggle('is-light', isLightKind(it.kind, !!def.light));
     const box = placedBox(def, drawnScale(it));
     placeEl(el, it.x, drawY(def, it.y), box.w, box.h);
     const iz = 1000 + it.z;
     el.style.zIndex = String(iz);
     el.style.setProperty('--iz', String(iz));
+    if (it.art) { // a painting hung across the back door sits in front of it, so the door button cannot swallow its drag
+      const door = layer.querySelector<HTMLElement>('.yardDoor');
+      if (door && boxesOverlap(el.getBoundingClientRect(), door.getBoundingClientRect())) el.style.zIndex = String(Math.max(iz, (parseInt(door.style.zIndex || '2', 10) || 2) + 1));
+    }
     el.classList.toggle('flipped', it.flip);
     el.classList.toggle('sel', selected === it.id);
   }
@@ -1016,7 +1178,7 @@ function renderItems(s: GameState) {
   paintScenery(s);
   syncSkyPuddles();
   syncSeatFronts();
-  renderToolbar(s); renderMinimap(s);
+  renderToolbar(s); renderMinimap(s); renderArtFab();
   queueAmbient();
 }
 /** Paint-only front of an occupied seat. The saved item and its z stay one object. */
@@ -1095,6 +1257,12 @@ stage.addEventListener('pointerdown', e => {
   const door = doorAtPoint(e.clientX, e.clientY);
   if (!door) return;
   if (e.target instanceof Node && door.contains(e.target)) return;
+  // The painting's resize handle and the piece toolbar sit above everything on purpose: a press on them is never a
+  // door tap, even when a grown painting's corner lands over the door (844x390 after growing to 1.5).
+  if (e.target instanceof Element && e.target.closest('#artGrip, #toolbar')) return;
+  // A hung painting is drawn above the door on purpose (liftDoorOverFurniture), so a press that lands on it is
+  // the painting's, even inside the door label's box. Pets and furniture in front of the door still give it the tap.
+  if (e.target instanceof Element && e.target.closest('.item[data-kind="picture"][data-sig]')) return;
   e.stopPropagation();
   e.preventDefault();
   const go: 'backyard' | 'living' = door.dataset.yardGo === 'backyard' ? 'backyard' : 'living';
@@ -1132,6 +1300,10 @@ function liftDoorOverFurniture(door: HTMLElement) {
     if (z > maxZ) maxZ = z;
   });
   door.style.zIndex = maxZ ? String(maxZ + 2) : '2';
+  // Art Studio paintings hung across the door stay in front of it (else the door swallows their drag).
+  layer.querySelectorAll<HTMLElement>('.item[data-sig]').forEach(el => {
+    if (boxesOverlap(el.getBoundingClientRect(), tap)) el.style.zIndex = String(Math.max(parseInt(el.style.zIndex || '0', 10) || 0, parseInt(door.style.zIndex, 10) + 1));
+  });
 }
 /** Indoor dressing, and the outdoor paint plus the back door when she is home.
     The door lives in the item layer (scenery is a lower stacking context) so a sofa or rug cannot cover it. */
@@ -1334,17 +1506,21 @@ function placeToolbarAnchor(x: number, y: number) {
   toolbar.style.top = (y / H) * 100 + '%';
 }
 function renderToolbar(s: GameState) {
+  renderArtGrip(s);
   const it = selected && s.rooms[s.currentRoom].items.find(i => i.id === selected);
   if (play.isPlay() || !it || !ITEM_MAP[it.kind]) {
     toolbar.classList.add('hidden');
     toolbar.classList.remove('below');
     toolbar.style.maxWidth = '';
+    $('artFab').classList.remove('tucked');
     return;
   }
+  $('artFab').classList.add('tucked'); // the Paint button steps aside while a piece is being decorated
   const def = ITEM_MAP[it.kind];
   const foot = drawY(def, it.y);
   const pieceTop = foot - hOf(def) * drawnScale(it);
-  const gap = 12;
+  // A selected painting has a resize handle on its bottom-right corner: keep the bar clear of it.
+  const gap = it.kind === 'picture' && it.art ? 12 + 64 / (stage.getBoundingClientRect().width / Math.max(1, VIEW_W) || 1) : 12;
   toolbar.classList.remove('hidden');
   toolbar.style.maxWidth = '';
   toolbar.classList.remove('below');
@@ -1377,6 +1553,38 @@ function renderToolbar(s: GameState) {
     const ax = parseFloat(toolbar.style.left) / 100 * W + dx / sc;
     const ay = parseFloat(toolbar.style.top) / 100 * H + dy / sc;
     placeToolbarAnchor(ax, ay);
+  }
+  // A painting must stay visible while it is being decorated (its grip is on it): on a tall phone the two-row bar
+  // can end up clamped right over it. Then try the other side and keep whichever covers less of the painting.
+  if (it.kind === 'picture' && it.art) {
+    const pel = layer.querySelector<HTMLElement>(`.item[data-id="${it.id}"]`);
+    const gEl = $('artGrip'), ov = (a: DOMRect, b: DOMRect) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+    const gripCover = () => gEl.classList.contains('hidden') ? 0 : ov(gEl.getBoundingClientRect(), toolbar.getBoundingClientRect());
+    // covering the resize handle counts much more than covering the painting: she must always be able to grab it
+    const cover = () => { if (!pel) return 0; return ov(pel.getBoundingClientRect(), toolbar.getBoundingClientRect()) + 8 * gripCover(); };
+    const c0 = cover();
+    if (c0 > 0) {
+      const keep = { l: toolbar.style.left, t: toolbar.style.top, below: toolbar.classList.contains('below') };
+      toolbar.classList.toggle('below', !keep.below);
+      placeToolbarAnchor(it.x, keep.below ? pieceTop - gap : foot + gap);
+      const b = toolbarScreenBox(), sc = stage.getBoundingClientRect().width / Math.max(1, VIEW_W) || 1;
+      let ex = 0, ey = 0;
+      if (b.left < limits.left) ex = limits.left - b.left;
+      if (b.right + ex > limits.right) ex = limits.right - b.right;
+      if (b.top < limits.top) ey = limits.top - b.top;
+      if (b.bottom + ey > limits.bottom) ey = limits.bottom - b.bottom;
+      if (ex || ey) placeToolbarAnchor(parseFloat(toolbar.style.left) / 100 * W + ex / sc, parseFloat(toolbar.style.top) / 100 * H + ey / sc);
+      if (cover() >= c0) { toolbar.style.left = keep.l; toolbar.style.top = keep.t; toolbar.classList.toggle('below', keep.below); }
+    }
+    // Still on the handle (a short landscape phone): slide the bar sideways off it, toward the roomier side.
+    if (gripCover() > 0) {
+      const g = gEl.getBoundingClientRect(), b = toolbarScreenBox(), sc = stage.getBoundingClientRect().width / Math.max(1, VIEW_W) || 1;
+      const toLeft = g.left - 6 - b.right, toRight = g.right + 6 - b.left;
+      const canL = b.left + toLeft >= limits.left, canR = b.right + toRight <= limits.right;
+      const shift = canL && (!canR || -toLeft <= toRight) ? toLeft : canR ? toRight : 0;
+      if (shift) placeToolbarAnchor(parseFloat(toolbar.style.left) / 100 * W + shift / sc, parseFloat(toolbar.style.top) / 100 * H);
+    }
+
   }
   const step = itemSizeOf(it.size);
   const at = ITEM_SIZE_STEPS.indexOf(step);
@@ -1666,7 +1874,9 @@ function forwardPointer(e: PointerEvent): PointerEvent {
 function onItemPointer(el: HTMLElement, e: PointerEvent) {
   const t = e.target as Element | null;
   const img = t && t.closest ? t.closest('img.artimg') as HTMLImageElement | null : null;
-  if (img && !artSolid(img, e.clientX, e.clientY)) {
+  // A kid's painting fills its frame: the whole picture is grabbable, even where the frame sprite is see-through.
+  const s0 = store.get(), isArt = !!s0.rooms[s0.currentRoom]?.items.find(i => i.id === el.dataset.id)?.art;
+  if (img && !isArt && !artSolid(img, e.clientX, e.clientY)) {
     const next = topHit(e.clientX, e.clientY);
     const item = next?.closest('.item') as HTMLElement | null;
     const ch = next?.closest('.char') as HTMLElement | null;
@@ -1720,7 +1930,7 @@ function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
       el.classList.remove('lifted'); bin.classList.remove('show', 'hot'); showHoldTarget(null);
       if (moved && overBin(ev.clientX, ev.clientY)) { selected = null; store.dispatch({ type: 'item/delete', room, id }); poof(ev.clientX, ev.clientY); return; }
       if (moved && target) { holdInto(target, id); return; }
-      if (moved) { sfx.drop(); bounce(el); } else { sfx.click(); onPlaceTap(id); wiggleItem(el); }
+      if (moved) { settlePainting(room, id); sfx.drop(); bounce(el); } else { sfx.click(); onPlaceTap(id); wiggleItem(el); }
       renderItems(store.get());
     },
   });
@@ -2816,6 +3026,7 @@ $('menuPop').addEventListener('click', e => {
   if (t.id === 'menuPop' || t.closest('#menuClose')) { setMenuOpen(false); return; }
   if (t.closest('.menuRow')) setMenuOpen(false);
 });
+$('btnStudio').addEventListener('click', () => openArtStudio());
 $('btnMail').addEventListener('click', () => {
   const id = hood?.myHouseId();
   if (id) openMailbox(id);
@@ -2903,6 +3114,17 @@ function enterNeighborhood(client: HoodClient) {
   });
   client.on('houseMeta', (id: string) => { if (hood !== client || id !== currentHouseId || view !== 'house') return; selected = null; renderHoodChrome(); renderItems(store.get()); renderDrawer(); if (!canEdit()) $('sheet').classList.add('hidden'); });
   client.on('pres', () => { if (hood !== client) return; view === 'street' ? renderMapFaces() : view === 'park' ? renderParkAvatars() : view === 'ranch' ? renderRanchAvatars() : view === 'gameroom' ? renderGamePeople() : renderAvatars(); });
+  client.on('art', (houseId: string, arts: Record<string, string>) => {
+    if (hood !== client || !arts || typeof arts !== 'object') return;
+    for (const [id, d] of Object.entries(arts)) {
+      putArt(id, d);
+      const p = pendingArt.get(id); if (!p) continue;
+      pendingArt.delete(id);
+      if (view === 'house' && p.houseId === currentHouseId) placePainting(p.room, id, p.frame, p.x);
+    }
+    if (view === 'house' && houseId === currentHouseId) renderItems(store.get());
+  });
+  client.on('artFail', (_h: string, id: string, r: string) => { if (hood !== client) return; pendingArt.delete(id); if (r === 'full') toast('Your walls are full of art! Take one down to hang a new one.'); else if (r === 'streetfull') toast('The street is full of art! Take one down to hang a new one.'); else if (r === 'slow') toast('So much art! Wait a moment, then hang it again.'); else if (r === 'locked') toast('This house is closed right now. Paint at home!'); });
   client.on('ranch', () => { if (hood === client && view === 'ranch') renderPlots(true); });
   client.on('ranchFail', (r: string) => { if (hood === client) ranchFailToast(r); });
   client.on('noride', () => { if (hood !== client) return; const p = myPres(); if (p?.ride !== undefined) { const { ride: _r, ...q } = p; setMyPres(q); renderRanchAvatars(); } toast('Someone is riding that horse!'); });
@@ -3023,6 +3245,14 @@ function bringHouse(url: string, code: string, id: string, nickname: string) {
     <button class="big" data-m="fresh">${houseSVG(5)}<span>Start a new one</span></button></div>`,
     (t, close) => { const m = t.closest<HTMLElement>('[data-m]')?.dataset.m; if (!m) return; close(); connectJoin(url, code, id, nickname, m === 'bring'); });
 }
+/** Her house came along from solo play: send its paintings to this street's Worker (the Worker applies every cap; a refused one stays a placeholder with a friendly toast). */
+function uploadLocalArt(c: HoodClient, house: GameState) {
+  const hid = c.myHouseId(); if (!hid) return;
+  let n = 0;
+  for (const id of hungArt(house)) { const d = artData(id); if (d && n++ < PAINT_PER_HOUSE) c.saveArt(hid, id, d); }
+  // Over the cap: the extras keep their frames (friends see a placeholder) and she hears why.
+  if (n > PAINT_PER_HOUSE) toast(`Your first ${PAINT_PER_HOUSE} paintings came along. The rest stay safe on this iPad!`);
+}
 async function connectJoin(url: string, code: string, id: string, nickname: string, bring: boolean | undefined) {
   const s = local.get(); const meChar = s.characters[0];
   // your first character becomes "you" on the street; the rest stay in the house
@@ -3035,6 +3265,7 @@ async function connectJoin(url: string, code: string, id: string, nickname: stri
   const c = new HoodClient(cfg); const r = await c.connect({ nickname, look, house, dog });
   if (r === 'ok') {
     saveHoodConfig(c.cfg); enterNeighborhood(c); toast(`Welcome to the street, ${nickname}!`);
+    if (house) uploadLocalArt(c, house);
     if (avatarIntroPending()) { markAvatarIntro(); activeChar = ME; openSheet('dress'); }
     return;
   }
@@ -3470,6 +3701,7 @@ function onPlaceTap(id: string) {
 function onPlayTap(el: HTMLElement, id: string) {
   const s = store.get();
   const it = s.rooms[s.currentRoom]?.items.find(i => i.id === id); if (!it) return;
+  if (it.art) { sfx.click(); zoomPainting(framedSvg(it.frame ?? 0, artUrl(it.art), false)); return; }
   const g = playGesture(it.kind);
   el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle');
   sfx.click();
@@ -4634,7 +4866,7 @@ function paintLoaded(ids: string[]): void {
   let changed = false;
   for (const it of s.rooms[s.currentRoom].items) {
     const def = ITEM_MAP[it.kind];
-    if (!want.has(it.kind) || !def) continue;
+    if (!want.has(it.kind) || !def || it.art) continue;
     const inner = layer.querySelector<HTMLElement>(`.item[data-id="${it.id}"] .inner`);
     if (!inner || inner.querySelector('img.artimg')) continue;
     inner.innerHTML = svgOf(def, true);
@@ -4653,6 +4885,7 @@ function loadNewArt(): Promise<void> {
 
 // ---------- start ----------
 installArtFallback();
+loadLocalArt();
 installJuice();
 setRoomScenery(room => (room === 'backyard' ? yardBackyardScenery() : null));
 $('scenery').addEventListener('click', e => {

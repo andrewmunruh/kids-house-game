@@ -1362,3 +1362,18 @@ body.phone .grSolo { top: 6px; bottom: auto; font-size: 14px; padding: 4px 12px;
   .phoneNote { top: var(--chrome-h, 100px); pointer-events: none; background: rgba(90,61,92,.3); }
   .phoneNote .card { pointer-events: auto; }
 }
+/* Art Studio: corner resize handle on a selected painting (60 screen px at any zoom), and the in-room Paint button. */
+.artGrip { position: absolute; transform: translate(-50%, -50%); z-index: 9001; display: grid; place-items: center; border-radius: 50%; background: transparent; touch-action: none; cursor: nwse-resize; box-sizing: border-box; }
+.artGripDot { width: 81.25%; height: 81.25%; box-sizing: border-box; display: grid; place-items: center; border-radius: 50%; background: #ffe066; color: var(--ink); border: 4px solid var(--ink); box-shadow: 0 0 0 3px #fff, 0 4px 0 rgba(90,61,92,.3); pointer-events: none; }
+.artGrip svg { width: 78%; height: 78%; pointer-events: none; }
+.artGrip.hidden { display: none; }
+.artGrip.active .artGripDot { background: #fff; transform: scale(1.12); }
+.artGrip.pulse .artGripDot { animation: artGripPulse 1s ease-in-out 3; }
+@keyframes artGripPulse { 0%, 100% { box-shadow: 0 0 0 3px #fff, 0 4px 0 rgba(90,61,92,.3); transform: scale(1); } 50% { box-shadow: 0 0 0 3px #fff, 0 0 0 12px rgba(255,224,102,.65), 0 4px 0 rgba(90,61,92,.3); transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .artGrip.pulse .artGripDot { animation: none; box-shadow: 0 0 0 3px #fff, 0 0 0 8px rgba(255,224,102,.65), 0 4px 0 rgba(90,61,92,.3); } }
+.artFab { position: absolute; left: 14px; bottom: 14px; z-index: 9500; display: flex; align-items: center; gap: 6px; min-width: 64px; min-height: 64px; padding: 6px 16px 6px 10px; border-radius: 32px; background: #fff; border: 4px solid var(--ink); box-shadow: 0 5px 0 rgba(90,61,92,.25); font: inherit; font-weight: 800; font-size: 20px; color: var(--ink); animation: pop .3s cubic-bezier(.3,1.8,.5,1); }
+.artFab svg { width: 40px; height: 40px; }
+.artFab:active { transform: scale(.92); }
+.artFab.hidden { display: none; }
+@media (max-height: 500px) { .artFab { min-height: 56px; font-size: 17px; left: 10px; bottom: 10px; } .artFab svg { width: 34px; height: 34px; } }
+.artFab.tucked { display: none; }

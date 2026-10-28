@@ -912,6 +912,29 @@ async def tap_yard_door(pg, tag):
     room = await pg.evaluate("() => __store.get().currentRoom")
     check(f'{tag} a real touch on Back inside still works with a pet on the door', room == 'living', str(room))
     await pg.evaluate("() => { window.__pinCat = null; }")
+    # Furniture standing in front of the door must not eat the tap either (the door rescue, shipped in production).
+    # Hung paintings are the one exception (their taps are the painting's); this pins that the exception stays narrow.
+    # (a) a lamp alone is drawn OVER the door (lamps stay in front), so the press lands on the lamp and the rescue must win;
+    # (b) a shelf covering the door lifts the door above it; a tap there still opens the door.
+    SPOT = """id => { const d = document.querySelector('.yardDoor'), f = document.querySelector(`.item[data-id="${id}"]`);
+      if (!d || !f) return null; const fr = f.getBoundingClientRect(), parts = [d.querySelector('.yardHintLabel'), d.querySelector('.doorArt'), d].map(e => e && e.getBoundingClientRect());
+      const cov = parts.some(r => r && fr.left < r.right && fr.right > r.left && fr.top < r.bottom && fr.bottom > r.top);
+      for (const r of parts) { if (!r) continue; for (let y = r.top + 3; y < r.bottom - 2; y += 4) for (let x = r.left + 3; x < r.right - 2; x += 4) { const t = document.elementFromPoint(x, y);
+        if (t && f.contains(t)) return {x, y, cov, onPiece: true}; } }
+      const r = d.getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2, cov, onPiece: false}; }"""
+    for kind, x, y, sc, need_on in (('lamp', 872, 400, 1.6, True), ('bookshelf', 872, 640, 1.4, False)):
+        iid = kind + '-doortest'
+        await pg.evaluate("""([iid, kind, x, y, sc]) => { if (__store.get().currentRoom !== 'living') __store.dispatch({type:'room/switch', room:'living'});
+          __store.dispatch({type: 'item/add', room: 'living', item: {id: iid, kind, x, y, flip: false, z: 40, scale: sc}}); }""", [iid, kind, x, y, sc])
+        await pg.wait_for_timeout(400)
+        spot = await pg.evaluate(SPOT, iid)
+        check(f'{tag} a {kind} stands in front of the back door' + (' (drawn over it)' if need_on else ''), spot and spot['cov'] and (spot['onPiece'] or not need_on), str(spot))
+        if spot:
+            await pg.mouse.move(spot['x'], spot['y']); await pg.mouse.down(); await pg.mouse.up(); await pg.wait_for_timeout(400)
+            room = await pg.evaluate("() => __store.get().currentRoom")
+            check(f'{tag} a real tap on the door with a {kind} in front still opens the yard', room == 'backyard', str({'room': room, **spot}))
+        await pg.evaluate("iid => { __store.dispatch({type: 'item/delete', room: 'living', id: iid}); if (__store.get().currentRoom !== 'living') __store.dispatch({type:'room/switch', room:'living'}); }", iid)
+        await pg.wait_for_timeout(300)
 
 async def check_secrets(pg, tag, short):
     """Surprises lives in the Menu. Closed, it must not cover the room."""
