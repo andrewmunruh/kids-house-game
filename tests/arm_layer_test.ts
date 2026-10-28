@@ -1,7 +1,9 @@
 // Regression: arms (and their sleeves) draw over the clothes for every clothing item and pose.
 // Run: npx vite-node tests/arm_layer_test.ts
 import { cases } from './arm_layer_cases';
-import { chibiSVG } from '../src/avatar/draw';
+import { chibiSVG, liftSleeves } from '../src/avatar/draw';
+import { costumeParts } from '../src/avatar/costume';
+import type { CostumeId } from '../src/shared/costume';
 import { LOOK2_DEFAULTS } from '../src/shared/avatar';
 
 let pass = 0, fail = 0;
@@ -43,11 +45,27 @@ for (const c of all) {
   }
 }
 // Sleeved items still get sleeves; sleeveless ones do not.
-const sleeveless = new Set(['top-tank', 'top-bib', 'dress-sundress', 'dress-pinafore', 'costume-ghost']);
+const sleeveless = new Set(['top-tank', 'top-bib', 'dress-sundress', 'dress-pinafore']);
+const sleevesIn = (svg: string) => { const a = svg.indexOf('data-layer="arms"'); return a < 0 ? svg : svg.slice(a, svg.indexOf('data-layer="face"')); };
+const baseTop = LOOK2_DEFAULTS.top; // costume cases wear the default top under the costume
 for (const c of all.filter(c => c.pose === 'idle' && c.kind !== 'bottom')) {
-  const has = c.svg.indexOf('class="arm sleeve') >= 0;
-  check(`${c.kind}-${c.item} sleeves ${sleeveless.has(`${c.kind}-${c.item}`) ? 'absent' : 'present'}`, has === !sleeveless.has(`${c.kind}-${c.item}`) || c.kind === 'costume');
+  const n = (c.svg.match(/class="arm sleeve [lr] hang"/g) || []).length;
+  if (c.kind !== 'costume') {
+    const want = !sleeveless.has(`${c.kind}-${c.item}`);
+    check(`${c.kind}-${c.item} sleeves ${want ? 'present (2)' : 'absent'}`, n === (want ? 2 : 0), String(n));
+    continue;
+  }
+  // Costume: its own sleeves replace the wardrobe ones; without any, the default top's sleeves stay.
+  const parts = costumeParts(c.item as CostumeId, {} as never, '#000');
+  const want = parts.over.includes('class="arm sleeve') || !sleeveless.has(`top-${baseTop}`);
+  check(`costume-${c.item} sleeves ${want ? 'present (2)' : 'absent'}`, n === (want ? 2 : 0), String(n));
+  if (parts.sleeve && !parts.coversArms && parts.over.includes('class="arm sleeve')) {
+    check(`costume-${c.item} arms wear the costume sleeve colour`, sleevesIn(c.svg).includes(parts.sleeve));
+  }
 }
+// liftSleeves keeps a sleeve's nested groups whole.
+const nest = liftSleeves('<a/><g class="arm sleeve l hang" transform="x"><g><path/></g><circle/></g><b/><g class="arm sleeve r hang"><g><g/></g></g>');
+check('liftSleeves tolerates nested groups', nest.rest === '<a/><b/>' && nest.l === '<g><path/></g><circle/>' && nest.r === '<g><g/></g>', JSON.stringify(nest));
 // Holding: cradle arm still above the clothes, hanging arms still tagged hang (CSS hides them).
 const held = chibiSVG({ ...LOOK2_DEFAULTS, top: 'hoodie' }, { uid: 'h', poseName: 'sit', holding: true });
 check('holding: cradle arm after arms layer', held.indexOf('class="arm cradle') > held.indexOf('data-layer="arms"') || held.indexOf('cradle') > held.indexOf('data-layer="arms"'));
