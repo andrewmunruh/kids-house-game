@@ -19,3 +19,21 @@ Branch cursor/art-batch-b0 from dda1839. Preview-only; no deploys from this job.
 - Attempts (all 4800x1200 opaque WebP): A dense painted dots 145.7 KB q82; B sparse hand-dabbed dots 119.5 KB q78; C big grid dots (img2img tile) 122.6 KB q82.
 - Picked A: closest to the default dotted wallpaper (recognizable first), items keep contrast (checked 844x390 + 820x1180 WebKit, all 3 sizes both browsers for B/A).
 - src/art/load.ts glob now excludes assets/art/scene/.
+
+## Step 4: gate vs base dda1839 (PR tree 312a283; dist built from c25d612, same runtime code)
+| suite | PR | base | verdict |
+|---|---|---|---|
+| tsc | rc0 | rc0 | ok |
+| art_catalog | 15 pass | same | ok |
+| art_bounds_test | 15 pass | same | ok |
+| art_raster | 59 pass, 2 FAIL | same 2 FAIL | identical to base |
+| phone | 383 pass | same | ok |
+| hood | 44 pass, 1 FAIL line (429 on K2) | same | identical to base |
+| b0_compat | 14 pass | same | ok |
+| avatar_test | 34 pass | same | ok |
+| rooms | 71 pass | same | ok |
+| sit | crash: import.meta.glob not a function under node | same crash | identical to base |
+| migration vs 10ef736 | 43 pass, 4 WS-refused console lines | same | identical to base |
+| scene_hotspot (new) | 59 passed, 0 failed | n/a | ok |
+
+Shots: /workspace/t-batchB-work/shots/final (cur-dda1839__ / pr-c25d612__ [+__artv1], 820x1180, 844x390, 390x844, chromium and webkit).
