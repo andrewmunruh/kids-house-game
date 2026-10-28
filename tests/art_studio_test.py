@@ -329,7 +329,12 @@ async def wall_piece(mk):
     if await A.evaluate("document.body.classList.contains('mode-play')"): await A.click('#modeDecorate'); await A.wait_for_timeout(300)
     for _ in range(3):
         if await A.locator('#toolbar button[data-a="delete"]').is_visible(): break
-        bb = await A.locator(f'.item[data-id="{pid}"]').bounding_box(); await A.mouse.click(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); await A.wait_for_timeout(400)
+        # tap a spot of the painting that is really on top (a kid or a label can stand in front of its middle)
+        pt = await A.evaluate("""id => { const el = document.querySelector(`.item[data-id="${id}"]`), r = el.getBoundingClientRect();
+          for (const fy of [.5, .3, .7, .2, .8]) for (const fx of [.5, .3, .7, .2, .8]) { const x = r.left + r.width * fx, y = r.top + r.height * fy;
+            if (el.contains(document.elementFromPoint(x, y))) return [x, y]; } return [r.left + r.width / 2, r.top + r.height / 2]; }""", pid)
+        await A.mouse.click(pt[0], pt[1]); await A.wait_for_timeout(400)
+    if not await A.locator('#toolbar button[data-a="delete"]').is_visible(): await A.screenshot(path=SHOT + 'wall_delete_debug.png')
     await A.locator('#toolbar button[data-a="delete"]').click(); await A.wait_for_timeout(1200)
     gone = [await pg.evaluate(ITEMS, pid) for pg in (A, B, C) + ((O,) if O else ())]
     check('wall: put away on every client (incl. old)', all(x is None for x in gone), gone)
