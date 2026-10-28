@@ -101,3 +101,7 @@ Preview smoke /tmp/ti/smoke_integ.py: 26/26 PASS at 820x1180, 844x390, 390x844 (
 - 22:52 cf_eb57e47_r1 rc=1 :: 34/35 checks passed ['(4) owner A (inside, party on, doll asleep) gets one "came trick-or-treating!" note']
 - 23:01 cross_feature (4) tot note: FAIL on i4 r1,r2 AND eb57e47 r1 (same empty toast) => pre-existing, not from i4 merges. Deploying preview.
 - 23:03 PREVIEW deployed: Worker 27fc1494-fa64-46e2-bf3b-0b702f0e517c, gh-pages dcc6a11, bundle index-KUye7vth.js (rollback: Worker b4855e92, gh-pages a024672, index-BhzaqjNM.js)
+- 23:02 partycmp rc=0 :: PARTYCMP PASS
+- 23:06 cf_i4_r3 rc=1 :: 34/35 checks passed ['(4) owner A (inside, party on, doll asleep) gets one "came trick-or-treating!" note']
+- 23:07 cf_18ee50c_r1 rc=2 :: 
+- 23:22 cross_feature (4): i4 r1/r2/r3 all 34/35 (same check), eb57e47 34/35 same; test absent on 18ee50c => pre-existing since eb57e47, not from i4 merges. Smoke on preview 23/23 (3 sizes), shots /workspace/t-integ-shots4/. Party fps (WebKit 820x1180, 6 alt rounds): eb57e47 median 26.2, i4 median 58.7. Worktrees removed, screens restored. DONE.
