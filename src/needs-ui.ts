@@ -2,9 +2,10 @@
 // and the visible-play-time drift timer. main.ts only calls installNeeds() once; everything else lives here.
 import './needs.css';
 import type { Action, GameState, Character } from './shared/state';
-import { DRIFT_MS, NEEDS, driftPick, levelOf, meetableHere, wishOf, isFood, isToy, type Need } from './shared/needs';
+import { driftDelay, NEEDS, driftPick, levelOf, meetableHere, wishOf, isFood, isToy, type Need } from './shared/needs';
 import { isFridge, isTub } from './shared/ambient';
 import { prefersReducedMotion } from './juice';
+import { storeKey } from './shared/storekey';
 import { sfx } from './sound';
 
 export interface NeedsDeps {
@@ -19,19 +20,19 @@ export interface NeedsDeps {
   menuAfter: HTMLElement | null;
 }
 
-const KEY = 'khg.showWishes';
+const KEY = storeKey('khg.showWishes'); // preview builds get 'preview:khg.showWishes'; prod key unchanged
 const showWishes = () => { try { return localStorage.getItem(KEY) !== '0'; } catch { return true; } };
 
 // Simple shapes drawn in code. No faces.
 const ICON: Record<Need, string> = {
-  sleepy: `<svg viewBox="0 0 40 40"><rect x="5" y="20" width="30" height="10" rx="3" fill="#8fb8ff" stroke="#5a3d5c" stroke-width="2.5"/><rect x="7" y="15" width="10" height="7" rx="3" fill="#fff" stroke="#5a3d5c" stroke-width="2.5"/><path d="M6 30 V34 M34 30 V34" stroke="#5a3d5c" stroke-width="2.5" stroke-linecap="round"/><path d="M24 6 H31 L24 13 H31" fill="none" stroke="#5a3d5c" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg>`,
-  hungry: `<svg viewBox="0 0 40 40"><circle cx="20" cy="23" r="12" fill="#ff6b6b" stroke="#5a3d5c" stroke-width="2.5"/><path d="M20 11 V6" stroke="#5a3d5c" stroke-width="2.5" stroke-linecap="round"/><path d="M21 9 Q28 4 31 9 Q26 13 21 9 Z" fill="#7bd389" stroke="#5a3d5c" stroke-width="2"/></svg>`,
-  playful: `<svg viewBox="0 0 40 40"><ellipse cx="20" cy="16" rx="10" ry="12" fill="#ffd166" stroke="#5a3d5c" stroke-width="2.5"/><path d="M18 28 L22 28 L20 31 Z" fill="#ffd166" stroke="#5a3d5c" stroke-width="2"/><path d="M20 31 Q16 34 20 37" fill="none" stroke="#5a3d5c" stroke-width="2" stroke-linecap="round"/></svg>`,
-  clean: `<svg viewBox="0 0 40 40"><circle cx="15" cy="23" r="9" fill="#bfe9ff" stroke="#5a3d5c" stroke-width="2.5"/><circle cx="27" cy="14" r="6" fill="#bfe9ff" stroke="#5a3d5c" stroke-width="2.5"/><circle cx="29" cy="29" r="4" fill="#bfe9ff" stroke="#5a3d5c" stroke-width="2"/><path d="M11 19 Q13 17 15 17" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>`,
+  sleepy: `<svg viewBox="0 0 40 40"><rect x="5" y="20" width="30" height="10" rx="3" fill="#8fb8ff" stroke="#5b3d5c" stroke-width="2.5"/><rect x="7" y="15" width="10" height="7" rx="3" fill="#fff" stroke="#5b3d5c" stroke-width="2.5"/><path d="M6 30 V34 M34 30 V34" stroke="#5b3d5c" stroke-width="2.5" stroke-linecap="round"/><path d="M24 6 H31 L24 13 H31" fill="none" stroke="#5b3d5c" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg>`,
+  hungry: `<svg viewBox="0 0 40 40"><circle cx="20" cy="23" r="12" fill="#ff6b6b" stroke="#5b3d5c" stroke-width="2.5"/><path d="M20 11 V6" stroke="#5b3d5c" stroke-width="2.5" stroke-linecap="round"/><path d="M21 9 Q28 4 31 9 Q26 13 21 9 Z" fill="#7bd389" stroke="#5b3d5c" stroke-width="2"/></svg>`,
+  playful: `<svg viewBox="0 0 40 40"><ellipse cx="20" cy="16" rx="10" ry="12" fill="#ffd166" stroke="#5b3d5c" stroke-width="2.5"/><path d="M18 28 L22 28 L20 31 Z" fill="#ffd166" stroke="#5b3d5c" stroke-width="2"/><path d="M20 31 Q16 34 20 37" fill="none" stroke="#5b3d5c" stroke-width="2" stroke-linecap="round"/></svg>`,
+  clean: `<svg viewBox="0 0 40 40"><circle cx="15" cy="23" r="9" fill="#bfe9ff" stroke="#5b3d5c" stroke-width="2.5"/><circle cx="27" cy="14" r="6" fill="#bfe9ff" stroke="#5b3d5c" stroke-width="2.5"/><circle cx="29" cy="29" r="4" fill="#bfe9ff" stroke="#5b3d5c" stroke-width="2"/><path d="M11 19 Q13 17 15 17" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>`,
 };
 const LABEL: Record<Need, string> = { sleepy: 'wants a nap', hungry: 'wants a snack', playful: 'wants to play', clean: 'wants a bath' };
-const EYE_OPEN = `<svg viewBox="0 0 48 48"><path d="M6 28 Q24 8 42 28" fill="none" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/><ellipse cx="24" cy="30" rx="14" ry="11" fill="#fff" stroke="#5a3d5c" stroke-width="3"/><circle cx="20" cy="30" r="5" fill="#ffd166" stroke="#5a3d5c" stroke-width="2.5"/><circle cx="31" cy="24" r="3" fill="#fff" stroke="#5a3d5c" stroke-width="2"/></svg>`;
-const EYE_OFF = `<svg viewBox="0 0 48 48"><ellipse cx="24" cy="30" rx="14" ry="11" fill="#eee" stroke="#5a3d5c" stroke-width="3"/><path d="M10 40 L38 18" stroke="#5a3d5c" stroke-width="3" stroke-linecap="round"/></svg>`;
+const EYE_OPEN = `<svg viewBox="0 0 48 48"><path d="M6 28 Q24 8 42 28" fill="none" stroke="#5b3d5c" stroke-width="3" stroke-linecap="round"/><ellipse cx="24" cy="30" rx="14" ry="11" fill="#fff" stroke="#5b3d5c" stroke-width="3"/><circle cx="20" cy="30" r="5" fill="#ffd166" stroke="#5b3d5c" stroke-width="2.5"/><circle cx="31" cy="24" r="3" fill="#fff" stroke="#5b3d5c" stroke-width="2"/></svg>`;
+const EYE_OFF = `<svg viewBox="0 0 48 48"><ellipse cx="24" cy="30" rx="14" ry="11" fill="#eee" stroke="#5b3d5c" stroke-width="3"/><path d="M10 40 L38 18" stroke="#5b3d5c" stroke-width="3" stroke-linecap="round"/></svg>`;
 
 const hintFor = (n: Need, k: string) => n === 'sleepy' ? /(^|-|:)bed$|bunk-bed|canopy-bed/.test(k) : n === 'hungry' ? isFridge(k) : n === 'clean' ? isTub(k) : isToy(k);
 /** Where the thing she wishes for is, in this room (for the lean hint). */
@@ -46,7 +47,7 @@ function spotX(s: GameState, c: Character, n: Need): number | null {
 export function installNeeds(d: NeedsDeps) {
   const prev = new Map<string, Record<Need, number>>();
   const asked = new Map<string, number>(); // id|need -> time a meet was sent (stops a resend storm)
-  let visibleMs = 0, last = performance.now(), turn = 0;
+  let visibleMs = 0, last = performance.now(), turn = 0, steps = 0;
 
   // ---- Menu: "Show wishes" (this iPad only) ----
   const btn = document.createElement('button');
@@ -70,6 +71,9 @@ export function installNeeds(d: NeedsDeps) {
 
   /** Lying dolls are drawn sideways, so the bubble goes over her head on the pillow instead of where a standing head would be. */
   function anchor(el: HTMLElement, bub: HTMLElement, lying: boolean) {
+    // Stage scale, so needs.css can keep a minimum on-screen size (36px, 40px on a portrait phone).
+    const sc = el.offsetWidth ? el.getBoundingClientRect().width / el.offsetWidth : 1;
+    if (sc > 0 && Number.isFinite(sc)) bub.style.setProperty('--nbs', sc.toFixed(3));
     if (!lying) { bub.style.left = ''; bub.style.bottom = ''; return; }
     const head = el.querySelector('.inner svg .dollhead'); if (!head) return;
     const r = el.getBoundingClientRect(), h = head.getBoundingClientRect(); if (!r.width || !r.height || !h.width) return;
@@ -136,8 +140,8 @@ export function installNeeds(d: NeedsDeps) {
     if (add == null && document.visibilityState !== 'visible') return;
     if (!d.canDrift() || !d.speaks()) { visibleMs = 0; return; } // a visit never counts toward her own house either
     visibleMs += dt;
-    if (visibleMs < DRIFT_MS) return;
-    visibleMs = 0;
+    if (visibleMs < driftDelay(d.get(), steps)) return;
+    visibleMs = 0; steps++;
     const p = driftPick(d.get(), turn++);
     if (p) d.dispatch({ type: 'need/drift', id: p.id, need: p.need });
   }

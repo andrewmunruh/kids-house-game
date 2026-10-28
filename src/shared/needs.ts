@@ -14,10 +14,19 @@ export type Needs = Partial<Record<Need, 0 | 1 | 2>>;
 export const FULL: NeedLevel = 3;
 /** A wish bubble shows at or below this level. */
 export const WISH_AT = 1;
-/** One drift step per this much visible play time in one house. */
+/** Calm cadence: one drift step per this much visible play time while some doll already shows a wish. */
 export const DRIFT_MS = 4 * 60_000;
+/** Quicker cadence while no doll in the house shows a wish, so the first gentle hint comes within a few minutes. */
+export const DRIFT_EARLY_MS = 2 * 60_000;
+/** The first step of a play session (visible time only; nothing accrues while closed). */
+export const DRIFT_FIRST_MS = 75_000;
 /** Server cap: a second step for the same house inside this window is dropped (two iPads cannot double it). */
-export const DRIFT_CAP_MS = Math.round(DRIFT_MS * 0.8);
+export const DRIFT_CAP_MS = Math.round(DRIFT_EARLY_MS * 0.8);
+/** Visible play time before the next drift step. steps = steps already taken this session. */
+export function driftDelay(s: GameState, steps: number): number {
+  if (s.characters.some(c => wishOf(c))) return DRIFT_MS;
+  return steps === 0 ? DRIFT_FIRST_MS : DRIFT_EARLY_MS;
+}
 
 export const isNeed = (v: unknown): v is Need => NEEDS.includes(v as Need);
 const slug = (k: string) => String(k || '').replace(/^pack:/, '').toLowerCase();
@@ -89,7 +98,12 @@ export function reduceDrift(s: GameState, id: string, n: Need): GameState {
   return { ...s, characters: s.characters.map(x => (x.id === id ? nc : x)) };
 }
 
-/** Which doll and need drifts on step k. Deterministic: the doll/need with the highest level, rotating on ties.
+/** Which doll and need drifts on step k. Deterministic, per doll:
+ *  - a doll who already shows a wish is left alone while another doll has none (no piling up);
+ *  - a doll with a need already part-way down finishes that one first, so her hint comes in two steps
+ *    instead of after every doll and need has gone round once;
+ *  - otherwise a fresh doll/need starts, rotating on k.
+ *  If every doll already shows a wish, the old rule applies: highest level first, rotating on ties.
  *  A need with no way to meet it in the house (no bed, fridge, tub, or toy) never drifts. */
 export function driftPick(s: GameState, k: number): { id: string; need: Need } | null {
   const all = Object.values(s.rooms).flatMap(r => r?.items ?? []);
@@ -99,13 +113,21 @@ export function driftPick(s: GameState, k: number): { id: string; need: Need } |
     playful: all.some(i => isToy(i.kind)),
     clean: all.some(i => isTub(i.kind)),
   };
-  const cands: { id: string; need: Need; l: number }[] = [];
-  for (const c of [...s.characters].sort((a, b) => (a.id < b.id ? -1 : 1)))
-    for (const n of NEEDS) if (can[n]) { const l = levelOf(c, n); if (l > 0) cands.push({ id: c.id, need: n, l }); }
+  const rot = <T,>(a: T[]) => a[((k % a.length) + a.length) % a.length];
+  const cands: { id: string; need: Need; l: number; wish: boolean }[] = [];
+  for (const c of [...s.characters].sort((a, b) => (a.id < b.id ? -1 : 1))) {
+    const wish = !!wishOf(c);
+    for (const n of NEEDS) if (can[n]) { const l = levelOf(c, n); if (l > 0) cands.push({ id: c.id, need: n, l, wish }); }
+  }
   if (!cands.length) return null;
+  const calm = cands.filter(c => !c.wish);
+  if (calm.length) {
+    const part = calm.filter(c => c.l < 3);
+    const p = part.length ? rot(part) : rot(calm);
+    return { id: p.id, need: p.need };
+  }
   const top = Math.max(...cands.map(c => c.l));
-  const tied = cands.filter(c => c.l === top);
-  const p = tied[((k % tied.length) + tied.length) % tied.length];
+  const p = rot(cands.filter(c => c.l === top));
   return { id: p.id, need: p.need };
 }
 
