@@ -216,3 +216,16 @@ The earlier failure only happened in the full smoke, right after the 820x1180 fu
   - FORCEX=740: run1 7/8 + B didn't see delete; rerun 7/8 (only the overlap geometry check).
   - 820x1180 + 390x844: 12/14 (only the overlap geometry check, both sizes).
   - Remaining fails are hood-sync/connection flakes on the preview Worker, not the client-only c1419ac change; not yet root-caused.
+
+## Classification of post-fix smoke failures (04:xx CDT)
+
+### Finding 1 — toolbar-over-door COVER check: PRE-EXISTING, OVER-STRICT (cosmetic, no child impact)
+- Check is not new: present at 02:12 in preview4/fullorder.py + deleteproof.py; it already FAILED on the OLD bundle (preview4 820x1180 pass2, door [410,277,549,609]).
+- Rects (preview5 820 pass1): toolbar [131,498,697,712], door [409,277,547,609] -> bbox overlap y 498-609 only. 844x390: toolbar only touches door bottom edge.
+- All toolbar buttons hitOk=true; delete tap reached data-a=delete every round. Toolbar is transient (closes on deselect), door reachable after deselect; overlap depends on painting position.
+- Shots: preview5/fullorder_820x1180_pass1_toolbar_after_reload.png, fullorder_844x390_pass1_toolbar_after_reload.png.
+
+### Finding 2 (local, partial) — delete sync on B
+- LOCAL hood, real toolbar delete, B polled 250 ms up to 10 s, WS frames logged:
+  - new build (c1419ac): 5/5 PASS, B gone after 0.25 s, one WS open, no close.
+  - old 3a8b87b: 4/5 FAIL but A itself still shows painting (door-rescue bug), i.e. the delete never happened — original bug, not sync.
