@@ -54,3 +54,22 @@ beach-ball, toadstool-light, sprinkler, rain-barrel are byte-identical to paint 
 beach-ball 6.41/137/74, toadstool-light 6.36/136/74, sprinkler 7.69/136/74, rain-barrel 5.82/135/74.
 Shipped living: bunny 6.30/136/74, cactus 6.31, cat-tower 5.74, cat 6.09, dog 6.38, egg~cada-mouse 7.09 (all 134-136/74).
 => matches shipped within tolerance (sprinkler +8% vs widest shipped, thin-stroke item). No reprocess. Earlier "thick glow" was the contact sheet's upscaled view.
+
+## Step 5 — gate @PR (83e57a9 + chip-art lazy fix) vs base dda1839
+Found: art_raster "a fresh house does not fetch unplaced catalog art" FAILed on PR only (drawer chip paintings were in the boot kinds → fetched balloon). Fix: chip icon paintings now load on first touch of #cats/#shelf (loadChipArt), SVG until then.
+| suite | PR | base |
+|---|---|---|
+| tsc | ok | ok |
+| art_catalog | 13/13 | 13/13 |
+| art_bounds_test | 15 pass | 15 pass |
+| art_raster | 59 pass / 2 FAIL | 59 pass / 2 FAIL (same 2: decor contact shadow; living rasters art=v1) |
+| avatar (unit) | 50 | 50 |
+| costume | 20 | 20 |
+| phone | 383/383 | 383/383 |
+| hood | 44/44 | 44/44 |
+| avatar_test | 34/34 | 34/34 |
+| eggs | 25 pass | 25 pass |
+| b0_compat | 14/14 | 14/14 |
+| mail_persist node/worker/b0 | 4/4/1 pass | 4/4/1 pass |
+| migration vs 10ef736 | 43 pass | 43 pass |
+Bundle (fresh --emptyOutDir builds, all JS gzip -9): dist 16,138,804 → 7,870,284 B; JS gzip 290,915 → 288,440 B (−2,475).

@@ -4859,7 +4859,6 @@ function artKinds(s: GameState): string[] {
     if (c.held.right) kinds.add(c.held.right.kind);
   }
   if (s.baby) kinds.add('baby');
-  for (const t of TABS) if (t.icon && ITEM_MAP[t.icon]) kinds.add(t.icon);   // drawer chip icons
   return [...kinds];
 }
 let artBoot: Promise<void> | null = null;
@@ -4892,6 +4891,14 @@ function paintLoaded(ids: string[]): void {
   renderChars(s);
   refreshShelfArt();
 }
+/** Chip icon paintings load on the first drawer touch, so a fresh house fetches no unplaced catalog art. */
+let chipArt: Promise<void> | null = null;
+function loadChipArt(): void {
+  if (chipArt) return;
+  const kinds = TABS.filter(t => t.kind !== 'people' && t.icon && ITEM_MAP[t.icon]).map(t => t.icon);
+  chipArt = import('./art/load').then(m => m.loadArtKinds(kinds)).then(() => refreshChipArt(), () => {});
+}
+for (const id of ['cats', 'shelf']) document.getElementById(id)?.addEventListener('pointerdown', loadChipArt, { once: true, passive: true });
 function loadNewArt(): Promise<void> {
   return import('./art/load').then(m => m.boot(location.search, artKinds(store.get()))).then(ids => {
     paintLoaded(ids.filter(id => !!ITEM_MAP[id]));
