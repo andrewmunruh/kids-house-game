@@ -136,3 +136,11 @@ Suites ran on 5bbf905. App and server code are identical to the final head; 779a
 | migration (vs built 10ef736) | 43/43 |
 
 Not on the list: art_bounds_test.ts, art_raster_test.ts and mail_persist_test.ts in tests/*.ts fail under vite-node exactly as they did in the earlier gate on 00fac37. This is unchanged and not caused by round 2. No deploy.
+
+## Release 2 merge and preview (Oct 28, 2026)
+- Merged origin/main e25ad21 as f4ab7ab, a merge commit with no rebase. The conflicts were flag unions only:
+  - server/core.ts: Conn gets halloween/cos/needs/art. Welcome sends `cos:1, needs:1, art:1`, and hello/join set all four flags.
+  - src/net.ts: speaksArt and speaksNeeds are both kept. join/hello send `halloween, cos, needs, art`.
+  - src/shared/hood.ts: both PROTOCOL notes are kept, the hello/join/welcome types are unions, and `knock` from main is kept.
+  - tsc ok.
+- Gate on the merged head: running (gate 11), see below.
