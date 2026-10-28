@@ -22,6 +22,8 @@ export interface CodeRegistry { claim(code: string, id: string): Promise<boolean
 /** Paintings ids are 'a' + base36 time + random, so the id sorts oldest first. */
 const byAge = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
 const ART_BURST = 14, ART_REFILL_MS = 4000;
+/** A just-saved painting is placed by the client after the ack; until it is hung (or this long passes) it is never cleared. */
+const ART_FRESH_MS = 90_000;
 export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; art?: number }
 /** Not a real socket. Baby release is broadcast to every baby client, including the kid who just left. */
 const RELEASE_SENDER: Conn = { send() {}, close() {} };
@@ -48,6 +50,8 @@ export class Neighborhood {
   private arts = new Map<string, Promise<Record<string, string>>>();
   private artQueue: Promise<void> = Promise.resolve();
   private artBudget = new Map<string, { t: number; n: number }>();
+  /** houseId + '/' + paintingId -> save time, for paintings saved but maybe not placed yet. */
+  private artFresh = new Map<string, number>();
   conns = new Set<Conn>();
   presence = new Map<string, Presence>();
   private lastEgg = new Map<string, number>();
@@ -756,38 +760,40 @@ export class Neighborhood {
     const houseId = h.id, mine = h.ownerId === me.pid;
     const cur = await this.artsOf(houseId);
     const next: Record<string, string> = { ...cur };
-    const changed = new Map<string, Record<string, string>>(); // other houses whose unhung paintings get cleared
+    // Only her own house's unhung drafts can ever be cleared, never one she just saved that is still on its way to the wall,
+    // and never anything in another child's house (a full street refuses with 'streetfull' instead).
+    const now = Date.now();
+    const clearable = () => {
+      const hung = this.hungIn(h);
+      return Object.keys(next).filter(k => {
+        if (hung.has(k)) { this.artFresh.delete(houseId + '/' + k); return false; }
+        const t = this.artFresh.get(houseId + '/' + k);
+        if (t !== undefined && now - t < ART_FRESH_MS) return false;
+        return true;
+      }).sort(byAge);
+    };
     if (!next[id]) {
       if (Object.keys(next).length >= PAINT_PER_HOUSE) {
         // Only the owner may clear her own unhung paintings; a friend in an open house never removes them.
         if (!mine) return fail('full');
-        const hung = this.hungIn(h);
-        const unhung = Object.keys(next).filter(k => !hung.has(k)).sort(byAge);
+        const unhung = clearable();
         while (Object.keys(next).length >= PAINT_PER_HOUSE && unhung.length) delete next[unhung.shift()!];
         if (Object.keys(next).length >= PAINT_PER_HOUSE) return fail('full');
       }
       // Street total from the in-memory copies (storage is read once per house, then cached).
       let street = Object.keys(next).length;
-      const others: [HouseFull, Record<string, string>][] = [];
-      for (const [hid, oh] of this.houses) if (hid !== houseId) { const a = await this.artsOf(hid); street += Object.keys(a).length; others.push([oh, a]); }
+      for (const [hid] of this.houses) if (hid !== houseId) street += Object.keys(await this.artsOf(hid)).length;
       if (street >= PAINT_PER_STREET) {
-        // Make room: first the saver's own house's unhung paintings (owner only), then the oldest unhung ones on the street.
-        if (mine) { const hung = this.hungIn(h); for (const k of Object.keys(next).filter(k => !hung.has(k)).sort(byAge)) { if (street < PAINT_PER_STREET) break; delete next[k]; street--; } }
-        const pool: [string, string][] = [];
-        for (const [oh, a] of others) { const hung = this.hungIn(oh); for (const k of Object.keys(a)) if (!hung.has(k)) pool.push([oh.id, k]); }
-        pool.sort((x, y) => byAge(x[1], y[1]));
-        for (const [hid, k] of pool) {
-          if (street < PAINT_PER_STREET) break;
-          const copy = changed.get(hid) ?? { ...(await this.artsOf(hid)) }; delete copy[k]; changed.set(hid, copy); street--;
-        }
+        // Make room only from her own old unhung drafts (owner only); otherwise the street is full.
+        if (mine) for (const k of clearable()) { if (street < PAINT_PER_STREET) break; delete next[k]; street--; }
         if (street >= PAINT_PER_STREET) return fail('streetfull');
       }
     }
     next[id] = data;
     await this.kv.put('art:' + houseId, next);
-    for (const [hid, copy] of changed) await this.kv.put('art:' + hid, copy);
     this.arts.set(houseId, Promise.resolve(next));
-    for (const [hid, copy] of changed) this.arts.set(hid, Promise.resolve(copy));
+    for (const k of this.artFresh.keys()) if (k.startsWith(houseId + '/') && !next[k.slice(houseId.length + 1)]) this.artFresh.delete(k);
+    this.artFresh.set(houseId + '/' + id, now);
     this.send(c, { t: 'art', houseId, arts: { [id]: data } });
     for (const x of this.conns) if (x !== c && x.pid && (x.art ?? 0) >= 1) this.send(x, { t: 'art', houseId, arts: { [id]: data } });
   }

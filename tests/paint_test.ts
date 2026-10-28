@@ -118,6 +118,13 @@ async function main() {
   check('12 full-size paintings stay under 128 KiB', JSON.stringify(full.aw).length < 128 * 1024, String(JSON.stringify(full.aw).length)); void sz;
   // hang one: put it in the room
   h.state.rooms.living!.items.push({ id: 'picture-x', kind: 'picture', x: 500, y: 200, flip: false, z: 0, art: 'acap0000' } as any);
+  // her earlier saves are minutes old in real life; here they were saved a moment ago, so let the 'just saved' guard lapse
+  const lapse = () => { const f: Map<string, number> = (hood as any).artFresh; for (const k of f.keys()) f.set(k, 0); };
+  // ...but first: a just-saved painting that is not placed yet is never the one cleared, even when it is the oldest unhung
+  const freshSnap = JSON.stringify(mem.get('art:' + a.hid));
+  await send(a.c, { t: 'art', op: 'save', houseId: a.hid, id: 'anew00000', data: d1 });
+  check('a just-saved, not yet placed painting is never cleared (house full of fresh ones: full)', a.c.last('artFail')?.reason === 'full' && JSON.stringify(mem.get('art:' + a.hid)) === freshSnap);
+  lapse();
   await send(a.c, { t: 'art', op: 'save', houseId: a.hid, id: 'anew00001', data: d1 });
   const after = mem.get('art:' + a.hid);
   check('when her house is full, her oldest unhung painting is cleared to make room', after.anew00001 === d1 && after.acap0000 === eb && !after.aabcdef01 && Object.keys(after).length === PAINT_PER_HOUSE, Object.keys(after).join(','));
@@ -138,27 +145,43 @@ async function main() {
   await hood2.onMessage(r, JSON.stringify({ t: 'hello', token: tok, v: PROTOCOL, art: 1 }));
   await hood2.onMessage(r, JSON.stringify({ t: 'art', op: 'get', houseId: a.hid, ids: ['acap0000'] }));
   check('paintings survive a restart', r.last('art')?.arts?.acap0000 === eb, JSON.stringify(r.inbox.map(m => m.t)) + ' ' + Object.keys(mem.get('art:' + a.hid)));
-  // per-street cap: every house together holds at most PAINT_PER_STREET; a full street clears the oldest unhung ones
+  // per-street cap: every house together holds at most PAINT_PER_STREET. A full street refuses with 'streetfull' and never
+  // touches another child's house; the owner may only free her own old unhung drafts, never one she just saved.
   const countStreet = () => [...hood.houses.keys()].reduce((n, k) => n + Object.keys(mem.get('art:' + k) ?? {}).length, 0);
+  const snapStreet = () => JSON.stringify([...hood.houses.keys()].map(k => [k, mem.get('art:' + k) ?? {}]));
   const fillers: Awaited<ReturnType<typeof join>>[] = [];
   let streetN = countStreet(), seq = 0;
   while (streetN < PAINT_PER_STREET) {
     const p = await join(1); fillers.push(p);
     for (let i = 0; i < PAINT_PER_HOUSE && streetN < PAINT_PER_STREET; i++, streetN++) await send(p.c, { t: 'art', op: 'save', houseId: p.hid, id: aid(seq++), data: eb });
   }
+  lapse();
   check('the street holds ' + PAINT_PER_STREET + ' paintings', countStreet() === PAINT_PER_STREET, String(countStreet()));
-  const oldest = aid(0), oldestHouse = fillers[0].hid;
+  const s0 = snapStreet(), oldInbox = old.c.inbox.length;
   await send(b.c, { t: 'art', op: 'save', houseId: b.hid, id: aid(900), data: eb });
-  check('a full street still takes a new painting (UI path: always a new id)', b.c.last('art')?.arts?.[aid(900)] === eb && countStreet() === PAINT_PER_STREET, String(countStreet()));
-  check('the oldest unhung painting on the street made room', !mem.get('art:' + oldestHouse)?.[oldest]);
-  check('nothing hanging was cleared', mem.get('art:' + a.hid)?.acap0000 !== undefined && Object.keys(mem.get('art:' + a.hid)).every(k => k !== 'acap0000' || true));
-  // own unhung first: b saves again, b's own unhung painting goes before anyone else's
-  const before2 = JSON.stringify(mem.get('art:' + fillers[0].hid));
-  await send(b.c, { t: 'art', op: 'save', houseId: b.hid, id: aid(901), data: eb });
-  check("her own unhung painting is cleared before a friend's", !mem.get('art:' + b.hid)?.[aid(900)] && mem.get('art:' + b.hid)?.[aid(901)] === eb && JSON.stringify(mem.get('art:' + fillers[0].hid)) === before2);
-  // two saves at the same moment at the cap: both fit by clearing, the total never passes the cap
-  await Promise.all([send(fillers[1].c, { t: 'art', op: 'save', houseId: fillers[1].hid, id: aid(950), data: eb }), send(fillers[2].c, { t: 'art', op: 'save', houseId: fillers[2].hid, id: aid(951), data: eb })]);
-  check('two simultaneous saves at the cap never pass ' + PAINT_PER_STREET, countStreet() === PAINT_PER_STREET, String(countStreet()));
+  check('a full street refuses a new painting with streetfull (she has no drafts of her own)', b.c.last('artFail')?.reason === 'streetfull' && !b.c.last('art')?.arts?.[aid(900)]);
+  check("a full street never deletes another house's paintings", snapStreet() === s0 && countStreet() === PAINT_PER_STREET);
+  // the owner of a house with old unhung drafts: her own oldest draft makes room, nobody else's
+  const f0 = fillers[0], othersBefore = JSON.stringify([...hood.houses.keys()].filter(k => k !== f0.hid).map(k => mem.get('art:' + k) ?? {}));
+  const f0Old = Object.keys(mem.get('art:' + f0.hid)).sort()[0];
+  await send(f0.c, { t: 'art', op: 'save', houseId: f0.hid, id: aid(901), data: eb });
+  check('on a full street her own oldest unhung draft makes room', mem.get('art:' + f0.hid)?.[aid(901)] === eb && !mem.get('art:' + f0.hid)?.[f0Old] && countStreet() === PAINT_PER_STREET);
+  check("...and no other house's paintings change", JSON.stringify([...hood.houses.keys()].filter(k => k !== f0.hid).map(k => mem.get('art:' + k) ?? {})) === othersBefore);
+  // the window: hang every other painting of hers, so the one just saved (not placed yet) is her only unhung one
+  const hf0 = hood.houses.get(f0.hid)!;
+  for (const k of Object.keys(mem.get('art:' + f0.hid))) if (k !== aid(901)) hf0.state.rooms.living!.items.push({ id: 'picture-' + k, kind: 'picture', x: 500, y: 200, flip: false, z: 0, art: k } as any);
+  const s1 = snapStreet();
+  await send(f0.c, { t: 'art', op: 'save', houseId: f0.hid, id: aid(902), data: eb });
+  check('her just-saved, not yet placed painting is never cleared to make room', ['full', 'streetfull'].includes(f0.c.last('artFail')?.reason) && mem.get('art:' + f0.hid)?.[aid(901)] === eb && snapStreet() === s1, f0.c.last('artFail')?.reason);
+  // two saves at the same moment at the cap: each owner frees only her own draft, the total never passes the cap
+  const f1 = fillers[1], f2 = fillers[2], f3keep = JSON.stringify(mem.get('art:' + fillers[3].hid));
+  await Promise.all([send(f1.c, { t: 'art', op: 'save', houseId: f1.hid, id: aid(950), data: eb }), send(f2.c, { t: 'art', op: 'save', houseId: f2.hid, id: aid(951), data: eb })]);
+  check('two simultaneous saves at the cap never pass ' + PAINT_PER_STREET + ' and only clear their own drafts', countStreet() === PAINT_PER_STREET && mem.get('art:' + f1.hid)?.[aid(950)] === eb && mem.get('art:' + f2.hid)?.[aid(951)] === eb && JSON.stringify(mem.get('art:' + fillers[3].hid)) === f3keep, String(countStreet()));
+  // a friend painting in someone else's open house on a full street: refused, nothing cleared there
+  const s2 = snapStreet();
+  await send(b.c, { t: 'art', op: 'save', houseId: fillers[3].hid, id: aid(960), data: eb });
+  check("a friend on a full street is refused and clears nothing in the owner's house", ['full', 'streetfull'].includes(b.c.last('artFail')?.reason) && snapStreet() === s2);
+  check('old 10ef736-style client (no art:1) is never sent art or artFail through all of this', !old.c.inbox.slice(oldInbox).some(m => m.t === 'art' || m.t === 'artFail') && !old.c.inbox.some(m => m.t === 'art' || m.t === 'artFail'));
   // every painting hung: the street really is full, and nothing changes
   for (const hid of hood.houses.keys()) { const hh = hood.houses.get(hid)!; for (const k of Object.keys(mem.get('art:' + hid) ?? {})) hh.state.rooms.living!.items.push({ id: 'picture-' + k, kind: 'picture', x: 500, y: 200, flip: false, z: 0, art: k } as any); }
   const snapAll = JSON.stringify([...hood.houses.keys()].map(k => mem.get('art:' + k)));

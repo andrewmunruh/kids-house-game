@@ -78,3 +78,17 @@ Found along the way: on integration a fresh painting could land over the back do
 | b0_compat | 14/14 (b0r10; b09 hit the known --port-b1 = --port-hood script typo) |
 | migration | 43/43 |
 Shots (shots27) in /workspace/surprise/art-studio-shots/pr/: 7_small_painting is 0.75-0.875 at all four sizes (844x390 now 0.75 with no retry). onCorner is true, and toolbarOnGrip and toolbarOnArt are 0 everywhere.
+
+## Round 2 review items (App Builder, Oct 28)
+- (a)+(b) SERVER CODE, needs App Builder review (`server/core.ts` saveArt):
+  - A full street now refuses with `streetfull`. The cross-house clearing is gone, so nothing in another child's house is ever deleted.
+  - The owner may still free her own oldest unhung drafts (house cap and street cap). A painting saved within the last 90 s that is not yet hung (`artFresh`) is never cleared.
+  - The client already shows "The street is full of art! Take one down to hang a new one." for `streetfull`.
+  - paint_test grows from 47 to 51 checks:
+    - a full street refuses with streetfull and no other house changes;
+    - she can free her own draft, and no other house changes;
+    - a just-saved, unplaced painting is never cleared (house cap and street cap);
+    - two simultaneous saves each clear only their own draft;
+    - a friend on a full street is refused;
+    - the old (no art:1) client is never sent art or artFail.
+  - Save stays v3, protocol 4.
