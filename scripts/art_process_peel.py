@@ -50,6 +50,23 @@ def deband(rgb, obj, max_px=40):
 
 
 ap.deband = deband
+
+# SMOOTH=kind[:r],...  Morphological open (radius r, default 8 raw px) of the keyed
+# silhouette, so jagged leaf tips are trimmed and the plum band follows a smooth edge.
+SMOOTH = {}
+for _t in filter(None, os.environ.get('SMOOTH', '').split(',')):
+    _k, _, _r = _t.partition(':'); SMOOTH[_k] = int(_r or 8)
+_key = ap.key
+def key(rgb, see_through=False, band=False):
+    out_rgb, solid, opening = _key(rgb, see_through, band)
+    r = SMOOTH.get(_cur['kind'])
+    if r:
+        from scipy import ndimage as _ndi
+        yy, xx = np.ogrid[-r:r + 1, -r:r + 1]
+        disk = xx * xx + yy * yy <= r * r
+        solid = _ndi.binary_closing(_ndi.binary_opening(solid, disk), disk) & solid | _ndi.binary_opening(solid, disk)
+    return out_rgb, solid, opening
+ap.key = key
 _build = ap.build
 
 
