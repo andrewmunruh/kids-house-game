@@ -416,14 +416,15 @@ async def wall_piece(mk):
     LBL = """id => { const a = document.querySelector(`.item[data-id="${id}"]`).getBoundingClientRect(), l = document.querySelector('.yardDoor .yardHintLabel');
       if (!l) return false; const b = l.getBoundingClientRect(); return a.left < b.right - 8 && a.right > b.left + 8 && a.top < b.bottom - 8 && a.bottom > b.top + 8; }"""
     fxo = None
-    for fx in range(860, 1100, 20):  # the spot where the painting's corner sits over the door's label box (preview: x~992)
-        await P.evaluate(MOVE, [qid, fx]); await P.wait_for_timeout(120)
-        if await P.evaluate(LBL, qid): fxo = fx; break
-    for fx in [740] + ([fxo] if fxo else []):
-        await P.evaluate(MOVE, [qid, fx])
+    for fx in [740, 'door']:
+        await P.evaluate(MOVE, [qid, 740 if fx == 'door' else fx])
         await P.reload(); await P.wait_for_selector('#stage .char'); await P.wait_for_timeout(900)
         if await P.evaluate("document.body.classList.contains('mode-play')"): await P.click('#modeDecorate'); await P.wait_for_timeout(300)
         await into_view(P, qid); await P.wait_for_timeout(400)
+        if fx == 'door':  # with the camera now fixed, slide the painting until its corner sits over the door's label box
+            for x in range(700, 1300, 20):
+                await P.evaluate(MOVE, [qid, x]); await P.wait_for_timeout(120)
+                if await P.evaluate(LBL, qid): fxo = fx = x; break
         pt = await P.evaluate("""id => { const a = document.querySelector(`.item[data-id="${id}"]`).getBoundingClientRect(), d = document.querySelector('.yardDoor');
           const ls = d ? [d.querySelector('.yardHintLabel'), d.querySelector('.doorArt'), d].map(e => e && e.getBoundingClientRect()) : [];
           for (const l of ls) { if (!l) continue; const x0 = Math.max(a.left, l.left) + 3, x1 = Math.min(a.right, l.right) - 3, y0 = Math.max(a.top, l.top) + 3, y1 = Math.min(a.bottom, l.bottom) - 3;
