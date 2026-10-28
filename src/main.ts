@@ -2759,6 +2759,7 @@ function renderMap(force = false) {
   // Name plates stay outside it, in the sky and grass letterbox.
   w.innerHTML = `<div class="mapClip">${plan ? mapPortraitBgSVG(plan.w, plan.h) : mapBgSVG()}</div>`;
   const clip = w.querySelector('.mapClip')!;
+  showSceneArt(clip as HTMLElement, plan ? 'map-portrait' : 'map');
   const px = (v: number) => v * sc + 'px';
   mapAnchors.clear();
   const n = list.length;

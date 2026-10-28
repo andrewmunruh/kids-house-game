@@ -22,6 +22,20 @@ async def shoot(b, name, w, h, v1):
     for sel in ('#phoneOk', '#wnGo'):
         loc = pg.locator(sel)
         if await loc.count() and await loc.is_visible(): await loc.click(force=True)
+    if SCENE in ('map', 'map-portrait', 'park'):
+        # Town scenes: open the map (portrait layout at 820x1180/390x844), then the park through its gate.
+        await pg.evaluate("() => document.getElementById('btnMap').click()")
+        await pg.wait_for_selector('#mapWorld .mapSpot', timeout=10000)
+        if SCENE == 'park':
+            await pg.evaluate("() => document.querySelector('#mapWorld [data-go=park]').click()")
+            await pg.wait_for_selector('#parkWorld .pspot', timeout=10000)
+        try: await pg.wait_for_selector('.mapClip.sceneArtOn, #parkWorld.sceneArtOn', timeout=6000 if not v1 else 1500)
+        except Exception: pass
+        await pg.wait_for_timeout(1200)
+        on = await pg.evaluate("() => !!document.querySelector('.mapClip.sceneArtOn, #parkWorld.sceneArtOn')")
+        f = f"{OUT}/{LABEL}__{SCENE}__{w}x{h}__{name}{'__artv1' if v1 else ''}.png"
+        await pg.screenshot(path=f); print(f, 'painted' if on else 'vector', flush=True)
+        await ctx.close(); return
     try:
         await pg.wait_for_function("() => !!document.querySelector('#stage.sceneArtOn') || !document.querySelector('#sceneArt')", timeout=6000 if not v1 else 1500)
     except Exception: pass

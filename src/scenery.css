@@ -11,3 +11,7 @@
 .sceneArtHost > img.sceneArt[hidden] { display: none; }
 /* The painting includes the door and its frame; the button stays as the tap target. */
 .stage.sceneArtOn .yardDoor .doorArt { visibility: hidden; }
+/* Map + park paintings: same <img>, filling the map card / park world; vector kept underneath (hidden only while shown). */
+.mapClip > img.sceneArt, .parkWorld > img.sceneArt { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+.mapClip > img.sceneArt[hidden], .parkWorld > img.sceneArt[hidden] { display: none; }
+.mapClip.sceneArtOn > svg.mapBg, .parkWorld.sceneArtOn > svg.parkScene { visibility: hidden; }
