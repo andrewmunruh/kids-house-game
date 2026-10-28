@@ -96,3 +96,7 @@ Preview smoke /tmp/ti/smoke_integ.py: 26/26 PASS at 820x1180, 844x390, 390x844 (
 
 - 22:36 photobooth & tot_sync classified PRE-EXISTING (fail on 18ee50c too). cross_feature reruns in progress (diag2/diag3).
 - 22:40 old-client 10ef736 checks confirmed in m3/needs/ambient/costume/tot/cross_feature(6) logs; migration 43/43; b0 14/14; tsc OK; preview build bundle index-KUye7vth.js
+- 22:35 cf_i4_r1 rc=1 :: 34/35 checks passed ['(4) owner A (inside, party on, doll asleep) gets one "came trick-or-treating!" note']
+- 22:48 cf_i4_r2 rc=1 :: 34/35 checks passed ['(4) owner A (inside, party on, doll asleep) gets one "came trick-or-treating!" note']
+- 22:52 cf_eb57e47_r1 rc=1 :: 34/35 checks passed ['(4) owner A (inside, party on, doll asleep) gets one "came trick-or-treating!" note']
+- 23:01 cross_feature (4) tot note: FAIL on i4 r1,r2 AND eb57e47 r1 (same empty toast) => pre-existing, not from i4 merges. Deploying preview.
