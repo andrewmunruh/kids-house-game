@@ -168,7 +168,7 @@ app.innerHTML = `
       <div class="wall" id="wall"></div><div class="floor" id="floor"></div><div class="baseboard"></div>
       <div class="scenery" id="scenery"></div>
       <div class="layer" id="layer"></div>
-      <div class="artGrip hidden" id="artGrip" role="button" aria-label="Drag to make the painting bigger or smaller"><svg viewBox="0 0 40 40"><path d="M12 28 L28 12 M20 30 L30 20 M28 28 L28 18 M28 28 L18 28" fill="none" stroke="#5a3d5c" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="artGrip hidden" id="artGrip" role="button" aria-label="Drag to make the painting bigger or smaller"><span class="artGripDot"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M11 29 L29 11" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/><path d="M9 19 L9 31 L21 31 Z M31 21 L31 9 L19 9 Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span></div>
       <div class="toolbar hidden" id="toolbar">
         <button data-a="smaller" aria-label="Smaller">${ICON.smaller}</button><button data-a="bigger" aria-label="Bigger">${ICON.bigger}</button><button data-a="flip" aria-label="Flip">${ICON.flip}</button><button data-a="front" aria-label="Bring forward">${ICON.front}</button><button data-a="back" aria-label="Send back">${ICON.back}</button><button data-a="delete" class="danger" aria-label="Put away">${ICON.trash}</button>
       </div>
@@ -1003,15 +1003,22 @@ function openArtStudio() {
   openStudio({ stamps: STAMPS, sfx, onSave: (data, frame) => hangPainting(data, frame) });
 }
 /** Decorate: a big corner handle on the selected painting. Drag it out or in to resize (keeps the shape, snaps to the kid size steps). */
+const gripSeen = new Set<string>(); // the handle glows the first time each painting is picked
 function renderArtGrip(s: GameState) {
   const g = $('artGrip');
   const it = selected ? s.rooms[s.currentRoom].items.find(i => i.id === selected) : undefined;
   const el = it && layer.querySelector<HTMLElement>(`.item[data-id="${it.id}"]`);
   if (play.isPlay() || !it || it.kind !== 'picture' || !it.art || !el || !canEdit()) { g.classList.add('hidden'); return; }
-  const b = el.getBoundingClientRect(), p = toRoom(b.right, b.bottom);
+  // Centre the handle just inside the painting's bottom-right corner so it sits ON the corner (overlapping it),
+  // not floating off it. 64 screen px touch target, 52 px visible disc, at any zoom.
+  const b = el.getBoundingClientRect(), inset = Math.min(14, b.width / 4, b.height / 4), p = toRoom(b.right - inset, b.bottom - inset);
   const sc = stage.getBoundingClientRect().width / Math.max(1, VIEW_W) || 1;
   g.style.left = (p.x / W) * 100 + '%'; g.style.top = (p.y / H) * 100 + '%';
-  g.style.width = g.style.height = 60 / sc + 'px'; // 60 screen px at any zoom
+  g.style.width = g.style.height = 64 / sc + 'px';
+  if (g.classList.contains('hidden') || g.dataset.for !== it.id) {
+    g.dataset.for = it.id;
+    if (!gripSeen.has(it.id)) { gripSeen.add(it.id); g.classList.remove('pulse'); void g.offsetWidth; g.classList.add('pulse'); }
+  }
   g.classList.remove('hidden');
 }
 $('artGrip').addEventListener('pointerdown', e => {
@@ -1022,7 +1029,7 @@ $('artGrip').addEventListener('pointerdown', e => {
   if (!it || !el) return;
   const b = el.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
   const d0 = Math.max(20, Math.hypot(e.clientX - cx, e.clientY - cy)), s0 = itemSizeOf(it.size);
-  $('artGrip').classList.add('active'); toolbar.classList.add('hidden');
+  $('artGrip').classList.remove('pulse'); $('artGrip').classList.add('active'); toolbar.classList.add('hidden');
   startDrag(e, {
     edgeScroll: false,
     onMove(ev) {
