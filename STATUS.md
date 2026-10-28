@@ -57,3 +57,10 @@ Found along the way: on integration a fresh painting could land over the back do
 - Gate (app src unchanged since fcc79fa; each suite run alone under flock): tsc pass · paint_test 47/47 · art_studio_test 132/132 · phone_test 357/357.
 - Shots in /workspace/surprise/art-studio-shots/pr/: {1_paint_button,2_studio,3_hung,4_selected_handle,6_mid_resize,5_resized_toolbar,7_small_painting}_{820x1180,1180x820,844x390,390x844}.png
 - OPEN: at 844x390, after the painting is grown to 1.5 there, a second drag on the handle (mouse or Pencil, even after a reload) does not reach the handle's pointerdown handler, so 7_small_painting_844x390 still shows size 1.5. The test's Pencil shrink at 844x390 (on a painting resized at 820x1180) passes. Not yet root-caused.
+
+## 844x390 handle bug: root cause and fix (8b555d3, regression test 00fac37)
+- Cause: at 844x390, a painting grown to 1.5 puts its corner handle on top of the backyard door (handle 295-359 x 132-196, door 325-369 x 116-217). The stage's capture-phase "door wins a tap" rescue (the code that lets a tap on a pet or piece standing over the door still open it) claimed those presses and stopped them before the handle saw them. An instrumented stopPropagation traced it to that listener.
+- Proof: on the pre-fix build, the new regression test's plain tap on the handle walked her through the door (`house:here` became `house:gone`).
+- Fix (APP CODE, needs App Builder review): the rescue now ignores presses whose target is inside `#artGrip` or `#toolbar`. It is one line in the stage capture pointerdown.
+- Door rescue still works: phone_test "a real touch on Back inside still works with a pet on the door" passes (chromium 390x844, 375x667, 430x932; webkit 390x844).
+- Regression test (844x390 only, no resize at another size first): grow to 1.5, plain tap on the handle (stays in the room), then a second mouse drag shrinks it, a hit-tested finger drag grows it and a hit-tested Pencil drag shrinks it. All pass. art_studio_test is 138/138.
