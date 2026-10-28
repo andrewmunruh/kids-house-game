@@ -1,5 +1,5 @@
 /* M2 gentle needs. Small shapes and motion only; the doll art is never repainted. */
-.need-bubble { position: absolute; left: 50%; bottom: 96%; width: 44%; min-width: 40px; max-width: 92px; aspect-ratio: 1; pointer-events: none; z-index: 3;
+.need-bubble { position: absolute; left: 50%; bottom: 96%; width: 44%; min-width: calc(36px / var(--nbs, 1)); max-width: max(92px, calc(36px / var(--nbs, 1))); aspect-ratio: 1; pointer-events: none; z-index: 3;
   opacity: 0; transform: translate(calc(-50% + var(--lean, 0) * 22%), 10px) scale(.6); transform-origin: 30% 100%;
   transition: opacity .6s ease, transform .7s cubic-bezier(.3, 1.4, .5, 1); }
 .need-bubble.show { opacity: 1; transform: translate(calc(-50% + var(--lean, 0) * 22%), 0) scale(1); animation: needFloat 3.2s ease-in-out .7s infinite; }
@@ -8,6 +8,8 @@
 .need-bubble i { position: absolute; background: #fff; border: 2.5px solid #5b3d5c; border-radius: 50%; }
 .need-bubble .nb-dot1 { width: 22%; height: 22%; left: calc(18% - var(--lean, 0) * 10%); bottom: -20%; }
 .need-bubble .nb-dot2 { width: 13%; height: 13%; left: calc(8% - var(--lean, 0) * 16%); bottom: -38%; }
+/* Portrait phones: a bit bigger still, so a small hand can see it. */
+@media (orientation: portrait) and (max-width: 500px) { .need-bubble { min-width: calc(40px / var(--nbs, 1)); max-width: max(92px, calc(40px / var(--nbs, 1))); } }
 @keyframes needFloat { 0%, 100% { translate: 0 0; } 50% { translate: calc(var(--lean, 0) * 4px) -4px; } }
 
 /* A sleepy doll sways a little; in bed she settles into slow breathing with drifting z's. */

@@ -71,6 +71,9 @@ export function installNeeds(d: NeedsDeps) {
 
   /** Lying dolls are drawn sideways, so the bubble goes over her head on the pillow instead of where a standing head would be. */
   function anchor(el: HTMLElement, bub: HTMLElement, lying: boolean) {
+    // Stage scale, so needs.css can keep a minimum on-screen size (36px, 40px on a portrait phone).
+    const sc = el.offsetWidth ? el.getBoundingClientRect().width / el.offsetWidth : 1;
+    if (sc > 0 && Number.isFinite(sc)) bub.style.setProperty('--nbs', sc.toFixed(3));
     if (!lying) { bub.style.left = ''; bub.style.bottom = ''; return; }
     const head = el.querySelector('.inner svg .dollhead'); if (!head) return;
     const r = el.getBoundingClientRect(), h = head.getBoundingClientRect(); if (!r.width || !r.height || !h.width) return;
