@@ -2,7 +2,7 @@
 // and the visible-play-time drift timer. main.ts only calls installNeeds() once; everything else lives here.
 import './needs.css';
 import type { Action, GameState, Character } from './shared/state';
-import { DRIFT_MS, NEEDS, driftPick, levelOf, meetableHere, wishOf, isFood, isToy, type Need } from './shared/needs';
+import { driftDelay, NEEDS, driftPick, levelOf, meetableHere, wishOf, isFood, isToy, type Need } from './shared/needs';
 import { isFridge, isTub } from './shared/ambient';
 import { prefersReducedMotion } from './juice';
 import { storeKey } from './shared/storekey';
@@ -47,7 +47,7 @@ function spotX(s: GameState, c: Character, n: Need): number | null {
 export function installNeeds(d: NeedsDeps) {
   const prev = new Map<string, Record<Need, number>>();
   const asked = new Map<string, number>(); // id|need -> time a meet was sent (stops a resend storm)
-  let visibleMs = 0, last = performance.now(), turn = 0;
+  let visibleMs = 0, last = performance.now(), turn = 0, steps = 0;
 
   // ---- Menu: "Show wishes" (this iPad only) ----
   const btn = document.createElement('button');
@@ -137,8 +137,8 @@ export function installNeeds(d: NeedsDeps) {
     if (add == null && document.visibilityState !== 'visible') return;
     if (!d.canDrift() || !d.speaks()) { visibleMs = 0; return; } // a visit never counts toward her own house either
     visibleMs += dt;
-    if (visibleMs < DRIFT_MS) return;
-    visibleMs = 0;
+    if (visibleMs < driftDelay(d.get(), steps)) return;
+    visibleMs = 0; steps++;
     const p = driftPick(d.get(), turn++);
     if (p) d.dispatch({ type: 'need/drift', id: p.id, need: p.need });
   }
