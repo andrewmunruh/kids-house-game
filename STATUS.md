@@ -1,4 +1,21 @@
-# Track F, Art Studio: status (live log; newest at bottom)
+# Art Studio (Track F) — final status
+
+## Final head verification (run 13, on 3852720 code; app/server unchanged since 57006b0)
+`git log 57006b0..HEAD -- src server` is empty, so the gate run 8 suites below ran on the same src/server as the final head; later commits are tests/STATUS only.
+| Suite | Result |
+|---|---|
+| tsc (tsc13) | pass |
+| paint_test.ts (paint13b) | 47/47 |
+| art_studio_test.py (art13) | 128/128 |
+All under `flock -o /workspace/surprise/gate.lock` via /tmp/artst-run1.sh (fresh setsid hood on 5850, killed by process group). No art-studio process held gate.lock after the runs; the holders seen were other tracks' runs.
+
+## Screenshots (tests/art_studio_shots.py, shots14)
+/workspace/surprise/art-studio-shots/pr/ holds 1_paint_button, 2_studio, 3_hung, 4_selected_handle and 5_resized_toolbar at 820x1180, 1180x820, 844x390 and 390x844, so 20 files. Each painting was resized to size 1.5 and the toolbar was visible at every size. The art_studio_test shots (studio_*, hung_*, wallpiece_* etc.) are in /workspace/surprise/art-studio-shots/.
+Honest notes:
+- At 844x390 and 390x844 the item toolbar sits close under the painting. The test checks that it covers no more than 10% of the painting in portrait.
+- The resize grip is small at phone sizes.
+
+## Earlier log: Track F, Art Studio: status (live log; newest at bottom)
 Branch cursor/art-studio, PR #48. Nothing deployed. Local servers only (ports 5850-5889), every heavy suite alone under `flock /workspace/surprise/gate.lock` with a fresh hood (setsid group, killed by exact PGID after each suite).
 
 ## Gate run 8: src = 57006b0 (07dd75c differs only in tests/art_studio_test.py)
