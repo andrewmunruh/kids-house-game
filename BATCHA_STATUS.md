@@ -11,3 +11,8 @@ Branch cursor/art-batch-a from dda1839c8343b647c7051f3504f12ba7363461ef. Never p
 
 ## Log (CDT)
 - 10:56 started; clone at /workspace/t-batchA; style guide PLAN.md not yet present, using docs/art-style-lock.md (shipped painted style)
+
+## Step 4 (backyard art) — WIP
+- 30 backyard WebPs painted, all <30 KB, art_process stretch within ±18% except little-slide 0.76 (flagged).
+- Not yet linted (art_bounds needs Playwright browser env; must run under gate lock).
+- Visual concerns: sprinkler droplets dropped by keyer (reads as splat); birdhouse post shortened; plum halo on several items; toadstool red not rose.
