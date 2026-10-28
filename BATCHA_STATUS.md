@@ -41,3 +41,10 @@ Normal merge, clean; brings scripts/art_process_peel.py + 10 backyard webps.
 tests/art_bounds.py (items re-dumped, 30 backyard kinds), rc=1: 16 OK, 13 WARN over 3%, 1 FAIL.
 FAIL patio-lights (2 interior holes, w .050). WARN w/h: picnic-blanket .136/.194, pinwheel h .111, seesaw w .102, butterfly-bush w .095, rain-barrel w .088, sprinkler h .084, lemonade-cup h .084, stepping-stones w .084, birdhouse h .050, hedge-row w .050, patio-umbrella w .036, splash-pool w .033, sun-lounger w .032.
 Not on base dda1839 (no backyard paintings there), so not a base-identical failure → stopped before the full gate, Step 6 and the rest of Step 7. Contact sheet: /workspace/t-batchA-shots/pr-4015199__backyard-contact.png
+
+## Step 4b — art fixes (post-FINAL merge)
+- patio-lights: filled 2 interior holes (end-hook eyelets, 204/205 px) with pale lavender; art_bounds no longer FAILs.
+- lemonade-cup: painted bbox refit to processor box (24,36–134,200; content scale 1.058×1.051, <18%), stray alpha cleaned. In-game day: dw +0.0 dh -1.0 feet 0.0 (was -5.8/-4.9/-3.1).
+- picnic-blanket: content height ×1.037 bottom-anchored. In-game: dw -0.6 dh 0.0 feet -0.5 (was dh -3.6).
+- art_ingame_bounds backyard (±3% std, TOL 2): day 30/30 OK, night 28/28 OK (+2 lights SKIP).
+- art_bounds (offline, advisory) remaining backyard WARNs all pass in-game ≤2%; raster bbox == cairosvg processor box, so they are browser-vs-cairo measurement artifacts, same class as shipped WARNs (plant w .151, cc-flower-lamp .095, wh-fiddle-leaf-fig .089, pothos .068, unicorn-plush .066). Kept: picnic-blanket w.136 h.167, pinwheel h.111, seesaw w.102, butterfly-bush, rain-barrel, stepping-stones, sprinkler, birdhouse, hedge-row, patio-lights w.050, patio-umbrella, splash-pool, sun-lounger. Shipped pack:fire-pit FAIL (size) is base-known.
