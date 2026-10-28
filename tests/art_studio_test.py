@@ -308,9 +308,9 @@ async def wall_piece(mk):
     # Apple Pencil (pointerType pen) at 844x390: drag the handle in
     await A.set_viewport_size({'width': 844, 'height': 390}); await A.wait_for_timeout(900); await select(A)
     g = await A.locator('#artGrip').bounding_box(); gx, gy = g['x'] + g['width'] / 2, g['y'] + g['height'] / 2
-    await A.evaluate(PEN, [gx, gy, gx - 70, gy - 50]); await A.wait_for_timeout(800)
+    await A.evaluate(PEN, [gx, gy, gx - 30, gy - 22]); await A.wait_for_timeout(800)
     i2 = await A.evaluate(ITEMS, pid)
-    check('wall: Pencil drag on the handle makes it smaller', i2['size'] < i1['size'], [i1, i2])
+    check('wall: Pencil drag on the handle makes it smaller (one step)', i2['size'] < i1['size'], [i1, i2])
     check('wall: size stays within the kid steps (0.75-1.5)', .75 <= i2['size'] <= 1.5, i2)
     await A.screenshot(path=SHOT + 'wallpiece_844x390.png')
     # move: drag the painting itself (portrait phone), it stays on the wall and off the arrows
