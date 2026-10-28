@@ -108,11 +108,26 @@ function armPart(side: 'l' | 'r'): string {
 
 /** Pull the wardrobe/costume sleeve groups out of a clothing string, one inner per side. */
 export function liftSleeves(svg: string): { rest: string; l: string; r: string } {
-  const out = { rest: svg, l: '', r: '' };
-  out.rest = svg.replace(/<g class="arm sleeve (l|r) hang"[^>]*>((?:(?!<g[ >]|<\/g>)[\s\S])*)<\/g>/g, (_m, side: 'l' | 'r', inner: string) => {
-    out[side] += inner;
-    return '';
-  });
+  // Depth-counted so a sleeve may hold nested <g> groups (its whole subtree is lifted).
+  const out = { rest: '', l: '', r: '' };
+  const open = /<g class="arm sleeve (l|r) hang"[^>]*>/g;
+  const tag = /<g[\s>]|<\/g>/g;
+  let from = 0, m: RegExpExecArray | null;
+  while ((m = open.exec(svg))) {
+    const side = m[1] as 'l' | 'r';
+    let depth = 1, end = -1, t: RegExpExecArray | null;
+    tag.lastIndex = m.index + m[0].length;
+    while ((t = tag.exec(svg))) {
+      depth += t[0] === '</g>' ? -1 : 1;
+      if (depth === 0) { end = t.index; break; }
+    }
+    if (end < 0) break; // unbalanced: leave the rest untouched
+    out.rest += svg.slice(from, m.index);
+    out[side] += svg.slice(m.index + m[0].length, end);
+    from = end + 4;
+    open.lastIndex = from;
+  }
+  out.rest += svg.slice(from);
   return out;
 }
 
