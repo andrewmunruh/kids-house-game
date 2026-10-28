@@ -210,3 +210,9 @@ The earlier failure only happened in the full smoke, right after the 820x1180 fu
 - In progress: phone_test + prefix control on c80a3db+, migration/costume reruns, art_10c/art_18c/prefix control on 041f8fb. Preview NOT yet deployed (still index-ChnPX1Jt.js).
 - Gate reruns: phone_test 383/383 (041f8fb), migration 43/43 (ART_DIR set), costume_sync 23/23, art_studio_test 142/142 with old 18ee50c and 142/142 with old 10ef736 (d51ebc2; one earlier 10ef736 run timed out on a Fill-tool click, rerun green). Pre-fix negative control: art 128/129, failing exactly the painting-over-door tap (she went to backyard); phone_test pre-fix 383/383 (rescue unchanged). Deploying preview next.
 - Preview deployed 03:29 CDT: Worker cozy-hood-preview 1022f707-a6d3-45f1-a4ed-9cda3905362a, cozy-preview gh-pages 51ba23939bc313e83f0a2b29b2d9d4016174211f, bundle index-CK5Shfwj.js. Rollback: Worker aec3b39f-8a8c-4a61-9a7e-aae56f8c8391, gh-pages 36056b1c4d433bce6840a1fd48131b2236fff6fc, index-ChnPX1Jt.js. Smokes next.
+- Post-fix smoke on live preview (index-CK5Shfwj.js), shots in /workspace/surprise/art-studio-shots/preview5/:
+  - Painting tap (incl. 844x390 tap inside the door label box) now selects + opens toolbar in every round; real tap reaches Delete every round. No more walk-into-yard.
+  - full order x3: 31/39. Fails: "toolbar overlaps door rect" geometric check (toolbar is exempt from the rescue, taps work) x3; 820 pass2 join timeout (8th client nick button); 820 pass3 B still showed the deleted painting; 844 pass3 map join timeout + one WebSocket connect error to the preview Worker.
+  - FORCEX=740: run1 7/8 + B didn't see delete; rerun 7/8 (only the overlap geometry check).
+  - 820x1180 + 390x844: 12/14 (only the overlap geometry check, both sizes).
+  - Remaining fails are hood-sync/connection flakes on the preview Worker, not the client-only c1419ac change; not yet root-caused.
