@@ -382,10 +382,12 @@ async def street_more(mk, join, A, B, hid, eA, eB):
         x0 = (await A.evaluate(ITEM, pid))['x']
         bb = await A.locator(f'.item[data-id="{pid}"]').bounding_box()
         cx, cy = bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2
-        await A.mouse.move(cx, cy); await A.mouse.down()
-        for i in range(1, 11): await A.mouse.move(cx - i * 20, cy + i * 2); await A.wait_for_timeout(16)  # well left: settling keeps it off the arrows and off the back door, so a short drag onto the door would snap back
-        await A.mouse.up(); await A.wait_for_timeout(900)
-        x1 = (await A.evaluate(ITEM, pid))['x']
+        for gy, dx in [(cy, -20), (bb['y'] + bb['height'] * .25, -20), (bb['y'] + bb['height'] * .25, 25)]:  # retry from a spot a kid is not standing on
+            await A.mouse.move(cx, gy); await A.mouse.down()
+            for i in range(1, 11): await A.mouse.move(cx + i * dx, gy + i * 2); await A.wait_for_timeout(16)
+            await A.mouse.up(); await A.wait_for_timeout(900)
+            x1 = (await A.evaluate(ITEM, pid))['x']
+            if x1 != x0: break
         check(f'decorate {tag}: drag re-hangs the painting in a new spot', x1 != x0, [x0, x1])
         ib = await B.evaluate(ITEM, pid)
         check(f'decorate {tag}: second client sees the move, art kept', ib and ib['x'] == x1 and ib['art'], ib)
