@@ -202,3 +202,9 @@ The earlier failure only happened in the full smoke, right after the 820x1180 fu
 - Fix for App Builder (not applied, not deployed): in that capture handler, return early when e.target.closest('.item') is set (hung paintings and furniture above the door), and/or shrink the label hit area.
 - Pass 1 at 820 also hit a harness TypeError after the hang (an ITEM lookup returned None, probably the same room switch). Not yet confirmed.
 - Evidence: /workspace/surprise/art-studio-shots/preview4/{fullorder.py,fullorder.log,repro_x.log,*.png}
+
+## Door rescue fix (hung paintings), 2026-10-28 ~02:50 CDT
+- c1419ac src/main.ts: the stage capture-phase door rescue now also returns early when the press target is inside a hung painting (`.item[data-kind="picture"][data-sig]`), besides #artGrip/#toolbar. Pets/furniture in front of the door keep the rescue.
+- Tests: art_studio_test 844x390 painting at x=740 + painting over the door label (041f8fb); phone_test lamp drawn over the door + shelf in front open the yard (c80a3db).
+- Gate on de020ef (pre-test-fix): tsc ok, paint 51/51, phone 371/371, hood 44, gameroom 69, map 40, b0_compat 14, needs_sync 27, m3_sync 29, ambient_sync 12, cross_feature 35 all green; migration 29/0 but rc=1 (ART_DIR /opt/cursor perms, harness), costume_sync timeout (rerun queued); art 141/142 (weak overlap check, fixed in 041f8fb).
+- In progress: phone_test + prefix control on c80a3db+, migration/costume reruns, art_10c/art_18c/prefix control on 041f8fb. Preview NOT yet deployed (still index-ChnPX1Jt.js).
