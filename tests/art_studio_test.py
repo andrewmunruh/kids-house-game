@@ -379,7 +379,7 @@ async def street_more(mk, join, A, B, hid, eA, eB):
         bb = await A.locator(f'.item[data-id="{pid}"]').bounding_box()
         cx, cy = bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2
         await A.mouse.move(cx, cy); await A.mouse.down()
-        for i in range(1, 11): await A.mouse.move(cx - i * 8, cy + i * 2); await A.wait_for_timeout(16)  # toward the middle (settling keeps it off the arrows)
+        for i in range(1, 11): await A.mouse.move(cx - i * 20, cy + i * 2); await A.wait_for_timeout(16)  # well left: settling keeps it off the arrows and off the back door, so a short drag onto the door would snap back
         await A.mouse.up(); await A.wait_for_timeout(900)
         x1 = (await A.evaluate(ITEM, pid))['x']
         check(f'decorate {tag}: drag re-hangs the painting in a new spot', x1 != x0, [x0, x1])
