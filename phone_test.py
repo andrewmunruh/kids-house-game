@@ -307,6 +307,28 @@ async def phone_pass(b, w, h, save):
     if (w, h) == (375, 667): await check_portrait_kid(pg, tag)
     if not portrait: await stage_fill(pg, tag, w, h)
     if not portrait: await check_secrets(pg, tag, short=False)
+    if (w, h) in ((390, 844), (844, 390)):
+        pf = await pg.evaluate("""async () => {
+          const row = document.querySelector('.drawerTop'); const bar = document.getElementById('drawerBar');
+          if (!row || !bar) return null;
+          const raf = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+          const mask = () => getComputedStyle(row).webkitMaskImage || getComputedStyle(row).maskImage || '';
+          const over = row.scrollWidth > row.clientWidth + 1;
+          row.scrollLeft = 0; row.dispatchEvent(new Event('scroll')); await raf();
+          const start = { more: bar.classList.contains('more'), mask: mask() };
+          row.scrollLeft = row.scrollWidth; row.dispatchEvent(new Event('scroll')); await raf();
+          const rb = row.getBoundingClientRect();
+          const chips = [...row.querySelectorAll('button')].filter(b => b.offsetParent);
+          const last = chips[chips.length - 1]?.getBoundingClientRect();
+          const end = { back: bar.classList.contains('back'), more: bar.classList.contains('more'), mask: mask(),
+            lastIn: !!last && last.right <= rb.right + 2, lastHit: !!last && document.elementFromPoint(last.left + last.width / 2, last.top + last.height / 2)?.closest('button') === chips[chips.length - 1] };
+          row.scrollLeft = 0; row.dispatchEvent(new Event('scroll')); await raf();
+          return { over, start, end };
+        }""")
+        ok = pf is not None and (not pf['over'] or (
+            (not pf['start']['more'] or '56px' in pf['start']['mask']) and
+            (not pf['end']['back'] or '60px' in pf['end']['mask']) and pf['end']['lastIn'] and pf['end']['lastHit']))
+        check(f'{tag} pack row wide edge fade, last chip still tappable at the end', ok, str(pf))
     if (w, h) in ARROW_SIZES: await check_indoor_arrows(pg, tag)
     if (w, h) in ((390, 844), (844, 390)): await check_yard_door(pg, tag)
     if w in (375, 667): await living_room_one_line(pg, tag)

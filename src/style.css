@@ -800,9 +800,9 @@ body.view-street .stage { visibility: hidden; }
   body.phone .drawerTop { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; gap: 6px; touch-action: pan-x; scrollbar-width: none; }
   body.phone .drawerTop::-webkit-scrollbar { display: none; }
   /* Same edge fade the iPad pack row uses, on whichever side has more chips. */
-  body.phone .drawerBar.more .drawerTop { -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 32px), transparent); }
-  body.phone .drawerBar.back .drawerTop { -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 100%); mask-image: linear-gradient(to right, transparent, #000 36px, #000 100%); }
-  body.phone .drawerBar.more.back .drawerTop { -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 32px), transparent); }
+  body.phone .drawerBar.more .drawerTop { -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 56px), rgba(0,0,0,.25) calc(100% - 22px), transparent calc(100% - 8px)); mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 56px), rgba(0,0,0,.25) calc(100% - 22px), transparent calc(100% - 8px)); }
+  body.phone .drawerBar.back .drawerTop { -webkit-mask-image: linear-gradient(to right, transparent 8px, rgba(0,0,0,.25) 22px, #000 60px, #000 100%); mask-image: linear-gradient(to right, transparent 8px, rgba(0,0,0,.25) 22px, #000 60px, #000 100%); }
+  body.phone .drawerBar.more.back .drawerTop { -webkit-mask-image: linear-gradient(to right, transparent 8px, rgba(0,0,0,.25) 22px, #000 60px, #000 calc(100% - 56px), rgba(0,0,0,.25) calc(100% - 22px), transparent calc(100% - 8px)); mask-image: linear-gradient(to right, transparent 8px, rgba(0,0,0,.25) 22px, #000 60px, #000 calc(100% - 56px), rgba(0,0,0,.25) calc(100% - 22px), transparent calc(100% - 8px)); }
   body.phone .rooms { flex: 0 0 auto; }
   body.phone .cats { display: flex; flex: 0 0 auto; flex-wrap: nowrap; gap: 6px; }
   body.phone .cat { width: 44px; height: 44px; flex: 0 0 44px; }
