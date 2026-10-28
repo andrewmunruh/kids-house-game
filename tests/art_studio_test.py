@@ -40,6 +40,14 @@ STAMPFIT = """() => { const W = innerWidth, H = innerHeight, bad = [], rows = {}
     if (r.left < -1 || r.top < -1 || r.right > W + 1 || r.bottom > H + 1 || !el.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2))) bad.push(el.getAttribute('aria-label')); }
   return {min: Math.round(min), rows: Object.values(rows), bad}; }"""
 
+async def into_view(pg, pid):
+    """Walk the room view (arrows) until the painting's middle is on screen."""
+    for _ in range(8):
+        side = await pg.evaluate("""id => { const r = document.querySelector(`.item[data-id="${id}"]`).getBoundingClientRect(), s = document.getElementById('stage').getBoundingClientRect(), c = r.left + r.width / 2;
+          return c < s.left + 40 ? 'L' : c > s.right - 40 ? 'R' : ''; }""", pid)
+        if not side: break
+        await pg.click('#nudge' + side); await pg.wait_for_timeout(700)
+
 async def paint(pg, frame=2, fab=False):
     if fab: await pg.locator('#artFab').click()
     else:
@@ -306,7 +314,7 @@ async def wall_piece(mk):
     check('wall: dragging moves it', i3['x'] != i2['x'], [i2, i3])
     check('wall: dropped low, it snaps back onto the wall', i3['y'] <= 375, i3)
     check('wall: dropped by the arrow, it moves out from under it', await A.evaluate(ARROWS, pid) == [], await A.evaluate(ARROWS, pid))
-    await select(A); await A.screenshot(path=SHOT + 'wallpiece_390x844.png')
+    await into_view(A, pid); await select(A); await A.screenshot(path=SHOT + 'wallpiece_390x844.png')
     cov = await A.evaluate("""id => { const a = document.querySelector(`.item[data-id="${id}"]`).getBoundingClientRect(), b = document.getElementById('toolbar').getBoundingClientRect();
       return Math.round(Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)) / (a.width * a.height) * 100); }""", pid)
     check('wall 390x844: the toolbar does not cover the selected painting', cov <= 10, f'{cov}% covered')
@@ -327,11 +335,7 @@ async def wall_piece(mk):
     check('wall: spot and size survive a reload', i4 == i3, [i4, i3])
     # delete with the toolbar: gone everywhere
     if await A.evaluate("document.body.classList.contains('mode-play')"): await A.click('#modeDecorate'); await A.wait_for_timeout(300)
-    for _ in range(8):  # after a reload the camera can start away from the painting: walk the view to it
-        side = await A.evaluate("""id => { const r = document.querySelector(`.item[data-id="${id}"]`).getBoundingClientRect(), s = document.getElementById('stage').getBoundingClientRect(), c = r.left + r.width / 2;
-          return c < s.left + 40 ? 'L' : c > s.right - 40 ? 'R' : ''; }""", pid)
-        if not side: break
-        await A.click('#nudge' + side); await A.wait_for_timeout(700)
+    await into_view(A, pid)  # after a reload the camera can start away from the painting
     for _ in range(3):
         if await A.locator('#toolbar button[data-a="delete"]').is_visible(): break
         # tap a spot of the painting that is really on top (a kid or a label can stand in front of its middle)
