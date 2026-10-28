@@ -23,7 +23,10 @@ async def shoot(b, name, w, h, v1):
         loc = pg.locator(sel)
         if await loc.count() and await loc.is_visible(): await loc.click(force=True)
     OUT_SC = SCENE in ('ranch', 'barn')
-    if OUT_SC: await go(pg, SCENE)
+    if OUT_SC:
+        # 820x1180 desktop WebKit: the stage covers #btnMap on base dda1839 too, so open the map by its own click.
+        await pg.evaluate("() => document.getElementById('btnMap').click()")
+        await go(pg, SCENE)
     ON = '#ranchWorld.sceneArtOn' if OUT_SC else '#stage.sceneArtOn'
     try:
         await pg.wait_for_function("() => !!document.querySelector('" + ON + "') || !document.querySelector('#sceneArt')", timeout=6000 if not v1 else 1500)

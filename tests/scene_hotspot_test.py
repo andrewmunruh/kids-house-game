@@ -205,6 +205,9 @@ async def main():
                 # too (same with ?art=v1), so open the map by its button's own click there.
                 if not await pg.evaluate("() => { const m = document.getElementById('btnMap').getBoundingClientRect(); const h = document.elementFromPoint(m.left + m.width / 2, m.top + m.height / 2); return !!h && !!h.closest('#btnMap'); }"):
                     print(f'NOTE {tag} Map button covered by the stage (pre-existing on base)')
+                await pg.wait_for_timeout(300)
+                # Same pre-existing overlap can appear a moment later (stage settling), so open the map by its own click.
+                if not await pg.evaluate("document.body.classList.contains('view-map')"):
                     await pg.evaluate("() => document.getElementById('btnMap').click()")
                 await to_map(pg)
                 places = await pg.evaluate("() => [...new Set([...document.querySelectorAll('#mapWorld [data-go]')].map(e => e.dataset.go))]")
