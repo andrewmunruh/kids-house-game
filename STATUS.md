@@ -185,3 +185,12 @@ Final run 24/25:
 - 390x844: every check PASS.
 - No page/console errors; only hosts were andrewmunruh.github.io + cozy-hood-preview (no production).
 - Harness notes: an earlier 820x1180 run once missed the move drag (camera easing), passed on rerun. need/meet only counts at the right spot, so care is tested by walking the doll to the fridge.
+
+### 844x390 delete-after-reload proof (live preview, index-ChnPX1Jt.js)
+5 fresh throwaway streets in a row, each: hang, move, handle resize to 1.5, reload, then delete with a real mouse tap. 32/32 PASS.
+- After reload the painting element exists in the right room every time.
+- Toolbar on screen (y 218-278 of 390), every button's elementFromPoint is itself, no overlap with door (.yardDoor), arrows (#nudgeL/R), title pill (#streetTitle), preview ribbon or mode hint; body safe-area padding 0.
+- Pointer log each run: pointerdown/pointerup/click on data-a=delete, then the painting is gone on A and B.
+- No page errors, no production hosts.
+Logs, script and toolbar shots: /workspace/surprise/art-studio-shots/preview4/deleteproof_*.
+The earlier failure only happened in the full smoke, right after the 820x1180 full-street round in the same browser, and it was not reproduced here.
