@@ -1523,8 +1523,10 @@ function renderToolbar(s: GameState) {
   // can end up clamped right over it. Then try the other side and keep whichever covers less of the painting.
   if (it.kind === 'picture' && it.art) {
     const pel = layer.querySelector<HTMLElement>(`.item[data-id="${it.id}"]`);
-    const cover = () => { if (!pel) return 0; const a = pel.getBoundingClientRect(), b = toolbar.getBoundingClientRect();
-      return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)); };
+    const gEl = $('artGrip'), ov = (a: DOMRect, b: DOMRect) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+    const gripCover = () => gEl.classList.contains('hidden') ? 0 : ov(gEl.getBoundingClientRect(), toolbar.getBoundingClientRect());
+    // covering the resize handle counts much more than covering the painting: she must always be able to grab it
+    const cover = () => { if (!pel) return 0; return ov(pel.getBoundingClientRect(), toolbar.getBoundingClientRect()) + 8 * gripCover(); };
     const c0 = cover();
     if (c0 > 0) {
       const keep = { l: toolbar.style.left, t: toolbar.style.top, below: toolbar.classList.contains('below') };
@@ -1539,6 +1541,15 @@ function renderToolbar(s: GameState) {
       if (ex || ey) placeToolbarAnchor(parseFloat(toolbar.style.left) / 100 * W + ex / sc, parseFloat(toolbar.style.top) / 100 * H + ey / sc);
       if (cover() >= c0) { toolbar.style.left = keep.l; toolbar.style.top = keep.t; toolbar.classList.toggle('below', keep.below); }
     }
+    // Still on the handle (a short landscape phone): slide the bar sideways off it, toward the roomier side.
+    if (gripCover() > 0) {
+      const g = gEl.getBoundingClientRect(), b = toolbarScreenBox(), sc = stage.getBoundingClientRect().width / Math.max(1, VIEW_W) || 1;
+      const toLeft = g.left - 6 - b.right, toRight = g.right + 6 - b.left;
+      const canL = b.left + toLeft >= limits.left, canR = b.right + toRight <= limits.right;
+      const shift = canL && (!canR || -toLeft <= toRight) ? toLeft : canR ? toRight : 0;
+      if (shift) placeToolbarAnchor(parseFloat(toolbar.style.left) / 100 * W + shift / sc, parseFloat(toolbar.style.top) / 100 * H);
+    }
+
   }
   const step = itemSizeOf(it.size);
   const at = ITEM_SIZE_STEPS.indexOf(step);
