@@ -48,3 +48,9 @@ Not on base dda1839 (no backyard paintings there), so not a base-identical failu
 - picnic-blanket: content height ×1.037 bottom-anchored. In-game: dw -0.6 dh 0.0 feet -0.5 (was dh -3.6).
 - art_ingame_bounds backyard (±3% std, TOL 2): day 30/30 OK, night 28/28 OK (+2 lights SKIP).
 - art_bounds (offline, advisory) remaining backyard WARNs all pass in-game ≤2%; raster bbox == cairosvg processor box, so they are browser-vs-cairo measurement artifacts, same class as shipped WARNs (plant w .151, cc-flower-lamp .095, wh-fiddle-leaf-fig .089, pothos .068, unicorn-plush .066). Kept: picnic-blanket w.136 h.167, pinwheel h.111, seesaw w.102, butterfly-bush, rain-barrel, stepping-stones, sprinkler, birdhouse, hedge-row, patio-lights w.050, patio-umbrella, splash-pool, sun-lounger. Shipped pack:fire-pit FAIL (size) is base-known.
+
+## Step (a) — glow check @83e57a9
+beach-ball, toadstool-light, sprinkler, rain-barrel are byte-identical to paint FINAL d59253e. Edge alpha profile (semi-alpha band px / mean semi alpha / halo luminance):
+beach-ball 6.41/137/74, toadstool-light 6.36/136/74, sprinkler 7.69/136/74, rain-barrel 5.82/135/74.
+Shipped living: bunny 6.30/136/74, cactus 6.31, cat-tower 5.74, cat 6.09, dog 6.38, egg~cada-mouse 7.09 (all 134-136/74).
+=> matches shipped within tolerance (sprinkler +8% vs widest shipped, thin-stroke item). No reprocess. Earlier "thick glow" was the contact sheet's upscaled view.
