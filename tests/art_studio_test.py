@@ -255,6 +255,13 @@ PEN = """([x0, y0, x1, y1]) => { const g = document.getElementById('artGrip'); c
   g.dispatchEvent(new PointerEvent('pointerdown', {...o, clientX: x0, clientY: y0}));
   for (let i = 1; i <= 10; i++) window.dispatchEvent(new PointerEvent('pointermove', {...o, clientX: x0 + (x1 - x0) * i / 10, clientY: y0 + (y1 - y0) * i / 10}));
   window.dispatchEvent(new PointerEvent('pointerup', {...o, clientX: x1, clientY: y1})); }"""
+# Like PEN, but the press goes to whatever is really under the point (hit-tested) and from a finger or a Pencil.
+HIT = """([kind, x0, y0, x1, y1]) => { const o = {pointerType: kind, pointerId: kind === 'pen' ? 8 : 9, isPrimary: true, bubbles: true, pressure: .5};
+  const t = document.elementFromPoint(x0, y0); t.dispatchEvent(new PointerEvent('pointerdown', {...o, clientX: x0, clientY: y0}));
+  for (let i = 1; i <= 12; i++) window.dispatchEvent(new PointerEvent('pointermove', {...o, clientX: x0 + (x1 - x0) * i / 12, clientY: y0 + (y1 - y0) * i / 12}));
+  window.dispatchEvent(new PointerEvent('pointerup', {...o, clientX: x1, clientY: y1})); return t.id || t.className; }"""
+DOORHIT = """() => { const g = document.getElementById('artGrip').getBoundingClientRect(), d = document.querySelector('.yardDoor');
+  if (!d) return false; return [...d.querySelectorAll('*'), d].some(x => { const r = x.getBoundingClientRect(); return r.width > 2 && g.left < r.right && g.right > r.left && g.top < r.bottom && g.bottom > r.top; }); }"""
 
 async def wall_piece(mk):
     # 8. A hung painting is a normal wall piece: Paint button in the room, move, corner resize (finger + Pencil), persist, 3-client + old-client sync, delete.
@@ -375,6 +382,34 @@ async def wall_piece(mk):
     s2 = await S.evaluate(ITEMS, sid)
     check('wall solo: resized painting keeps size and spot after reload', s1['size'] > 1 and s2 == s1, [s1, s2])
     check('wall solo: no page errors', not eS, eS[:3]); await S.context.close()
+    # Regression (844x390 only, no resize at another size first): growing a painting to 1.5 put its corner handle over the
+    # back door, and the door's tap rescue swallowed every later press on the handle. Grow, then shrink with mouse, finger and Pencil.
+    P, eP = await mk(844, 390)
+    await paint(P, 2, fab=True); await P.locator('.stuHang').click(); await P.wait_for_timeout(900)
+    qid = (await P.evaluate(PAINTINGS))[0]['id']
+    if await P.evaluate("document.body.classList.contains('mode-play')"): await P.click('#modeDecorate'); await P.wait_for_timeout(300)
+    async def gripc(pg):
+        if await pg.locator('#artGrip').is_hidden():
+            bb = await pg.locator(f'.item[data-id="{qid}"]').bounding_box(); await pg.mouse.click(bb['x'] + bb['width'] * .3, bb['y'] + bb['height'] * .3); await pg.wait_for_timeout(400)
+        g = await pg.locator('#artGrip').bounding_box(); return g['x'] + g['width'] / 2, g['y'] + g['height'] / 2
+    gx, gy = await gripc(P); await P.mouse.move(gx, gy); await P.mouse.down()
+    for i in range(1, 16): await P.mouse.move(gx + i * 10, gy + i * 8); await P.wait_for_timeout(16)
+    await P.mouse.up(); await P.wait_for_timeout(800)
+    q1 = await P.evaluate(ITEMS, qid); check('844x390 regression: grown to 1.5 there', q1['size'] == 1.5, q1)
+    print('  (handle over the back door after growing:', await P.evaluate(DOORHIT), ')')
+    room0 = await P.evaluate(f"id => __ui().view + ':' + (document.querySelector(`.item[data-id=\"${{id}}\"]`) ? 'here' : 'gone')", qid)
+    gx, gy = await gripc(P); await P.mouse.move(gx, gy); await P.mouse.down(); await P.mouse.up(); await P.wait_for_timeout(900)  # a plain tap on the handle
+    room1 = await P.evaluate(f"id => __ui().view + ':' + (document.querySelector(`.item[data-id=\"${{id}}\"]`) ? 'here' : 'gone')", qid)
+    check('844x390 regression: tapping the handle does not walk through the door', room1 == room0 == 'house:here' and (await P.evaluate(ITEMS, qid)) == q1, [room0, room1])
+    gx, gy = await gripc(P); await P.mouse.move(gx, gy); await P.mouse.down()
+    for i in range(1, 9): await P.mouse.move(gx - i * 5, gy - i * 4); await P.wait_for_timeout(16)
+    await P.mouse.up(); await P.wait_for_timeout(800)
+    q2 = await P.evaluate(ITEMS, qid); check('844x390 regression: second mouse drag on the handle shrinks it', q2['size'] < 1.5, [q1, q2])
+    gx, gy = await gripc(P); t = await P.evaluate(HIT, ['touch', gx, gy, gx + 70, gy + 55]); await P.wait_for_timeout(800)
+    q3 = await P.evaluate(ITEMS, qid); check('844x390 regression: finger drag (hit-tested) reaches the handle and grows it', 'artGrip' in t and q3['size'] > q2['size'], [t, q2, q3])
+    gx, gy = await gripc(P); t = await P.evaluate(HIT, ['pen', gx, gy, gx - 60, gy - 45]); await P.wait_for_timeout(800)
+    q4 = await P.evaluate(ITEMS, qid); check('844x390 regression: Pencil drag (hit-tested) reaches the handle and shrinks it', 'artGrip' in t and q4['size'] < q3['size'], [t, q3, q4])
+    check('844x390 regression: no page errors', not eP, eP[:3]); await P.context.close()
 
 async def street_more(mk, join, A, B, hid, eA, eB):
     # 4. Decorate tools on a painting, iPad then phone: move it (re-hang in a new spot), put it away, hang a new one.
