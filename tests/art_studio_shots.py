@@ -27,12 +27,19 @@ async def run():
             g = await pg.locator('#artGrip').bounding_box(); gx, gy = g['x'] + g['width'] / 2, g['y'] + g['height'] / 2
             await pg.mouse.move(gx, gy); await pg.mouse.down()
             for i in range(1, 11): await pg.mouse.move(gx + i * 6, gy + i * 5); await pg.wait_for_timeout(16)
+            await pg.wait_for_timeout(300); await pg.screenshot(path=OUT + f'6_mid_resize_{t}.png')  # finger still down
             await pg.mouse.up(); await pg.wait_for_timeout(800)
             print(t, 'size', (await pg.evaluate(ITEMS, pid))['size'], 'toolbar', await pg.locator('#toolbar').is_visible())
             if not await pg.locator('#toolbar').is_visible():
                 bb = await pg.locator(f'.item[data-id="{pid}"]').bounding_box(); await pg.mouse.click(bb['x'] + bb['width'] * .3, bb['y'] + bb['height'] * .3); await pg.wait_for_timeout(400)
             print(t, 'grip after', await pg.evaluate(GRIPCHK, pid))
             await pg.screenshot(path=OUT + f'5_resized_toolbar_{t}.png')
+            g = await pg.locator('#artGrip').bounding_box(); gx, gy = g['x'] + g['width'] / 2, g['y'] + g['height'] / 2
+            await pg.mouse.move(gx, gy); await pg.mouse.down()
+            for i in range(1, 16): await pg.mouse.move(gx - i * 12, gy - i * 9); await pg.wait_for_timeout(16)
+            await pg.mouse.up(); await pg.wait_for_timeout(800)
+            print(t, 'small size', (await pg.evaluate(ITEMS, pid))['size'], 'grip', await pg.evaluate(GRIPCHK, pid))
+            await pg.screenshot(path=OUT + f'7_small_painting_{t}.png')
             await ctx.close()
         await br.close()
 asyncio.run(run())
