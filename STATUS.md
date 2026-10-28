@@ -64,3 +64,17 @@ Found along the way: on integration a fresh painting could land over the back do
 - Fix (APP CODE, needs App Builder review): the rescue now ignores presses whose target is inside `#artGrip` or `#toolbar`. It is one line in the stage capture pointerdown.
 - Door rescue still works: phone_test "a real touch on Back inside still works with a pet on the door" passes (chromium 390x844, 375x667, 430x932; webkit 390x844).
 - Regression test (844x390 only, no resize at another size first): grow to 1.5, plain tap on the handle (stays in the room), then a second mouse drag shrinks it, a hit-tested finger drag grows it and a hit-tested Pencil drag shrinks it. All pass. art_studio_test is 138/138.
+
+### Gate on 00fac37 / e8e5f71 (app src = 8b555d3), one suite at a time under the gate lock with a fresh hood each time
+| Suite | Result |
+|---|---|
+| tsc | pass |
+| paint_test | 47/47 |
+| art_studio_test (with old client) | 138/138 (art28) |
+| phone_test | 357/357 (phone11). phone9/phone10 each failed one welcome-card "Let's play visible" check at a different short height (932x340, then 844x300); it is a timing flake unrelated to the door/handle change |
+| hood | 43/43 |
+| gameroom | 69/69 |
+| map | 40/40 |
+| b0_compat | 14/14 (b0r10; b09 hit the known --port-b1 = --port-hood script typo) |
+| migration | 43/43 |
+Shots (shots27) in /workspace/surprise/art-studio-shots/pr/: 7_small_painting is 0.75-0.875 at all four sizes (844x390 now 0.75 with no retry). onCorner is true, and toolbarOnGrip and toolbarOnArt are 0 everywhere.
