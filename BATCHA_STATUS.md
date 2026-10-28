@@ -16,3 +16,7 @@ Branch cursor/art-batch-a from dda1839c8343b647c7051f3504f12ba7363461ef. Never p
 - 30 backyard WebPs painted, all <30 KB, art_process stretch within ±18% except little-slide 0.76 (flagged).
 - Not yet linted (art_bounds needs Playwright browser env; must run under gate lock).
 - Visual concerns: sprinkler droplets dropped by keyer (reads as splat); birdhouse post shortened; plum halo on several items; toadstool red not rose.
+
+## Step 0 — baseline on base dda1839 (2026-10-28)
+tsc ok. vite-node: ambient 63 (OLD_TREE=10ef736 archive), needs 51, arm_layer 3068, arrive ok, art_catalog 13, art_bounds 2, art_raster 11 pass/2 FAIL (base-known: "decor thumbnails have no contact shadow", "living rasters load, art=v1..."), avatar 50, baby 84, bathroom 27, costume 20, halloween ok, mail 77, mail_persist n/a (needs mode arg), needs_first_hint 11, paint 51, party 6, polish 34, rooms 71, sit 119, sky_undo 14, social 55, tables 26/26, trick_or_treat 24.
+Browser (gate, fresh servers): phone 383/383, hood 44/44, eggs ok, avatar 34/34, b0_compat 14/14.
