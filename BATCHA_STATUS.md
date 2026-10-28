@@ -73,3 +73,8 @@ Found: art_raster "a fresh house does not fetch unplaced catalog art" FAILed on 
 | mail_persist node/worker/b0 | 4/4/1 pass | 4/4/1 pass |
 | migration vs 10ef736 | 43 pass | 43 pass |
 Bundle (fresh --emptyOutDir builds, all JS gzip -9): dist 16,138,804 → 7,870,284 B; JS gzip 290,915 → 288,440 B (−2,475).
+
+## Step 6 — rollback values (verified live before deploy, 2026-10-28)
+- Worker cozy-hood-preview version 42fe087f-13f9-45e4-8db7-6c06e0a2c982
+- cozy-preview gh-pages 1b38f18f52032723fb442ded2ffb448b06c1341b
+- preview bundle index-BJ-2qTB5.js
