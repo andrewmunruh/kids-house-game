@@ -41,9 +41,12 @@ def edge_at(profile, want, search=24):
     lo = max(0, want - search); hi = min(len(profile) - 1, want + search)
     return max(range(lo, hi), key=lambda i: abs(profile[i + 1] - profile[i]))
 
-def paint_checks(scene, L, geom):
+def paint_checks(scene, L, geom, check=check, ref=None):
+    """ref: luminance of the vector render (outdoor scenes). The door frame there is a thick cream band
+    with plum ink, so the detector's 'strongest step' is measured on the vector render first, and the
+    painting must put that same step within TOL; the vector step itself must lie inside the frame band."""
     S = L.width / geom['logical'][0]
-    bx, by, bw, bh = geom['baseboard']
+    bx, by, bw, bh = geom['baseboard'] if 'baseboard' in geom else (0, geom['floorLine'], 0, 0)
     y0 = round(by * S); band = 4 * round(S)
     rows = row_profile(L, 40, L.width - 40)
     cand = [(sum(rows[y:y + band]) / band, y) for y in range(y0 - 16, y0 + 17)]
@@ -52,11 +55,17 @@ def paint_checks(scene, L, geom):
     if geom.get('door'):
         dx, dy, dw, dh = [v * S for v in geom['door']]
         prof = col_profile(L, round(dy + dh * 0.3), round(dy + dh * 0.7))
+        rprof = col_profile(ref, round(dy + dh * 0.3), round(dy + dh * 0.7)) if ref else None
         for nm, want in (('left', round(dx)), ('right', round(dx + dw))):
-            e = edge_at(prof, want)
+            if ref:
+                v = edge_at(rprof, want); check(f'{scene}: vector door {nm} edge within the frame band of x={want}', abs(v - want) <= 26, f'(vector {v})'); want = v
+            e = edge_at(prof, want, 12 if ref else 24)
             check(f'{scene}: door {nm} edge at x={want}', abs(e - want) <= TOL, f'(painted {e})')
-        e = edge_at(row_profile(L, round(dx + dw * 0.3), round(dx + dw * 0.7)), round(dy))
-        check(f'{scene}: door top edge at y={round(dy)}', abs(e - round(dy)) <= TOL, f'(painted {e})')
+        want = round(dy); rows = row_profile(L, round(dx + dw * 0.3), round(dx + dw * 0.7))
+        if ref:
+            v = edge_at(row_profile(ref, round(dx + dw * 0.3), round(dx + dw * 0.7)), want); check(f'{scene}: vector door top edge within the frame band of y={want}', abs(v - want) <= 26, f'(vector {v})'); want = v
+        e = edge_at(rows, want, 12 if ref else 24)
+        check(f'{scene}: door top edge at y={want}', abs(e - want) <= TOL, f'(painted {e})')
 
 HIT_JS = r"""() => {
   const out = [];
@@ -99,12 +108,58 @@ async def to_room(pg, room):
         await pg.evaluate("(r) => document.querySelector(`[data-room=\"${r}\"]`)?.click()", room)
     await pg.wait_for_timeout(700)
 
+OUTDOOR_JS = r"""() => { const w = document.getElementById('ranchWorld'); const img = w && w.querySelector('.sceneArtHost img.sceneArt');
+  return { on: !!w && w.classList.contains('sceneArtOn'), img: !!img && img.complete && img.naturalWidth > 0,
+    passThrough: !img || getComputedStyle(img).pointerEvents === 'none' }; }"""
+
+async def outdoor(b, bname, scene):
+    """Ranch yard / barn adapter: painted ink lines + static hotspots (props, plots, buckets, door tap, fence).
+    Horses and animals wander, so they are not compared box-for-box."""
+    async def open_(v1):
+        ctx, pg = await page(b, 1180, 820, v1); await go(pg, scene); await pg.wait_for_timeout(600); return ctx, pg
+    def static(g):
+        d = {s['name']: s['box'] for s in g['spots'] if not s['name'].startswith(('horse', 'animal'))}
+        d['doorTap'] = g['doorTap']; d['fence'] = g['fence']; return d
+    ctx, pg = await open_(True)
+    gv = await pg.evaluate(GEOM_JS, scene); v1 = await pg.evaluate(OUTDOOR_JS)
+    check(f'[{bname}] {scene}: ?art=v1 shows the vector', not v1['on'] and not v1['img'])
+    await ctx.close()
+    if bname == 'chromium':
+        L = lum(ROOT / 'assets' / 'art' / 'scene' / f'{scene}.webp')
+        ref = lum(ROOT / 'scripts' / 'scene_recipes' / 'outdoor' / f'{scene}__guide.png')
+        paint_checks(scene, L, gv, ref=ref)
+        # Negative control: the same checks must catch a painting shifted by 4 logical px.
+        neg = {}
+        sh = Image.new('L', L.size, 255); sh.paste(L, (8, 8))
+        paint_checks(scene, sh, gv, check=lambda n, ok, e='': neg.__setitem__(n, ok), ref=ref)
+        check(f'{scene}: a deliberately shifted painting is caught', not all(neg.values()), str(neg))
+    ctx, pg = await open_(False)
+    try: await pg.wait_for_selector('#ranchWorld.sceneArtOn', timeout=8000)
+    except Exception: pass
+    pa = await pg.evaluate(OUTDOOR_JS); gp = await pg.evaluate(GEOM_JS, scene)
+    check(f'[{bname}] {scene}: painting shown', pa['on'] and pa['img'])
+    check(f'[{bname}] {scene}: painting never takes taps (pointer-events none)', pa['passThrough'])
+    a, c = static(gv), static(gp)
+    check(f'[{bname}] {scene}: same static hotspot set', sorted(a) == sorted(c), str(sorted(a)))
+    for k in a:
+        same = c.get(k) is not None and a[k] is not None and max(abs(x - y) for x, y in zip(a[k], c[k])) <= 0.5
+        check(f'[{bname}] {scene}: {k} unchanged', same or (a[k] is None and c.get(k) is None), f'{c.get(k)} vs {a[k]}')
+    sel = '.barnDoor' if scene == 'ranch' else '.barnExit'
+    await pg.click(sel)
+    want = 'body.in-barn #ranchWorld .barnScene' if scene == 'ranch' else 'body.view-ranch:not(.in-barn) #ranchWorld .ranchScene'
+    try: await pg.wait_for_selector(want, timeout=6000); ok = True
+    except Exception: ok = False
+    check(f'[{bname}] {scene}: door tap with painting goes through', ok)
+    await ctx.close()
+
 async def main():
     check('at least one painted scene', len(SCENES) > 0, str(SCENES))
     async with async_playwright() as p:
         for bname in ('chromium', 'webkit'):
             b = await getattr(p, bname).launch()
             for scene in SCENES:
+                if scene in ('ranch', 'barn'):
+                    await outdoor(b, bname, scene); continue
                 if not scene.startswith('room-'):
                     check(f'[{bname}] {scene}: has a geometry adapter', False, 'add one to scene_hotspot_test.py (see SCENE_RECIPE.md)'); continue
                 room = scene.split('-', 1)[1]

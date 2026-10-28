@@ -11,3 +11,4 @@
 .sceneArtHost > img.sceneArt[hidden] { display: none; }
 /* The painting includes the door and its frame; the button stays as the tap target. */
 .stage.sceneArtOn .yardDoor .doorArt { visibility: hidden; }
+.ranchWorld.sceneArtOn > svg.ranchScene { opacity: 0; } /* ranch + barn paintings carry the scene (opacity, not visibility, so the svg still counts as shown); fence layer, props and animals stay live */

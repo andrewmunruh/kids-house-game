@@ -15,9 +15,34 @@ from playwright.async_api import async_playwright
 from pathlib import Path
 GEOM_JS = (Path(__file__).with_name('scene_geom.js')).read_text()
 
+async def outdoor_guide(pg, scene, out):
+    """Ranch yard / barn: the scene SVG alone (no props, animals, fence layer, avatars), 2x, no sun face."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from testnav import go
+    for sel in ('#phoneOk', '#wnGo'):
+        loc = pg.locator(sel)
+        if await loc.count() and await loc.is_visible(): await loc.click(force=True)
+    await go(pg, scene)
+    geom = await pg.evaluate(GEOM_JS, scene)
+    LW, LH = geom['logical']
+    await pg.evaluate("""([LW, LH]) => {
+      const svg = document.querySelector('#ranchWorld > svg.ranchScene').cloneNode(true);
+      svg.querySelectorAll('.ranchSignArt').forEach(a => a.style.transform = '');
+      // No faces on scenery: keep the sun disc, drop its eyes/mouth/blush.
+      svg.querySelectorAll('g[transform]').forEach(g => { const c = g.firstElementChild; if (c && c.tagName === 'circle' && c.getAttribute('r') === '48' && c.getAttribute('fill') === '#ffe066') [...g.children].slice(1).forEach(n => n.remove()); });
+      const st = document.createElement('style'); st.textContent = '* { animation:none !important; transition:none !important }'; document.head.appendChild(st);
+      Object.assign(svg.style, { position: 'fixed', left: '0', top: '0', width: LW + 'px', height: LH + 'px', zIndex: '999999', background: '#fff' });
+      document.body.appendChild(svg);
+    }""", [LW, LH])
+    await pg.set_viewport_size({'width': LW, 'height': LH})
+    await pg.wait_for_timeout(400)
+    await pg.screenshot(path=f'{out}/{scene}__guide.png', clip={'x': 0, 'y': 0, 'width': LW, 'height': LH})
+    json.dump(geom, open(f'{out}/{scene}__geom.json', 'w'), indent=1)
+    print(json.dumps(geom)[:400])
+
 async def main():
     url, scene, out = sys.argv[1], sys.argv[2], sys.argv[3]
-    room = scene.split('-', 1)[1]
+    room = scene.split('-', 1)[1] if '-' in scene else scene
     os.makedirs(out, exist_ok=True)
     sep = '&' if '?' in url else '?'
     async with async_playwright() as p:
@@ -26,6 +51,8 @@ async def main():
         await pg.add_init_script("localStorage.getItem('cozy-whatsnew')||localStorage.setItem('cozy-whatsnew','999')")
         await pg.goto(url + sep + 'art=v1', wait_until='networkidle')
         await pg.wait_for_selector('#world')
+        if scene in ('ranch', 'barn'):
+            await outdoor_guide(pg, scene, out); await b.close(); return
         if room != 'living':
             await pg.evaluate("(r) => { const b = document.querySelector(`.rooms [data-room=\"${r}\"], [data-room=\"${r}\"]`); b && b.click(); }", room)
             await pg.wait_for_timeout(800)

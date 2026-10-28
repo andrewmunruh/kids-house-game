@@ -4,7 +4,7 @@
 import asyncio, sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from playwright.async_api import async_playwright
-from testnav import SKIP_WN
+from testnav import SKIP_WN, go
 
 URL, LABEL, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
 SCENE = sys.argv[4] if len(sys.argv) > 4 else 'room-living'
@@ -22,11 +22,14 @@ async def shoot(b, name, w, h, v1):
     for sel in ('#phoneOk', '#wnGo'):
         loc = pg.locator(sel)
         if await loc.count() and await loc.is_visible(): await loc.click(force=True)
+    OUT_SC = SCENE in ('ranch', 'barn')
+    if OUT_SC: await go(pg, SCENE)
+    ON = '#ranchWorld.sceneArtOn' if OUT_SC else '#stage.sceneArtOn'
     try:
-        await pg.wait_for_function("() => !!document.querySelector('#stage.sceneArtOn') || !document.querySelector('#sceneArt')", timeout=6000 if not v1 else 1500)
+        await pg.wait_for_function("() => !!document.querySelector('" + ON + "') || !document.querySelector('#sceneArt')", timeout=6000 if not v1 else 1500)
     except Exception: pass
     await pg.wait_for_timeout(1200)
-    on = await pg.evaluate("() => !!document.querySelector('#stage.sceneArtOn')")
+    on = await pg.evaluate("() => !!document.querySelector('" + ON + "')")
     f = f"{OUT}/{LABEL}__{SCENE}__{w}x{h}__{name}{'__artv1' if v1 else ''}.png"
     await pg.screenshot(path=f)
     print(f, 'painted' if on else 'vector', flush=True)
