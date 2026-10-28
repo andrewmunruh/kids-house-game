@@ -176,3 +176,12 @@ Known, ignored:
 - Preview Worker cozy-hood-preview: version aec3b39f-8a8c-4a61-9a7e-aae56f8c8391, from 995ce76 (app/server = f4ab7ab). Same DO classes; paintings use the new `art:<houseId>` key inside HoodDO.
 - gh-pages cozy-preview: 36056b1c4d433bce6840a1fd48131b2236fff6fc, bundle index-ChnPX1Jt.js.
 - Rollback: Worker 27fc1494-fa64-46e2-bf3b-0b702f0e517c, gh-pages dcc6a1172a801f29682547cce4beefb66cd38d1d, bundle index-KUye7vth.js.
+
+### Preview smoke (step 4), live cozy-preview + cozy-hood-preview
+Throwaway preview streets, A at each viewport + B at 820x1180, Chromium. Script and logs: /workspace/surprise/art-studio-shots/preview4/ (smoke4.py, run-final.log, run-prev.log).
+Final run 24/25:
+- 820x1180: paint+hang, B sees bitmap, move (B follows), handle resize 1->1.5 (B follows), reload keeps place/size/bitmap, delete (gone on A and B), needs wish reaches B and care clears it on B, full street (60 unhung drafts on 5 filler houses) refuses a new girl with "The street is full of art!" toast and no frame: all PASS.
+- 844x390: paint, hang, move, resize, reload PASS. The delete straight after reload timed out in the final run (harness: locator.bounding_box wait). It PASSED in the earlier full run and in an isolated 844x390 rerun, and needs PASSED at 844x390 in that earlier run. Recorded as a harness flake.
+- 390x844: every check PASS.
+- No page/console errors; only hosts were andrewmunruh.github.io + cozy-hood-preview (no production).
+- Harness notes: an earlier 820x1180 run once missed the move drag (camera easing), passed on rerun. need/meet only counts at the right spot, so care is tested by walking the doll to the fridge.
