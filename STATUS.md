@@ -171,3 +171,8 @@ Known, ignored:
 - art_bounds_test.ts fails 1 check, the same as before the merge.
 - mail_persist_test.ts is a harness that needs a mode argument (node, worker or b0); it is not a standalone unit test.
 - None of the listed known flakes (photobooth 820x1180, tot_sync note, cross_feature trick-or-treat note) showed up in these runs. photobooth_test and tot_sync were not in this run.
+
+### PREVIEW deploy (Oct 28, 00:5x CT), production untouched
+- Preview Worker cozy-hood-preview: version aec3b39f-8a8c-4a61-9a7e-aae56f8c8391, from 995ce76 (app/server = f4ab7ab). Same DO classes; paintings use the new `art:<houseId>` key inside HoodDO.
+- gh-pages cozy-preview: 36056b1c4d433bce6840a1fd48131b2236fff6fc, bundle index-ChnPX1Jt.js.
+- Rollback: Worker 27fc1494-fa64-46e2-bf3b-0b702f0e517c, gh-pages dcc6a1172a801f29682547cce4beefb66cd38d1d, bundle index-KUye7vth.js.
