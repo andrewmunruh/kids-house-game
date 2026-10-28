@@ -229,3 +229,17 @@ The earlier failure only happened in the full smoke, right after the 820x1180 fu
 - LOCAL hood, real toolbar delete, B polled 250 ms up to 10 s, WS frames logged:
   - new build (c1419ac): 5/5 PASS, B gone after 0.25 s, one WS open, no close.
   - old 3a8b87b: 4/5 FAIL but A itself still shows painting (door-rescue bug), i.e. the delete never happened — original bug, not sync.
+  - integration4 e25ad21 (item delete): 5/5 PASS 0.25 s. new build item delete: 3/3 PASS 0.25 s.
+  - LIVE preview (1 minimal run, RUNS=2, new bundle): 2/2 PASS, B gone after 0.25 s and 1.02 s.
+    Frames run 2: A sent item/front at 21.11 and item/delete at 21.64 (A echo 10 ms); B received BOTH together at 22.58 (~0.9-1.5 s late).
+    Server core.broadcastAct sends to all conns synchronously, and locally there is no lag, so the lag is in Worker/edge delivery to B.
+  - VERDICT: harness timing, not a regression of the fix or the merge. fullorder reads B only 1.5 s after the tap. FORCEX run 1 also missed a RESIZE on B, which fits late delivery of every act, not a delete bug.
+    Child impact: a friend's screen may update ~1-1.5 s late on the live Worker. Cosmetic. Exact cause of the edge lag: not proved.
+
+### Finding 3 — 8th client join failure: per-IP lookup limit (mechanism proved, that exact run not captured)
+- Both node.ts:62 and worker.ts:113 allow 20 code lookups per 10 min per IP and return 429. The client (net.ts:37) maps 429 to askCode('Too many tries. Ask a grown-up…').
+- Local proof on hood 5871: after the old_art probe's joins, curl lookups returned 200 x8, then 429 from the 9th on. The count accumulates per IP across streets.
+- fullorder makes every join from one IP: 10 in pass 1, then 7 more before H in pass 2, so H is the 18th lookup. With preview4/ds lookups also inside the 10-min window, it goes over 20. The status code was not captured in that run because the console error list was truncated.
+- The WS limit of 60/min returning 404 exists only in node.ts; the Worker has none. The single preview WS console failure (A844 pass3) is a separate, one-off error.
+- Durable Object 128 KiB per value: max art:<houseId> = 12 x 8000 chars ~96 KB + JSON, so under the limit. Not a cause.
+- Child impact: only when more than 20 joins by code happen from one IP in 10 min (e.g. a classroom behind one NAT). By design, it shows a friendly message.
