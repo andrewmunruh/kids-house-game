@@ -244,6 +244,11 @@ SAVE12 = """([data, n, hang]) => { const hid = __hood().myHouseId(), s = __store
 async def hang_ui(pg, frame=0):
     await paint(pg, frame); await pg.locator('.stuHang').click(); await pg.wait_for_timeout(1500)
 
+GRIPCHK = """id => { const g = document.getElementById('artGrip'), d = g.querySelector('.artGripDot'), a = document.querySelector(`.item[data-id="${id}"]`).getBoundingClientRect(), r = g.getBoundingClientRect(), v = d.getBoundingClientRect(), t = document.getElementById('toolbar');
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2, tb = t.classList.contains('hidden') ? null : t.getBoundingClientRect();
+  const hit = document.elementFromPoint(cx, cy), ov = (p, q) => Math.max(0, Math.min(p.right, q.right) - Math.max(p.left, q.left)) * Math.max(0, Math.min(p.bottom, q.bottom) - Math.max(p.top, q.top));
+  return { touch: Math.round(Math.min(r.width, r.height)), visible: Math.round(Math.min(v.width, v.height)), onCorner: cx > a.right - v.width / 2 - 2 && cx < a.right + 2 && cy > a.bottom - v.height / 2 - 2 && cy < a.bottom + 2,
+    top: !!hit && g.contains(hit), pencil: !!g.querySelector('path[d*="L30 20"]'), arrows: g.querySelectorAll('svg path').length, toolbarOnGrip: tb ? Math.round(ov(tb, r)) : 0, toolbarOnArt: tb ? Math.round(100 * ov(tb, a) / (a.width * a.height)) : 0 }; }"""
 ITEMS = "id => { const it = Object.values(__store.get().rooms).flatMap(r => r?.items||[]).find(i => i.id === id); return it ? {x: Math.round(it.x), y: Math.round(it.y), size: it.size || 1, art: it.art || null} : null }"
 RECT = "id => { const e = document.querySelector(`.item[data-id=\"${id}\"]`); if (!e) return null; const b = e.getBoundingClientRect(); return {w: b.width, h: b.height, l: b.left, t: b.top, vw: innerWidth}; }"
 PEN = """([x0, y0, x1, y1]) => { const g = document.getElementById('artGrip'); const o = {pointerType: 'pen', pointerId: 7, isPrimary: true, bubbles: true, pressure: .5};
@@ -280,6 +285,11 @@ async def wall_piece(mk):
         if not await pg.locator('#artGrip').is_visible():
             bb = await pg.locator(f'.item[data-id="{pid}"]').bounding_box(); await pg.mouse.click(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); await pg.wait_for_timeout(300)
     await select(A)
+    gc = await A.evaluate(GRIPCHK, pid)
+    check('handle: 60px+ touch target, 48px+ visible disc', gc['touch'] >= 60 and gc['visible'] >= 48, gc)
+    check('handle: sits on the painting corner, on top, diagonal arrows not pencil', gc['onCorner'] and gc['top'] and not gc['pencil'] and gc['arrows'] == 2, gc)
+    check('handle: toolbar clear of the handle and most of the painting', gc['toolbarOnGrip'] == 0 and gc['toolbarOnArt'] <= 10, gc)
+    check('handle: glows on first pick', await A.evaluate("document.getElementById('artGrip').classList.contains('pulse')"), '')
     g = await A.locator('#artGrip').bounding_box()
     check('wall: selected painting shows a corner resize handle >= 44px', g and g['width'] >= 44 and g['height'] >= 44, g)
     r0 = await A.evaluate(RECT, pid)

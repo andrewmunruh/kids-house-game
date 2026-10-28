@@ -21,12 +21,17 @@ async def run():
             await pg.screenshot(path=OUT + f'3_hung_{t}.png')
             if await pg.evaluate("document.body.classList.contains('mode-play')"): await pg.click('#modeDecorate'); await pg.wait_for_timeout(300)
             bb = await pg.locator(f'.item[data-id="{pid}"]').bounding_box(); await pg.mouse.click(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); await pg.wait_for_timeout(400)
+            print(t, 'grip', await pg.evaluate(GRIPCHK, pid))
+            await pg.wait_for_timeout(3200)  # let the first-pick glow finish
             await pg.screenshot(path=OUT + f'4_selected_handle_{t}.png')
             g = await pg.locator('#artGrip').bounding_box(); gx, gy = g['x'] + g['width'] / 2, g['y'] + g['height'] / 2
             await pg.mouse.move(gx, gy); await pg.mouse.down()
             for i in range(1, 11): await pg.mouse.move(gx + i * 6, gy + i * 5); await pg.wait_for_timeout(16)
             await pg.mouse.up(); await pg.wait_for_timeout(800)
             print(t, 'size', (await pg.evaluate(ITEMS, pid))['size'], 'toolbar', await pg.locator('#toolbar').is_visible())
+            if not await pg.locator('#toolbar').is_visible():
+                bb = await pg.locator(f'.item[data-id="{pid}"]').bounding_box(); await pg.mouse.click(bb['x'] + bb['width'] * .3, bb['y'] + bb['height'] * .3); await pg.wait_for_timeout(400)
+            print(t, 'grip after', await pg.evaluate(GRIPCHK, pid))
             await pg.screenshot(path=OUT + f'5_resized_toolbar_{t}.png')
             await ctx.close()
         await br.close()
