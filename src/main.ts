@@ -1485,7 +1485,7 @@ function renderToolbar(s: GameState) {
   const foot = drawY(def, it.y);
   const pieceTop = foot - hOf(def) * drawnScale(it);
   // A selected painting has a resize handle on its bottom-right corner: keep the bar clear of it.
-  const gap = it.kind === 'picture' && it.art ? 12 + 34 / (stage.getBoundingClientRect().width / Math.max(1, VIEW_W) || 1) : 12;
+  const gap = it.kind === 'picture' && it.art ? 12 + 48 / (stage.getBoundingClientRect().width / Math.max(1, VIEW_W) || 1) : 12;
   toolbar.classList.remove('hidden');
   toolbar.style.maxWidth = '';
   toolbar.classList.remove('below');
