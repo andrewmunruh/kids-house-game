@@ -92,3 +92,14 @@ Shots (shots27) in /workspace/surprise/art-studio-shots/pr/: 7_small_painting is
     - a friend on a full street is refused;
     - the old (no art:1) client is never sent art or artFail.
   - Save stays v3, protocol 4.
+- (1) 390x844 room size: NOT intentional, and NOT caused by the art studio.
+  - Measured in Play mode at 390x844. Our base 10ef736 and this branch both gave stage 366x377 and door 60x145. Production 18ee50c gave stage 366x479 and door 77x184.
+  - Production fixed this in 7efd36f ("phone portrait Play lets the room fill more of the tall box, 377px to 479px"), which landed after our base.
+  - Fix: cherry-picked 7efd36f cleanly as c3d8559 (src/main.ts, 4 lines). This branch now measures the same as production (door 77x184). The Art Studio still fits at 390x844.
+- (2) Studio buttons at 844x390: APP CSS, needs App Builder review (d1a4cf6, `src/paint/studio.css`).
+  - At landscape heights of 385-500px, the close button, colours, sizes and Hang it up go from 36/40px to 44px.
+  - At 844x390 and 932x430 there is no side-panel overflow, and Hang it up stays in the card.
+  - At 667x375 and 740x360 the 44px sizes overflowed the panel (Hang it up left the card at 740x360). Those heights keep 36/40px.
+- (3) Server wall-band clamp: SKIPPED as not low risk.
+  - WALL_BOTTOM is a client-only rule that applies to every wall item.
+  - A server clamp would sit in the generic item move/place path that old clients (10ef736) use. Their local positions would drift from the server unless every move were echoed back.
