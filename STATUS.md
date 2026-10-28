@@ -103,3 +103,36 @@ Shots (shots27) in /workspace/surprise/art-studio-shots/pr/: 7_small_painting is
 - (3) Server wall-band clamp: SKIPPED as not low risk.
   - WALL_BOTTOM is a client-only rule that applies to every wall item.
   - A server clamp would sit in the generic item move/place path that old clients (10ef736) use. Their local positions would drift from the server unless every move were echoed back.
+
+## Round 2 (App Builder review of ba16461), final head after 779a513
+- (a)+(b) SERVER, App Builder to review (7b48098, `server/core.ts` saveArt):
+  - A full street is refused with `streetfull`, and another child's house is never touched.
+  - The saver may free only her OWN oldest unhung draft. A painting saved in the last 90 s and not yet hung is never cleared.
+  - paint_test is now 51 checks. art_studio_test section 7 was rewritten (779a513): the new girl on a full street is refused with the street-full toast and no frame is left on her wall. The server still holds every painting in houses B, E and F. The owner either frees her own old draft or is refused, and no orphan frame is left. The old 10ef736 client still passes.
+- (1) The smaller 390x844 room was NOT intentional, and the art studio did not cause it.
+  - Measured in Play mode: our base 10ef736 already had stage 366x377 and door 60x145. Production 18ee50c has 366x479 and 77x184.
+  - Production fixed it in 7efd36f after our base. Cherry-picked cleanly as c3d8559, and the door now measures 77x184, the same as production.
+- (2) APP CSS, App Builder to review (d1a4cf6):
+  - At landscape heights of 385-500px (844x390, 932x430), the close button, colours, sizes and Hang it up go to 44px with no overflow.
+  - Below 385px (667x375, 740x360) they stay at 36/40px, because 44px pushed Hang it up out of the card.
+- (3) Server wall-band clamp: SKIPPED, not low risk.
+  - WALL_BOTTOM is a client-only rule for every wall item.
+  - A server clamp would sit in the generic item move path that 10ef736 clients use, and their positions would drift from the server's.
+- Shots at 4 sizes, regenerated from app code d1a4cf6: /workspace/surprise/art-studio-shots/pr/ (1_paint_button … 7_small_painting, at 390x844, 844x390, 820x1180 and 1180x820).
+
+### Gate: one suite at a time under /workspace/surprise/gate.lock, fresh hood each time, screens/ and shots/ restored after each
+Suites ran on 5bbf905. App and server code are identical to the final head; 779a513 changes only tests/art_studio_test.py, which was re-run on its own.
+
+| Suite | Result |
+|---|---|
+| tsc (`tsc --noEmit -p .`) | ok |
+| paint_test | 51/51 |
+| art_studio_test (OLDWEB=10ef736) | 139/139 (on 779a513) |
+| phone_test | 357/357 |
+| hood | 43/43 |
+| gameroom | 69/69 |
+| map | 40/40 |
+| b0_compat | 14/14 |
+| migration (vs built 10ef736) | 43/43 |
+
+Not on the list: art_bounds_test.ts, art_raster_test.ts and mail_persist_test.ts in tests/*.ts fail under vite-node exactly as they did in the earlier gate on 00fac37. This is unchanged and not caused by round 2. No deploy.
