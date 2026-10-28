@@ -16,8 +16,10 @@ async def run():
             await pg.screenshot(path=OUT + f'1_paint_button_{t}.png')
             await paint(pg, 2, fab=await pg.locator('#artFab').is_visible()); await pg.wait_for_timeout(300)
             await pg.screenshot(path=OUT + f'2_studio_{t}.png')
+            before = {q['id'] for q in await pg.evaluate(PAINTINGS)}
             await pg.locator('.stuHang').click(); await pg.wait_for_timeout(1500)
-            pid = (await pg.evaluate(PAINTINGS))[-1]['id']; await into_view(pg, pid)
+            pid = [q for q in await pg.evaluate(PAINTINGS) if q['id'] not in before][0]['id']  # the one just hung (not an older one)
+            print(t, 'paintings', len(before) + 1); await into_view(pg, pid)
             await pg.screenshot(path=OUT + f'3_hung_{t}.png')
             if await pg.evaluate("document.body.classList.contains('mode-play')"): await pg.click('#modeDecorate'); await pg.wait_for_timeout(300)
             bb = await pg.locator(f'.item[data-id="{pid}"]').bounding_box(); await pg.mouse.click(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); await pg.wait_for_timeout(400)
