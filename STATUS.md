@@ -194,3 +194,11 @@ Final run 24/25:
 - No page errors, no production hosts.
 Logs, script and toolbar shots: /workspace/surprise/art-studio-shots/preview4/deleteproof_*.
 The earlier failure only happened in the full smoke, right after the 820x1180 full-street round in the same browser, and it was not reproduced here.
+
+## 1:49 AM full-order rerun (live preview, no deploy)
+- After the reboot: cozy-preview serves index-ChnPX1Jt.js, gh-pages is 36056b1c, and the Worker /api/create returns 200. Head matched origin.
+- 2 passes, 820x1180 full street (60 unhung) then 844x390 in the same browser: 19/22. Pass 2 at 844 failed. A tap on the moved painting (x~992) sent the room to backyard, and the painting find timed out after 30 s. This is the original smoke failure.
+- Deterministic repro without a full street: FORCEX=740. The tap at (237,104) is inside the back door's .yardHintLabel rect [132,73,237,111]. The stage capture door rescue (src/main.ts doorAtPoint, about line 1255) exempts only #artGrip/#toolbar, so it steals the painting tap and calls goDoor('backyard').
+- Fix for App Builder (not applied, not deployed): in that capture handler, return early when e.target.closest('.item') is set (hung paintings and furniture above the door), and/or shrink the label hit area.
+- Pass 1 at 820 also hit a harness TypeError after the hang (an ITEM lookup returned None, probably the same room switch). Not yet confirmed.
+- Evidence: /workspace/surprise/art-studio-shots/preview4/{fullorder.py,fullorder.log,repro_x.log,*.png}
