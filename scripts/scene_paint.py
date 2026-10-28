@@ -12,6 +12,7 @@ RECIPE keys (paths relative to the recipe file):
   door        AI door painting on flat cream; fitted into geom.door exactly (optional)
   base        baseboard fill hex (default #fbefe4); ink #5b3d5c lines top+bottom (4 logical px)
   max_kb      size budget (default 150)
+  preview     optional PNG path for a full-size review copy
 Every texture is made horizontally seamless (edge crossfade) and tiled, recoloured to the
 target mean in Lab, then lit softly from the upper left with a gentle vignette.
 """
@@ -138,7 +139,8 @@ def main():
         door, mask = fit_door(P('door'), dw, dh)
         canvas.paste(door, (dx, dy), mask)
     data, q = encode(canvas, R.get('max_kb', 150))
-    out = P('out'); open(out, 'wb').write(data); canvas.save(out + '.png')
+    out = P('out'); open(out, 'wb').write(data)
+    if R.get('preview'): canvas.save(P('preview'))  # optional full-size PNG for review
     print(json.dumps({'out': R['out'], 'size': [W, H], 'bytes': len(data), 'quality': q}))
 
 main()
