@@ -1,4 +1,5 @@
 import './style.css';
+import { arriveSpot } from './shared/arrive';
 import './juice.css';
 import './scenery.css';
 import './mail.css';
@@ -27,12 +28,20 @@ import { characterSVG, cradleFrontSVG, handsFor, SIZE_SCALE } from './character'
 import { lookStamp, look2FromLegacy, legacyFromLook2, randomLook2, patchFromLook2, sanitizeLook2, type Look2 } from './shared/avatar';
 import { stampAvatar, richAvatars } from './avatar/motion';
 import { avatarSheetHTML, avatarAct, avatarIntroPending, markAvatarIntro } from './avatar/sheet';
+import { cleanCostume } from './shared/costume';
 import { chibiRideLeg } from './avatar/ride';
 import { sfx, setSound } from './sound';
 import { setAmbientMusic, primeAmbientMusic } from './ambientMusic';
 import { BEAT_MS, MUSIC_BOX_MS, isFridge, isPowerable, isTub, reactionsFor, roleOf, syncDelayMs, type AmbChar, type AmbItem, type Reaction, type ReactionKind } from './shared/ambient';
 import './ambient.css';
-import { catalogShows } from './roomfilter';
+import { partyFor, PARTY_PET_RADIUS, type Party } from './shared/party';
+import './party.css';
+import { takePhoto } from './photobooth';
+import './photobooth.css';
+import { catalogShows, seasonHidden } from './roomfilter';
+import { candyCount, knockTreat, trickOrTreatOn, knockNote } from './candy';
+import { MORE_CHAR_FX, MORE_ITEM_FX, MORE_PERIOD, keysPlaying, moreItemFx, syncSocial, tapMore } from './social';
+import { installNeeds } from './needs-ui';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
@@ -101,7 +110,7 @@ const TABS: Tab[] = [
 ];
 TABS.push({ id: 'secrets', name: 'Secrets', icon: 'egg:chloe-starlamp', kind: 'cat' });
 for (const it of ITEMS) if (!TABS.some(t => t.kind === 'cat' && t.id === it.cat)) TABS.push({ id: it.cat, name: it.cat, icon: it.kind, kind: 'cat' });
-for (const it of ITEMS) if (it.pack && !TABS.some(t => t.id === 'pack:' + it.pack)) TABS.push({ id: 'pack:' + it.pack, name: packLabel(it.pack), icon: it.kind, kind: 'pack' });
+for (const it of ITEMS) if (it.pack && !seasonHidden(it) && !TABS.some(t => t.id === 'pack:' + it.pack)) TABS.push({ id: 'pack:' + it.pack, name: packLabel(it.pack), icon: it.kind, kind: 'pack' });
 const tabItems = (tab: string) => ITEMS.filter(i => catalogShows(i, tab, store.get().currentRoom, roomFilter === 'all', foundSet()));
 
 const WALLS = ['#ffd6e0', '#d9ccff', '#cdf3dc', '#cfe8ff', '#fff1b8', '#ffe0c7', '#ffffff', '#f6c1ff'];
@@ -144,6 +153,7 @@ app.innerHTML = `
   <div class="menuCard" role="dialog" aria-label="Menu">
     <button type="button" class="close" id="menuClose" aria-label="Close">✕</button>
     <p class="menuGroup">My stuff</p>
+    <button type="button" class="menuRow photoRow" id="btnPhoto" aria-label="Take a photo"><span class="mIco">📸</span><span class="mLabel">Take a photo</span></button>
     <button type="button" class="menuRow" id="btnPets" aria-label="Pets"><span class="mIco">${pawIcon}</span><span class="mLabel">Pets</span></button>
     <button type="button" class="menuRow" id="btnDress" aria-label="Characters"><span class="mIco">${ICON.shirt}</span><span class="mLabel">Characters</span></button>
     <button type="button" class="menuRow" id="btnStudio" aria-label="Art Studio"><span class="mIco">${STUDIO_ICON}</span><span class="mLabel">Art Studio</span></button>
@@ -158,7 +168,7 @@ app.innerHTML = `
     <button type="button" class="menuRow grownRow" id="btnParent" aria-label="Grown-ups"><span class="mIco">${ICONS.shield}</span><span class="mLabel">Grown-ups</span></button>
     <button type="button" class="menuRow soloLeave" id="btnSolo" aria-label="Play in my own house"><span class="mIco">${ICONS.solo}</span><span class="mLabel">Play in my own house</span></button>
     <button type="button" class="menuRow friendRow" id="btnHood" aria-label="Friends"><span class="mIco">${ICONS.street}</span><span class="mLabel">Friends</span></button>
-    <p class="menuGroup">This iPad</p>
+    <p class="menuGroup">Settings</p>
     <button type="button" class="menuRow" id="btnSound" aria-label="Sound"><span class="mIco" id="soundIco"></span><span class="mLabel">Sound</span></button>
   </div>
 </div>
@@ -167,6 +177,7 @@ app.innerHTML = `
     <div class="world" id="world">
       <div class="wall" id="wall"></div><div class="floor" id="floor"></div><div class="baseboard"></div>
       <div class="scenery" id="scenery"></div>
+      <div class="partyFx" id="partyFx" aria-hidden="true"><i class="pl pl1"></i><i class="pl pl2"></i><i class="pl pl3"></i><i class="sp s1"></i><i class="sp s2"></i><i class="sp s3"></i><i class="sp s4"></i><i class="sp s5"></i><i class="sp s6"></i><i class="sp s7"></i><i class="sp s8"></i></div>
       <div class="layer" id="layer"></div>
       <div class="artGrip hidden" id="artGrip" role="button" aria-label="Drag to make the painting bigger or smaller"><span class="artGripDot"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M11 29 L29 11" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/><path d="M9 19 L9 31 L21 31 Z M31 21 L31 9 L19 9 Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span></div>
       <div class="toolbar hidden" id="toolbar">
@@ -672,24 +683,35 @@ function placeStage(sc: number) {
   stage.style.transform = `translate(-50%,-50%) scale(${sc})`;
 }
 /** Phone landscape parks Play/Decorate in the top row. Phone portrait keeps them in the
- *  dock beside the scrolling chips. iPad leads the chip row with them, the way the
- *  room did before the Menu, so the drawer stays two rows and the stage still fills. */
+ *  dock beside the scrolling chips. Portrait iPad (under 900 wide) leads the wrapping chip
+ *  row with them. Wide iPad, where the chip row scrolls sideways, pins Play/Decorate and
+ *  "All rooms" in the dock outside that scroller so a far pack tap can't slide them away. */
 function placeModeToggle() {
   const toggle = $('modeToggle');
   const tools = document.querySelector('.tools');
   const dock = document.getElementById('modeDock');
   const top = document.querySelector('.drawerTop');
-  if (!toggle || !tools || !dock || !top) return false;
+  const rooms = document.getElementById('roomFilter');
+  if (!toggle || !tools || !dock || !top || !rooms) return false;
   const phone = document.body.classList.contains('phone');
   const land = phone && !document.body.classList.contains('phone-portrait');
-  const home = land ? tools : phone ? dock : top;
-  const parked = toggle.parentElement === home;
-  dock.hidden = !phone || land;
-  if (parked) return false;
-  if (land) tools.insertBefore(toggle, tools.firstChild);
-  else if (phone) dock.appendChild(toggle);
-  else top.insertBefore(toggle, top.firstChild);
-  return true;
+  const wide = !phone && window.matchMedia('(min-width: 900px)').matches;
+  const home = land ? tools : phone || wide ? dock : top;
+  dock.hidden = !(phone && !land) && !wide;
+  dock.classList.toggle('wideDock', wide);
+  let moved = false;
+  const roomsHome = wide ? dock : top;
+  if (rooms.parentElement !== roomsHome) {
+    if (wide) dock.appendChild(rooms); else top.insertBefore(rooms, top.firstChild);
+    moved = true;
+  }
+  if (toggle.parentElement !== home || (wide && dock.firstChild !== toggle)) {
+    if (land) tools.insertBefore(toggle, tools.firstChild);
+    else if (phone || wide) dock.insertBefore(toggle, dock.firstChild);
+    else top.insertBefore(toggle, top.firstChild);
+    moved = true;
+  }
+  return moved;
 }
 /**
  * Phone Play portrait only. fit() will not zoom past a 480-wide view, which letterboxes a tall phone.
@@ -2120,6 +2142,8 @@ function updateChipCue() {
   const bar = document.getElementById('drawerBar');
   if (!row || !bar) return;
   bar.classList.toggle('more', row.scrollWidth - row.clientWidth - row.scrollLeft > 6);
+  // Scrolled away from the start: fade the left edge too, so a half chip doesn't butt against Play/Decorate.
+  bar.classList.toggle('back', row.scrollLeft > 6);
 }
 document.querySelector('.drawerTop')!.addEventListener('scroll', updateChipCue, { passive: true });
 window.addEventListener('resize', updateChipCue);
@@ -2180,6 +2204,12 @@ $('sheet').addEventListener('click', e => {
   if (act !== 'delc') confirmDelete = false;
   if (act && act.indexOf('av-') === 0) {
     const cur = id === ME ? myLook() : store.get().characters.find(x => x.id === id);
+    if (act === 'av-costume') {
+      if (cur && !cur.look2) ensureLook(id);
+      const now = id === ME ? myLook() : store.get().characters.find(x => x.id === id);
+      updateChar(id, { costume: (cleanCostume(v) ?? null) as never, ...(now?.look2 ? { look2: now.look2 } : {}), size: now?.size ?? 'kid' });
+      sfx.sparkle(); renderSheet(); bounce(document.querySelector('.avStage')); return;
+    }
     if (act === 'av-surprise') {
       updateChar(id, { ...patchFromLook2(randomLook2()), size: cur?.size ?? 'kid' });
       sfx.sparkle(); renderSheet(); bounce(document.querySelector('.avStage')); return;
@@ -2295,6 +2325,7 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js');
 (window as any).__store = store; // handy for debugging / tests
+installNeeds({ get: () => store.get(), dispatch: a => store.dispatch(a), subscribe: fn => store.subscribe(fn), canDrift: () => view === 'house' && ownsDolls(), speaks: () => !hood || inner === local || hood.speaksNeeds, layer, menuAfter: $('btnSound') });
 (window as any).__items = Object.fromEntries(ITEMS.filter(i => i.img).map(i => [i.kind, { w: i.w, h: hOf(i), cat: i.cat, holdable: i.holdable, svg: i.img!.includes('.svg') }]));
 (window as any).__cam = { get: () => camX, set: setCam };
 (window as any).__phoneShowKids = () => phoneShowKids();
@@ -2327,7 +2358,13 @@ function updateChar(id: string, patch: Partial<Character>) {
   store.dispatch({ type: 'char/update', id, patch });
 }
 function setMyPres(p: Presence) { hood?.setPresence(p); }
-function moveMeToRoom(room: RoomId) { const p = myPres(); if (p && p.where === 'house') setMyPres({ ...p, room }); }
+/** Visitors arrive apart from the host and anyone else already standing in the room. */
+function apartIn(houseId: string, room: RoomId, want: { x: number; y: number }) {
+  const others: { x: number; y: number }[] = [];
+  hood?.presence.forEach((q, pid) => { if (pid !== hood!.pid && q.where === 'house' && q.houseId === houseId && q.room === room) others.push(q); });
+  return arriveSpot(want, others, { minX: 80, maxX: W - 80, minY: FLOOR_Y + 60, maxY: H - 20 });
+}
+function moveMeToRoom(room: RoomId) { const p = myPres(); if (p && p.where === 'house') { const at = p.houseId ? apartIn(p.houseId, room, p) : p; setMyPres({ ...p, room, x: at.x, y: at.y }); } }
 
 function useStore(next: AnyStore) {
   inner = next; hookStore(next); selected = null; setTimeout(() => eggs.update());
@@ -2676,6 +2713,27 @@ function portraitPlan(n: number) {
     park: { x: 96, y: 122 }, club: { x: 280, y: 116 }, ranch: { x: 458, y: 120 },
   };
 }
+/** Trick-or-treat: a little pumpkin by each neighbor's door. Her own house never gets one. */
+function knockBtn(h: MapHouse, x: number, y: number, px: (v: number) => string) {
+  if (!h || h.mine || !trickOrTreatOn()) return '';
+  return `<button class="mapKnock" data-knock="${h.id}" aria-label="Knock at ${esc(h.name)} for a treat" style="left:${px(x)};top:${px(y)}"><span>🎃</span></button>`;
+}
+const knockSeen = new Map<string, number>();
+function renderCandyBucket() {
+  const st = $('street'); let b = document.getElementById('candyBucket');
+  if (!trickOrTreatOn()) { b?.remove(); return; }
+  if (!b) { b = document.createElement('div'); b.id = 'candyBucket'; b.className = 'candyBucket'; b.setAttribute('aria-live', 'polite'); st.appendChild(b); }
+  const n = candyCount(localStorage);
+  b.innerHTML = `<span class="pail">🎃</span><b>${n}</b>`; b.setAttribute('aria-label', `${n} treats in your bucket`);
+}
+function knockDoor(btn: HTMLElement) {
+  const { treat } = knockTreat(localStorage);
+  renderCandyBucket(); bounce(btn); sfx.pop();
+  const pop = document.createElement('span'); pop.className = 'treatPop'; pop.textContent = treat; btn.appendChild(pop);
+  setTimeout(() => pop.remove(), 900);
+  const b = document.getElementById('candyBucket'); if (b) bounce(b);
+  if (hood) hood.knock(btn.dataset.knock!);
+}
 function renderMap(force = false) {
   if (view !== 'street') return;
   const w = $('mapWorld');
@@ -2713,7 +2771,7 @@ function renderMap(force = false) {
         : Math.min(plan.w - mw - 4, c.x + hw / 2 + 8);
       const my = Math.max(4, Math.min(plan.h - mh - 4, c.y - hh * 0.42));
       spots += `<button class="mapSpot mapHouse ${h?.mine || !h ? 'mine' : ''}" data-go="${go}" aria-label="${esc(name)}" style="left:${px(c.x - hw / 2)};top:${px(c.y - hh / 2)};width:${px(hw)};height:${px(hh)}">${houseSVG(h ? h.style : 0, { lit: h ? h.lit : true })}${h?.locked ? '<span class="lockBadge">🔒</span>' : ''}${h?.mine || !h ? '<span class="homeBadge">★</span>' : ''}</button>
-        <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>`;
+        <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>${knockBtn(h, leftCol ? c.x + hw / 2 - 30 : c.x - hw / 2 - 10, c.y + hh * 0.12, px)}`;
       signs += `<div class="mapSign ${h?.mine || !h ? 'mine' : ''}" style="left:${px(c.x)};top:${px(c.y + hh / 2 + 2)}">${esc(name)}</div>`;
     });
     const place = (cls: string, go: string, label: string, art: string, x: number, y: number, wd: number, ht: number, signDy: number) => {
@@ -2754,7 +2812,7 @@ function renderMap(force = false) {
       const mx = Math.max(4, Math.min(MAP_W - mw - 4, c.x + hw / 2 + slop));
       const my = Math.max(4, Math.min(MAP_H - mh - 4, c.y - hh * 0.22));
       spots += `<button class="mapSpot mapHouse ${h?.mine || !h ? 'mine' : ''}" data-go="${go}" aria-label="${esc(name)}" style="left:${px(c.x - hw / 2)};top:${px(c.y - hh / 2)};width:${px(hw)};height:${px(hh)}">${houseSVG(h ? h.style : 0, { lit: h ? h.lit : true })}${h?.locked ? '<span class="lockBadge">🔒</span>' : ''}${h?.mine || !h ? '<span class="homeBadge">★</span>' : ''}</button>
-        <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>`;
+        <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>${knockBtn(h, Math.max(4, c.x - hw / 2 - 40 / sc), c.y - hh * 0.05, px)}`;
       signs += `<div class="mapSign ${h?.mine || !h ? 'mine' : ''}" style="left:${px(c.x)};top:${px(c.y + hh / 2 - 2)}">${esc(name)}</div>`;
     });
     spots += `<button class="mapSpot mapPark" data-go="park" aria-label="The park" style="left:${px(PARK.x - 100)};top:${px(PARK.y - 85)};width:${px(200)};height:${px(170)}">${parkMiniSVG}</button>`;
@@ -2768,6 +2826,7 @@ function renderMap(force = false) {
     clip.insertAdjacentHTML('beforeend', mapTreesSVG(taken, onRoad) + spots + '<div class="mapFaces" id="mapFaces"></div>');
   }
   w.insertAdjacentHTML('beforeend', signs);
+  renderCandyBucket();
   renderMapFaces();
   placeMap(sc);
 }
@@ -2933,9 +2992,15 @@ function setMenuOpen(open: boolean) {
   if (open) document.querySelectorAll('.toast').forEach(el => el.remove());
   $('menuPop').classList.toggle('hidden', !open);
   $('btnMenu').setAttribute('aria-expanded', open ? 'true' : 'false');
+  $('btnPhoto').classList.toggle('ok', view === 'house');
   if (open) paintBadges();
   placeHouseTag();
 }
+$('btnPhoto').addEventListener('click', () => {
+  // Close the menu first, so the photo is just the room. Made on this iPad only; nothing is sent.
+  setMenuOpen(false);
+  requestAnimationFrame(() => requestAnimationFrame(() => { void takePhoto(stage, () => sfx.click()); }));
+});
 /** The menu card sits over the top of the stage. Slide the house name clear of it. */
 function placeHouseTag() {
   const tag = $('houseTag');
@@ -2978,6 +3043,8 @@ function openMailbox(id: string) {
 }
 $('mapWorld').addEventListener('click', e => {
   const t = e.target as HTMLElement; if (view !== 'street') return;
+  const kn = t.closest<HTMLElement>('.mapKnock');
+  if (kn) { knockDoor(kn); return; }
   const box = t.closest<HTMLElement>('.mapMail');
   if (box) { openMailbox(box.dataset.mail || 'home'); return; }
   const f = t.closest<HTMLElement>('.mapFace');
@@ -3009,7 +3076,7 @@ function enterHouse(houseId: string, room: RoomId = 'living') {
   let st = houseStores.get(houseId);
   if (!st) { st = houseStore(hood, houseId, { get: () => local.get().soundOn, set: on => local.dispatch({ type: 'settings/sound', on }) }); houseStores.set(houseId, st); }
   st.dispatch({ type: 'room/switch', room });
-  setMyPres({ where: 'house', houseId, room, x: 900 + Math.random() * 300, y: 540, flip: false });
+  { const at = apartIn(houseId, room, { x: 900 + Math.random() * 300, y: 540 }); setMyPres({ where: 'house', houseId, room, x: at.x, y: at.y, flip: false }); }
   hideScenes();
   useStore(st); sceneIn($('stageWrap')); sfx.sparkle();
   fitPhone();
@@ -3060,6 +3127,10 @@ function enterNeighborhood(client: HoodClient) {
   client.on('noride', () => { if (hood !== client) return; const p = myPres(); if (p?.ride !== undefined) { const { ride: _r, ...q } = p; setMyPres(q); renderRanchAvatars(); } toast('Someone is riding that horse!'); });
   client.on('fx', (pid: string, fx: Fx) => { if (hood === client) onFx(pid, fx); });
   client.on('bubble', (pid: string, b: Bubble) => { if (hood === client) showBubble(pid, b); });
+  client.on('knocked', (_houseId: string, name: string) => {
+    // One note per friend per 20s, so a fast knocker does not stack the lane.
+    if (hood !== client) return; const now = Date.now(); if ((knockSeen.get(name) ?? 0) > now - 20000) return; knockSeen.set(name, now); toast(knockNote(name));
+  });
   client.on('sayFail', (r: string) => toast(r === 'presetsOnly' ? 'Typing is turned off: pick a bubble!' : FILTER_MSG[r] || "Couldn't send that"));
   client.on('mailbox', () => { if (hood !== client) return; if (view === 'street') renderMap(true); syncMailCue(); mailUI.refresh(); paintBadges(); });
   client.on('mailFail', (r: string) => { if (hood === client) mailUI.fail(r); });
@@ -3641,6 +3712,7 @@ function onPlayTap(el: HTMLElement, id: string) {
     queueAmbient();
     return;
   }
+  if (tapMore(it.kind, id, s.soundOn, queueAmbient)) return;
   if (g === 'open') { el.classList.toggle('opened'); queueAmbient(); return; }
   if (g === 'lamp') { el.classList.toggle('lamp-on'); return; }
   if (g === 'sit') sitAt(it);
@@ -3648,16 +3720,16 @@ function onPlayTap(el: HTMLElement, id: string) {
 }
 // ---------- ambient reactions (M1) ----------
 // Only an item's `on` flag is synced. Every iPad derives the same reactions from the same state.
-const AMB_PERIOD: Record<ReactionKind, number> = { dance: BEAT_MS * 2, sway: BEAT_MS * 4, watch: BEAT_MS * 5, warm: BEAT_MS * 3, hug: BEAT_MS * 2, bounce: BEAT_MS, bathe: BEAT_MS * 3, nibble: BEAT_MS };
+const AMB_PERIOD: Record<ReactionKind, number> = { dance: BEAT_MS * 2, sway: BEAT_MS * 4, watch: BEAT_MS * 5, warm: BEAT_MS * 3, hug: BEAT_MS * 2, bounce: BEAT_MS, bathe: BEAT_MS * 3, nibble: BEAT_MS, ...MORE_PERIOD };
 const AMB_CHAR_FX: Partial<Record<ReactionKind, string>> = {
   dance: '<span>♪</span><span>♫</span>', sway: '<span>♪</span>', hug: '<span>♥</span>',
-  bathe: '<span class="bub"></span><span class="bub"></span><span class="bub"></span>', nibble: '<span>✦</span>',
+  bathe: '<span class="bub"></span><span class="bub"></span><span class="bub"></span>', nibble: '<span>✦</span>', ...MORE_CHAR_FX,
 };
 const AMB_ITEM_FX: Record<string, string> = {
   stereo: '<span>♪</span><span>♫</span><span>♪</span>', musicbox: '<span>♪</span><span>♩</span>',
   tv: '<span class="glow"></span>', fire: '<span class="glow"></span><span class="ember"></span><span class="ember"></span>',
   tub: '<span class="bub"></span><span class="bub"></span><span class="bub"></span><span class="bub"></span>',
-  fridge: '<span class="food">🍓</span><span class="food">🧁</span>',
+  fridge: '<span class="food">🍓</span><span class="food">🧁</span>', ...MORE_ITEM_FX,
 };
 const musicBoxSince = new Map<string, number>();
 let ambRaf = 0;
@@ -3723,7 +3795,11 @@ function syncAmbient() {
       chars.push({ id: 'p:' + pid, x: p.x, y: p.y, seated: pose === 'sit', lying: pose === 'lie' }); els.set('p:' + pid, el);
     }
   }
-  const rx = reactionsFor(items, chars, { fridgesOpen, musicBoxDone: done });
+  const playing = keysPlaying(now);
+  const rx = reactionsFor(items, chars, { fridgesOpen, musicBoxDone: done, keysPlaying: playing });
+  // Dance Party: 2+ dolls dancing to one stereo. Dancers share one phase so they move in sync.
+  const party = partyFor(items, rx);
+  if (party) for (const id of party.dancers) { const r = rx.get(id); if (r) rx.set(id, { ...r, phase: 0, face: r.face }); }
   for (const el of [...charEls.values(), ...avatarEls.values()]) if (![...els.values()].includes(el)) applyReaction(el, undefined, now);
   els.forEach((el, id) => applyReaction(el, rx.get(id), now));
   const bathing = new Set([...rx.values()].filter(r => r.kind === 'bathe').map(r => r.item));
@@ -3741,9 +3817,40 @@ function syncAmbient() {
       setFx(el, AMB_ITEM_FX[role!], role!);
     } else if (isTub(it.kind) && bathing.has(it.id)) setFx(el, AMB_ITEM_FX.tub, 'tub');
     else if (isFridge(it.kind) && fridgesOpen.has(it.id)) setFx(el, AMB_ITEM_FX.fridge, 'fridge');
-    else { delete el.dataset.amb; setFx(el, null, ''); }
+    else { const m = moreItemFx(it.kind, it.id, rx, playing, fridgesOpen, bathing.size > 0); el.classList.toggle('soc-ducky', m === 'ducky'); if (m) setFx(el, AMB_ITEM_FX[m] || null, m); else { delete el.dataset.amb; setFx(el, null, ''); } }
   }
+  syncParty(party, now);
   setAmbientMusic(music);
+  const dolls = new Map<string, { el: HTMLElement; d: AmbChar }>();
+  for (const c of chars) dolls.set(c.id, { el: els.get(c.id)!, d: c });
+  const b = s.baby && s.baby.room === s.currentRoom && !s.baby.holder ? { x: s.baby.x, y: s.baby.y } : null;
+  syncSocial({ layer, roomW: ROOM_W, seed: currentHouseId || 'local', now, reduced: prefersReducedMotion(), dolls, baby: b }, rx);
+}
+let partyKey = '';
+/** Lights, sparkles, toy bounce and pet hops. Local visuals only; fades out over 1s. */
+function syncParty(p: Party | null, now: number) {
+  const fx = $('partyFx');
+  const on = !!p && view === 'house';
+  document.body.classList.toggle('party-on', on);
+  fx.classList.toggle('on', on);
+  if (on) {
+    fx.style.setProperty('--px', (p!.x / W * 100) + '%');
+    if (partyKey !== p!.stereo) { fx.style.setProperty('--amb-delay', syncDelayMs(0, BEAT_MS, now) + 'ms'); partyKey = p!.stereo; }
+  } else partyKey = '';
+  const toys = new Set(on ? p!.toys : []);
+  layer.querySelectorAll<HTMLElement>('.item').forEach(el => {
+    const b = toys.has(el.dataset.id || '');
+    if (b !== el.classList.contains('party-bounce')) { el.classList.toggle('party-bounce', b); if (b) el.style.setProperty('--amb-delay', syncDelayMs(0, BEAT_MS, now) + 'ms'); }
+  });
+  // Pets: measured on screen against the stereo, in room units.
+  const st = on ? layer.querySelector<HTMLElement>(`.item[data-id="${p!.stereo}"]`) : null;
+  const wr = world.getBoundingClientRect(); const k = wr.width ? W / wr.width : 1;
+  const sr = st?.getBoundingClientRect();
+  layer.querySelectorAll<HTMLElement>('.pet').forEach(el => {
+    let hop = false;
+    if (sr) { const r = el.getBoundingClientRect(); hop = Math.hypot((r.left + r.width / 2 - sr.left - sr.width / 2) * k, (r.bottom - sr.bottom) * k * 1.5) <= PARTY_PET_RADIUS && !el.classList.contains('leap') && !el.classList.contains('curl'); }
+    if (hop !== el.classList.contains('party-hop')) { el.classList.toggle('party-hop', hop); if (hop) el.style.setProperty('--amb-delay', syncDelayMs(0.5, BEAT_MS * 2, now) + 'ms'); }
+  });
 }
 /** TV on: the tapper's own kid sits on the nearest free seat if she may, otherwise everyone just stands and watches. */
 function tvSeat(tv: PlacedItem) {
@@ -4897,7 +5004,7 @@ function goThroughYardDoor(go: 'backyard' | 'living') {
   store.dispatch({ type: 'room/switch', room: go });
   if (hood && inner !== local) {
     const p = myPres();
-    if (p && p.where === 'house') setMyPres({ ...p, room: go, x: spot.x, y: spot.y, flip: spot.flip });
+    if (p && p.where === 'house') { const at = p.houseId ? apartIn(p.houseId, go, spot) : spot; setMyPres({ ...p, room: go, x: at.x, y: at.y, flip: spot.flip }); }
   }
   requestAnimationFrame(() => frameYardCam());
 }

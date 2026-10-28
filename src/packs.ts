@@ -7,9 +7,10 @@
 //   assets/patterns/manifest.json   (optional) same format, pattern entries only.
 import type { ItemDef } from './items';
 import { WINTER_PACK_NAMES } from './shared/catalog-winter';
+import { HALLOWEEN_PACK_NAMES } from './shared/catalog-halloween';
 
 const SIZE_W: Record<string, number> = { small: 80, medium: 150, large: 260 };
-export const PACK_NAMES: Record<string, string> = { 'welcome-home': 'Welcome Home', 'sunny-vibes': 'Sunny Vibes', glossy: 'Glossy', cottage: 'Cozy Cottage', ...WINTER_PACK_NAMES };
+export const PACK_NAMES: Record<string, string> = { 'welcome-home': 'Welcome Home', 'sunny-vibes': 'Sunny Vibes', glossy: 'Glossy', cottage: 'Cozy Cottage', ...WINTER_PACK_NAMES, ...HALLOWEEN_PACK_NAMES };
 export const packLabel = (p: string) => PACK_NAMES[p] ?? p.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
 export interface PackEntry { slug: string; name?: string; room?: string; category?: string; size?: string; pack?: string; type?: string; holdable?: boolean;

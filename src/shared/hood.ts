@@ -1,11 +1,13 @@
 import { cleanArtId, cleanFrame } from './paint';
 import { isPowerable } from './ambient';
+import { cleanNeeds, isNeed } from './needs';
 // Shared between client and server: protocol, presets, validation and the chat filter.
 // Nothing here touches the DOM or Node APIs, so it runs in browsers, Node and Cloudflare Workers.
 import { RANCH_W, BARN_W, RANCH_Y0, RANCH_Y1, HORSES, ANIMALS, FOODS, type Basket, type Plot, type RanchOp } from './ranch';
 import { GAMEROOM_W, type TablePub, type TableOp } from './games/index';
 import { CAT_COATS, DOG_BREEDS, type Cat, type Dog, initialState, migrate, newCharacter, validKennel, itemSizeOf, ROOM_W, ROOM_H, MAX_CHARS, ROOM_IDS, type Action, type GameState, type PlacedItem, type RoomId, type Character } from './state';
 import { sanitizeLook2, type Look2 } from './avatar';
+import { cleanCostume } from './costume';
 import { cleanDollSeat, cleanPresSeat, seatStillThere, type DollSeat, type PresSeat } from './sit';
 import { cleanBaby, packBaby } from './baby';
 import { CATALOG_NAMES } from './catalog-names';
@@ -633,8 +635,8 @@ export function cleanItem(i: any): PlacedItem | null {
   const size = itemSizeOf(i.size);
   return size === 1 ? powered : { ...powered, size };
 }
-export type Look = Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc'> & { look2?: Look2 };
-export function cleanLookPatch(p: any): Partial<Look & { flip: boolean; look2: Look2 | null }> | null {
+export type Look = Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants' | 'size' | 'acc'> & { look2?: Look2; costume?: string };
+export function cleanLookPatch(p: any): Partial<Look & { flip: boolean; look2: Look2 | null; costume: string | null }> | null {
   if (!p || typeof p !== 'object') return null;
   const out: any = {};
   for (const k of ['skin', 'hair', 'shirt', 'pants'] as const) if (k in p) { const c = str(p[k], COLOR_RE, 9); if (!c) return null; out[k] = c; }
@@ -645,6 +647,7 @@ export function cleanLookPatch(p: any): Partial<Look & { flip: boolean; look2: L
   // Old clients send the legacy colors and omit look2. Leaving the key off keeps her chibi look.
   // look2 is replaced or cleared only when this patch includes it (a B1 "use classic look" sends null).
   if ('look2' in p) out.look2 = sanitizeLook2(p.look2) ?? null;
+  if ('costume' in p) out.costume = cleanCostume(p.costume);
   return Object.keys(out).length ? out : null;
 }
 export function cleanLook(p: any): Look {
@@ -653,12 +656,17 @@ export function cleanLook(p: any): Look {
   const pickOr = <K extends keyof Look>(k: K): Look[K] => ((c as any)[k] ?? base[k]);
   const out: Look = { skin: pickOr('skin'), hair: pickOr('hair'), hairStyle: pickOr('hairStyle'), shirt: pickOr('shirt'), pants: pickOr('pants'), size: pickOr('size'), acc: pickOr('acc') };
   if (p && typeof p === 'object' && 'look2' in p) { const s = sanitizeLook2(p.look2); if (s) out.look2 = s; }
+  // '' is an explicit 'no costume', so taking one off reaches the server; applyLook then drops the key.
+  if (p && typeof p === 'object' && 'costume' in p) { const cc = cleanCostume(p.costume); out.costume = cc ?? ''; }
   return out;
 }
 /** A legacy look update omits look2. Keep the chibi look already stored. An explicit look2 replaces or clears it. */
 export function applyLook(prev: Look | null | undefined, incoming: unknown): Look {
   const next = cleanLook(incoming);
   if (prev?.look2 && !(incoming && typeof incoming === 'object' && 'look2' in incoming)) next.look2 = prev.look2;
+  // An old client's look update omits costume. Keep the one she already wears.
+  if (prev?.costume && !(incoming && typeof incoming === 'object' && 'costume' in incoming)) next.costume = prev.costume;
+  if (next.costume === '') delete next.costume;
   return next;
 }
 function cleanCharacter(c: any): Character | null {
@@ -667,11 +675,13 @@ function cleanCharacter(c: any): Character | null {
     held: { left: c.held?.left ? cleanItem(c.held.left) : null, right: c.held?.right ? cleanItem(c.held.right) : null } });
   const seat = cleanDollSeat(c?.seat);
   if (seat) ch.seat = seat;
+  const needs = cleanNeeds(c?.needs);
+  if (needs) ch.needs = needs;
   return ch;
 }
 
 // ---------- pets ----------
-export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, bathroom, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1. A seat rides on char/move and on house presence, and is forwarded only to clients that say sit:1. item/size is forwarded only to clients that say fit:1. A missing item size is 1, and old clients ignore the field. Baby actions are forwarded only to clients that say baby:1. item/power (ambient M1) is forwarded only to clients that say amb:1, and an item's optional `on` flag rides along on the house; old clients keep it and ignore it. A missing baby means an older save. There is no PROTOCOL 5. A grown-up mailbox listing is an optional field on parentInfo; old clients ignore it. settings.freeMail is optional too: missing means letters follow freeChat. Art Studio (art:1): a painting is an optional art id (+frame) on a 'picture' item; the bitmap lives beside the house under its own storage key and is sent only to clients that say art:1.
+export const PROTOCOL = 4; // 2 = pets, park, fx; 3 = Rainbow Ranch; 4 = Game Room tables. Nursery, bathroom, backyard, dogKennel, and mailbox ride along on the house: old clients keep unknown fields and simply do not draw them. dog/kennel acts go only to clients that say pet:1, so an older client never applies an action it does not know. Mail messages go only to clients that say mail:1. A seat rides on char/move and on house presence, and is forwarded only to clients that say sit:1. item/size is forwarded only to clients that say fit:1. A missing item size is 1, and old clients ignore the field. Baby actions are forwarded only to clients that say baby:1. item/power (ambient M1) is forwarded only to clients that say amb:1, and an item's optional `on` flag rides along on the house; old clients keep it and ignore it. A missing baby means an older save. need/meet and need/drift (M2) are forwarded only to clients that say needs:1; a doll's optional `needs` rides along on the house and old clients keep it. There is no PROTOCOL 5. A grown-up mailbox listing is an optional field on parentInfo; old clients ignore it. settings.freeMail is optional too: missing means letters follow freeChat. Art Studio (art:1): a painting is an optional art id (+frame) on a 'picture' item; the bitmap lives beside the house under its own storage key and is sent only to clients that say art:1.
 export const PROTO_PETS = 2, PROTO_RANCH = 3, PROTO_GAMES = 4;
 export const CAT_NAMES = ['Mittens', 'Luna', 'Biscuit', 'Pumpkin', 'Whiskers', 'Mochi', 'Pepper', 'Noodle', 'Ginger', 'Socks'];
 export const DOG_NAMES = ['Buddy', 'Coco', 'Max', 'Daisy', 'Peanut', 'Rocket', 'Bella', 'Waffles', 'Scout', 'Honey'];
@@ -710,7 +720,7 @@ export function cleanAction(a: any): Action | null {
     case 'room/wallpaper': case 'room/floor': { const color = str(a.color, COLOR_RE, 9); return isRoom(room) && color ? { type: a.type, room, color } : null; }
     case 'room/pattern': { const p = num(a.pattern, 0, 3); return isRoom(room) && p !== null ? { type: a.type, room, pattern: Math.round(p) } : null; }
     case 'room/wallTile': case 'room/floorTile': { if (!isRoom(room)) return null; if (a.tile === null) return { type: a.type, room, tile: null }; const t = str(a.tile, TILE_RE, 101); return t ? { type: a.type, room, tile: t } : null; }
-    case 'char/add': { const c = cleanCharacter(a.char); if (!c) return null; const { seat: _drop, ...rest } = c; return { type: a.type, char: { ...rest, held: { left: null, right: null } } }; }
+    case 'char/add': { const c = cleanCharacter(a.char); if (!c) return null; const { seat: _drop, needs: _n, ...rest } = c; return { type: a.type, char: { ...rest, held: { left: null, right: null } } }; }
     case 'char/update': { const id = str(a.id, ID_RE), patch = cleanLookPatch(a.patch); return id && patch ? { type: a.type, id, patch } : null; }
     case 'char/move': {
       const id = str(a.id, ID_RE), x = num(a.x, 0, ROOM_W), y = num(a.y, 60, ROOM_H);
@@ -754,6 +764,7 @@ export function cleanAction(a: any): Action | null {
       const seat = a.seat == null ? null : cleanDollSeat(a.seat);
       return { type: 'baby/place', room, x, y, spot: a.spot, bed, seat, now: finiteNow(a.now) };
     }
+    case 'need/meet': case 'need/drift': { const id = str(a.id, ID_RE); return id && isNeed(a.need) ? { type: a.type, id, need: a.need } : null; }
     default: return null; // room/switch, settings/sound, game/reset, dog/set (dogs live on the player) are local-only
   }
 }
@@ -894,8 +905,10 @@ export interface HouseFull extends HouseMeta { state: GameState }
 export type Bubble = { kind: 'phrase' | 'emote'; v: number } | { kind: 'text'; v: string };
 
 export type ClientMsg =
-  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; art?: number }
-  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; art?: number }
+  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; halloween?: number; cos?: number; needs?: number; art?: number }
+  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; halloween?: number; cos?: number; needs?: number; art?: number }
+  /** Trick-or-treat (join flag halloween:1). Nothing is stored; the owner sees a note if she is online. */
+  | { t: 'knock'; houseId: string }
   | { t: 'dog'; dog: Dog | null }
   | { t: 'fx'; fx: Fx }
   | { t: 'ranch'; o: RanchOp }
@@ -915,7 +928,7 @@ export type ClientMsg =
 
 export type ServerMsg =
   | { t: 'joined'; token: string; pid: string }
-  | { t: 'welcome'; pid: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[]; sit?: 1; baby?: 1; amb?: 1; art?: 1 }
+  | { t: 'welcome'; pid: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[]; sit?: 1; baby?: 1; amb?: 1; cos?: 1; needs?: 1; art?: 1 }
   | { t: 'act'; houseId: string; by: string; cid: number; action: Action }
   | { t: 'art'; houseId: string; arts: Record<string, string> } | { t: 'artFail'; houseId: string; id: string; reason: string }
   | { t: 'nack'; houseId: string; cid: number; reason: string; state?: GameState }
@@ -925,6 +938,8 @@ export type ServerMsg =
   | { t: 'settings'; settings: StreetSettings }
   | { t: 'bubble'; pid: string; b: Bubble }
   | { t: 'fx'; pid: string; fx: Fx }
+  /** Sent only to a house owner who said halloween:1. `name` is the knocker's first name. */
+  | { t: 'knocked'; houseId: string; name: string }
   | { t: 'ranch'; plots: (Plot | null)[]; now: number }
   | { t: 'ranchFail'; reason: string; plots: (Plot | null)[]; now: number }
   | { t: 'noride'; ride: number }

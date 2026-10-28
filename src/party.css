@@ -1,0 +1,39 @@
+/* Dance Party (track E). Cheap: a few blurred-free radial gradients moved by transform, and
+   opacity-only twinkles. Light changes are slow (>= 3.6s sweeps, no strobe, no flashing).
+   Fades in and out over 1s. Nothing here is synced. */
+.partyFx { position: absolute; inset: 0; pointer-events: none; overflow: hidden; opacity: 0; transition: opacity 1s ease; z-index: 5; contain: strict; }
+.partyFx.on { opacity: 1; }
+.partyFx:not(.on) > i { animation-play-state: paused; }
+.partyFx > i { position: absolute; display: block; will-change: transform, opacity; }
+/* Color washes: big soft ellipses sweeping slowly across wall and floor, centered near the stereo. */
+.partyFx > .pl { width: 70%; height: 120%; top: -10%; left: calc(var(--px, 50%) - 35%); border-radius: 50%; opacity: .4; }
+.partyFx > .pl1 { background: radial-gradient(closest-side, rgba(255, 120, 200, .9), rgba(255, 120, 200, 0)); animation: partySweepA 7.2s ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
+.partyFx > .pl2 { background: radial-gradient(closest-side, rgba(120, 190, 255, .9), rgba(120, 190, 255, 0)); animation: partySweepB 7.2s ease-in-out infinite; animation-delay: calc(var(--amb-delay, 0s) - 2.4s); }
+.partyFx > .pl3 { background: radial-gradient(closest-side, rgba(255, 220, 120, .9), rgba(255, 220, 120, 0)); animation: partySweepA 10.8s ease-in-out infinite reverse; animation-delay: calc(var(--amb-delay, 0s) - 4.8s); }
+@keyframes partySweepA { 0%, 100% { transform: translateX(-45%) scale(.9); } 50% { transform: translateX(45%) scale(1.05); } }
+@keyframes partySweepB { 0%, 100% { transform: translate(40%, 8%) scale(1); } 50% { transform: translate(-40%, -6%) scale(.9); } }
+/* Twinkles and confetti: small dots that fade in and out softly. */
+.partyFx > .sp { width: 10px; height: 10px; border-radius: 50%; background: #fff6a8; box-shadow: 0 0 6px 2px rgba(255, 246, 168, .7); opacity: 0; animation: partyTwinkle 3.6s ease-in-out infinite; }
+.partyFx > .s1 { left: 12%; top: 14%; } .partyFx > .s2 { left: 28%; top: 36%; animation-delay: -.9s; background: #ffb3d9; }
+.partyFx > .s3 { left: 44%; top: 10%; animation-delay: -1.8s; } .partyFx > .s4 { left: 58%; top: 30%; animation-delay: -2.7s; background: #b3e0ff; }
+.partyFx > .s5 { left: 72%; top: 16%; animation-delay: -.45s; } .partyFx > .s6 { left: 86%; top: 40%; animation-delay: -1.35s; background: #ffb3d9; }
+.partyFx > .s7 { left: 20%; top: 62%; animation-delay: -2.25s; border-radius: 2px; background: #c9a6ff; } .partyFx > .s8 { left: 66%; top: 66%; animation-delay: -3.15s; border-radius: 2px; background: #9fe6b8; }
+@keyframes partyTwinkle { 0%, 100% { opacity: 0; transform: translateY(0) scale(.6); } 50% { opacity: .9; transform: translateY(14px) scale(1); } }
+
+/* Light toys bounce on the beat (motion only; the item's own transform is left alone). */
+.item.party-bounce { animation: partyBounce .9s cubic-bezier(.3,.7,.4,1) infinite; animation-delay: var(--amb-delay, 0s); }
+@keyframes partyBounce { 0%, 100% { translate: 0 0; } 40% { translate: 0 -10px; } }
+/* Pets: a happy hop on every other beat. */
+.pet.party-hop { animation: partyHop 1.8s cubic-bezier(.3,.7,.4,1) infinite; animation-delay: var(--amb-delay, 0s); }
+@keyframes partyHop { 0%, 30%, 100% { translate: 0 0; } 15% { translate: 0 -16px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  /* A still, soft wash so she still sees it is a party. No sweeping, no twinkle, no bounce. */
+  .partyFx > i, .item.party-bounce, .pet.party-hop { animation: none !important; }
+  .partyFx > .pl { opacity: .14; transform: none; }
+  .partyFx > .pl2 { left: calc(var(--px, 50%) - 60%); } .partyFx > .pl3 { left: calc(var(--px, 50%) - 10%); }
+  .partyFx > .sp { opacity: .5; }
+}
+
+/* perf (X2): two washes instead of three; WebKit software paths pay per full-room translucent layer. */
+.partyFx > .pl3 { display: none; }

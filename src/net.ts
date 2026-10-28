@@ -59,6 +59,8 @@ export class HoodClient {
   speaksAmb = false;
   /** The welcome said art:1 (Art Studio paintings are stored beside the house). */
   speaksArt = false;
+  /** Server forwards need/* (M2). */
+  speaksNeeds = false;
   /** The server closed this socket because the same sign-in connected somewhere else. Do not reconnect on our own. */
   replaced = false;
   /** Rainbow Ranch garden (shared per street) + server clock offset so growth looks the same on every iPad. */
@@ -121,8 +123,8 @@ export class HoodClient {
       this.ws = ws;
       if (prev && prev !== ws) { try { prev.close(); } catch { /* already closed */ } }
       ws.onopen = () => {
-        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, art: 1 });
-        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, art: 1 });
+        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, halloween: 1, cos: 1, needs: 1, art: 1 });
+        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, halloween: 1, cos: 1, needs: 1, art: 1 });
         else done('notoken');
       };
       ws.onmessage = e => { const m: ServerMsg = JSON.parse(e.data); this.handle(m); if (m.t === 'welcome') { this.armStable(); done('ok'); } if (m.t === 'error') done(m.code + (m.msg ? ':' + m.msg : '')); if (m.t === 'removed') done('removed'); };
@@ -155,6 +157,7 @@ export class HoodClient {
         this.speaksBaby = m.baby === 1;
         this.speaksAmb = m.amb === 1;
         this.speaksArt = m.art === 1;
+        this.speaksNeeds = m.needs === 1;
         this.players = new Map(m.players.map(p => [p.pid, p]));
         { const old = this.houses; this.houses = new Map();
           for (const h of m.houses) { const { state, ...meta } = h; const prev = old.get(h.id);
@@ -195,6 +198,7 @@ export class HoodClient {
       case 'settings': this.settings = m.settings; this.emit('settings'); break;
       case 'bubble': this.emit('bubble', m.pid, m.b); break;
       case 'fx': this.emit('fx', m.pid, m.fx); break;
+      case 'knocked': this.emit('knocked', m.houseId, m.name); break;
       case 'ranch': this.ranch = { plots: m.plots, skew: m.now - Date.now() }; this.emit('ranch'); break;
       case 'ranchFail': this.ranch = { plots: m.plots, skew: m.now - Date.now() }; this.emit('ranch'); this.emit('ranchFail', m.reason); break;
       case 'noride': this.emit('noride', m.ride); break;
@@ -260,6 +264,8 @@ export class HoodClient {
   setLook(look: Look) { this.reliable({ t: 'look', look }); const me = this.players.get(this.pid); if (me) me.look = look; }
   setDog(dog: Dog | null) { this.reliable({ t: 'dog', dog }); const me = this.players.get(this.pid); if (me) me.dog = dog; }
   fx(fx: Fx) { this.reliable({ t: 'fx', fx }); }
+  /** Trick-or-treat knock. Fire and forget: the treat never waits on the server. */
+  knock(houseId: string) { this.send({ t: 'knock', houseId }); }
   ranchOp(o: RanchOp) { this.reliable({ t: 'ranch', o }); }
   tbl(op: TableOp) { this.reliable({ t: 'tbl', ...op }); }
   /** Paintings: save one (her house only, sent in order before the item/add) or ask for some by id. */
@@ -292,6 +298,7 @@ export function houseStore(client: HoodClient, houseId: string, localSound: { ge
         if (!client.canEdit(houseId)) return;
         if (a.type.startsWith('baby/') && !client.speaksBaby) return;
         if (a.type === 'item/power' && !client.speaksAmb) return;
+        if (a.type.startsWith('need/') && !client.speaksNeeds) return;
         client.dispatch(houseId, a);
       }
       emit(a);

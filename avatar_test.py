@@ -187,7 +187,7 @@ async def customizer(b):
         info = await sheet_info(pg)
         await pg.screenshot(path=f'{SHOT}/{name}')
         fits = info['cardW'] <= info['cardClient'] + 2 and info['inputs'] == 0 and info['title'] == 'Make your look!'
-        targets = info['optH'] >= 44 and info['swH'] >= 44 and info['tabH'] >= 44 and info['tabsFit'] and info['tabNames'] == 'Hair,Face,Clothes,Shoes,Extras' and info['closeFirst']
+        targets = info['optH'] >= 44 and info['swH'] >= 44 and info['tabH'] >= 44 and info['tabsFit'] and info['tabNames'] in ('Hair,Face,Clothes,Shoes,Extras', 'Hair,Face,Clothes,Shoes,Extras,🎃 Costumes') and info['closeFirst']
         tall = info['optH'] >= 70 if w == 820 else True
         phone = info['phone'] if mobile else not info['phone']
         check(f'{w}x{h} customizer layout', fits and targets and tall and phone and info['dir'] == direction and not errs,

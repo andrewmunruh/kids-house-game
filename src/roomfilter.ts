@@ -3,6 +3,7 @@
 // Pets, plants, and food tagged "any" still show in the room you're standing in.
 
 import { WINTER_NURSERY_SKIP } from './shared/catalog-winter';
+import { HALLOWEEN_NURSERY_SKIP, HALLOWEEN_PACK_ID, halloweenVisible } from './shared/catalog-halloween';
 
 export type ShelfItem = { rooms?: string[]; cat: string; name: string; kind?: string; pack?: string; secret?: string };
 
@@ -14,7 +15,12 @@ export function isGenericDecor(item: ShelfItem): boolean {
   return GENERIC.test(blob);
 }
 
-const NURSERY_SKIP = new Set<string>(['pack:ring-light', 'pack:desk-lamp', ...WINTER_NURSERY_SKIP]);
+const NURSERY_SKIP = new Set<string>(['pack:ring-light', 'pack:desk-lamp', ...WINTER_NURSERY_SKIP, ...HALLOWEEN_NURSERY_SKIP]);
+
+/** Seasonal packs: off the shelf out of season (placed pieces still render). */
+export function seasonHidden(item: { pack?: string }, now: Date = new Date()): boolean {
+  return item.pack === HALLOWEEN_PACK_ID && !halloweenVisible(now);
+}
 
 function yardOnly(item: ShelfItem): boolean {
   const rooms = item.rooms ?? [];
@@ -36,6 +42,7 @@ export function itemMatchesRoom(item: ShelfItem, room: string): boolean {
 /** What one catalog tab lists. Pack tabs keep the whole pack in every room, then drop nursery exclusions. */
 export function catalogShows(item: ShelfItem, tab: string, room: string, showAllRooms: boolean, found?: ReadonlySet<string>): boolean {
   if (item.secret && !(found && found.has(item.secret))) return false;
+  if (seasonHidden(item)) return false;
   if (!showAllRooms && room === 'backyard' && !yardOnly(item)) return false;
   if (room === 'nursery' && item.kind && NURSERY_SKIP.has(item.kind)) return false;
   if (tab.startsWith('pack:')) return item.pack === tab.slice(5);

@@ -6,8 +6,11 @@ import {
   fillLook2, accSlot, type Look2, type AccId,
 } from '../shared/avatar';
 import { characterSVG, SIZES } from '../character';
+import { chibiSVG } from './draw';
+import type { CostumeId } from '../shared/costume';
+import { costumesVisible, cleanCostume, HELPER_COLORS, COSTUME_NAME } from '../shared/costume';
 
-export type AvTab = 'hair' | 'face' | 'clothes' | 'shoes' | 'extras';
+export type AvTab = 'hair' | 'face' | 'clothes' | 'shoes' | 'extras' | 'costume';
 const TABS: { id: AvTab; name: string }[] = [
   { id: 'hair', name: 'Hair' },
   { id: 'face', name: 'Face' },
@@ -15,6 +18,21 @@ const TABS: { id: AvTab; name: string }[] = [
   { id: 'shoes', name: 'Shoes' },
   { id: 'extras', name: 'Extras' },
 ];
+const COSTUME_TAB = { id: 'costume' as AvTab, name: '🎃 Costumes' };
+function tabs(): { id: AvTab; name: string }[] { return costumesVisible() ? [...TABS, COSTUME_TAB] : TABS; }
+
+/** Costume pane: big tiles, each a preview on her own avatar. 'No costume' first; the helper also has four overall colors. */
+export function costumePaneHTML(cur: string | null | undefined, look?: Look2): string {
+  const on = cleanCostume(cur);
+  const helperOn = !!on && on.startsWith('helper-');
+  const L = fillLook2(look);
+  const tile = (v: string, label: string, sel: boolean, cos: string) => `<button type="button" class="avCosTile${sel ? ' on' : ''}" data-act="av-costume" data-v="${v}" aria-pressed="${sel}"><span class="avCosPic">${chibiSVG(L, { uid: 'cosT' + (cos || 'none'), rich: false, costume: (cos || null) as CostumeId | null })}</span><span class="avCosName">${label}</span></button>`;
+  const hv = helperOn ? on! : 'helper-yellow';
+  const tiles = tile('', 'No costume', !on, '') + tile(hv, COSTUME_NAME.helper, helperOn, hv)
+    + (['witch', 'cat', 'ghost', 'skeleton', 'bat'] as const).map(k => tile(k, COSTUME_NAME[k], on === k, k)).join('');
+  const sw = (Object.keys(HELPER_COLORS) as (keyof typeof HELPER_COLORS)[]).map(k => `<button type="button" class="avSw${on === 'helper-' + k ? ' on' : ''}" style="background:${HELPER_COLORS[k]}" data-act="av-costume" data-v="helper-${k}" aria-label="${k} overalls"></button>`).join('');
+  return `<h3>Costumes</h3><p class="avHint">Halloween dress-up! Tap one. Everyone in the room sees it.</p><div class="avCosGrid">${tiles}</div><h3>Helper overalls color</h3><div class="avColors avCosColors">${sw}</div>`;
+}
 
 const HAIR_NAME: Record<string, string> = {
   short: 'Short', pixie: 'Pixie', coily: 'Coily', afro: 'Afro', bangs: 'Bangs', bob: 'Bob', wavybob: 'Wavy bob',
@@ -58,7 +76,8 @@ function colors(act: string, cur: string): string {
 export function avatarSheetHTML(c: Character, picker: string, confirm: boolean, trash: string): string {
   const L = fillLook2(c.look2);
   const me = c.id === '__me';
-  const pane = tab === 'hair'
+  if (tab === 'costume' && !costumesVisible()) tab = 'hair';
+  const pane = tab === 'costume' ? costumePaneHTML(c.costume, c.look2) : tab === 'hair'
     ? `<h3>Style</h3>${grid(HAIR_IDS.map(id => opt('av-hair', id, HAIR_NAME[id], L.hair === id)).join(''))}<h3>Color</h3><div class="avColors">${HAIR2.map(col => swatch('av-hairC', col, L.hairC === col)).join('')}</div>`
     : tab === 'face'
       ? `<h3>Skin</h3><div class="avColors">${SKIN2.map(col => swatch('av-skin', col, L.skin === col)).join('')}</div><h3>Eyes</h3>${grid(EYE_IDS.map(id => opt('av-eyes', id, EYE_NAME[id], L.eyes === id)).join(''))}<h3>Eye color</h3><div class="avColors">${EYE2.map(col => swatch('av-eyeC', col, L.eyeC === col)).join('')}</div><div class="avToggles">${opt('av-freckles', L.freckles ? '0' : '1', 'Freckles', L.freckles)}${opt('av-blush', L.blush ? '0' : '1', 'Blush', L.blush)}</div>`
@@ -69,13 +88,13 @@ export function avatarSheetHTML(c: Character, picker: string, confirm: boolean, 
           : `<h3>Extras</h3><p class="avHint">Pick up to two</p>${grid(ACC_IDS.map(id => opt('av-acc', id, ACC_NAME[id], L.acc.indexOf(id) >= 0)).join(''))}${colors('av-accC', L.accC)}`;
   const sizes = SIZES.map(z => `<button type="button" class="avOpt sz${z === c.size ? ' on' : ''}" data-act="size" data-v="${z}">${SIZE_NAME[z]}</button>`).join('');
   const del = me ? '<div class="meNote">This is you!</div>' : `<button type="button" class="del${confirm ? ' sure' : ''}" data-act="delc">${trash}<span>${confirm ? 'Tap again' : ''}</span></button>`;
-  return `<button class="close" data-act="close">✕</button><h2>Make your look!</h2>${picker}<div class="dress avLook"><div class="avStageWrap"><div class="avStage chibi-move">${characterSVG(c)}</div>${del}<div class="avSizes">${sizes}</div></div><div class="avSide"><div class="avTabs">${TABS.map(t => `<button type="button" class="avTab${t.id === tab ? ' on' : ''}" data-act="av-tab" data-v="${t.id}">${t.name}</button>`).join('')}</div><div class="avPane">${pane}</div><div class="avBar"><button type="button" class="avSurprise" data-act="av-surprise">🎲 Surprise me</button><button type="button" class="avDone" data-act="close">Done</button></div></div></div>`;
+  return `<button class="close" data-act="close">✕</button><h2>Make your look!</h2>${picker}<div class="dress avLook"><div class="avStageWrap"><div class="avStage chibi-move">${characterSVG(c)}</div>${del}<div class="avSizes">${sizes}</div></div><div class="avSide"><div class="avTabs">${tabs().map(t => `<button type="button" class="avTab${t.id === tab ? ' on' : ''}" data-act="av-tab" data-v="${t.id}">${t.name}</button>`).join('')}</div><div class="avPane">${pane}</div><div class="avBar"><button type="button" class="avSurprise" data-act="av-surprise">🎲 Surprise me</button><button type="button" class="avDone" data-act="close">Done</button></div></div></div>`;
 }
 
 /** Returns the next look, or null when the click only changed the tab. */
 export function avatarAct(look: Look2, act: string, v: string): Look2 | null {
   if (act === 'av-tab') {
-    if (v === 'hair' || v === 'face' || v === 'clothes' || v === 'shoes' || v === 'extras') tab = v;
+    if (v === 'hair' || v === 'face' || v === 'clothes' || v === 'shoes' || v === 'extras' || (v === 'costume' && costumesVisible())) tab = v;
     return null;
   }
   const L = fillLook2(look);

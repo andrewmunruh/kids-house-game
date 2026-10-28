@@ -19,12 +19,14 @@ import { cleanBasket, cleanPlots, cleanRanchOp, ranchApply, BASKET_ITEM, type Ba
 export interface KV { get<T>(k: string): Promise<T | undefined>; put(k: string, v: unknown): Promise<void>; delete(k: string): Promise<void> }
 /** Maps invite codes (case-insensitive, unique across streets) to permanent street ids. */
 export interface CodeRegistry { claim(code: string, id: string): Promise<boolean>; release(code: string, id: string): Promise<void> }
+import { needGate } from './needs-gate';
+import { DriftGate } from '../src/shared/needs';
 /** Paintings ids are 'a' + base36 time + random, so the id sorts oldest first. */
 const byAge = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
 const ART_BURST = 14, ART_REFILL_MS = 4000;
 /** A just-saved painting is placed by the client after the ack; until it is hung (or this long passes) it is never cleared. */
 const ART_FRESH_MS = 90_000;
-export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; art?: number }
+export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; halloween?: number; cos?: number; needs?: number; art?: number }
 /** Not a real socket. Baby release is broadcast to every baby client, including the kid who just left. */
 const RELEASE_SENDER: Conn = { send() {}, close() {} };
 
@@ -54,6 +56,8 @@ export class Neighborhood {
   private artFresh = new Map<string, number>();
   conns = new Set<Conn>();
   presence = new Map<string, Presence>();
+  /** Gentle needs (M2): one drift step per house per window, however many iPads ask. */
+  driftGate = new DriftGate();
   private lastEgg = new Map<string, number>();
   tables: TableRec[] = TABLES.map((_, i) => freshTable(i));
   /** When each kid left the clubhouse or dropped her socket. Saved so a restart does not trap the table. */
@@ -126,7 +130,7 @@ export class Neighborhood {
   private welcome(c: Conn) {
     const presence: Record<string, Presence> = {};
     this.presence.forEach((p, k) => { presence[k] = this.viewPresence(p, c); });
-    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean).map(h => this.wireHouse(h, c)), presence, sit: 1, baby: 1, amb: 1, art: 1, ranch: { plots: cleanPlots(this.meta!.ranch?.plots), now: Date.now() }, ...((c.v ?? 1) >= PROTO_GAMES ? { tables: this.tables.map((_, i) => this.tablePub(i, c.pid!)) } : {}) });
+    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean).map(h => this.wireHouse(h, c)), presence, sit: 1, baby: 1, amb: 1, cos: 1, needs: 1, art: 1, ranch: { plots: cleanPlots(this.meta!.ranch?.plots), now: Date.now() }, ...((c.v ?? 1) >= PROTO_GAMES ? { tables: this.tables.map((_, i) => this.tablePub(i, c.pid!)) } : {}) });
   }
   /** Clients that did not say sit:1 draw her standing. The seat field stays off their copy. */
   private viewPresence(p: Presence, c: Conn): Presence {
@@ -197,6 +201,8 @@ export class Neighborhood {
       if (babyAct && (x.baby ?? 0) < 1) continue;
       // An old reducer has no item/power case; it must never see one. The `on` flag reaches it on the next house copy.
       if (ambAct && (x.amb ?? 0) < 1) continue;
+      // Same for need/* (M2): only needs:1 reducers know it. The `needs` field reaches old clients on the next house copy.
+      if (a.type.startsWith('need/') && (x.needs ?? 0) < 1) continue;
       const action = x === sender || (x.sit ?? 0) >= 1 ? a : this.withoutSeat(a);
       this.send(x, { t: 'act', houseId, by, cid, action });
     }
@@ -451,6 +457,9 @@ export class Neighborhood {
         c.fit = m.fit === 1 ? 1 : 0;
         c.baby = m.baby === 1 ? 1 : 0;
         c.amb = m.amb === 1 ? 1 : 0;
+        c.halloween = m.halloween === 1 ? 1 : 0;
+        c.cos = m.cos === 1 ? 1 : 0;
+        c.needs = m.needs === 1 ? 1 : 0;
         c.art = m.art === 1 ? 1 : 0;
         const h = typeof m.token === 'string' ? await sha256(m.token) : '';
         const p = h ? Object.values(meta.players).find(p => p.tokenHash === h) : undefined;
@@ -467,6 +476,9 @@ export class Neighborhood {
         c.fit = m.fit === 1 ? 1 : 0;
         c.baby = m.baby === 1 ? 1 : 0;
         c.amb = m.amb === 1 ? 1 : 0;
+        c.halloween = m.halloween === 1 ? 1 : 0;
+        c.cos = m.cos === 1 ? 1 : 0;
+        c.needs = m.needs === 1 ? 1 : 0;
         c.art = m.art === 1 ? 1 : 0;
         const roster = meta.roster ?? [];
         let nickname: string;
@@ -535,6 +547,10 @@ export class Neighborhood {
           if (taken) a = { ...a, seat: null };
         }
         if (a.type === 'item/power' && (c.amb ?? 0) < 1) return nack('invalid');
+        if (a.type.startsWith('need/')) {
+          const r = needGate(a, c, h, me.pid, meta.players, this.driftGate, Date.now());
+          if (r) return nack(r);
+        }
         if (a.type.startsWith('baby/')) {
           if ((c.baby ?? 0) < 1) return nack('invalid');
           if (!h.state.baby && a.type !== 'baby/meet') return nack('noop');
@@ -620,6 +636,16 @@ export class Neighborhood {
       case 'dog': {
         const d = m.dog === null ? null : cleanDog(m.dog); if (m.dog !== null && !d) return;
         me.dog = d; this.save('meta'); this.broadcast({ t: 'players', players: this.players() }); return;
+      }
+      case 'knock': {
+        // Trick-or-treat: the knocker's own screen gives the treat; the owner just gets a passing note.
+        // Only owners who said halloween:1 hear it, so an older client never sees an unknown message.
+        if ((c.halloween ?? 0) < 1) return;
+        const h = this.houses.get(String(m.houseId).slice(0, 40)); if (!h || h.ownerId === me.pid) return;
+        const mine = [...this.houses.values()].find(x => x.ownerId === me.pid);
+        const name = knockerName(mine?.name, me.nickname);
+        this.broadcast({ t: 'knocked', houseId: h.id, name }, x => x.pid === h.ownerId && (x.halloween ?? 0) >= 1);
+        return;
       }
       case 'fx': {
         // tricks, purrs, ball throws, splashes: relayed live to kids in the same place; nothing is stored
@@ -942,4 +968,15 @@ export class Neighborhood {
     }
     this.send(c, { t: 'parentInfo', code: meta.code, settings: meta.settings, players: this.players(), houses: meta.houseOrder.map(id => this.metaOf(this.houses.get(id)!)), roster: this.roster(), mail: this.parentMail(), note });
   }
+}
+
+/** First word of a nickname, letters only, for trick-or-treat notes. */
+export function firstName(n: string): string {
+  const w = String(n ?? '').trim().split(/\s+/)[0] ?? '';
+  return w.replace(/[^\p{L}'-]/gu, '').slice(0, 20) || 'A friend';
+}
+/** "Reagan's House" gives Reagan; otherwise her pick-list nickname. Never a last name. */
+export function knockerName(houseName: string | undefined, nickname: string): string {
+  const m = /^\s*([\p{L}'-]+?)['’]s\b/u.exec(String(houseName ?? ''));
+  return m ? firstName(m[1]) : (String(nickname ?? '').trim().slice(0, 30) || 'A friend');
 }

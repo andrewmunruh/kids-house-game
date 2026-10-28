@@ -141,6 +141,14 @@ body.mode-play #toolbar { display: none !important; }
     -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 32px), transparent);
     mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 32px), transparent);
   }
+  .drawerBar.back .drawerTop {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 100%);
+    mask-image: linear-gradient(to right, transparent, #000 36px, #000 100%);
+  }
+  .drawerBar.more.back .drawerTop {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 32px), transparent);
+  }
   .drawerBar.more .chipCue {
     display: grid; place-items: center; position: absolute; right: 0; top: 0; bottom: 0; width: 22px;
     font-size: 22px; font-weight: 900; color: var(--ink); pointer-events: none;
@@ -739,6 +747,7 @@ body:not(.phone) .drawerBar { gap: 12px; }
 body:not(.phone) .drawerTop { gap: 8px; row-gap: 8px; align-content: flex-start; }
 body:not(.phone) .cats { gap: 8px; }
 body:not(.phone) .cat.pack { gap: 6px; padding: 4px 16px 4px 8px; }
+body:not(.phone) .modeDock.wideDock { gap: 8px; align-self: flex-start; }
 body:not(.phone) .modeDock { padding-right: 12px; border-right: 2px dashed rgba(90,61,92,.22); min-height: 52px; }
 .homeBtn { display: none !important; }
 body.view-street .homeBtn { display: block !important; }
@@ -790,6 +799,10 @@ body.view-street .stage { visibility: hidden; }
   body.phone .drawer { flex: 0 0 auto; width: 100%; max-width: 100%; min-height: 0; padding: 4px 8px 6px; gap: 4px; }
   body.phone .drawerTop { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; gap: 6px; touch-action: pan-x; scrollbar-width: none; }
   body.phone .drawerTop::-webkit-scrollbar { display: none; }
+  /* Same edge fade the iPad pack row uses, on whichever side has more chips. */
+  body.phone .drawerBar.more .drawerTop { -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 56px), rgba(0,0,0,.25) calc(100% - 22px), transparent calc(100% - 8px)); mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 56px), rgba(0,0,0,.25) calc(100% - 22px), transparent calc(100% - 8px)); }
+  body.phone .drawerBar.back .drawerTop { -webkit-mask-image: linear-gradient(to right, transparent 8px, rgba(0,0,0,.25) 22px, #000 60px, #000 100%); mask-image: linear-gradient(to right, transparent 8px, rgba(0,0,0,.25) 22px, #000 60px, #000 100%); }
+  body.phone .drawerBar.more.back .drawerTop { -webkit-mask-image: linear-gradient(to right, transparent 8px, rgba(0,0,0,.25) 22px, #000 60px, #000 calc(100% - 56px), rgba(0,0,0,.25) calc(100% - 22px), transparent calc(100% - 8px)); mask-image: linear-gradient(to right, transparent 8px, rgba(0,0,0,.25) 22px, #000 60px, #000 calc(100% - 56px), rgba(0,0,0,.25) calc(100% - 22px), transparent calc(100% - 8px)); }
   body.phone .rooms { flex: 0 0 auto; }
   body.phone .cats { display: flex; flex: 0 0 auto; flex-wrap: nowrap; gap: 6px; }
   body.phone .cat { width: 44px; height: 44px; flex: 0 0 44px; }
@@ -1253,10 +1266,16 @@ body:not(.mode-hood):not(.has-hood) #menuPop .streetGroup { display: none; }
 /* The letter composer's .mailRow has a top margin. The Menu mailbox is a row, not that composer. */
 #menuPop .menuRow { margin: 0; }
 .menuSlot { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 4px 10px; }
-#menuDaySlot::after { content: 'Auto'; font-weight: 800; font-size: 16px; line-height: 1.2; }
-html[data-sky-choice="day"] #menuDaySlot::after { content: 'Day'; }
-html[data-sky-choice="night"] #menuDaySlot::after { content: 'Night'; }
-html[data-sky-choice="auto"] #menuDaySlot::after { content: 'Auto'; }
+#menuDaySlot::after { content: 'Sky: Auto (follows the clock)'; font-weight: 800; font-size: 16px; line-height: 1.2; }
+html[data-sky-choice="day"] #menuDaySlot::after { content: 'Sky: Day'; }
+html[data-sky-choice="night"] #menuDaySlot::after { content: 'Sky: Night'; }
+html[data-sky-choice="auto"] #menuDaySlot::after { content: 'Sky: Auto (follows the clock)'; }
+/* Polish b4: the sky row looks like the other rows (32px icon, same indent) and the whole row is the tap target. */
+#menuDaySlot { position: relative; border-radius: 14px; background: #fff; }
+#menuPop #menuDaySlot > #skyMount { position: static; }
+#menuPop #menuDaySlot .skyBtn { width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+#menuPop #menuDaySlot .skyBtn::before { content: ''; position: absolute; inset: 0; border-radius: 14px; }
+#menuPop #menuDaySlot:active { background: #ffe4ef; }
 #menuPop .menuSlot[hidden] { display: none !important; margin: 0; padding: 0; height: 0; }
 #menuPop .lockRow, #menuPop .mailRow, #menuPop .grownRow, #menuPop .soloLeave, #menuPop .friendRow { display: none; }
 body.mode-hood.own-house:not(.view-street) #menuPop .lockRow { display: flex; }

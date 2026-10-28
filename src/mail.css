@@ -26,7 +26,7 @@ body.mode-play .toolbar, body.mode-play .bin { display: none !important; }
 .item.lamp-on .inner { filter: drop-shadow(0 0 10px #ffe066); }
 .item.opened .inner { transform: scale(1.04); }
 
-.mapMail { position: absolute; z-index: 4; background: none; border: 0; padding: 0; box-shadow: none; }
+.mapMail { position: absolute; z-index: 6; /* above the house (5) so its 48px tap pad wins at the house edge */ background: none; border: 0; padding: 0; box-shadow: none; }
 .mapMail svg { width: 100%; height: 100%; display: block; pointer-events: none; overflow: visible; }
 .mapMail.up .flag { transform-origin: 30px 16px; animation: flagPop 1s ease-in-out infinite; }
 @keyframes flagPop { 0%, 100% { transform: rotate(0deg); } 35% { transform: rotate(-16deg) translateY(-2px); } 55% { transform: rotate(8deg); } }
@@ -77,3 +77,12 @@ body.phone .modeToggle .modeIco { width: 22px; height: 22px; flex-basis: 22px; }
 body.phone .mailCue { font-size: 16px; padding: 8px 12px; top: calc(var(--chrome-h, 48px) + 16px); max-width: calc(100% - 16px); }
 body.phone .mailSheet .card { width: 100% !important; }
 body.phone .letter .words { font-size: 18px; }
+
+/* Trick-or-treat */
+.mapKnock { position: absolute; z-index: 5; width: 40px; height: 40px; margin: -4px; padding: 4px; background: none; border: 0; box-shadow: none; display: grid; place-items: center; }
+.mapKnock > span:first-child { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #fff7ec; border: 2.5px solid #5b3a6b; font-size: 18px; line-height: 1; box-shadow: 0 2px 0 #5b3a6b55; }
+.mapKnock .treatPop { position: absolute; left: 50%; top: -6px; font-size: 22px; pointer-events: none; animation: treatUp .9s ease-out forwards; }
+@keyframes treatUp { from { transform: translate(-50%, 0) scale(.6); opacity: 1 } to { transform: translate(-50%, -38px) scale(1.15); opacity: 0 } }
+.candyBucket { position: absolute; right: 14px; bottom: 14px; z-index: 6; display: flex; align-items: center; gap: 6px; padding: 6px 14px 6px 10px; border-radius: 999px; background: #fff7ec; border: 3px solid #5b3a6b; color: #5b3a6b; font: 800 20px/1 inherit; pointer-events: none; }
+.candyBucket .pail { font-size: 22px; }
+@media (prefers-reduced-motion: reduce) { .mapKnock .treatPop { animation: none; opacity: 0; } }
