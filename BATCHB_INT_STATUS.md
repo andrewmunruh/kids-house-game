@@ -40,3 +40,10 @@ Found + fixed during gate: town's `.parkWorld.sceneArtOn > svg.parkScene {visibi
 - deploy-preview.sh: cozy-preview gh-pages f70d538 -> af9f7ae5dd4976c560fdcbb8d6b6e0327d62ab10; live bundle index-DI7YMcfJ.js (was index-C3A4WDTr.js). Worker not redeployed (stays a40cfe72-19aa-49d2-9936-968939be066a).
 - curl: preview index serves index-DI7YMcfJ.js (200, 846,903 B); assets/park-CE9nIY_g.webp 200 image/webp 148,090 B, byte-identical to build. Production still index-BWqIX3eQ.js.
 - Rollback: push f70d538 back to cozy-preview gh-pages (git push -f https://github.com/andrewmunruh/cozy-preview.git f70d538c230b8dbbad9a38104ce85fa1ae71599f:gh-pages from any clone that has it, or redeploy from ec4b455).
+
+## Two-client smoke (preview, new client + old 10ef736 client) — 12:10 CT
+| browser | size | ok | chips | yard | map | new-client scene art (12 views) | old client | pageerrors |
+|---|---|---|---|---|---|---|---|---|
+| chromium | 820x1180 / 844x390 / 390x844 | ✅✅✅ | 13/13 painted=12 | 11/11 | 2 | all painted (rooms×6, backyard, map, park, ranch, barn, clubhouse) | vector only (expected) | 0 |
+| webkit | 820x1180 / 844x390 / 390x844 | ✅✅✅ | 13/13 painted=12 | 11/11 | 2 | all painted | vector only (expected) | 0 |
+Map shows map-portrait on tall views and map on landscape. Hosts were only github.io and the preview worker.
