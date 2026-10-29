@@ -10,7 +10,7 @@
 import { setArtFromSearch } from './flag';
 import { rememberRaster } from './cache';
 
-const loaders = import.meta.glob('../../assets/art/*/*.webp', { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
+const loaders = import.meta.glob(['../../assets/art/*/*.webp', '!../../assets/art/scene/*.webp'], { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
 
 function kindOf(path: string): string | null {
   const file = path.split('/').pop() || '';

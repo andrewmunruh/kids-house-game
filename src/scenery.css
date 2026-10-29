@@ -5,3 +5,9 @@
 .scenery .sceneLamp { position: absolute; left: 30%; top: 40%; width: 7%; height: 42%; }
 .scenery .scenePlant { position: absolute; left: 62%; top: 46%; width: 8%; height: 36%; }
 .scenery svg { width: 100%; height: 100%; overflow: visible; }
+/* Optional painted scene (src/art/scene.ts). Sits over the vector wall/floor, under everything else. */
+.sceneArtHost { position: absolute; inset: 0; pointer-events: none; }
+.sceneArtHost > img.sceneArt { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+.sceneArtHost > img.sceneArt[hidden] { display: none; }
+/* The painting includes the door and its frame; the button stays as the tap target. */
+.stage.sceneArtOn .yardDoor .doorArt { visibility: hidden; }

@@ -1,0 +1,17 @@
+{
+ "geom": "room-living/room-living__geom.json",
+ "out": "../../assets/art/scene/room-living.webp",
+ "wall": "room-living/A_wall.jpg",
+ "wall_tile_h": 300,
+ "wall_color": "#f4c4cf",
+ "floor": "room-living/floor1.jpg",
+ "floor_crop": [
+  0,
+  40,
+  1024,
+  576
+ ],
+ "floor_tile_w": 1000,
+ "floor_color": "#dcaa7c",
+ "door": "room-living/door1.jpg"
+}
