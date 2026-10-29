@@ -67,3 +67,21 @@ No code or painting change. Chromium PSS after a full tour: PR 663 MB vs base 25
 
 ## Shots — /workspace/t-batchB-shots/int/
 117 WebKit shots: 13 scenes × 3 sizes × {cur-ec4b455, pr-7c2ece7, pr-7c2ece7__artv1}. Also contact_844x390.png and rooms6_844x390.png.
+
+## "Let's play visible" investigation (13:00 CT) — verdict: test-timing race, not a layout regression; code left alone
+Script: .intwork/wn.py, log .intwork/wn1.log. Static servers on 6770 (PR dist 7c2ece7) and 6771 (base ec4b455). Each case: 3 fresh loads × {base, pr, pr ?art=v1} × {844x390, 844x300, 667x280} × {webkit, chromium}. Measured at the moment phone_test does (right after .whatsNew .card appears) and again after 3 s.
+- **Settled (3 s), every run, both browsers, all three builds, identical:**
+  - 844x390: button top 266, bottom 314, h 48; card 63–327.
+  - 844x300: 221/269/48; card 18–282.
+  - 667x280: 211/259/48; card 8–272.
+  - PR == base == PR art=v1.
+- **At first appearance:** the card is still in its pop-in animation (scaled down and lower). This happens on both builds:
+  - Base WebKit 667x280 run 0: h 43.2, bottom 307 > 280. This would FAIL the test on base.
+  - PR Chromium 844x390 run 2: top 318.9, bottom 362.1, h 43.2, card bottom 374. This is exactly the phone_test failure value (319/362/43/374).
+  - PR Chromium 844x300 runs 1–2: h 44.5, bottom 304 > 300.
+  - Early-state hits: PR 3/27 loads vs base 1/27 loads (WebKit + Chromium). The PR's extra startup work (decoding the room painting) makes it more likely the check lands mid-animation.
+- The PR diff doesn't touch the welcome card or its CSS. The src diff is art/scene.ts, load.ts, gameroom-view.ts, main.ts (art host/show/release only), scenery.css (art rules), scenery.ts.
+- Bisect by merge: skipped as moot. With the animation finished, there is no measurement difference to localize.
+- Suggested harness fix (NOT applied, test-only): in lets_play_visible, await Promise.all(document.getAnimations().map(a=>a.finished)) or wait about 600 ms before measuring.
+- **Pet over door label:** the PR changes nothing in pets or .yardHintLabel (style.css is unchanged from base, label z-index 2). The art img is pointer-events:none. A wandering pet can cover the label on base too, so it is the same test-timing hazard, not PR-specific. The run-3 crash came from the test's raw locator.tap() on a covered label.
+No code change, so no re-gate, no redeploy, and no new shots. The preview stays at af9f7ae5.
