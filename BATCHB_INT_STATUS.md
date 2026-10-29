@@ -47,3 +47,23 @@ Found + fixed during gate: town's `.parkWorld.sceneArtOn > svg.parkScene {visibi
 | chromium | 820x1180 / 844x390 / 390x844 | ✅✅✅ | 13/13 painted=12 | 11/11 | 2 | all painted (rooms×6, backyard, map, park, ranch, barn, clubhouse) | vector only (expected) | 0 |
 | webkit | 820x1180 / 844x390 / 390x844 | ✅✅✅ | 13/13 painted=12 | 11/11 | 2 | all painted | vector only (expected) | 0 |
 Map shows map-portrait on tall views and map on landscape. Hosts were only github.io and the preview worker.
+
+## phone_test final rerun (run 5, head de7c564; code identical to 7c2ece7) — 12:45 CT
+381/383. Failures: "Let's play is visible without scrolling" at 844x390 ({top:319, bot:362, h:43, ih:390}) and 667x280 (h:45, bot 294 > ih 280).
+All PR phone runs, honestly reported:
+| run | result | failures |
+|---|---|---|
+| PR1 | crash | ranch svg hidden by town CSS → fixed 7c2ece7 |
+| PR2 | 380/383 | Let's play 844x390, 844x300, 667x280 |
+| PR3 | crash | Let's play 844x390, then pet (Clover the cat) intercepted the tap on .yardHintLabel |
+| PR4 | 381/383 | Let's play 844x300, 667x280 |
+| PR5 | 381/383 | Let's play 844x390, 667x280 |
+| base1 | 346/348 | Let's play 932x430 |
+| base2 | 383/383 | — |
+The welcome card is untouched by this PR, and base also failed this check once (base1). The button is in the viewport at 844x390, but h=43 is under the 44 px floor. That looks like the card's entry animation being measured mid-scale. The failure is NOT proven identical to base: base hit it at a different size, and the PR fails it more often (4 of 4 completed-or-partial runs vs 1 of 2). The pet-covers-label crash is a test-timing issue: a wandering pet sits over the label. Not fixed here.
+
+## Memory mitigation decision
+No code or painting change. Chromium PSS after a full tour: PR 663 MB vs base 257 MB. After a purge: 167 vs 153 MB. Only one painting stays in the DOM (release-on-leave). Worst single decoded scene: ranch 34.6 MB, park 27.8 MB. A 1.5x downscale (to 800 px tall) would save about 12–15 MB per scene, but the scene renders about 900 CSS px tall at dpr 2 on Reagan's iPad, so it would visibly soften. Decoding to the displayed size doesn't shrink WebKit's bitmap. Recommendation: ship as is, and check on the real iPad.
+
+## Shots — /workspace/t-batchB-shots/int/
+117 WebKit shots: 13 scenes × 3 sizes × {cur-ec4b455, pr-7c2ece7, pr-7c2ece7__artv1}. Also contact_844x390.png and rooms6_844x390.png.
