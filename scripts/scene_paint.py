@@ -12,7 +12,7 @@ RECIPE keys (paths relative to the recipe file):
   floor, floor_crop, floor_tile_w (logical px of one texture width), floor_color
   door        AI door painting on flat cream; fitted into geom.door exactly (optional)
   base        baseboard fill hex (default #fbefe4); ink #5b3d5c lines top+bottom (4 logical px)
-  max_kb      size budget (default 150)
+  max_kb      size budget in decimal KB (default 150 = 150,000 B)
   preview     optional PNG path for a full-size review copy
 Every texture is made horizontally seamless (edge crossfade) and tiled, recoloured to the
 target mean in Lab, then lit softly from the upper left with a gentle vignette.
@@ -103,9 +103,10 @@ def grain(img, amt=4, seed=7):
     return Image.fromarray(np.clip(a + n[..., None], 0, 255).astype(np.uint8))
 
 def encode(img, max_kb):
-    for q in range(86, 20, -4):
+    # Budget is decimal (max_kb * 1000 bytes, e.g. 150,000 B); step 1 so we stay as close to it as possible.
+    for q in range(86, 20, -1):
         b = io.BytesIO(); img.save(b, 'WEBP', quality=q, method=6)
-        if b.tell() <= max_kb * 1024: return b.getvalue(), q
+        if b.tell() <= max_kb * 1000: return b.getvalue(), q
     raise SystemExit(f'cannot fit {max_kb} KB')
 
 def main():
