@@ -14,3 +14,24 @@
 - scene_hotspot_test: 117 passed/0 failed; SCENE_SHIFT=12 → 12 expected fails.
 ## Batch A contrast (throwaway tmp-yard-x-batcha, not pushed)
 - All 30 items mean diff ≥41 (thr 25) in Chromium+WebKit; lowest lily-pond 41 (vs 69 on vector).
+
+## Group gate (2026-10-29) base dda1839 vs pr 381944c — identical
+| suite | base | pr |
+|---|---|---|
+| tsc | rc0 | rc0 |
+| art_catalog | 13 pass | 13 pass |
+| art_bounds | 2 pass | 2 pass |
+| art_raster | 11 pass, 2 known FAIL | same 2 FAIL |
+| phone | 383/383 | 383/383 |
+| hood | 44/44 | 44/44 |
+| rooms | 71 pass | 71 pass |
+| sit | known node crash | same |
+| avatar | 34/34 | 34/34 |
+| b0_compat | 14/14 | 14/14 |
+| migration vs 10ef736 | 43/43 | 43/43 |
+| scene_hotspot | n/a | 117/0; SCENE_SHIFT=12 → 12 expected FAIL |
+- JS gzip: 243280 → 244094 (+814 B vs dda1839).
+- WebPs: backyard 148920 B, clubhouse 145818 B (≤150000).
+- Merge onto origin/main ec4b455: clean (throwaway tmp-yard-rebase-test f23dd7c; rebase also clean), tsc+build ok; not pushed.
+- Batch A items on painted backyard (merged build): all 30 ≥41 mean diff (thr 25); lowest lily-pond 41, stepping-stones 42, birdbath 46.
+- Shots: /workspace/t-batchB-shots/yard/ (cur-ec4b455__, pr-381944c__, __artv1, merge-main-f23dd7c__ backyard w/ Batch A).
