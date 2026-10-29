@@ -640,6 +640,12 @@ async def check_framed(pg, tag, scene):
 
 async def lets_play_visible(pg, tag):
     """The Let's play button is in the viewport, not scrolled below the card."""
+    # Let the welcome card's pop-in finish (finite animations only, capped) so we measure the settled layout.
+    await pg.evaluate("""() => {
+      const wn = document.querySelector('.whatsNew');
+      const anims = wn ? wn.getAnimations({subtree: true}).filter(a => (a.effect && a.effect.getComputedTiming().iterations) !== Infinity) : [];
+      return Promise.race([Promise.all(anims.map(a => a.finished.catch(() => 0))), new Promise(r => setTimeout(r, 2000))]);
+    }""")
     data = await pg.evaluate("""() => {
       const btn = document.getElementById('wnGo');
       if (!btn) return {ok: false, why: 'no button'};
