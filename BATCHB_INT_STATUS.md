@@ -98,3 +98,8 @@ Gate on the PR dist (ports 6770-6779), .intwork/gate_pr6/: tsc ok; art_catalog 1
 ## Preview deploy of e21684a (code 7690913) — 13:48 CT
 cozy-preview gh-pages af9f7ae5dd4976c560fdcbb8d6b6e0327d62ab10 → 999a631ef1826607fc0adf0644ebb32a42557764. Bundle index-DI7YMcfJ.js → index-DsphUo0R.js (200, 846,903 B); CSS index-BJRq79Uy.css is live with the clubhouse rule. All 13 scene webps return 200 image/webp, ≤148,920 B, byte-identical to the build. Worker untouched (a40cfe72-19aa-49d2-9936-968939be066a). Production is still index-BWqIX3eQ.js.
 Rollback: gh-pages af9f7ae5dd4976c560fdcbb8d6b6e0327d62ab10 / index-DI7YMcfJ.js / Worker a40cfe72 (older: f70d538c / index-C3A4WDTr.js).
+
+## Smoke, int2 shots, lowmem — 13:59 CT
+- Two-client smoke, old 10ef736 client vs. new preview, Chromium and WebKit at 820x1180, 844x390 and 390x844: ok=True everywhere, chips 13/13 with 12 painted views, no errors on either client (.intwork/smoke2_*.log). Clubhouse at 820x1180 shows no seam.
+- Shots in /workspace/t-batchB-shots/int2/: cur-ec4b455 vs pr-7690913 for clubhouse (820x1180, 844x390) and salon (390x844, 820x1180, 844x390). Also contact_844x390__pr-7690913.png and rooms6_844x390__pr-7690913.png.
+- lowmem branch cursor/art-batch-b-lowmem @ 57c085be80363f5329dccc5e5adae70ef69322f5, NOT merged. Decoded memory: park 27.8→15.7 MB, ranch 34.6→19.4 MB, clubhouse 25.0→14.0 MB. scene_hotspot: 610 pass / 3 fail (base is 613/0). Failures: the park 2x-scale assertion (4350x900 vs 2900x600 vector), ranch door left edge 534 vs 543 painted, ranch door right edge 766 vs 754 painted. It does NOT meet the merge bar. Before/after look not taken because the gate failed. Stopped as the rule requires.
