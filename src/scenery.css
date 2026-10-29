@@ -14,7 +14,7 @@
 /* Map + park paintings: same <img>, filling the map card / park world; vector kept underneath (hidden only while shown). */
 .mapClip > img.sceneArt, .parkWorld > img.sceneArt { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; pointer-events: none; user-select: none; -webkit-user-drag: none; }
 .mapClip > img.sceneArt[hidden], .parkWorld > img.sceneArt[hidden] { display: none; }
-.mapClip.sceneArtOn > svg.mapBg, .parkWorld.sceneArtOn > svg.parkScene { visibility: hidden; }
+.mapClip.sceneArtOn > svg.mapBg, .parkWorld.sceneArtOn:not(.ranchWorld) > svg.parkScene { visibility: hidden; } /* ranch shares .parkWorld/.parkScene; its svg must stay visible (opacity 0), see ranch rule */
 /* Backyard: the painting carries the sky, lawn, fence, tree and house wall (src/yard.ts yardBackyardScenery). */
 .stage.sceneArtOn .yardWorld { visibility: hidden; }
 /* Clubhouse: the painting carries the room; the animated bits (light bulbs, neon sign) and the
