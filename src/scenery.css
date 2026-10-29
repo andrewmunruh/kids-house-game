@@ -22,7 +22,10 @@
 .grWorld > .sceneArtHost { z-index: 0; }
 .grWorld.sceneArtOn > svg.grScene > :not(defs):not(.bulb):not(.neonSign):not(.photoFrame) { visibility: hidden; }
 /* Painted clubhouse: the portrait wall/floor strips take the painting's (one step darker) edge colours. */
-.grWorld.sceneArtOn .grExt-top > rect:first-of-type { fill: #f4d5e9; }
-.grWorld.sceneArtOn .grExt-bottom stop:first-child { stop-color: #c16f8f; }
+.grWorld.sceneArtOn .grExt-top > rect:first-of-type { fill: #efd0e3; }
+.grWorld.sceneArtOn .grExt-bottom stop:first-child { stop-color: #bb6a8a; }
 .grWorld.sceneArtOn .grExt-bottom stop:last-child { stop-color: #b46383; }
+/* Tall portrait (strips present): feather the painting's top/bottom edge into its exact edge colours so no hard seam shows. */
+.grWorld.sceneArtOn:has(> .grExtWrap) { background: linear-gradient(180deg, #efd0e3 0 50%, #bb6a8a 50%); }
+.grWorld.sceneArtOn:has(> .grExtWrap) > .sceneArtHost > img.sceneArt { -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 3%, #000 97.5%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 3%, #000 97.5%, transparent 100%); }
 .ranchWorld.sceneArtOn > svg.ranchScene { opacity: 0; } /* ranch + barn paintings carry the scene (opacity, not visibility, so the svg still counts as shown); fence layer, props and animals stay live */
