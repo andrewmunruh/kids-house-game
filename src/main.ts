@@ -46,7 +46,7 @@ import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
 import { emptyRoomStarters, setRoomScenery, syncScenery, roomSceneArt } from './scenery';
-import { showSceneArt } from './art/scene';
+import { showSceneArt, releaseSceneArt } from './art/scene';
 import { DOOR_CAT_X, DOOR_KID, LIVE_DOOR, YARD_CAM, YARD_CAT, YARD_DOG, YARD_DOOR, YARD_KID, YARD_STAGE, registerYardItems, yardBackyardScenery, yardCompareHTML, yardDoorMarkup, yardLookPatch, yardPreviewOn, yardSheetHTML, yardShot } from './yard';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { isLightKind } from './sky';
@@ -940,7 +940,8 @@ function renderRoomBg(s: GameState) {
   floor.style.backgroundImage = ft ? `${cssUrl(ft.url)}, linear-gradient(rgba(0,0,0,.06), transparent 50%)` : FLOOR_BOARDS;
   floor.style.backgroundSize = ft ? '180px auto, auto' : 'auto';
   $('mmWall').style.background = room.wallpaper; $('mmFloor').style.background = room.floor;
-  showSceneArt($('sceneArt'), roomSceneArt(s.currentRoom, room), stage);
+  // Only while the house is on screen: under the map/park/ranch/clubhouse the room painting is let go (one decoded at a time).
+  showSceneArt($('sceneArt'), view === 'house' ? roomSceneArt(s.currentRoom, room) : null, stage);
   paintScenery(s);
 }
 function renderMinimap(s: GameState) {
@@ -3074,7 +3075,7 @@ $('mapWorld').addEventListener('click', e => {
   const g = sp.dataset.go!;
   mapGo(g.startsWith('house:') ? { kind: 'house', houseId: g.slice(6) } : { kind: g as 'home' | 'park' | 'ranch' | 'gameroom' }, sp);
 });
-function hideScenes() { cancelMapGo(); $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('ranch').classList.add('hidden'); $('gameroom').classList.add('hidden'); tableApi()?.close(); $('chatTray').classList.add('hidden'); $('sheet').classList.add('hidden'); }
+function hideScenes() { cancelMapGo(); releaseSceneArt(); /* one painting decoded at a time: the next view shows its own */ $('street').classList.add('hidden'); $('park').classList.add('hidden'); $('ranch').classList.add('hidden'); $('gameroom').classList.add('hidden'); tableApi()?.close(); $('chatTray').classList.add('hidden'); $('sheet').classList.add('hidden'); }
 function goMap() {
   cancelMapGo(); fetchSt = null; walkQueue = []; inBarn = false;
   if (hood) setMyPres({ where: 'street', x: 600, y: 540, flip: false }); else soloPark = null;

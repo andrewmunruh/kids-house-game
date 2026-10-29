@@ -31,16 +31,27 @@ function load(scene: string): Job {
   if (j) return j;
   const get = byScene.get(scene)!;
   const job: Job = { state: 'loading', p: null as any };
-  job.p = get().then(async url => {
-    const im = new Image();
-    im.decoding = 'async';
-    im.src = url;
-    await im.decode(); // decodes off the main thread; rejects on a bad or missing file
-    job.state = 'ok'; job.url = url;
-    return url;
-  }).catch(() => { job.state = 'failed'; return null; });
+  // Only the URL here (Vite asset); the <img> that shows it decodes it off the main thread (img.decode)
+  // before it is shown, and a bad or missing file marks the job failed there (vector stays).
+  job.p = get().then(url => { job.state = 'ok'; job.url = url; return url; }).catch(() => { job.state = 'failed'; return null; });
   jobs.set(scene, job);
   return job;
+}
+
+// One painting decoded at a time: every host that currently holds an <img> (room stage, map card,
+// park, ranch/barn, clubhouse). Showing a scene in one host releases the others, and leaving a
+// scene removes its <img> (not just hides it), so the browser can drop that decoded bitmap
+// (a 5800x1200 park is ~28 MB decoded). Re-entry decodes again off the main thread before showing.
+const holders = new Set<HTMLElement>();
+function release(host: HTMLElement, mark: HTMLElement | null): void {
+  host.querySelectorAll<HTMLImageElement>(':scope > img.sceneArt').forEach(i => { i.removeAttribute('src'); i.remove(); });
+  holders.delete(host);
+  const m = mark ?? (host as any).__sceneMark as HTMLElement | undefined;
+  if (m) { m.classList.remove('sceneArtOn'); delete m.dataset.sceneArt; }
+}
+/** Drop every painting (e.g. a view with no painted scene). */
+export function releaseSceneArt(except?: HTMLElement): void {
+  for (const h of [...holders]) if (h !== except) { h.dataset.sceneWant = ''; release(h, null); }
 }
 
 /**
@@ -51,19 +62,16 @@ function load(scene: string): Job {
 export function showSceneArt(host: HTMLElement, scene: string | null, mark: HTMLElement = host): void {
   const want = scene && byScene.has(scene) && !forcedVector() ? scene : null;
   host.dataset.sceneWant = want ?? '';
-  let img = host.querySelector<HTMLImageElement>(':scope > img.sceneArt');
-  const off = () => {
-    mark.classList.remove('sceneArtOn');
-    delete mark.dataset.sceneArt;
-    if (img) img.hidden = true;
-  };
-  if (!want) { off(); return; }
+  (host as any).__sceneMark = mark;
+  if (!want) { release(host, mark); return; }
+  releaseSceneArt(host); // leaving another scene: let its painting go
   const job = load(want);
   const put = (url: string) => {
     if (host.dataset.sceneWant !== want) return; // she left the scene before it loaded
     // Re-read: two calls made while the file loads each resolve here, and a stale null would add a second <img>
     // (that one kept the previous scene's painting on top after a switch, e.g. living -> backyard).
-    img = host.querySelector<HTMLImageElement>(':scope > img.sceneArt');
+    let img = host.querySelector<HTMLImageElement>(':scope > img.sceneArt');
+    if (img && img.getAttribute('src') === url && !img.hidden) { mark.classList.add('sceneArtOn'); mark.dataset.sceneArt = want; return; }
     if (!img) {
       img = document.createElement('img');
       img.className = 'sceneArt';
@@ -73,14 +81,22 @@ export function showSceneArt(host: HTMLElement, scene: string | null, mark: HTML
       img.decoding = 'async';
       host.prepend(img);
     }
-    if (img.getAttribute('src') !== url) img.src = url;
-    img.hidden = false;
-    mark.classList.add('sceneArtOn');
-    mark.dataset.sceneArt = want;
+    holders.add(host);
+    const el = img;
+    if (el.getAttribute('src') === url) { show(el); return; }
+    // New or different painting: keep the vector (and no stale painting) until this one is decoded.
+    el.hidden = true; mark.classList.remove('sceneArtOn'); delete mark.dataset.sceneArt;
+    el.src = url;
+    el.decode().then(
+      () => { if (host.dataset.sceneWant === want && el.isConnected && el.getAttribute('src') === url) show(el); },
+      () => { job.state = 'failed'; if (host.dataset.sceneWant === want) release(host, mark); });
   };
+  const show = (el: HTMLImageElement) => { el.hidden = false; mark.classList.add('sceneArtOn'); mark.dataset.sceneArt = want; };
   if (job.state === 'ok') { put(job.url!); return; }
-  off();
-  if (job.state === 'loading') job.p.then(u => { if (u) put(u); });
+  if (job.state === 'failed') { release(host, mark); return; }
+  mark.classList.remove('sceneArtOn'); delete mark.dataset.sceneArt;
+  const old = host.querySelector<HTMLImageElement>(':scope > img.sceneArt'); if (old) old.hidden = true;
+  job.p.then(u => { if (u) put(u); });
 }
 
 /** Tests: resolves once the painting for `scene` has loaded (url) or failed (null). */
