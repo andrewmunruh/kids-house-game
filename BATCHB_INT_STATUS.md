@@ -35,3 +35,8 @@ Box was restored from a snapshot ~10:21 CT (node_modules, Playwright browsers + 
 | scene_hotspot all 13 scenes | 613 PASS, 0 FAIL | n/a |
 | scene_hotspot SCENE_SHIFT=12,10 | 19 FAIL across 10 adapter scenes (expected); map/map-portrait/park/ranch use their built-in shift negatives | n/a |
 Found + fixed during gate: town's `.parkWorld.sceneArtOn > svg.parkScene {visibility:hidden}` also hid the ranch svg (ranchWorld has .parkWorld) -> phone_test timed out on `.ranchScene`. Fixed with :not(.ranchWorld) (7c2ece7).
+
+## Preview deploy (11:3x CT) — done from 7c2ece7 code (e88a8e7 adds only status)
+- deploy-preview.sh: cozy-preview gh-pages f70d538 -> af9f7ae5dd4976c560fdcbb8d6b6e0327d62ab10; live bundle index-DI7YMcfJ.js (was index-C3A4WDTr.js). Worker not redeployed (stays a40cfe72-19aa-49d2-9936-968939be066a).
+- curl: preview index serves index-DI7YMcfJ.js (200, 846,903 B); assets/park-CE9nIY_g.webp 200 image/webp 148,090 B, byte-identical to build. Production still index-BWqIX3eQ.js.
+- Rollback: push f70d538 back to cozy-preview gh-pages (git push -f https://github.com/andrewmunruh/cozy-preview.git f70d538c230b8dbbad9a38104ce85fa1ae71599f:gh-pages from any clone that has it, or redeploy from ec4b455).
