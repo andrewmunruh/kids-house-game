@@ -1,0 +1,34 @@
+{
+ "scene": "room-nursery",
+ "logical": [
+  2400,
+  600
+ ],
+ "wall": [
+  0,
+  0,
+  2400,
+  390
+ ],
+ "floor": [
+  0,
+  390,
+  2400,
+  210
+ ],
+ "baseboard": [
+  0,
+  380,
+  2400,
+  16
+ ],
+ "door": null,
+ "doorTap": null,
+ "sceneWin": [
+  864,
+  36,
+  312,
+  276
+ ],
+ "eggs": []
+}

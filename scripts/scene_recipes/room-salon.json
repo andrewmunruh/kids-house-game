@@ -1,0 +1,20 @@
+{
+ "geom": "room-salon/room-salon__geom.json",
+ "out": "../../assets/art/scene/room-salon.webp",
+ "wall": "room-salon/C_wall.png",
+ "wall_note": "C_wall.png = scripts/scene_pattern_tex.py 2 #ffe0f0 room-salon/B_grain.jpg (vector pattern + AI gouache grain)",
+ "wall_tile_h": 312,
+ "wall_color": "#f2cee1",
+ "wall_blend": 0,
+ "wall_flatten": false,
+ "wall_keep": 0.95,
+ "floor": "room-living/floor1.jpg",
+ "floor_crop": [
+  0,
+  40,
+  1024,
+  576
+ ],
+ "floor_tile_w": 1000,
+ "floor_color": "#e8c7f1"
+}
