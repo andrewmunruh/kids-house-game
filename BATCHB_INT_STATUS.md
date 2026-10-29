@@ -85,3 +85,7 @@ Script: .intwork/wn.py, log .intwork/wn1.log. Static servers on 6770 (PR dist 7c
 - Suggested harness fix (NOT applied, test-only): in lets_play_visible, await Promise.all(document.getAnimations().map(a=>a.finished)) or wait about 600 ms before measuring.
 - **Pet over door label:** the PR changes nothing in pets or .yardHintLabel (style.css is unchanged from base, label z-index 2). The art img is pointer-events:none. A wandering pet can cover the label on base too, so it is the same test-timing hazard, not PR-specific. The run-3 crash came from the test's raw locator.tap() on a covered label.
 No code change, so no re-gate, no redeploy, and no new shots. The preview stays at af9f7ae5.
+
+## Test-only fix dde2f3e + gate (13:06 CT)
+dde2f3e touches only phone_test.py (+6 lines: wait for the .whatsNew finite animations, capped at 2 s, before measuring). `git diff --stat 7c2ece7 dde2f3e` = phone_test.py + BATCHB_INT_STATUS.md only. A rebuild at dde2f3e is `diff -r` identical to /workspace/t-batchB-int-dist (the 7c2ece7 dist), so the preview build is unchanged.
+Gate on the PR dist (ports 6770-6779), .intwork/gate_pr6/: tsc ok; art_catalog 13; art_bounds 2; art_raster 11 + 2 known fails (rc=1, same as base); avatar 50; costume 20; rooms 71; **phone_test 383/383 and second run 383/383**; hood 44/44; eggs ok; avatar_test 34/34; b0 14/14; mail_persist node/worker/b0 4/4/1; migration 43/43; scene_hotspot 613/0; shift negative 594/19 (expected).
