@@ -28,7 +28,8 @@ res = {}
 def check(name, ok, extra=''):
     res[name] = bool(ok); print(('PASS ' if ok else 'FAIL ') + name, extra, flush=True)
 
-SHIFT = tuple(int(v) for v in os.environ.get('SCENE_SHIFT', '0,0').split(','))  # negative check: e.g. SCENE_SHIFT=12,10 must FAIL
+_sh = [int(v) for v in os.environ.get('SCENE_SHIFT', '0,0').split(',')]  # negative check: SCENE_SHIFT=12,10 (or 12 = 12,10) must FAIL
+SHIFT = (_sh[0], _sh[1]) if len(_sh) > 1 else (_sh[0], round(_sh[0] * 10 / 12))
 def lum(path):
     L = Image.open(path).convert('L')
     if SHIFT != (0, 0):  # paste the painting moved by (dx, dy) px at 2x, as a drifted painting would be
@@ -49,11 +50,10 @@ def edge_at(profile, want, search=24):
 
 # Negative self-check: SCENE_SHIFT=12 moves the painting 12 px right / 10 px down before the edge checks
 # (every edge check must then FAIL; run it once by hand, see BATCHB_*_STATUS.md).
-SHIFT = int(os.environ.get('SCENE_SHIFT', '0'))
 
 def shifted(L):
-    if not SHIFT: return L
-    out = Image.new('L', L.size, 128); out.paste(L, (SHIFT, round(SHIFT * 10 / 12))); return out
+    if SHIFT == (0, 0): return L
+    out = Image.new('L', L.size, 128); out.paste(L, SHIFT); return out
 
 def chroma(path):
     """Green-minus-blue: outdoors the sky and the far lawn have the same brightness but not the same hue."""
@@ -63,7 +63,7 @@ def chroma(path):
 
 def paint_checks(scene, L, geom, path=None, check=check, ref=None):
     """ref: luminance of the vector render (outdoor ranch/barn): door edges are measured on it first (see ranch notes)."""
-    L = shifted(L)
+    # L comes from lum(), already shifted when SCENE_SHIFT is set; chroma below is shifted the same way.
     S = L.width / geom['logical'][0]
     if geom.get('baseboard') or 'floorLine' in geom:
         bx, by, bw, bh = geom['baseboard'] if geom.get('baseboard') else (0, geom['floorLine'], 0, 0)
