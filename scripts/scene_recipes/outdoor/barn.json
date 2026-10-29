@@ -1,0 +1,79 @@
+{
+ "guide": "barn__guide.png",
+ "out": "../../../assets/art/scene/barn.webp",
+ "paper": "paper.jpg",
+ "dL": 5,
+ "pick": "A",
+ "max_kb": 150,
+ "regions": [
+  {
+   "tex": "wood.jpg",
+   "match": [
+    "#e8a87c",
+    "#c98a5e",
+    "#f0c49a",
+    "#a8653a",
+    "#d4895f",
+    "#e4b186",
+    "#b5764d",
+    "#d9a074"
+   ],
+   "tol": 14,
+   "y1": 880,
+   "k": 0.8,
+   "tile_w": 800,
+   "chroma": 0.4
+  },
+  {
+   "tex": "straw.jpg",
+   "match": [
+    "#f2d58a"
+   ],
+   "tol": 14,
+   "y0": 870,
+   "k": 0.8,
+   "tile_w": 800,
+   "chroma": 0.5
+  },
+  {
+   "tex": "sky.jpg",
+   "match": [
+    "#c7e8ff"
+   ],
+   "tol": 20,
+   "k": 0.5,
+   "tile_w": 400,
+   "chroma": 0.3
+  },
+  {
+   "tex": "grass.jpg",
+   "match": [
+    "#a6e3a0"
+   ],
+   "tol": 20,
+   "k": 0.6,
+   "tile_w": 400,
+   "chroma": 0.5
+  }
+ ],
+ "paper_k": 0.6,
+ "ao": 0.18,
+ "light": 0.06,
+ "grain": 0,
+ "attempts": {
+  "A": {},
+  "B": {
+   "regions": [],
+   "paper_k": 0,
+   "brush_k": 1.5,
+   "ao": 0.22
+  },
+  "C": {
+   "edge_k": 1.6,
+   "paper_k": 1.0,
+   "ao": 0.25,
+   "dL": 7
+  }
+ },
+ "detail_blur": 2.5
+}

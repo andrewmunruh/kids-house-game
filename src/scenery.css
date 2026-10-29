@@ -25,3 +25,4 @@
 .grWorld.sceneArtOn .grExt-top > rect:first-of-type { fill: #f4d5e9; }
 .grWorld.sceneArtOn .grExt-bottom stop:first-child { stop-color: #c16f8f; }
 .grWorld.sceneArtOn .grExt-bottom stop:last-child { stop-color: #b46383; }
+.ranchWorld.sceneArtOn > svg.ranchScene { opacity: 0; } /* ranch + barn paintings carry the scene (opacity, not visibility, so the svg still counts as shown); fence layer, props and animals stay live */

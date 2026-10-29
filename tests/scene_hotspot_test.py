@@ -61,11 +61,12 @@ def chroma(path):
     from PIL import ImageChops
     return ImageChops.add(ImageChops.subtract(g, b, 1, 128), ImageChops.subtract(b, b))
 
-def paint_checks(scene, L, geom, path=None):
+def paint_checks(scene, L, geom, path=None, check=check, ref=None):
+    """ref: luminance of the vector render (outdoor ranch/barn): door edges are measured on it first (see ranch notes)."""
     L = shifted(L)
     S = L.width / geom['logical'][0]
-    if geom.get('baseboard'):
-        bx, by, bw, bh = geom['baseboard']
+    if geom.get('baseboard') or 'floorLine' in geom:
+        bx, by, bw, bh = geom['baseboard'] if geom.get('baseboard') else (0, geom['floorLine'], 0, 0)
         y0 = round(by * S); band = 4 * round(S)
         rows = row_profile(L, 40, L.width - 40)
         cand = [(sum(rows[y:y + band]) / band, y) for y in range(y0 - 16, y0 + 17)]
@@ -81,12 +82,18 @@ def paint_checks(scene, L, geom, path=None):
     if geom.get('door'):
         dx, dy, dw, dh = [v * S for v in geom['door']]
         prof = col_profile(L, round(dy + dh * 0.3), round(dy + dh * 0.7))
+        rprof = col_profile(ref, round(dy + dh * 0.3), round(dy + dh * 0.7)) if ref else None
         for nm, want in (('left', round(dx)), ('right', round(dx + dw))):
-            e = edge_at(prof, want)
+            if ref:
+                v = edge_at(rprof, want); check(f'{scene}: vector door {nm} edge within the frame band of x={want}', abs(v - want) <= 26, f'(vector {v})'); want = v
+            e = edge_at(prof, want, 12 if ref else 24)
             check(f'{scene}: door {nm} edge at x={want}', abs(e - want) <= TOL, f'(painted {e})')
+        want = round(dy); rows = row_profile(L, round(dx + dw * 0.3), round(dx + dw * 0.7))
+        if ref:
+            v = edge_at(row_profile(ref, round(dx + dw * 0.3), round(dx + dw * 0.7)), want); check(f'{scene}: vector door top edge within the frame band of y={want}', abs(v - want) <= 26, f'(vector {v})'); want = v
         # +-12: just past the frame's ink is the next strong step (the clubhouse door's MAP plate)
-        e = edge_at(row_profile(L, round(dx + dw * 0.3), round(dx + dw * 0.7)), round(dy), 12)
-        check(f'{scene}: door top edge at y={round(dy)}', abs(e - round(dy)) <= TOL, f'(painted {e})')
+        e = edge_at(rows, want, 12)
+        check(f'{scene}: door top edge at y={want}', abs(e - want) <= TOL, f'(painted {e})')
 
 HIT_JS = r"""() => {
   const out = [];
@@ -265,6 +272,49 @@ async def enter(pg, scene):
         await go(pg, 'gameroom'); return CLUB_HIT_JS, '#grWorld.sceneArtOn[data-scene-art="clubhouse"]'
     return None, None
 ADAPTED = lambda scene: scene.startswith('room-') or scene in ('backyard', 'clubhouse')
+OUTDOOR_JS = r"""() => { const w = document.getElementById('ranchWorld'); const img = w && w.querySelector('.sceneArtHost img.sceneArt');
+  return { on: !!w && w.classList.contains('sceneArtOn'), img: !!img && img.complete && img.naturalWidth > 0,
+    passThrough: !img || getComputedStyle(img).pointerEvents === 'none' }; }"""
+
+async def outdoor(b, bname, scene):
+    """Ranch yard / barn adapter: painted ink lines + static hotspots (props, plots, buckets, door tap, fence).
+    Horses and animals wander, so they are not compared box-for-box."""
+    async def open_(v1):
+        ctx, pg = await page(b, 1180, 820, v1); await go(pg, scene); await pg.wait_for_timeout(600); return ctx, pg
+    def static(g):
+        d = {s['name']: s['box'] for s in g['spots'] if not s['name'].startswith(('horse', 'animal'))}
+        d['doorTap'] = g['doorTap']; d['fence'] = g['fence']; return d
+    ctx, pg = await open_(True)
+    gv = await pg.evaluate(GEOM_JS, scene); v1 = await pg.evaluate(OUTDOOR_JS)
+    check(f'[{bname}] {scene}: ?art=v1 shows the vector', not v1['on'] and not v1['img'])
+    await ctx.close()
+    if bname == 'chromium':
+        L = lum(ROOT / 'assets' / 'art' / 'scene' / f'{scene}.webp')
+        ref = lum(ROOT / 'scripts' / 'scene_recipes' / 'outdoor' / f'{scene}__guide.png')
+        paint_checks(scene, L, gv, ref=ref)
+        # Negative control: the same checks must catch a painting shifted by 4 logical px.
+        neg = {}
+        sh = Image.new('L', L.size, 255); sh.paste(L, (8, 8))
+        paint_checks(scene, sh, gv, check=lambda n, ok, e='': neg.__setitem__(n, ok), ref=ref)
+        check(f'{scene}: a deliberately shifted painting is caught', not all(neg.values()), str(neg))
+    ctx, pg = await open_(False)
+    try: await pg.wait_for_selector('#ranchWorld.sceneArtOn', timeout=8000)
+    except Exception: pass
+    pa = await pg.evaluate(OUTDOOR_JS); gp = await pg.evaluate(GEOM_JS, scene)
+    check(f'[{bname}] {scene}: painting shown', pa['on'] and pa['img'])
+    check(f'[{bname}] {scene}: painting never takes taps (pointer-events none)', pa['passThrough'])
+    a, c = static(gv), static(gp)
+    check(f'[{bname}] {scene}: same static hotspot set', sorted(a) == sorted(c), str(sorted(a)))
+    for k in a:
+        same = c.get(k) is not None and a[k] is not None and max(abs(x - y) for x, y in zip(a[k], c[k])) <= 0.5
+        check(f'[{bname}] {scene}: {k} unchanged', same or (a[k] is None and c.get(k) is None), f'{c.get(k)} vs {a[k]}')
+    sel = '.barnDoor' if scene == 'ranch' else '.barnExit'
+    await pg.click(sel)
+    want = 'body.in-barn #ranchWorld .barnScene' if scene == 'ranch' else 'body.view-ranch:not(.in-barn) #ranchWorld .ranchScene'
+    try: await pg.wait_for_selector(want, timeout=6000); ok = True
+    except Exception: ok = False
+    check(f'[{bname}] {scene}: door tap with painting goes through', ok)
+    await ctx.close()
 
 async def main():
     check('at least one painted scene', len(SCENES) > 0, str(SCENES))
@@ -274,6 +324,8 @@ async def main():
             for scene in SCENES:
                 if scene in TOWN:
                     await town_scene(b, bname, scene); continue
+                if scene in ('ranch', 'barn'):
+                    await outdoor(b, bname, scene); continue
                 if not ADAPTED(scene):
                     check(f'[{bname}] {scene}: has a geometry adapter', False, 'add one to scene_hotspot_test.py (see SCENE_RECIPE.md)'); continue
                 ctx, pg = await page(b, 1180, 820, True); hit_js, mark = await enter(pg, scene)
@@ -319,9 +371,10 @@ async def main():
                 # too (same with ?art=v1), so open the map by its button's own click there.
                 if not await pg.evaluate("() => { const m = document.getElementById('btnMap').getBoundingClientRect(); const h = document.elementFromPoint(m.left + m.width / 2, m.top + m.height / 2); return !!h && !!h.closest('#btnMap'); }"):
                     print(f'NOTE {tag} Map button covered by the stage (pre-existing on base)')
-                # Playwright's own hit test can still see the stage over the button edge in WebKit at
-                # 820x1180 (same on base): open the map by the button's click either way; the places are what's tested.
-                await pg.evaluate("() => { if (!document.body.classList.contains('view-map')) document.getElementById('btnMap').click(); }")
+                await pg.wait_for_timeout(300)
+                # Same pre-existing overlap can appear a moment later (stage settling), so open the map by its own click.
+                if not await pg.evaluate("document.body.classList.contains('view-map')"):
+                    await pg.evaluate("() => document.getElementById('btnMap').click()")
                 await to_map(pg)
                 places = await pg.evaluate("() => [...new Set([...document.querySelectorAll('#mapWorld [data-go]')].map(e => e.dataset.go))]")
                 check(f'{tag} map lists park, ranch, gameroom, home', all(x in places for x in ('park', 'ranch', 'gameroom', 'home')), str(places))

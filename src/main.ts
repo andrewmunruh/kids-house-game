@@ -4544,14 +4544,14 @@ function renderRanch() {
   const box = (x: number, bottom: number, wd: number, ht: number) => `left:${px(x - wd / 2)};top:${px(bottom - ht)};width:${px(wd)};height:${px(ht)};z-index:${depthZ(bottom)}`;
   w.style.width = RW() * sc + 'px'; w.style.height = RANCH_H * sc + 'px'; w.style.setProperty('--sc', String(sc));
   if (inBarn) {
-    w.innerHTML = barnSceneSVG()
+    w.innerHTML = barnSceneSVG() + '<div class="sceneArtHost" id="ranchArt"></div>'
       + `<button class="rprop barnExit" data-r="exit" aria-label="Go outside" style="${box(127, 444, 206, 244)}"><span class="exitHint"><span>Outside ☀️</span></span></button>`
       + ANIMALS.map((_, i) => `<button class="animal" data-animal="${i}" aria-label="${ANIMAL_INFO[i].name}" style="${box(BARN_ANIMAL_X[i], ANIMAL_Y + 30, 128, 107)}">${animalSVG(i)}</button>`).join('')
       + [300, 1244].map(x0 => (['carrot', 'apple', 'hay'] as const).map((f, i) => `<button class="bucket" data-feed="${f}" aria-label="${f} bucket" style="${box(x0 + i * 56, 592, 54, 62)}">${bucketSVG(f)}</button>`).join('')).join('') // by the door + in the middle
       + `<div class="rfx" id="rfx"></div><div class="savatars" id="ravatars"></div>`;
-    renderRanchAvatars(); phoneShowKids(); return;
+    showSceneArt($('ranchArt'), 'barn', w); renderRanchAvatars(); phoneShowKids(); return;
   }
-  w.innerHTML = ranchSceneSVG()
+  w.innerHTML = ranchSceneSVG() + '<div class="sceneArtHost" id="ranchArt"></div>'
     + paddockFenceSVG().replace('<svg ', `<svg style="z-index:${depthZ(FENCE_FOOT)}" `)
     + `<button class="rprop barnDoor" data-r="barn" aria-label="Go into the barn" style="${box(BARN_DOOR_X, 472, 150, 150)}"><span class="doorHint"><span>Petting zoo inside! 🐐</span></span></button>`
     + `<button class="rprop windmill" data-r="mill" aria-label="Windmill" style="${box(1540, 478, 150, 240)}">${windmillSVG}</button>`
@@ -4561,7 +4561,7 @@ function renderRanch() {
     + HORSES.map((_, i) => { const hs = horseSize(); const off = phonePaddock() && shownHorseIds().indexOf(i) < 0 ? ' stallOff' : ''; return `<button class="horse${off}" data-horse="${i}" aria-label="${HORSE_COATS[i].name} horse" style="${box(horseHome(i), HORSE_Y, hs.w, hs.h)}">${horseSVG(i)}</button>`; }).join('')
     + Array.from({ length: PLOTS }, (_, i) => `<button class="plot" data-plot="${i}" aria-label="Garden plot" style="${box(PLOT_X(i), 594, 66, 86)}"></button>`).join('')
     + `<div class="rfx" id="rfx"></div><div class="savatars" id="ravatars"></div>`;
-  renderPlots(true); renderRanchAvatars();
+  showSceneArt($('ranchArt'), 'ranch', w); renderPlots(true); renderRanchAvatars();
   phoneShowKids();
 }
 const plotKey: string[] = [];

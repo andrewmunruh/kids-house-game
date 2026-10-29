@@ -1,0 +1,82 @@
+{
+ "guide": "ranch__guide.png",
+ "out": "../../../assets/art/scene/ranch.webp",
+ "paper": "paper.jpg",
+ "dL": 5,
+ "pick": "A",
+ "max_kb": 150,
+ "regions": [
+  {
+   "tex": "sky.jpg",
+   "match": [
+    "#c7e8ff",
+    "#d5ebfe",
+    "#e3effd",
+    "#f0f2fc",
+    "#fff4fb"
+   ],
+   "tol": 24,
+   "y1": 440,
+   "exclude": [
+    "#ffffff"
+   ],
+   "k": 0.6,
+   "tile_w": 900,
+   "chroma": 0.3
+  },
+  {
+   "tex": "grass.jpg",
+   "match": [
+    "#a6e3a0",
+    "#b6f0c8"
+   ],
+   "tol": 20,
+   "k": 0.75,
+   "tile_w": 700,
+   "chroma": 0.7
+  },
+  {
+   "tex": "straw.jpg",
+   "match": [
+    "#eaddb6"
+   ],
+   "tol": 20,
+   "k": 0.5,
+   "tile_w": 500,
+   "chroma": 0.4
+  },
+  {
+   "tex": "wood.jpg",
+   "match": [
+    "#ef5b5b",
+    "#d94848",
+    "#c99366",
+    "#b07d54"
+   ],
+   "tol": 20,
+   "k": 0.45,
+   "tile_w": 500,
+   "chroma": 0.2
+  }
+ ],
+ "paper_k": 0.6,
+ "ao": 0.18,
+ "light": 0.06,
+ "grain": 0,
+ "attempts": {
+  "A": {},
+  "B": {
+   "regions": [],
+   "paper_k": 0,
+   "brush_k": 1.5,
+   "ao": 0.22
+  },
+  "C": {
+   "edge_k": 1.6,
+   "paper_k": 1.0,
+   "ao": 0.25,
+   "dL": 7
+  }
+ },
+ "detail_blur": 2.5
+}

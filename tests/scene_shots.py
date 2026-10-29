@@ -48,6 +48,10 @@ async def shoot(b, name, w, h, v1):
         # WebKit 820x1180: the stage overlaps the Map button on base dda1839 too; open the map by its own click.
         await pg.evaluate("() => { if (!document.body.classList.contains('view-map')) document.getElementById('btnMap').click(); }")
         await go(pg, 'gameroom'); mark = '#grWorld'
+    elif SCENE in ('ranch', 'barn'):
+        # 820x1180 desktop WebKit: the stage covers #btnMap on base too, so open the map by its own click.
+        await pg.evaluate("() => document.getElementById('btnMap').click()")
+        await go(pg, SCENE); mark = '#ranchWorld'
     try:
         await pg.wait_for_function("(m) => !!document.querySelector(m + '.sceneArtOn')", arg=mark, timeout=6000 if not v1 else 1500)
     except Exception: pass
