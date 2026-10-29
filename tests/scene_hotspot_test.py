@@ -47,21 +47,45 @@ def edge_at(profile, want, search=24):
     lo = max(0, want - search); hi = min(len(profile) - 1, want + search)
     return max(range(lo, hi), key=lambda i: abs(profile[i + 1] - profile[i]))
 
-def paint_checks(scene, L, geom):
+# Negative self-check: SCENE_SHIFT=12 moves the painting 12 px right / 10 px down before the edge checks
+# (every edge check must then FAIL; run it once by hand, see BATCHB_*_STATUS.md).
+SHIFT = int(os.environ.get('SCENE_SHIFT', '0'))
+
+def shifted(L):
+    if not SHIFT: return L
+    out = Image.new('L', L.size, 128); out.paste(L, (SHIFT, round(SHIFT * 10 / 12))); return out
+
+def chroma(path):
+    """Green-minus-blue: outdoors the sky and the far lawn have the same brightness but not the same hue."""
+    r, g, b = Image.open(path).convert('RGB').split()
+    from PIL import ImageChops
+    return ImageChops.add(ImageChops.subtract(g, b, 1, 128), ImageChops.subtract(b, b))
+
+def paint_checks(scene, L, geom, path=None):
+    L = shifted(L)
     S = L.width / geom['logical'][0]
-    bx, by, bw, bh = geom['baseboard']
-    y0 = round(by * S); band = 4 * round(S)
-    rows = row_profile(L, 40, L.width - 40)
-    cand = [(sum(rows[y:y + band]) / band, y) for y in range(y0 - 16, y0 + 17)]
-    got = min(cand)[1]
-    check(f'{scene}: baseboard ink line at y={y0}', abs(got - y0) <= TOL, f'(painted {got})')
+    if geom.get('baseboard'):
+        bx, by, bw, bh = geom['baseboard']
+        y0 = round(by * S); band = 4 * round(S)
+        rows = row_profile(L, 40, L.width - 40)
+        cand = [(sum(rows[y:y + band]) / band, y) for y in range(y0 - 16, y0 + 17)]
+        got = min(cand)[1]
+        check(f'{scene}: baseboard ink line at y={y0}', abs(got - y0) <= TOL, f'(painted {got})')
+    for ln in geom.get('lines', []):
+        # outdoor horizon / floor trim: the strongest horizontal step near the vector's line
+        x0, x1 = [round(v * S) for v in ln.get('x', [20, geom['logical'][0] - 20])]
+        y0 = round(ln['y'] * S)
+        C = shifted(chroma(path)) if path and geom.get('baseboard') is None else L
+        e = edge_at(row_profile(C, x0, x1), y0)
+        check(f"{scene}: {ln['name']} at y={y0}", abs(e + 1 - y0) <= TOL, f'(painted {e + 1})')
     if geom.get('door'):
         dx, dy, dw, dh = [v * S for v in geom['door']]
         prof = col_profile(L, round(dy + dh * 0.3), round(dy + dh * 0.7))
         for nm, want in (('left', round(dx)), ('right', round(dx + dw))):
             e = edge_at(prof, want)
             check(f'{scene}: door {nm} edge at x={want}', abs(e - want) <= TOL, f'(painted {e})')
-        e = edge_at(row_profile(L, round(dx + dw * 0.3), round(dx + dw * 0.7)), round(dy))
+        # +-12: just past the frame's ink is the next strong step (the clubhouse door's MAP plate)
+        e = edge_at(row_profile(L, round(dx + dw * 0.3), round(dx + dw * 0.7)), round(dy), 12)
         check(f'{scene}: door top edge at y={round(dy)}', abs(e - round(dy)) <= TOL, f'(painted {e})')
 
 HIT_JS = r"""() => {
@@ -214,6 +238,33 @@ async def town_scene(b, bname, scene):
                 except Exception: good = False
                 check(f'{tag}: map painted, tap {place}', good)
         await ctx.close()
+CLUB_HIT_JS = r"""() => {
+  const out = [];
+  document.querySelectorAll('#grWorld .grDoor, #grWorld .grTable, #grWorld .grChair').forEach(el => { const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2, y = r.top + r.height / 2, onScreen = x >= 0 && y >= 0 && x < innerWidth && y < innerHeight;
+    const h = onScreen ? document.elementFromPoint(x, y) : null;
+    out.push({ name: el.className + ' ' + (el.dataset.tb ?? '') + '/' + (el.dataset.seat ?? ''), box: [r.left, r.top, r.width, r.height].map(v => Math.round(v * 10) / 10), hit: onScreen ? (!!h && (h === el || el.contains(h))) : null }); });
+  const img = document.querySelector('#grSceneArt img.sceneArt');
+  return { on: !!document.querySelector('#grWorld.sceneArtOn'), img: !!img && img.complete && img.naturalWidth > 0 && !img.hidden,
+    passThrough: !img || getComputedStyle(img).pointerEvents === 'none', spots: out };
+}"""
+
+# Geometry adapters for non-room scenes: how to get there, which hit list, which mark shows the painting.
+async def enter(pg, scene):
+    if scene.startswith('room-'): await to_room(pg, scene.split('-', 1)[1]); return HIT_JS, '#stage.sceneArtOn'
+    if scene == 'backyard':
+        await pg.wait_for_timeout(500)
+        await pg.evaluate("""() => { const d = document.querySelector('#layer .yardDoor'), r = d.getBoundingClientRect();
+          const o = { bubbles: true, button: 0, pointerId: 7, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+          d.dispatchEvent(new PointerEvent('pointerdown', o)); window.dispatchEvent(new PointerEvent('pointerup', o)); }""")
+        await pg.wait_for_selector('#stage.room-yard', timeout=8000); await pg.wait_for_timeout(700)
+        return HIT_JS, '#stage.sceneArtOn[data-scene-art="backyard"]'
+    if scene == 'clubhouse':
+        # WebKit 820x1180: the stage overlaps the Map button on base dda1839 too; open the map by its own click.
+        await pg.evaluate("() => { if (!document.body.classList.contains('view-map')) document.getElementById('btnMap').click(); }")
+        await go(pg, 'gameroom'); return CLUB_HIT_JS, '#grWorld.sceneArtOn[data-scene-art="clubhouse"]'
+    return None, None
+ADAPTED = lambda scene: scene.startswith('room-') or scene in ('backyard', 'clubhouse')
 
 async def main():
     check('at least one painted scene', len(SCENES) > 0, str(SCENES))
@@ -223,20 +274,20 @@ async def main():
             for scene in SCENES:
                 if scene in TOWN:
                     await town_scene(b, bname, scene); continue
-                if not scene.startswith('room-'):
+                if not ADAPTED(scene):
                     check(f'[{bname}] {scene}: has a geometry adapter', False, 'add one to scene_hotspot_test.py (see SCENE_RECIPE.md)'); continue
-                room = scene.split('-', 1)[1]
-                ctx, pg = await page(b, 1180, 820, True); await to_room(pg, room)
+                ctx, pg = await page(b, 1180, 820, True); hit_js, mark = await enter(pg, scene)
                 geom = await pg.evaluate(GEOM_JS, scene)
-                v1 = await pg.evaluate(HIT_JS)
+                v1 = await pg.evaluate(hit_js)
                 check(f'[{bname}] {scene}: ?art=v1 shows the vector', not v1['on'] and not v1['img'])
                 await ctx.close()
                 if bname == 'chromium':
-                    paint_checks(scene, lum(ROOT / 'assets' / 'art' / 'scene' / f'{scene}.webp'), geom)
-                ctx, pg = await page(b, 1180, 820, False); await to_room(pg, room)
-                try: await pg.wait_for_selector('#stage.sceneArtOn', timeout=8000)
+                    paint_checks(scene, lum(ROOT / 'assets' / 'art' / 'scene' / f'{scene}.webp'), geom, ROOT / 'assets' / 'art' / 'scene' / f'{scene}.webp')
+                ctx, pg = await page(b, 1180, 820, False); await enter(pg, scene)
+                try: await pg.wait_for_selector(mark, timeout=8000)
                 except Exception: pass
-                pa = await pg.evaluate(HIT_JS)
+                pa = await pg.evaluate(hit_js)
+                if scene == 'backyard': pa['on'] = pa['on'] and await pg.evaluate("() => document.getElementById('stage').dataset.sceneArt === 'backyard'")
                 check(f'[{bname}] {scene}: painting shown', pa['on'] and pa['img'])
                 check(f'[{bname}] {scene}: painting never takes taps (pointer-events none)', pa['passThrough'])
                 vb = {s['name']: s for s in v1['spots']}
@@ -258,7 +309,7 @@ async def main():
                 except Exception: ok = False
                 check(f'{tag} living door opens the backyard', ok)
                 await pg.wait_for_timeout(500)
-                check(f'{tag} backyard shows no living painting', not await pg.evaluate("() => !!document.querySelector('#stage.sceneArtOn')"))
+                check(f'{tag} backyard shows no living painting', await pg.evaluate("() => document.getElementById('stage').dataset.sceneArt !== 'room-living' && document.querySelectorAll('#sceneArt > img.sceneArt').length <= 1"))
                 ok = await tap_door(pg)
                 if ok:
                     try: await pg.wait_for_selector('#stage.sceneArtOn:not(.room-yard)', timeout=8000)
@@ -268,7 +319,9 @@ async def main():
                 # too (same with ?art=v1), so open the map by its button's own click there.
                 if not await pg.evaluate("() => { const m = document.getElementById('btnMap').getBoundingClientRect(); const h = document.elementFromPoint(m.left + m.width / 2, m.top + m.height / 2); return !!h && !!h.closest('#btnMap'); }"):
                     print(f'NOTE {tag} Map button covered by the stage (pre-existing on base)')
-                    await pg.evaluate("() => document.getElementById('btnMap').click()")
+                # Playwright's own hit test can still see the stage over the button edge in WebKit at
+                # 820x1180 (same on base): open the map by the button's click either way; the places are what's tested.
+                await pg.evaluate("() => { if (!document.body.classList.contains('view-map')) document.getElementById('btnMap').click(); }")
                 await to_map(pg)
                 places = await pg.evaluate("() => [...new Set([...document.querySelectorAll('#mapWorld [data-go]')].map(e => e.dataset.go))]")
                 check(f'{tag} map lists park, ranch, gameroom, home', all(x in places for x in ('park', 'ranch', 'gameroom', 'home')), str(places))
@@ -279,6 +332,9 @@ async def main():
                             await pg.wait_for_selector('#stage.sceneArtOn', timeout=8000)
                     except Exception as e:
                         good = False
+                    if good and place == 'gameroom' and 'clubhouse' in SCENES:
+                        try: await pg.wait_for_selector('#grWorld.sceneArtOn', timeout=8000)
+                        except Exception: good = False
                     check(f'{tag} tap {place}', good)
                 await ctx.close()
             await b.close()

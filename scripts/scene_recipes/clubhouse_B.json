@@ -1,0 +1,27 @@
+{
+ "geom": "clubhouse/clubhouse__geom.json",
+ "layers_dir": "/workspace/t-batchB-yard-work/guide",
+ "scene": "clubhouse",
+ "max_kb": 150,
+ "out": "/workspace/t-batchB-yard-work/att/clubhouse_B.webp",
+ "preview": "/workspace/t-batchB-yard-work/att/clubhouse_B.png",
+ "layers": {
+  "wall": {
+   "tex": "clubhouse/wall.jpg",
+   "amt": 3.6,
+   "soft": 6,
+   "tile_w": 1400
+  },
+  "floor": {
+   "tex": "clubhouse/floor.jpg",
+   "amt": 4.2,
+   "tile_w": 700
+  },
+  "props": {
+   "tex": "clubhouse/paper.jpg",
+   "amt": 1.8,
+   "tile_w": 800
+  },
+  "kept": {}
+ }
+}

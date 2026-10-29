@@ -4,7 +4,7 @@
 import asyncio, sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from playwright.async_api import async_playwright
-from testnav import SKIP_WN
+from testnav import SKIP_WN, go
 
 URL, LABEL, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
 SCENE = sys.argv[4] if len(sys.argv) > 4 else 'room-living'
@@ -36,15 +36,27 @@ async def shoot(b, name, w, h, v1):
         f = f"{OUT}/{LABEL}__{SCENE}__{w}x{h}__{name}{'__artv1' if v1 else ''}.png"
         await pg.screenshot(path=f); print(f, 'painted' if on else 'vector', flush=True)
         await ctx.close(); return
+    # Non-room scenes: walk there first (backyard = the living room's yard door; clubhouse = map place).
+    mark = '#stage'
+    if SCENE == 'backyard':
+        await pg.wait_for_timeout(600)
+        await pg.evaluate("""() => { const d = document.querySelector('#layer .yardDoor'), r = d.getBoundingClientRect();
+            const o = { bubbles: true, button: 0, pointerId: 7, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+            d.dispatchEvent(new PointerEvent('pointerdown', o)); window.dispatchEvent(new PointerEvent('pointerup', o)); }""")
+        await pg.wait_for_selector('#stage.room-yard', timeout=8000)
+    elif SCENE == 'clubhouse':
+        # WebKit 820x1180: the stage overlaps the Map button on base dda1839 too; open the map by its own click.
+        await pg.evaluate("() => { if (!document.body.classList.contains('view-map')) document.getElementById('btnMap').click(); }")
+        await go(pg, 'gameroom'); mark = '#grWorld'
     try:
-        await pg.wait_for_function("() => !!document.querySelector('#stage.sceneArtOn') || !document.querySelector('#sceneArt')", timeout=6000 if not v1 else 1500)
+        await pg.wait_for_function("(m) => !!document.querySelector(m + '.sceneArtOn')", arg=mark, timeout=6000 if not v1 else 1500)
     except Exception: pass
     if SCENE.startswith('room-') and SCENE != 'room-living':  # walk to that room (same as the hotspot test)
         await pg.evaluate("(r) => document.querySelector(`[data-room=\"${r}\"]`)?.click()", SCENE[5:])
         try: await pg.wait_for_function("() => !!document.querySelector('#stage.sceneArtOn') || !document.querySelector('#sceneArt')", timeout=6000 if not v1 else 1500)
         except Exception: pass
     await pg.wait_for_timeout(1200)
-    on = await pg.evaluate("() => !!document.querySelector('#stage.sceneArtOn')")
+    on = await pg.evaluate("(m) => !!document.querySelector(m + '.sceneArtOn')", mark)
     f = f"{OUT}/{LABEL}__{SCENE}__{w}x{h}__{name}{'__artv1' if v1 else ''}.png"
     await pg.screenshot(path=f)
     print(f, 'painted' if on else 'vector', flush=True)
