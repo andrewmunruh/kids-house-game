@@ -4,6 +4,10 @@
 #  3 storage full (setItem throws QuotaExceededError): grown-ups notice, no crash, house still editable, retry saves
 #  4 an edit inside the 250 ms save window is flushed on visibilitychange->hidden, pagehide and close
 #  5 a corrupt save is recovered from the backup and its raw text is kept under cozy-house-corrupt-<time>
+#  6 a save with an unknown version (e.g. v4 from a newer build) or no version is unreadable, not blank: with and without
+#    a backup the original stays recoverable from some key after 22+ edits and a relaunch
+#  7 only the newest 2 corrupt copies are kept (oldest removed only after the new one is written)
+#  8 storage full while the corrupt copy is written: 'full' note shown; timed retries stop after 5, edits/visibility retry
 # Usage: save_safety_test.py [URL] (default http://localhost:$WEB_PORT/kids-house-game/). PFX="preview:" for preview builds.
 # SHOTS=dir LABEL=sha saves the grown-ups notice at 820x1180 and 1180x820.  SS_BROWSER=webkit (default) | chromium
 import asyncio, json, os, sys
@@ -23,7 +27,7 @@ INIT = f"""for (const k of ['{PFX}cozy-whatsnew']) localStorage.getItem(k) || lo
 localStorage.setItem('{PFX}avatar-intro', '1');
 (() => {{ const real = Storage.prototype.setItem;
   Storage.prototype.setItem = function (k, v) {{
-    if (localStorage.getItem('__full') === '1' && k !== '__full') throw new DOMException('full', 'QuotaExceededError');
+    if (localStorage.getItem('__full') === '1' && k !== '__full') {{ if (k === '{PFX}cozy-house') window.__fails = (window.__fails || 0) + 1; throw new DOMException('full', 'QuotaExceededError'); }}
     return real.call(this, k, v); }}; }})();"""
 DUMP = f"() => {{ const o = {{}}; for (let i = 0; i < localStorage.length; i++) {{ const k = localStorage.key(i); o[k] = localStorage.getItem(k); }} return o; }}"
 EDIT = "c => window.__store.dispatch({ type: 'room/wallpaper', room: 'living', color: c })"
@@ -130,11 +134,68 @@ async def t5(b):
         check(f'5 {w}x{h} next launch: normal, still one corrupt copy, no notice', d2.get(HOUSE) == OLD and len(corrupt_keys(d2)) == 1 and await notice(pg) is None)
         check(f'5 {w}x{h} no page errors', not errs, errs[:2]); await ctx.close()
 
+async def t6(b):
+    o = json.loads(OLD)
+    v4 = json.dumps({**o, 'version': 4}); nov = json.dumps({k: v for k, v in o.items() if k != 'version'})
+    for name, val in [('version 4', v4), ('no version', nov)]:
+        for with_bak in (True, False):
+            tag = f"6 {name} {'+ good backup' if with_bak else 'no backup'}"
+            ctx, pg, errs = await fresh(b); await seed(pg, {HOUSE: val, BAK: OLD if with_bak else None}); await open_game(pg)
+            n = await notice(pg); mem = json.loads(await pg.evaluate("() => JSON.stringify(window.__store.get())"))
+            if with_bak:
+                check(f'{tag}: opens the last good copy with the restore notice', mem == o and bool(n and 'last good copy' in n['text']), n)
+            else:
+                check(f'{tag}: unreadable notice (not a silent blank house)', bool(n and "couldn't open" in n['text'] and 'kept safely' in n['text']), n)
+            for i in range(25): await pg.evaluate(EDIT, f"#{i:06x}")
+            await pg.evaluate("() => window.dispatchEvent(new Event('pagehide'))"); d0 = await ls(pg)
+            await pg.reload(); await pg.wait_for_function("() => !!window.__store"); await pg.wait_for_timeout(1500)
+            await pg.evaluate("() => window.dispatchEvent(new Event('pagehide'))"); d = await ls(pg)
+            check(f'{tag}: original raw save still in a key after 25 edits + relaunch', val in d.values(), sorted(d))
+            check(f'{tag}: kept under cozy-house-corrupt-<time>', list(corrupt_keys(d).values()) == [val])
+            if with_bak:
+                bk = json.loads(d.get(BAK) or 'null')
+                check(f'{tag}: backup is still the good house', bool(bk and bk['characters'] == o['characters']))
+            else:
+                # (after the relaunch the new house the kid built is a normal save, so it may become the backup then)
+                check(f'{tag}: no backup written from the fresh house in its first session', BAK not in d0)
+            check(f'{tag}: no page errors', not errs, errs[:2]); await ctx.close()
+
+async def t7(b):
+    olds = {BAD + str(1000 + i): f'old-bad-{i}' for i in range(3)}
+    ctx, pg, errs = await fresh(b); await seed(pg, {HOUSE: TRUNC, BAK: OLD, **olds}); await open_game(pg)
+    d = corrupt_keys(await ls(pg))
+    check('7 only the newest 2 corrupt copies kept, the new one among them', sorted(d.values()) == sorted([TRUNC, 'old-bad-2']), sorted(d.values()))
+    check('7 no page errors', not errs, errs[:2]); await ctx.close()
+
+async def t8(b):
+    ctx, pg, errs = await fresh(b); await seed(pg, {HOUSE: TRUNC, BAK: OLD, '__full': '1'}); await open_game(pg)
+    n = await notice(pg)
+    check('8 corrupt copy blocked by full storage: full note shown with the restore note', bool(n and 'last good copy' in n['text'] and 'out of room' in n['text'] and 'safe for now' in n['text']), n)
+    d = await ls(pg)
+    check('8 corrupt raw never overwritten while it cannot be kept', d.get(HOUSE) == TRUNC)
+    await shot(pg, 'notice-restored-full__1180x820')
+    await pg.evaluate("() => localStorage.removeItem('__full')"); await pg.evaluate(EDIT, '#123456'); await pg.wait_for_timeout(900)
+    d = await ls(pg)
+    check('8 room again: raw kept first, then the edit saved', list(corrupt_keys(d).values()) == [TRUNC] and json.loads(d[HOUSE])['rooms']['living']['wallpaper'] == '#123456')
+    await ctx.close()
+    ctx, pg, errs = await fresh(b); await seed(pg, {HOUSE: OLD}); await open_game(pg)
+    await pg.evaluate("() => { localStorage.setItem('__full', '1'); window.__fails = 0; }")
+    await pg.evaluate(EDIT, '#abcdef'); await pg.wait_for_timeout(33000)
+    f1 = await pg.evaluate("() => window.__fails")
+    await pg.wait_for_timeout(6000); f2 = await pg.evaluate("() => window.__fails")
+    check('8 timed retries stop after 5 (1 try + 5 retries)', f1 == 6 and f2 == 6, (f1, f2))
+    await pg.evaluate(EDIT, '#abcdee'); await pg.wait_for_timeout(600); f3 = await pg.evaluate("() => window.__fails")
+    await pg.evaluate("() => document.dispatchEvent(new Event('visibilitychange'))"); f4 = await pg.evaluate("() => window.__fails")
+    check('8 the next edit and a visibility change try again', f3 == 7 and f4 == 8, (f3, f4))
+    await pg.evaluate("() => localStorage.removeItem('__full')"); await pg.evaluate("() => document.dispatchEvent(new Event('visibilitychange'))")
+    check('8 saved once there is room', json.loads((await ls(pg))[HOUSE])['rooms']['living']['wallpaper'] == '#abcdee')
+    check('8 no page errors', not errs, errs[:2]); await ctx.close()
+
 async def main():
-    only = os.environ.get('ONLY', '12345')
+    only = os.environ.get('ONLY', '12345678')
     async with async_playwright() as p:
         b = await getattr(p, os.environ.get('SS_BROWSER', 'webkit')).launch()
-        for n, f in [('1', t1), ('2', t2), ('3', t3), ('4', t4), ('5', t5)]:
+        for n, f in [('1', t1), ('2', t2), ('3', t3), ('4', t4), ('5', t5), ('6', t6), ('7', t7), ('8', t8)]:
             if n in only:
                 try: await f(b)
                 except Exception as e: check(f'{n} crashed', False, str(e).splitlines()[0][:200])

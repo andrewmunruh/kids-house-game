@@ -5297,8 +5297,11 @@ initHood();
 // Grown-ups hear (gently) when the saved house could not be opened or the iPad is too full to save.
 const SAVE_NOTES = {
   restored: 'The saved house had a hiccup, so we opened the last good copy.',
-  unreadable: "We couldn't open the saved house. We kept it safe and started a new one.",
-  full: "This iPad is out of room, so new changes can't be saved yet. Freeing some space will help.",
+  unreadable: "We couldn't open the saved house, so we started a new one. The old one is kept safely on this iPad.",
+  full: "This iPad is out of room, so new changes can't be saved yet. Your house is safe for now. To free space, delete old photos or apps in Settings › General › iPad Storage.",
 } as const;
-const lt = local.trouble(); if (lt) grownNotice(SAVE_NOTES[lt]);
+// One card at startup: the load trouble, plus the 'full' note when storage was already full while opening.
+const lt = local.trouble();
+const startNote = [lt ? SAVE_NOTES[lt] : '', local.fullAtStart && lt !== 'full' ? SAVE_NOTES.full : ''].filter(Boolean).join(' ');
+if (startNote) grownNotice(startNote);
 local.onTrouble(k => grownNotice(SAVE_NOTES[k]));
