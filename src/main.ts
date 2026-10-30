@@ -962,7 +962,8 @@ function renderTabs(s: GameState) {
   document.body.classList.toggle('tabs-compact', compact);
   $('tabs').innerHTML = ROOMS.map(r => {
     const label = compact ? (TAB_SHORT[r.id] ?? r.name) : r.name;
-    const on = s.currentRoom === r.id || (s.currentRoom === 'backyard' && r.id === 'living');
+    // The backyard has no tab of its own, so no room tab lights up there (A-10).
+    const on = s.currentRoom === r.id;
     return `<button class="tab ${on ? 'on' : ''}" data-room="${r.id}" style="--c:${r.color}" aria-label="${r.name}">${compact ? TAB_ICO : ''}${label}</button>`;
   }).join('');
   requestAnimationFrame(() => { showTabOn(); syncTabFade(); });
@@ -1434,8 +1435,10 @@ function renderChars(s: GameState) {
     const look = lookStamp(c) + (pose || '') + (holding ? 'h' : '');
     if (el.dataset.look !== look) { el.querySelector('.inner')!.innerHTML = characterSVG(c, pose, holding); el.dataset.look = look; }
     el.classList.toggle('holding', holding);
-    const heldKey = JSON.stringify([c.held.left?.id, c.held.left?.flip, c.held.right?.id, c.held.right?.flip, c.size, pose]);
-    if (el.dataset.held !== heldKey) { el.querySelector('.hands')!.innerHTML = heldHTML(c); el.dataset.held = heldKey; }
+    // Keyed by the markup itself, so a new kind under a reused id, or a painting that
+    // finished loading after the grab, redraws the held copy (A-02, A-03).
+    const heldKey = heldHTML(c);
+    if (el.dataset.held !== heldKey) { el.querySelector('.hands')!.innerHTML = heldKey; el.dataset.held = heldKey; }
     const sc = charScale(c);
     const at = seatedAt(s.currentRoom, seat, c);
     placeEl(el, at.x, at.y, CHAR_W * sc, CHAR_H * sc);
@@ -4892,10 +4895,12 @@ function paintLoaded(ids: string[]): void {
     inner.innerHTML = svgOf(def, true);
     changed = true;
   }
-  if (!changed) return;
-  charEls.forEach(el => { delete el.dataset.held; });
+  // Copies of an item's art (held items, seat fronts) follow the painting even when no
+  // placed item changed here: the held one is not in the room, and a front copied the
+  // vector before the swap (A-01, A-02, A-12, A-19). Both only redraw on a real change.
   renderChars(s);
-  refreshShelfArt();
+  syncSeatFronts();
+  if (changed) refreshShelfArt();
 }
 /** Chip icon paintings load on the first drawer touch, so a fresh house fetches no unplaced catalog art. */
 let chipArt: Promise<void> | null = null;
