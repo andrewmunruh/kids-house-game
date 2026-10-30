@@ -34,7 +34,7 @@ export const SECRET_ITEMS: ItemDef[] = EGGS.map(e => ({ ...e.item, rooms: ['any'
 
 const KEY = storeKey('cozy-secrets');
 export const foundSet = (): Set<string> => { try { return new Set(JSON.parse(localStorage.getItem(KEY) ?? '[]')); } catch { return new Set(); } };
-const saveFound = (f: Set<string>) => localStorage.setItem(KEY, JSON.stringify([...f]));
+const saveFound = (f: Set<string>) => { try { localStorage.setItem(KEY, JSON.stringify([...f])); } catch { /* storage full: the surprise still shows */ } };
 
 export interface EggCtx {
   world: HTMLElement; roomW: number; roomH: number;

@@ -16,7 +16,7 @@ function adoptHouse(state: GameState): GameState {
 export interface HoodConfig { url: string; code: string; id?: string; token?: string; pid?: string; parentKey?: string }
 const CFG_KEY = storeKey('cozy-hood');
 export const loadHoodConfig = (): HoodConfig | null => { try { return JSON.parse(localStorage.getItem(CFG_KEY) ?? 'null'); } catch { return null; } };
-export const saveHoodConfig = (c: HoodConfig | null) => { c ? localStorage.setItem(CFG_KEY, JSON.stringify(c)) : localStorage.removeItem(CFG_KEY); };
+export const saveHoodConfig = (c: HoodConfig | null) => { try { c ? localStorage.setItem(CFG_KEY, JSON.stringify(c)) : localStorage.removeItem(CFG_KEY); } catch { /* storage full: stays signed in this session */ } };
 
 /** Where the neighborhood server lives: ?hood=… > build-time VITE_HOOD_URL > same machine on :8787 when developing. */
 export function hoodServerUrl(): string | null {

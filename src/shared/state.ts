@@ -587,28 +587,110 @@ function showKnownRoom(s: GameState): GameState {
 }
 type Listener = (s: GameState, a: Action) => void;
 
+// Keeping the house safe (no save-format change; extra keys only):
+//  - BAK_KEY holds a copy of the last save that loaded fine. It is only ever written from a house that came out of
+//    storage (never from a brand-new or blank house), so a good backup is never replaced by an empty one.
+//  - If the save can't be read (bad JSON, no rooms, or a version this build doesn't know, e.g. a newer build's v4),
+//    its raw text is kept under CORRUPT_KEY+time (the newest CORRUPT_KEEP copies stay) and the backup opens.
+const BAK_KEY = storeKey('cozy-house-bak'), CORRUPT_KEY = storeKey('cozy-house-corrupt-');
+const BAK_EVERY = 20, CORRUPT_KEEP = 2, MAX_RETRIES = 5;
+export type SaveTrouble = 'restored' | 'unreadable' | 'full';
+function readHouse(raw: string): GameState | null {
+  try { const j = JSON.parse(raw); return j && typeof j === 'object' && j.rooms && (j.version === 1 || j.version === 2 || j.version === 3) ? migrate(j) : null; } catch { return null; }
+}
+const isQuota = (e: any) => !!e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014);
+
 export function createStore() {
   let state: GameState;
   let born = false;
-  try {
-    const raw = localStorage.getItem(KEY) ?? localStorage.getItem(V1_KEY);
-    if (raw) state = migrate(JSON.parse(raw));
-    else {
-      born = true;
-      state = initialState();
-      if (typeof navigator !== 'undefined' && !navigator.webdriver) state = withRandomStarter(state);
-    }
-  } catch { state = initialState(); }
+  let trouble: SaveTrouble | null = null;
+  let good = false; // true when this house came from storage: only then may it refresh the backup
+  let raw: string | null = null;
+  try { raw = localStorage.getItem(KEY) ?? localStorage.getItem(V1_KEY); } catch { raw = null; }
+  let full = false, quotaHit = () => { full = true; }; // at load: shown with the startup notice; later: tell('full')
+  let keepRaw = false; // an unreadable save waits here until its raw text is copied somewhere safe
+  const corruptKept = (): boolean => {
+    if (!keepRaw) return true;
+    try {
+      for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(CORRUPT_KEY) && localStorage.getItem(k) === raw) { keepRaw = false; return true; } }
+      localStorage.setItem(CORRUPT_KEY + Date.now(), raw!); keepRaw = false;
+      try { // keep only the newest copies; the oldest go only after the new one is written
+        const ks: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(CORRUPT_KEY)) ks.push(k); }
+        ks.sort((a, b) => Number(a.slice(CORRUPT_KEY.length)) - Number(b.slice(CORRUPT_KEY.length)));
+        ks.slice(0, Math.max(0, ks.length - CORRUPT_KEEP)).forEach(k => localStorage.removeItem(k));
+      } catch {}
+      return true;
+    } catch (e) { if (isQuota(e)) quotaHit(); return false; }
+  };
+  const loaded = raw !== null ? readHouse(raw) : null;
+  if (raw !== null && loaded) {
+    state = loaded; good = true;
+    try { if (localStorage.getItem(BAK_KEY) !== raw) localStorage.setItem(BAK_KEY, raw); } catch { /* no room for a backup: the save itself is untouched */ }
+  } else if (raw !== null) { // present but unreadable (also an empty or truncated write)
+    keepRaw = raw.trim() !== ''; corruptKept();
+    let bak: string | null = null;
+    try { bak = localStorage.getItem(BAK_KEY); } catch {}
+    const restored = bak ? readHouse(bak) : null;
+    if (restored) {
+      state = restored; good = true; trouble = 'restored';
+      if (corruptKept()) { try { localStorage.setItem(KEY, bak!); } catch {} }
+    } else { state = initialState(); trouble = 'unreadable'; }
+  } else if ((() => { try { return localStorage.getItem(BAK_KEY); } catch { return null; } })() !== null && readHouse(localStorage.getItem(BAK_KEY)!)) {
+    // the save is gone but the backup is fine: open the backup rather than a brand-new house
+    const bak = localStorage.getItem(BAK_KEY)!;
+    state = readHouse(bak)!; good = true; trouble = 'restored';
+    try { localStorage.setItem(KEY, bak); } catch {}
+  } else {
+    born = true;
+    state = initialState();
+    if (typeof navigator !== 'undefined' && !navigator.webdriver) state = withRandomStarter(state);
+  }
   const listeners: Listener[] = [];
-  let t: number | undefined;
+  const troubleListeners: ((t: SaveTrouble) => void)[] = [];
+  const tell = (k: SaveTrouble) => { trouble = k; troubleListeners.forEach(l => l(k)); };
+  let t: number | undefined, retry: number | undefined, dirty = false, saves = 0, tries = 0;
+  quotaHit = () => { if (!full) { full = true; tell('full'); } }; // once per session
+  const save = () => {
+    clearTimeout(t); t = undefined;
+    if (!dirty) return;
+    // An unreadable save is never written over until its raw copy is kept safe.
+    if (!corruptKept()) { schedule(); return; }
+    try {
+      const json = JSON.stringify(state);
+      localStorage.setItem(KEY, json);
+      dirty = false; clearTimeout(retry); retry = undefined; tries = 0;
+      if (good && ++saves % BAK_EVERY === 0) { try { localStorage.setItem(BAK_KEY, json); } catch {} }
+    } catch (e) {
+      // Keep the house in memory and try again later; tell a grown-up once if the iPad is full.
+      if (isQuota(e)) quotaHit();
+      schedule();
+    }
+  };
+  // A few timed retries, then wait for the next edit or the next time the app is hidden or shown.
+  const flush = () => { if (dirty) save(); };
+  function schedule() { clearTimeout(retry); retry = undefined; if (++tries > MAX_RETRIES) return; retry = window.setTimeout(() => { retry = undefined; save(); }, 5000); }
+  const flushNow = () => { tries = 0; flush(); };
+    if (typeof window !== 'undefined') {
+    document.addEventListener('visibilitychange', flushNow);
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', flush);
+  }
   return {
     get: () => state,
     subscribe(l: Listener) { listeners.push(l); },
     dispatch(a: Action) {
       state = reduce(state, a);
       listeners.forEach(l => l(state, a));
-      clearTimeout(t); t = window.setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} }, 250);
+      dirty = true; tries = 0;
+      clearTimeout(t); t = window.setTimeout(save, 250);
     },
+    flush,
+    /** Load or save trouble a grown-up should hear about (null when all is well). */
+    trouble: () => trouble,
+    /** True when storage was already full while opening the house (shown alongside the startup notice). */
+    fullAtStart: full,
+    onTrouble(l: (t: SaveTrouble) => void) { troubleListeners.push(l); },
     born,
   };
 }

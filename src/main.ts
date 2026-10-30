@@ -18,7 +18,7 @@ import { installBaby } from './baby/view';
 import { poseNamed } from './avatar/sit';
 import { unreadCount } from './shared/mail';
 import { parkSceneSVG, swingSVG, ballSVG, treeIcon, pawIcon, gateIcon, streetGateSVG, PARK_H, SWING_BAR } from './park';
-import { houseSVG, ICONS, toast, adultCheck } from './hood-ui';
+import { houseSVG, ICONS, toast, adultCheck, grownNotice } from './hood-ui';
 import { initEggs, foundSet, EGGS } from './eggs';
 import { ITEMS, ITEM_MAP, svgOf, shelfThumb, hOf, installArtFallback, type Category, type ItemDef } from './items';
 import { rasterOn, rasterUrl } from './art/cache';
@@ -5299,3 +5299,14 @@ store.subscribe((_s, a) => { if (a.type === 'room/switch' || a.type === 'game/re
 renderSecrets();
 (window as any).__eggs = () => ({ found: [...foundSet()] });
 initHood();
+// Grown-ups hear (gently) when the saved house could not be opened or the iPad is too full to save.
+const SAVE_NOTES = {
+  restored: 'The saved house had a hiccup, so we opened the last good copy.',
+  unreadable: "We couldn't open the saved house, so we started a new one. The old one is kept safely on this iPad.",
+  full: "This iPad is out of room, so new changes can't be saved yet. Your house is safe for now. To free space, delete old photos or apps in Settings › General › iPad Storage.",
+} as const;
+// One card at startup: the load trouble, plus the 'full' note when storage was already full while opening.
+const lt = local.trouble();
+const startNote = [lt ? SAVE_NOTES[lt] : '', local.fullAtStart && lt !== 'full' ? SAVE_NOTES.full : ''].filter(Boolean).join(' ');
+if (startNote) grownNotice(startNote);
+local.onTrouble(k => grownNotice(SAVE_NOTES[k]));
