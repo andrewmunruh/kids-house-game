@@ -11,7 +11,7 @@ from testnav import tap, SKIP_WN, to_map
 from common import adult, join, wait_js
 DISTS = {'pr': '/workspace/t-batch4/dist-pr', 'base': '/workspace/t-batch3/dist-pr', 'old': '/workspace/t-batchB-old10/dist'}
 TREES = {'pr': '/workspace/t-batch4/wt', 'base': '/workspace/t-batch3/wt'}
-WEB = {'pr': 6940, 'base': 6941, 'old': 6942}; HOOD = 6943; PX = 6944
+WEB = {'pr': 6940, 'base': 6941, 'old': 6942}; HOOD = 6943; PX = 6944; PX2 = 6945
 CL, SV = sys.argv[1], sys.argv[2]; OUTF = sys.argv[3] if len(sys.argv) > 3 else f'/workspace/t-batch4/hb-{CL}-{SV}.json'
 SH = os.environ.get('SH', '/workspace/t-batch4/shots/'); os.makedirs(SH, exist_ok=True)
 rows = []
@@ -21,7 +21,7 @@ def rec(scn, ok, notes=''):
 
 class Proxy:
     """TCP proxy. mode: normal | refuse. Per-connection freeze: 'both' (silent, half-open), 'up' (client->server held), 'down' (server->client held)."""
-    def __init__(s, lport, rport): s.lport, s.rport = lport, rport; s.mode = 'normal'; s.pairs = {}
+    def __init__(s, lport, rport): s.lport, s.rport = lport, rport; s.mode = 'normal'; s.pairs = {}; s.last_up = {}
     async def start(s): s.srv = await asyncio.start_server(s.handle, '127.0.0.1', s.lport)
     def freeze(s, how):
         for k in s.pairs: s.pairs[k] = how
@@ -39,7 +39,9 @@ class Proxy:
                 if data is None: break
                 while s.pairs.get(key) in ('both', 'up' if up else 'down'): await asyncio.sleep(0.05)
                 if key not in s.pairs: break
-                try: w.write(data); await w.drain()
+                try:
+                    w.write(data); await w.drain()
+                    if up: s.last_up[key] = time.monotonic()
                 except Exception: break
         wt = asyncio.create_task(writer())
         try:
@@ -101,7 +103,7 @@ async def setup(p, a_cl, a_via_proxy, b_browser='webkit', third=None):
     await join(B, code, 'Chloe', True); await join(A, code, 'Reagan', True)
     T = None
     if third:
-        T = await mk(cb, 'T', third, PX if a_via_proxy else HOOD); await join(T, code, 'Sloane', True)
+        T = await mk(cb, 'T', third, PX2 if a_via_proxy else HOOD); await join(T, code, 'Sloane', True)
     hid = await A.evaluate("__hood().myHouseId()")
     for pg in (A, B) + ((T,) if T else ()):
         await to_map(pg); await pg.click(f'[data-go="house:{hid}"]'); await pg.wait_for_timeout(1500)
@@ -151,24 +153,26 @@ async def s_wake(p, px):
     px.kill_all(); await cb.close(); await wb.close()
 
 async def s_idle(p, px, third):
-    """Sleep: CDP freezes the page (timers stop, TCP stays up). hb:1 sockets are dropped at 40 s; clients without hb never are. Wake rejoins cleanly."""
-    cb, wb, A, B, T, hid, it, errs = await setup(p, CL, False, third=third)
+    global px2
+    """Sleep with wifi off: every socket through the proxy goes silent (half-open at the server) and new sockets are refused.
+    (CDP Page.setWebLifecycleState=frozen does not stop timers in headless Chromium, so it cannot model sleep.)
+    hb:1 sockets are dropped by the server at 40 s; clients without hb never are. Wake rejoins cleanly."""
+    cb, wb, A, B, T, hid, it, errs = await setup(p, CL, True, third=third)
     pids = {'A': await A.evaluate("__hood().pid")}
     if T: pids['T'] = await T.evaluate("__hood().pid")
-    cdp = {}
-    for k, pg in (('A', A), ('T', T)):
-        if pg: cdp[k] = await pg.context.new_cdp_session(pg); await cdp[k].send('Page.setWebLifecycleState', {'state': 'frozen'})
-    t0 = time.monotonic(); gone = {}
+    lastA = await A.evaluate("() => 1")  # sync
+    px.freeze('both'); px.mode = 'refuse'; px2.freeze('both'); px2.mode = 'refuse'
+    t0 = time.monotonic(); gone = {}; last_up = max(px.last_up.values()) if px.last_up else t0
     while time.monotonic() - t0 < 55:
         for k, pid in pids.items():
-            if k not in gone and await B.evaluate("(id) => !__hood().players.get(id)?.online", pid): gone[k] = round(time.monotonic() - t0, 1)
+            if k not in gone and await B.evaluate("(id) => !__hood().players.get(id)?.online", pid): gone[k] = (round(time.monotonic() - t0, 1), round(time.monotonic() - last_up, 1))
         await asyncio.sleep(0.25)
     for k, pid in pids.items():
         exp = (CL == 'pr' if k == 'A' else False) and SV == 'pr'
         who = CL if k == 'A' else third
-        if exp: rec(f'[{CL}/{SV}] idle drop: frozen hb:1 client marked away at ~40 s', k in gone and 39 <= gone[k] <= 47, f'away after {gone.get(k)} s')
-        else: rec(f'[{CL}/{SV}] idle drop: frozen {who} client on {SV} server is never dropped', k not in gone, f'away after {gone.get(k)} s (55 s frozen)')
-    for k in cdp: await cdp[k].send('Page.setWebLifecycleState', {'state': 'active'})
+        if exp: rec(f'[{CL}/{SV}] idle drop: frozen hb:1 client marked away at ~40 s', k in gone and 40 <= gone[k][1] <= 46, f'away {gone.get(k, (None,None))[1]} s after her last byte reached the server ({gone.get(k, (None,None))[0]} s after wifi went silent; 40 s limit + 5 s sweep)')
+        else: rec(f'[{CL}/{SV}] idle drop: frozen {who} client on {SV} server is never dropped', k not in gone, f'away after {gone.get(k)} s (55 s silent)')
+    px.mode = 'normal'; px2.mode = 'normal'
     await A.evaluate("() => { document.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new PageTransitionEvent('pageshow', {persisted:true})) }")
     back = await wait_js(B, "(id) => __hood().players.get(id)?.online", pids['A'], 15)
     await asyncio.sleep(2.5)
@@ -220,6 +224,7 @@ async def s_compat(p, px):
 
 async def main():
     start_servers(); px = Proxy(PX, HOOD); await px.start()
+    global px2; px2 = Proxy(PX2, HOOD); await px2.start()
     which = os.environ.get('ONLY', 'resend,wake,idle,chat,compat').split(',')
     try:
         async with async_playwright() as p:
