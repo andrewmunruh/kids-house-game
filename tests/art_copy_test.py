@@ -103,9 +103,9 @@ async def main():
             await ctx.close()
             if 'reuse' in ONLY:  # A-03: same char id and item id, re-added holding another kind
                 ctx, pg, errs2 = await page()
-                seq = ['pack:toy-car', 'pack:teddy-bear', 'pack:globe', 'pack:toy-car']
+                seq = ['pack:toy-car', 'pack:dino-plush', 'pack:globe', 'pack:toy-car']
                 for n, kind in enumerate(seq):
-                    await pg.evaluate(HOLD, {'kind': kind, 'cid': 'qh', 'iid': 'qa-h'})
+                    await pg.evaluate(HOLD, {'kind': kind, 'cid': 'qh', 'iid': f'qa-h{n}'})
                     ok = False
                     for _ in range(60):
                         a = await pg.evaluate(ART, '.char .held')
