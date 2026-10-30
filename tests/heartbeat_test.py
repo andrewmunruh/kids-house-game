@@ -162,7 +162,7 @@ async def s_idle(p, px, third):
     if T: pids['T'] = await T.evaluate("__hood().pid")
     lastA = await A.evaluate("() => 1")  # sync
     px.freeze('both'); px.mode = 'refuse'; px2.freeze('both'); px2.mode = 'refuse'
-    t0 = time.monotonic(); gone = {}; last_up = max(px.last_up.values()) if px.last_up else t0
+    t0 = time.monotonic(); gone = {}; live = [px.last_up[k] for k in px.pairs if k in px.last_up]; last_up = max(live) if live else t0; nlive = len(px.pairs)
     while time.monotonic() - t0 < 55:
         for k, pid in pids.items():
             if k not in gone and await B.evaluate("(id) => !__hood().players.get(id)?.online", pid): gone[k] = (round(time.monotonic() - t0, 1), round(time.monotonic() - last_up, 1))
@@ -170,7 +170,7 @@ async def s_idle(p, px, third):
     for k, pid in pids.items():
         exp = (CL == 'pr' if k == 'A' else False) and SV == 'pr'
         who = CL if k == 'A' else third
-        if exp: rec(f'[{CL}/{SV}] idle drop: frozen hb:1 client marked away at ~40 s', k in gone and 40 <= gone[k][1] <= 46, f'away {gone.get(k, (None,None))[1]} s after her last byte reached the server ({gone.get(k, (None,None))[0]} s after wifi went silent; 40 s limit + 5 s sweep)')
+        if exp: rec(f'[{CL}/{SV}] idle drop: frozen hb:1 client marked away at ~40 s', k in gone and 40 <= gone[k][1] <= 46, f'away {gone.get(k, (None,None))[1]} s after her last byte reached the server ({gone.get(k, (None,None))[0]} s after wifi went silent; 40 s limit + 5 s sweep; {nlive} socket(s) on her proxy)')
         else: rec(f'[{CL}/{SV}] idle drop: frozen {who} client on {SV} server is never dropped', k not in gone, f'away after {gone.get(k)} s (55 s silent)')
     px.mode = 'normal'; px2.mode = 'normal'
     await A.evaluate("() => { document.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new PageTransitionEvent('pageshow', {persisted:true})) }")
