@@ -388,6 +388,9 @@ body.view-ranch.riding .toast { top: 76px; bottom: auto; }
 /* A toast at the bottom sits on top of SLAY!. While a table is open, park it above the discard pile. */
 body:has(#tableOverlay:not(.hidden)) .toast { bottom: auto; top: 210px; }
 .toast.out { opacity: 0; transition: opacity .4s; }
+.toast.grownNotice { display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: auto; font-weight: 700; font-size: 16px; max-width: min(80vw, 460px); }
+.grownNotice b { font-size: 13px; opacity: .8; text-transform: uppercase; letter-spacing: .04em; }
+.grownNotice button { margin-top: 2px; min-width: 88px; min-height: 44px; border: 0; border-radius: 14px; background: #fff; color: var(--ink); font: inherit; font-weight: 900; }
 .thing.me { background: radial-gradient(circle at 50% 80%, #fff3b0, #fffbe6 70%); }
 .meStar, .pk .meStar { position: absolute; right: 4px; top: 2px; color: #ffb703; font-size: 20px; text-shadow: 0 0 2px #5a3d5c; }
 .pk.me { position: relative; }

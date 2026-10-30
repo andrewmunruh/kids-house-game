@@ -587,28 +587,96 @@ function showKnownRoom(s: GameState): GameState {
 }
 type Listener = (s: GameState, a: Action) => void;
 
+// Keeping the house safe (no save-format change; extra keys only):
+//  - BAK_KEY holds a copy of the last save that loaded fine. It is only ever written from a house that came out of
+//    storage (never from a brand-new or blank house), so a good backup is never replaced by an empty one.
+//  - If the save can't be read, its raw text is kept under CORRUPT_KEY+time (never deleted) and the backup opens.
+const BAK_KEY = storeKey('cozy-house-bak'), CORRUPT_KEY = storeKey('cozy-house-corrupt-');
+const BAK_EVERY = 20;
+export type SaveTrouble = 'restored' | 'unreadable' | 'full';
+function readHouse(raw: string): GameState | null {
+  try { const j = JSON.parse(raw); return j && typeof j === 'object' && j.rooms ? migrate(j) : null; } catch { return null; }
+}
+const isQuota = (e: any) => !!e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014);
+
 export function createStore() {
   let state: GameState;
   let born = false;
-  try {
-    const raw = localStorage.getItem(KEY) ?? localStorage.getItem(V1_KEY);
-    if (raw) state = migrate(JSON.parse(raw));
-    else {
-      born = true;
-      state = initialState();
-      if (typeof navigator !== 'undefined' && !navigator.webdriver) state = withRandomStarter(state);
-    }
-  } catch { state = initialState(); }
+  let trouble: SaveTrouble | null = null;
+  let good = false; // true when this house came from storage: only then may it refresh the backup
+  let raw: string | null = null;
+  try { raw = localStorage.getItem(KEY) ?? localStorage.getItem(V1_KEY); } catch { raw = null; }
+  let keepRaw = false; // an unreadable save waits here until its raw text is copied somewhere safe
+  const corruptKept = (): boolean => {
+    if (!keepRaw) return true;
+    try {
+      for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(CORRUPT_KEY) && localStorage.getItem(k) === raw) { keepRaw = false; return true; } }
+      localStorage.setItem(CORRUPT_KEY + Date.now(), raw!); keepRaw = false; return true;
+    } catch { return false; }
+  };
+  const loaded = raw !== null ? readHouse(raw) : null;
+  if (raw !== null && loaded) {
+    state = loaded; good = true;
+    try { if (localStorage.getItem(BAK_KEY) !== raw) localStorage.setItem(BAK_KEY, raw); } catch { /* no room for a backup: the save itself is untouched */ }
+  } else if (raw !== null) { // present but unreadable (also an empty or truncated write)
+    keepRaw = raw.trim() !== ''; corruptKept();
+    let bak: string | null = null;
+    try { bak = localStorage.getItem(BAK_KEY); } catch {}
+    const restored = bak ? readHouse(bak) : null;
+    if (restored) {
+      state = restored; good = true; trouble = 'restored';
+      if (corruptKept()) { try { localStorage.setItem(KEY, bak!); } catch {} }
+    } else { state = initialState(); trouble = 'unreadable'; }
+  } else if ((() => { try { return localStorage.getItem(BAK_KEY); } catch { return null; } })() !== null && readHouse(localStorage.getItem(BAK_KEY)!)) {
+    // the save is gone but the backup is fine: open the backup rather than a brand-new house
+    const bak = localStorage.getItem(BAK_KEY)!;
+    state = readHouse(bak)!; good = true; trouble = 'restored';
+    try { localStorage.setItem(KEY, bak); } catch {}
+  } else {
+    born = true;
+    state = initialState();
+    if (typeof navigator !== 'undefined' && !navigator.webdriver) state = withRandomStarter(state);
+  }
   const listeners: Listener[] = [];
-  let t: number | undefined;
+  const troubleListeners: ((t: SaveTrouble) => void)[] = [];
+  const tell = (k: SaveTrouble) => { trouble = k; troubleListeners.forEach(l => l(k)); };
+  let t: number | undefined, retry: number | undefined, dirty = false, saves = 0, full = false;
+  const save = () => {
+    clearTimeout(t); t = undefined;
+    if (!dirty) return;
+    // An unreadable save is never written over until its raw copy is kept safe.
+    if (!corruptKept()) { schedule(5000); return; }
+    try {
+      const json = JSON.stringify(state);
+      localStorage.setItem(KEY, json);
+      dirty = false; clearTimeout(retry); retry = undefined;
+      if (good && ++saves % BAK_EVERY === 0) { try { localStorage.setItem(BAK_KEY, json); } catch {} }
+    } catch (e) {
+      // Keep the house in memory and try again later; tell a grown-up once if the iPad is full.
+      if (isQuota(e) && !full) { full = true; tell('full'); } // once per session
+      schedule(5000);
+    }
+  };
+  function schedule(ms: number) { clearTimeout(retry); retry = window.setTimeout(() => { retry = undefined; save(); }, ms); }
+  const flush = () => { if (dirty) save(); };
+  if (typeof window !== 'undefined') {
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', flush);
+  }
   return {
     get: () => state,
     subscribe(l: Listener) { listeners.push(l); },
     dispatch(a: Action) {
       state = reduce(state, a);
       listeners.forEach(l => l(state, a));
-      clearTimeout(t); t = window.setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} }, 250);
+      dirty = true;
+      clearTimeout(t); t = window.setTimeout(save, 250);
     },
+    flush,
+    /** Load or save trouble a grown-up should hear about (null when all is well). */
+    trouble: () => trouble,
+    onTrouble(l: (t: SaveTrouble) => void) { troubleListeners.push(l); },
     born,
   };
 }

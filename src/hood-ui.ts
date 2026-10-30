@@ -55,6 +55,16 @@ export function toast(msg: string, ms = 2600) {
   (lane ?? document.body).appendChild(t); setTimeout(() => t.classList.add('out'), ms); setTimeout(() => t.remove(), ms + 400);
 }
 
+/** A gentle note for grown-ups that stays until OK is tapped (one at a time). */
+export function grownNotice(msg: string) {
+  document.querySelector('.grownNotice')?.remove();
+  const t = document.createElement('div'); t.className = 'toast grownNotice'; t.setAttribute('role', 'status');
+  t.innerHTML = '<b>For grown-ups</b><span></span><button type="button">OK</button>';
+  t.querySelector('span')!.textContent = msg;
+  t.querySelector('button')!.addEventListener('click', () => { t.classList.add('out'); setTimeout(() => t.remove(), 400); });
+  (document.getElementById('toastLane') ?? document.body).appendChild(t);
+}
+
 /** Simple grown-up gate: a multiplication question answered on a number pad. Resolves true when solved. */
 export function adultCheck(): Promise<boolean> {
   return new Promise(resolve => {
