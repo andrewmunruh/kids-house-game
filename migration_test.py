@@ -305,10 +305,11 @@ async def main():
             check('settings identical', snap_a['settings'] == snap_b['settings'])
             ls_b = [await pg.evaluate(LS) for pg in (P, K2, K3)]
             def same_ls(a, b):
-                ka = {k: v for k, v in a.items() if k != 'cozy-whatsnew'}; kb = {k: v for k, v in b.items() if k != 'cozy-whatsnew'}
+                ka = {k: v for k, v in a.items() if k != 'cozy-whatsnew'}; kb = {k: v for k, v in b.items() if k not in ('cozy-whatsnew', 'cozy-house-bak')}  # bak: additive (Batch 3), checked below
                 if ka.keys() != kb.keys(): return False
                 return all((json.loads(ka[k]) == json.loads(kb[k])) if k == 'cozy-house' else ka[k] == kb[k] for k in ka)
             check('every iPad\'s saved data unchanged (solo house, sign-in, secrets)', all(same_ls(a, b) for a, b in zip(ls_a, ls_b)), json.dumps([sorted(x.keys()) for x in ls_b]))
+            check('the backup key is an exact copy of the old solo save (additive key only)', all(b.get('cozy-house-bak') in (None, a.get('cozy-house')) for a, b in zip(ls_a, ls_b)) and any('cozy-house-bak' in b for b in ls_b))
             check('the new build announces the update once (What\'s new, latest version)', all(x.get('cozy-whatsnew') == WN_LATEST for x in ls_b))
             signs = sorted(await P.locator('#mapWorld .mapSign:not(.place)').all_inner_texts())
             check("map signs show each house's name from the roster (e.g. Quinn's House; a renamed house keeps its new name)", signs == sorted(["Reagan's House", "Quinn's House", 'Koala Castle']) and signs == sorted(h['meta']['name'] for h in snap_b['houses'].values()), json.dumps(signs))
