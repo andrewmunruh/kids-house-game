@@ -10,21 +10,23 @@
 .stuSide { width: 340px; flex: none; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; overflow-y: auto; }
 .stuRow { display: flex; gap: 6px; flex-wrap: wrap; }
 .stuGroup { display: flex; flex-direction: column; gap: 3px; }
-.stuGroup > b { font-size: 13px; color: #8a6d8c; margin-left: 4px; letter-spacing: .02em; }
+.stuGroup > b { font-size: 14px; color: #6b4a6d; margin-left: 4px; letter-spacing: .02em; }
 .studio button { touch-action: manipulation; cursor: pointer; -webkit-tap-highlight-color: transparent; font-family: inherit; }
 /* Tools: big labeled buttons; the chosen one is plum-outlined, pink and lifted. */
 .stuTools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .stuTool { min-height: 60px; padding: 4px 2px 3px; border-radius: 14px; border: 2.5px solid #d9c6e6; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; color: #5a3d5c; }
 .stuTool svg { width: 32px; height: 32px; flex: none; }
-.stuTool span { font-size: 12px; font-weight: 800; line-height: 1; }
+.stuTool span { font-size: 14px; font-weight: 800; line-height: 1; }
 .stuTool.on { border: 3.5px solid #5a3d5c; background: #ffe0ec; box-shadow: 0 3px 0 #5a3d5c; transform: translateY(-2px); }
 .stuTool:disabled { opacity: .4; }
 .stuSizes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .stuSize { height: 56px; padding: 0; border-radius: 14px; border: 2.5px solid #d9c6e6; background: #fff; display: flex; align-items: center; justify-content: center; }
 .stuSize i { display: block; border-radius: 50%; background: #5a3d5c; }
 .stuSize.on, .stuStamp.on, .stuFrame.on { border: 3.5px solid #5a3d5c; background: #ffe0ec; box-shadow: 0 3px 0 #5a3d5c; }
-.stuColors { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+.stuColors { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; --sg: 6px; }
 .stuColor { position: relative; aspect-ratio: 1; width: 100%; max-width: 48px; justify-self: center; border-radius: 50%; border: 2.5px solid #5a3d5c; padding: 0; }
+/* B-05: a 44px hit box round every swatch (at least dot + gap, so no dead gap); the dot keeps its size. */
+.stuColor::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(44px, calc(100% + var(--sg, 6px))); height: max(44px, calc(100% + var(--sg, 6px))); transform: translate(-50%, -50%); border-radius: 50%; }
 .stuColor.on { box-shadow: 0 0 0 3px #fff6ea, 0 0 0 6px #5a3d5c; }
 .stuColor.on::after { content: ''; position: absolute; left: 50%; top: 50%; width: 30%; height: 30%; margin: -15% 0 0 -15%; border-radius: 50%; background: #fff; border: 2px solid #5a3d5c; }
 /* Stamps take the colors' place while stamping (colors don't apply to stamps). */
@@ -37,7 +39,7 @@
 .stuFrames { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .stuFrame { height: 64px; padding: 0; border-radius: 12px; border: 2.5px solid #d9c6e6; background: #fff; }
 .stuFrame svg { width: 100%; height: 100%; display: block; }
-.stuHang { flex: none; min-height: 52px; border-radius: 26px; border: 3px solid #5a3d5c; background: #ff8fab; color: #fff; font-size: 19px; font-weight: 800; text-shadow: 0 1px 0 #5a3d5c; }
+.stuHang { flex: none; min-height: 52px; border-radius: 26px; border: 3px solid #5a3d5c; background: #ff8fab; color: #3d2340; font-size: 19px; font-weight: 800; }
 /* Clear asks first. */
 .stuAsk { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(90, 61, 92, .45); border-radius: 22px; }
 .studio .stuCard { position: relative; }
@@ -46,7 +48,7 @@
 .stuAskRow { display: flex; gap: 12px; }
 .stuAskRow button { min-width: 120px; min-height: 56px; border-radius: 28px; border: 3px solid #5a3d5c; font-size: 18px; font-weight: 800; }
 .stuAskNo { background: #fff; color: #5a3d5c; }
-.stuAskYes { background: #ff8fab; color: #fff; text-shadow: 0 1px 0 #5a3d5c; }
+.stuAskYes { background: #ff8fab; color: #3d2340; }
 /* Portrait: paper on top at full width, controls fill the rest evenly (no empty band). */
 @media (orientation: portrait) {
   .stuCard { max-height: none; }
@@ -62,7 +64,7 @@
   .stuTool svg { width: 40px; height: 40px; }
   .stuTool span { font-size: 15px; }
   .stuSize { height: 60px; }
-  .stuColors { grid-template-columns: repeat(8, 1fr); gap: 8px; }
+  .stuColors { grid-template-columns: repeat(8, 1fr); gap: 8px; --sg: 8px; }
   .stuColor { max-width: 52px; }
   .stuStamps { grid-template-columns: repeat(12, 1fr); }
   .stuStamp { height: auto; aspect-ratio: 1; max-height: none; }
@@ -72,8 +74,8 @@
 @media (orientation: portrait) and (max-width: 420px) {
   .stuTool { min-height: 56px; }
   .stuTool svg { width: 28px; height: 28px; }
-  .stuTool span { font-size: 11px; }
-  .stuColors { gap: 4px; }
+  .stuTool span { font-size: 14px; }
+  .stuColors { gap: 4px; --sg: 4px; }
   .stuColor { max-width: 38px; }
   .stuSize, .stuFrame { height: 50px; }
 }
@@ -86,16 +88,16 @@
 @media (max-height: 500px) {
   .stuCard { padding: 6px; border-radius: 16px; gap: 4px; }
   .stuHead h2 { font-size: 16px; }
-  .stuX { width: 36px; height: 36px; }
+  .stuX { width: 44px; height: 44px; }
   .stuSide { width: 390px; gap: 4px; }
   .stuGroup > b { display: none; }
   .stuTools { grid-template-columns: repeat(6, 1fr); gap: 5px; }
   .stuTool { min-height: 56px; }
   .stuTool svg { width: 28px; height: 28px; }
-  .stuTool span { font-size: 11px; }
+  .stuTool span { font-size: 14px; }
   .stuSizes, .stuFrames { gap: 5px; }
   .stuSize { height: 40px; }
-  .stuColors { gap: 4px; }
+  .stuColors { gap: 4px; --sg: 4px; }
   .stuColor { max-width: 36px; }
   .stuStamps { gap: 4px; }
   .stuStamp { aspect-ratio: auto; height: 40px; padding: 3px; }
