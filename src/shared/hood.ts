@@ -905,8 +905,10 @@ export interface HouseFull extends HouseMeta { state: GameState }
 export type Bubble = { kind: 'phrase' | 'emote'; v: number } | { kind: 'text'; v: string };
 
 export type ClientMsg =
-  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; halloween?: number; cos?: number; needs?: number; art?: number }
-  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; halloween?: number; cos?: number; needs?: number; art?: number }
+  | { t: 'hello'; token: string; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; halloween?: number; cos?: number; needs?: number; art?: number; hb?: number }
+  | { t: 'join'; nickname: string; look: Look; house?: unknown; dog?: Dog | null; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; halloween?: number; cos?: number; needs?: number; art?: number; hb?: number }
+  /** Heartbeat (hb:1 clients, only after a welcome that said hb:1). The Worker answers pong. */
+  | { t: 'ping' }
   /** Trick-or-treat (join flag halloween:1). Nothing is stored; the owner sees a note if she is online. */
   | { t: 'knock'; houseId: string }
   | { t: 'dog'; dog: Dog | null }
@@ -928,7 +930,8 @@ export type ClientMsg =
 
 export type ServerMsg =
   | { t: 'joined'; token: string; pid: string }
-  | { t: 'welcome'; pid: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[]; sit?: 1; baby?: 1; amb?: 1; cos?: 1; needs?: 1; art?: 1 }
+  | { t: 'welcome'; pid: string; settings: StreetSettings; players: PlayerPub[]; houses: HouseFull[]; presence: Record<string, Presence>; ranch?: { plots: (Plot | null)[]; now: number }; tables?: TablePub[]; sit?: 1; baby?: 1; amb?: 1; cos?: 1; needs?: 1; art?: 1; hb?: 1 }
+  | { t: 'pong' }
   | { t: 'act'; houseId: string; by: string; cid: number; action: Action }
   | { t: 'art'; houseId: string; arts: Record<string, string> } | { t: 'artFail'; houseId: string; id: string; reason: string }
   | { t: 'nack'; houseId: string; cid: number; reason: string; state?: GameState }
