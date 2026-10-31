@@ -2,6 +2,8 @@
 // An empty room gets a rug, a lamp, and a plant. A room with no window or curtains gets a window.
 
 import { initialState } from './shared/state';
+import { rasterOn } from './art/cache';
+import paintedWindowUrl from '../assets/art/any/window.webp?url';
 
 const O = '#5a3d5c';
 const s = `stroke="${O}" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"`;
@@ -10,7 +12,13 @@ const CURTAIN: Record<string, string> = {
   living: '#ff8fab', bedroom: '#c9a0dc', kitchen: '#8fd6a6', salon: '#f0a0d8', nursery: '#9ad7f5', bathroom: '#7ec8d6', backyard: '#80ed99',
 };
 
+/** The living room's built-in window is the painted Window (any/window.webp), the same
+ *  painting a placed Window uses, with the same night plate. ?art=v1 keeps the vector. */
+function paintedWindow(room: string): boolean {
+  return room === 'living' && rasterOn();
+}
 function windowSVG(room: string) {
+  if (paintedWindow(room)) return `<div class="sceneWin builtin-window painted" aria-hidden="true"><div class="pwin"><img class="artimg" alt="" draggable="false" src="${paintedWindowUrl}"><i class="artnight" aria-hidden="true"></i></div></div>`;
   const curtain = CURTAIN[room] ?? '#ffb3c6';
   return `<div class="sceneWin builtin-window" aria-hidden="true"><svg viewBox="0 0 160 180">
     <path d="M18 20 H142 V150 H18 Z" fill="#fff6ea" ${s}/>
@@ -88,7 +96,7 @@ export function syncScenery(root: HTMLElement, room: string, items: { kind: stri
   }
   const empty = items.length === 0;
   const hasWindow = items.some(i => /window|curtain/i.test(i.kind));
-  const next = room + (empty ? '|e' : '') + (hasWindow ? '|w' : '');
+  const next = room + (empty ? '|e' : '') + (hasWindow ? '|w' : '') + (paintedWindow(room) ? '|p' : '');
   if (next === sig && root.childElementCount) return;
   sig = next;
   root.innerHTML = (hasWindow ? '' : windowSVG(room)) + (empty ? startersSVG() : '');

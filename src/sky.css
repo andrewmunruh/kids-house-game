@@ -222,7 +222,7 @@ html[data-sky="golden"] #layer > .item.is-light {
 html:not([data-sky="day"]) .houseWin { fill: var(--sky-house-win); }
 
 /* Room windows: a sky plate over the glass. Day leaves it clear so the painted sky shows. */
-.sceneWin::after {
+.sceneWin:not(.painted)::after {
   content: '';
   position: absolute;
   left: 18%;
@@ -253,7 +253,8 @@ html.sky-live .winGlass { transition: fill 1.4s linear; }
 /* Painted window: the WebP is a sunny day. This plate covers just the glass
    (curtains and sill stay) with the same moon, stars, and night sky as the SVG window.
    Day leaves --sky-glass at 0, so the painting shows through. */
-.item .artnight {
+.item .artnight,
+.sceneWin.painted .pwin .artnight {
   position: absolute;
   left: 22%;
   top: 6.5%;
