@@ -28,13 +28,12 @@ closed 4001 after 40.0 s (timer re-armed). Interval stop itself is proven in-pro
 |---|---|---|
 | one late pong (7 s) does not drop the socket (2-miss) | FAIL (dropped) | PASS |
 | ack-lost item/add not re-sent after friend deleted it | FAIL (count 1,1) | PASS (0,0) |
-| ack-lost cat/move not re-sent when server cat moved (carry step) | RUNNING (chain2) | PASS (pr/base run: kept-when-moved 0, kept-when-unchanged 1) |
+| ack-lost cat/move not re-sent when server cat moved (carry step) | FAIL (kept when moved=1) | PASS (kept when moved 0, unchanged 1) |
 | cat/move into a dead socket (target unchanged) still delivered | PASS | PASS (regression guard) |
 Cat check rewritten in 3a00c20: the server nacks a friend's cat/move ('notyours'), so the first version (friend moves her
 cat) could never pass; the competing writer is her own other device, modelled at carry().
 ### Heartbeat matrix (hb2-*.log, merged dist)
-pr/pr: all PASS except wake 6.0 s vs stale <5 s threshold (by design 3 s x2; threshold fixed in 70e5ce5, re-run hb3 queued)
-and the first cat version (superseded). Silent drop 15.8 s; resend exactly once; conflict ok; no double apply; idle away 41.3 s;
+pr/pr (hb3-pr-pr.log, final tests): ALL 18 PASS. Silent drop 15.8 s; wake 6.0 s; resend exactly once; conflict ok; no double apply; idle away 41.1 s;
 old client never dropped. pr/base: all PASS except silent drop (known gap: old Worker has no ping). old/pr: old client FAILs
 silent-drop/resend/wake as before (expected, old code); compat PASS.
 ### Gate (gate_merged vs base /workspace/t-batch1/gate_prod on d8d63b5): IDENTICAL
