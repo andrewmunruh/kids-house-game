@@ -44,8 +44,6 @@ import { MORE_CHAR_FX, MORE_ITEM_FX, MORE_PERIOD, keysPlaying, moreItemFx, syncS
 import { installNeeds } from './needs-ui';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
-// First run shows one card at a time: welcome / what's-new first, then the phone mode tip.
-let firstCardDone = false;
 import { glide } from './glide';
 import { plural, nackText, movedNote, noteGate, ALL_SIGNED_IN, dupName } from './words';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
@@ -64,6 +62,9 @@ import { STICKER } from './mail';
 import { BARN_W, BARN_ANIMAL_X, BARN_DOOR_X, RANCH_W, RANCH_Y0, RANCH_Y1, ANIMALS, ANIMAL_X, ANIMAL_Y, HORSES, HORSE_X, HORSE_Y, FOODS, PLOTS, PLOT_X, BASKET_KINDS, ranchApply, cleanPlots, cleanBasket, plotStage, emptyBasket, type RanchOp, type Basket, type BasketKind, type Plot } from './shared/ranch';
 import { barnSceneSVG, windmillSVG, ranchSceneSVG, paddockFenceSVG, animalSVG, horseSVG, henHouseSVG, tractorSVG, appleTreeSVG, APPLE_SPOTS, appleSVG, FEED_SVG, bucketSVG, basketSVG, eggSVG, carrotSVG, flowerSVG, plotSVG, rainbowIcon, hopOffIcon, streetRanchGateSVG, ANIMAL_INFO, HORSE_COATS, RANCH_H, POND, FENCE_FOOT } from './ranch';
 import { bindGameRoom, renderGameRoom, renderGamePeople, tickGameRoom, mySeat, grScale, tableApi, GR_PORTRAIT_VIEW } from './gameroom-view';
+
+// First run shows one card at a time: welcome / what's-new, then the portrait "turn sideways" note, then the mode tip.
+let firstCardDone = false;
 
 // The renderer talks to `store`, which forwards to either the offline localStorage house
 // or a neighborhood house (server-authoritative) — same actions, same reducer.
@@ -4881,7 +4882,13 @@ function showWhatsNew() {
   const next = () => {
     const note = document.getElementById('phoneNote');
     if (note && !note.classList.contains('hidden') && getComputedStyle(note).display !== 'none') {
-      $('phoneOk').addEventListener('click', () => { firstCardDone = true; play.hint(); }, { once: true });
+      // The note also hides on its own when the phone turns sideways (CSS), with no OK tap. Either way, the tip is next.
+      const done = () => {
+        if (firstCardDone || (!note.classList.contains('hidden') && getComputedStyle(note).display !== 'none')) return;
+        firstCardDone = true; window.removeEventListener('resize', done); play.hint();
+      };
+      $('phoneOk').addEventListener('click', () => setTimeout(done, 0), { once: true });
+      window.addEventListener('resize', done);
       return;
     }
     firstCardDone = true; play.hint();

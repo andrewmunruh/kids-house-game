@@ -1,5 +1,7 @@
 // Kid-facing wording that more than one screen shares: plurals, "why didn't that work?" notes,
 // and the small "Chloe moved the sofa" notes. Plain words, no blame, a gentle next step.
+// Note: "hers" / "she" assume every kid on the street is a girl. True for this family's street today;
+// if that changes, switch these to the owner's name (e.g. "That's Chloe's to move").
 import type { Action } from './shared/state';
 
 /** "1 friend", "3 friends". `many` defaults to one + 's'. */

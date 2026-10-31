@@ -52,6 +52,17 @@ async def first_run(b):
     check('first run: the mode tip comes last, on its own', s == {'wn': 0, 'phone': 0, 'hint': 1}, json.dumps(s))
     await pg.screenshot(path=f'{SHOTS}/b5-02b-first-run-tip.png')
     await c.close()
+    # Rotate instead of tapping OK: the note hides by itself, and the mode tip must still come.
+    c = await b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
+    pg = await c.new_page(); await pg.goto(URL)
+    await pg.wait_for_selector('#wnGo', timeout=6000); await pg.wait_for_timeout(600)
+    await pg.click('#wnGo', force=True); await pg.wait_for_timeout(500)
+    before = await pg.evaluate(FIRST)
+    await pg.set_viewport_size({'width': 844, 'height': 390}); await pg.wait_for_timeout(1200)
+    s = await pg.evaluate(FIRST); ph = await pg.evaluate("document.body.classList.contains('phone')")
+    check('first run: rotating sideways (no OK tap) still brings the mode tip', before['phone'] == 1 and s['phone'] == 0 and s['hint'] == 1, json.dumps([before, s, ph]))
+    await pg.screenshot(path=f'{SHOTS}/b5-02c-rotated-tip.png')
+    await c.close()
 
 async def street(cb, wb):
     async def mk(br, w=1180, h=820):
@@ -113,6 +124,27 @@ async def street(cb, wb):
     still = sum(1 for a, b in zip(seg, seg[1:]) if abs(b[1] - a[1]) < 0.05) / max(1, len(seg) - 1)
     ratio = peak / mean if mean else 99
     check('MP-14: friend glides smoothly (peak/mean speed < 1.6)', ratio < 1.6, f'ratio={ratio:.2f} still_frames={still:.0%} frames={len(seg)}')
+    AV = "(id) => { const e = document.querySelector(`.char.avatar[data-pid=\"${id}\"]`); return e ? [e.getBoundingClientRect().x, getComputedStyle(e).transitionDuration] : null }"
+    async def step(dx):
+        await P.evaluate("(dx) => __hood().setPresence({...__hood().myPresence(), x: __hood().myPresence().x + dx})", dx)
+    # Big jump (door / far seat): snap, don't slide across the room.
+    await step(-600); await asyncio.sleep(1.0)
+    a = await K.evaluate(AV, pid); await step(1100)
+    await K.wait_for_function("([id, x0]) => { const e = document.querySelector(`.char.avatar[data-pid=\"${id}\"]`); return e && Math.abs(e.getBoundingClientRect().x - x0) > 20 }", arg=[pid, a[0]], timeout=4000)
+    await K.wait_for_timeout(40); b1 = await K.evaluate(AV, pid); await K.wait_for_timeout(600); b2 = await K.evaluate(AV, pid)
+    done = abs(b1[0] - a[0]) / max(1, abs(b2[0] - a[0]))
+    check('MP-14: a big jump snaps (>=90% there ~1 frame after it starts)', done >= 0.9, f'{done:.0%} dur={b1[1]}')
+    await asyncio.sleep(0.5)
+    # Screen resize / rotate: the next update snaps instead of sliding.
+    await K.set_viewport_size({'width': 1000, 'height': 760}); await step(20); await K.wait_for_timeout(150)
+    d = (await K.evaluate(AV, pid))[1]
+    check('MP-14: right after a resize, a friend does not slide', d in ('0s', '0ms'), d)
+    await asyncio.sleep(1.0)
+    # Reduced motion: friends never slide.
+    await K.emulate_media(reduced_motion='reduce'); await asyncio.sleep(0.3)
+    for _ in range(3): await step(25); await asyncio.sleep(0.25)
+    d = (await K.evaluate(AV, pid))[1]
+    check('MP-14: reduced motion turns the friend slide off (<= 1 ms)', float(d.rstrip('ms').rstrip('m')) * (0.001 if d.endswith('ms') else 1) <= 0.001, d)
     return P, K, X
 
 async def main():

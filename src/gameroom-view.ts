@@ -1,6 +1,6 @@
-import { glide } from './glide';
 // Game Room scene: walk around the clubhouse, sit, and open a table.
 import { characterSVG, SIZE_SCALE } from './character';
+import { glide } from './glide';
 import { stampAvatar } from './avatar/motion';
 import { confetti } from './eggs';
 import { createTableUI, type TableApi } from './games/ui';

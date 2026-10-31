@@ -1,7 +1,7 @@
 // Batch 5: shared wording (plurals, "why didn't that work" toasts, "Chloe moved the sofa"), the friend glide, 2D name tag lanes.
 import assert from 'node:assert/strict';
 import { plural, nackText, movedNote, noteGate, NACK_REASONS, ALL_SIGNED_IN, dupName } from '../src/words';
-import { glideMs } from '../src/glide';
+import { glideMs, glidePlanMs } from '../src/glide';
 import { assignLanes } from '../src/nametags';
 
 let pass = 0;
@@ -49,6 +49,13 @@ check('dup name line', dupName('Sunny') === 'Sunny is already on the list 💛')
 check('glide floor', glideMs(30) === 120 && glideMs(0) === 120 && glideMs(NaN) === 120);
 check('glide follows the gap', glideMs(200) === 200);
 check('glide cap', glideMs(5000) === 300);
+const walk = { first: false, jumpFrac: 0.05, sinceResizeMs: 10000, reduced: false, avgGapMs: 200 };
+check('glide: a normal step slides', glidePlanMs(walk) === 230);
+check('glide: a big jump snaps', glidePlanMs({ ...walk, jumpFrac: 0.4 }) === 0);
+check('glide: an unmeasurable jump snaps', glidePlanMs({ ...walk, jumpFrac: NaN }) === 0);
+check('glide: first placement snaps', glidePlanMs({ ...walk, first: true }) === 0);
+check('glide: right after a resize or rotate snaps', glidePlanMs({ ...walk, sinceResizeMs: 100 }) === 0);
+check('glide: reduced motion never slides', glidePlanMs({ ...walk, reduced: true }) === 0);
 
 // name tags at different heights (B-24): lane 1 of a low kid must not land on a higher kid's lane 0 tag
 const H = 24;
