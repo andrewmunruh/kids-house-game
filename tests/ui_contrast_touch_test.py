@@ -40,6 +40,17 @@ EXTRA = {'cta': '.stuHang, .stuAskYes, .typed button, .codeForm button, .pHouse 
          'labels': '.menuGroup, .stuGroup > b, .grSolo, .stuTool span'}
 BALLDBG = """() => { const r = document.getElementById('ball').getBoundingClientRect(); const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
   return [[0,0],[21.5,0],[-21.5,0],[0,21.5],[0,-21.5]].map(([dx, dy]) => { const e = document.elementFromPoint(cx + dx, cy + dy); return e ? (e.id || e.className.baseVal || e.className || e.tagName) : null; }).concat([Math.round(cx), Math.round(cy)]); }"""
+# The ball's tap pad must not steal taps meant for park hotspots, pets or the chat button: sample a grid inside each
+# of them (outside the ball's own drawn box) and require elementFromPoint not to be the ball.
+STEAL = """() => { const ball = document.getElementById('ball'); const br = ball.getBoundingClientRect(); const out = [];
+  const els = [...document.querySelectorAll('#parkWorld .pspot, #parkWorld .pet, #parkWorld button:not(#ball), #btnChat')];
+  for (const el of els) { const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue;
+    for (let i = 0; i <= 6; i++) for (let j = 0; j <= 6; j++) { const x = r.left + 2 + (r.width - 4) * i / 6, y = r.top + 2 + (r.height - 4) * j / 6;
+      if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) continue;
+      if (x >= br.left && x <= br.right && y >= br.top && y <= br.bottom) continue;
+      const top = document.elementFromPoint(x, y); if (!top || !top.closest('#ball')) continue;
+      if (!el.contains(top) && document.elementsFromPoint(x, y).includes(el)) out.push((el.id || el.getAttribute('aria-label') || el.className) + '@' + Math.round(x) + ',' + Math.round(y)); } }
+  return { n: els.length, stolen: [...new Set(out)].slice(0, 12), count: out.length }; }"""
 fails = passes = 0
 def check(name, ok, extra=''):
     global fails, passes
@@ -60,7 +71,7 @@ async def page(b, w, h):
 async def scan(pg, where):
     for it in await pg.evaluate(SCAN, EXTRA):
         check(f'{where} contrast {it["kind"]} "{it["txt"]}"', it['r'] >= 4.5, f'{it["r"]}:1')
-        if it['kind'] == 'label' and 'stu' in where: check(f'{where} label size "{it["txt"]}"', it['fs'] >= 14, f'{it["fs"]}px')
+        if it['kind'] == 'label' and ('stu' in where or 'menu' in where): check(f'{where} label size "{it["txt"]}"', it['fs'] >= 14, f'{it["fs"]}px')
 
 # Swatches can sit closer than 44px apart (row pitch 40px at 667x280), so a tap 21.5px out must land on a dot
 # that is the nearest one within 3px (no dead gap; ties near the midline may go either way).
@@ -117,6 +128,8 @@ async def main():
                     bp = await pg.evaluate(PAD, '#ball')
                     if not all(x['ok'] for x in bp): print('  ball hits', await pg.evaluate(BALLDBG), flush=True)
                     check(f'{sz} park ball 44px hit box', bp and all(x['ok'] for x in bp), str(bp))
+                    st = await pg.evaluate(STEAL)
+                    check(f'{sz} park ball pad does not cover hotspots / chat', st['n'] > 0 and st['count'] == 0, str(st))
                 except Exception as e: check(f'{sz} park nav', False, str(e).splitlines()[0][:120])
                 await ctx.close()
         await b.close()

@@ -1256,7 +1256,7 @@ body.view-street #secrets { display: none !important; }
   background: #fff; border: 4px solid var(--ink); border-radius: 22px; padding: 8px 8px 12px;
   box-shadow: 0 8px 0 rgba(90,61,92,.28); max-height: calc(100vh - var(--chrome-h, 64px) - 24px); overflow: auto; }
 .menuCard .close { width: 44px; height: 44px; top: 4px; right: 4px; }
-.menuGroup { margin: 8px 8px 4px; padding-right: 44px; font-size: 13px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); }
+.menuGroup { margin: 8px 8px 4px; padding-right: 44px; font-size: 14px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); }
 /* B-06: the first heading is as tall as the close button, so the first row starts below the X. */
 .menuGroup:first-of-type { min-height: 36px; display: flex; align-items: center; }
 .menuGroup:first-of-type { margin-top: 4px; }
