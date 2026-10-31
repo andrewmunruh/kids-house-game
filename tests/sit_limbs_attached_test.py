@@ -8,7 +8,7 @@ from playwright.async_api import async_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 JOINT = {('arm', 'l'): (72, 172), ('arm', 'r'): (128, 172), ('leg', 'l'): (88, 238), ('leg', 'r'): (112, 238)}
-MEASURE = """(joint) => {
+MEASURE = r"""(joint) => {
   const svg = document.querySelector('svg'); const out = [];
   for (const g of svg.querySelectorAll('g.leg, g.arm')) {
     const side = g.classList.contains('l') ? 'l' : 'r', kind = g.classList.contains('leg') ? 'leg' : 'arm';
