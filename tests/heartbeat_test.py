@@ -244,15 +244,19 @@ async def s_safety(p, px):
     px.kill_all(); await wait_status(A, 'online', 20); await asyncio.sleep(3)
     n = [await pg.evaluate("(h) => __hood().view(h).rooms.living.items.filter(i=>i.id==='qahbz').length", hid) for pg in (A, B)]
     rec(f'[{CL}/{SV}] ack-lost item/add is not re-sent after a friend deleted it', seen is not None and n == [0, 0], f'friend saw add={seen is not None}; count after reconnect A,B={n}')
-    # (c) cat: she moves it (ack lost), friend moves it later; her stale move must not win
+    # (c) cat: only the owner may move her cat (server nacks friends), so the competing writer is her own other tab/device.
+    # Model it at the carry step: her cat/move went out on a socket that died (sent, unacked); the server copy she gets back
+    # on reconnect has the cat somewhere else (moved by her other device). Her stale move must be let go.
     await A.evaluate("(h) => __hood().dispatch(h, {type:'cat/set', cat:{name:'Mittens', coat:0, room:'living', x:400}})", hid); await asyncio.sleep(1.5)
-    px.freeze('down')
-    await A.evaluate("(h) => __hood().dispatch(h, {type:'cat/move', room:'living', x:300})", hid)
-    await wait_js(B, "(h) => __hood().view(h)?.cat?.x === 300", hid, 8)
-    await B.evaluate("(h) => __hood().dispatch(h, {type:'cat/move', room:'living', x:700})", hid); await asyncio.sleep(1.5)
+    px.freeze('up')
+    await A.evaluate("(h) => __hood().dispatch(h, {type:'cat/move', room:'living', x:300})", hid); await asyncio.sleep(0.5)
+    kept = await A.evaluate("""(h) => { const c = __hood(), r = c.houses.get(h); const conf = r.confirmed;
+      const moved = { ...conf, cat: { ...conf.cat, x: 700 } }; const before = { ...c.resent };
+      const out = c.carry(moved, r.pending.filter(p => p.sent)).filter(p => p.action.type === 'cat/move').length;
+      const same = c.carry(conf, r.pending.filter(p => p.sent)).filter(p => p.action.type === 'cat/move').length;
+      c.resent = before; return [out, same, r.pending.filter(p => p.sent).length]; }""", hid)
+    rec(f'[{CL}/{SV}] ack-lost cat/move is not re-sent when the server cat moved meanwhile (kept only if unchanged)', kept[0] == 0 and kept[1] == 1, f'kept when moved={kept[0]}, kept when unchanged={kept[1]}, sent-unacked={kept[2]}')
     px.kill_all(); await wait_status(A, 'online', 20); await asyncio.sleep(3)
-    cx = [await pg.evaluate("(h) => __hood().view(h)?.cat?.x ?? null", hid) for pg in (A, B)]
-    rec(f'[{CL}/{SV}] ack-lost cat/move does not overwrite a friend\'s newer move', cx == [700, 700], f'cat x A,B={cx}')
     # (d) an unacked cat move whose target did not change is still delivered
     px.freeze('up')
     await A.evaluate("(h) => __hood().dispatch(h, {type:'cat/move', room:'living', x:520})", hid); await asyncio.sleep(1)
