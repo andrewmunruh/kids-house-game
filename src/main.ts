@@ -346,9 +346,10 @@ function fit() {
   const boxW = wrap.clientWidth;
   const boxH = wrap.clientHeight;
   const frameH = Math.max(1, boxH - careTopReserve());
-  // Portrait uses the whole wrap. iPad keeps the original test. On a phone, a tall
-  // tool row can make the stage almost square; still frame it as portrait so the room fills the screen.
-  const portrait = phone ? boxH > boxW * 0.85 : boxH > boxW + 40;
+  // Portrait uses the whole wrap. On a phone, a tall tool row can make the stage almost square;
+  // still frame it as portrait so the room fills the screen. An upright iPad fills the screen too:
+  // 820x1180 with the drawer open leaves a 796x810 wrap, which must still count as portrait.
+  const portrait = phone ? boxH > boxW * 0.85 : boxH > boxW * 0.95;
   if (portrait) {
     const aspect = boxW / Math.max(1, boxH);
     VIEW_W = Math.round(Math.max(480, Math.min(860, H * aspect)));
@@ -653,6 +654,19 @@ window.addEventListener('resize', fitNow);
 window.addEventListener('resize', () => requestAnimationFrame(syncTabFade));
 $('tabs').addEventListener('scroll', syncTabFade, { passive: true });
 phoneMQ.addEventListener('change', fitNow);
+// iPad: the drawer and tab row settle after the first fit() (fonts, shelf chips) without a window
+// resize, which left the stage sized for a taller wrap and sitting on the tabs and drawer. Refit
+// whenever the wrap itself changes size. fit() only resizes the stage inside it, so this cannot loop.
+if (typeof ResizeObserver !== 'undefined') {
+  let wrapKey = '';
+  new ResizeObserver(() => {
+    const w = $('stageWrap');
+    const k = w.clientWidth + 'x' + w.clientHeight;
+    if (k === wrapKey) return;
+    wrapKey = k;
+    fitNow();
+  }).observe($('stageWrap'));
+}
 // Phone only. Coming home brings the room tabs back, and the own-house buttons can
 // wrap the tool row, both without a window resize — the room then keeps the old scale
 // and covers Map. iPad sizes never match PHONE_MQ, so this never calls fit() there.

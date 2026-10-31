@@ -1,4 +1,4 @@
-:root { --ink: #5a3d5c; --bg: #ffe9f0; }
+:root { --ink: #5a3d5c; --bg: #ffe9f0; /* B-02: text on pink / lilac selected states (>= 4.9:1 on every tab colour) */ --ink-dark: #3d2340; --ink-2: #6b4a6d; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; touch-action: none; background: var(--bg);
   font-family: ui-rounded, "SF Pro Rounded", "Nunito", "Varela Round", system-ui, sans-serif; color: var(--ink); }
@@ -11,7 +11,7 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .top { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 4px; gap: 10px; }
 .tabs { display: flex; gap: 8px; }
 .tab { padding: 10px 16px; border-radius: 22px; background: #fff; font-weight: 800; font-size: 17px; box-shadow: 0 4px 0 #e6c9d8; transition: transform .15s; border: 3px solid transparent; white-space: nowrap; min-height: 48px; }
-.tab.on { background: var(--c); color: #fff; box-shadow: 0 4px 0 rgba(90,61,92,.35); transform: translateY(-2px); border-color: var(--ink); }
+.tab.on { background: var(--c); color: var(--ink-dark); box-shadow: 0 4px 0 rgba(90,61,92,.35); transform: translateY(-2px); border-color: var(--ink); }
 .tab:active { transform: scale(.94); }
 .tools { display: flex; gap: 10px; }
 .round { width: 54px; height: 54px; border-radius: 50%; background: #fff; padding: 9px; box-shadow: 0 4px 0 #e6c9d8; border: 3px solid var(--ink); transition: transform .15s; }
@@ -217,7 +217,7 @@ body.mode-play #toolbar { display: none !important; }
 .preview > div { aspect-ratio: 100 / 160; }
 .del { display: flex; align-items: center; gap: 6px; height: 50px; padding: 6px 12px; border-radius: 18px; background: #ffe0e6; font-weight: 800; transition: all .2s; }
 .del svg { width: 34px; height: 34px; }
-.del.sure { background: #ff8fab; color: #fff; transform: scale(1.06); }
+.del.sure { background: #ff8fab; color: var(--ink-dark); transform: scale(1.06); }
 .row2 { display: flex; gap: 28px; align-items: flex-start; }
 .optCol { display: flex; flex-direction: column; align-items: flex-start; }
 .optCol h3 { margin-top: 0; }
@@ -300,7 +300,7 @@ body.reconnecting::after { content: 'Reconnecting…'; position: fixed; top: 70p
 .emotes button:active, .phrases button:active { transform: scale(.9); }
 .typed { display: flex; gap: 8px; margin-top: 6px; }
 .typed input { flex: 1; font: inherit; font-size: 18px; padding: 10px 14px; border-radius: 16px; border: 3px solid var(--ink); outline: none; -webkit-user-select: text; user-select: text; }
-.typed button { padding: 0 20px; border-radius: 16px; background: #ff8fab; color: #fff; font-weight: 900; font-size: 17px; border: 3px solid var(--ink); }
+.typed button { padding: 0 20px; border-radius: 16px; background: #ff8fab; color: var(--ink-dark); font-weight: 900; font-size: 17px; border: 3px solid var(--ink); }
 .chatWarn { color: #d6336c; font-weight: 800; min-height: 18px; font-size: 14px; margin-top: 4px; }
 .presetsOnly { font-weight: 800; opacity: .6; margin-top: 6px; }
 
@@ -348,7 +348,7 @@ body.reconnecting::after { content: 'Reconnecting…'; position: fixed; top: 70p
 .hint.small { font-size: 13px; }
 .codeForm { display: flex; gap: 10px; justify-content: center; margin: 10px 0; }
 .codeForm input { font: inherit; font-size: 34px; font-weight: 900; letter-spacing: 8px; width: 260px; text-align: center; text-transform: uppercase; border: 4px solid var(--ink); border-radius: 18px; padding: 6px; -webkit-user-select: text; user-select: text; }
-.codeForm button, .pHouse button { padding: 0 22px; border-radius: 18px; background: #ff8fab; color: #fff; font-weight: 900; font-size: 20px; border: 3px solid var(--ink); }
+.codeForm button, .pHouse button { padding: 0 22px; border-radius: 18px; background: #ff8fab; color: var(--ink-dark); font-weight: 900; font-size: 20px; border: 3px solid var(--ink); }
 .err { color: #d6336c; font-weight: 800; min-height: 20px; }
 .nicks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
 .nicks button { padding: 12px 6px; border-radius: 16px; background: #e8f6ff; border: 3px solid #b8dcf2; font-weight: 900; font-size: 16px; }
@@ -438,7 +438,7 @@ body.view-street .secrets { display: none; }
 .rName button.x { border: none; background: transparent; font-size: 18px; padding: 0 4px; }
 .pAdd { display: flex; gap: 8px; margin: 6px 0; }
 .pAdd input { flex: 1; font: inherit; font-size: 16px; padding: 8px 12px; border: 3px solid var(--ink); border-radius: 14px; }
-.pAdd button { border-radius: 14px; padding: 0 14px; background: #ff8fab; color: #fff; font-weight: 900; border: 3px solid var(--ink); }
+.pAdd button { border-radius: 14px; padding: 0 14px; background: #ff8fab; color: var(--ink-dark); font-weight: 900; border: 3px solid var(--ink); }
 .sugg { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
 .sugg button { border-radius: 12px; padding: 4px 10px; background: #fff; border: 2px dashed #c9a0dc; font-weight: 800; }
 
@@ -459,6 +459,8 @@ body.mode-hood.view-park #btnChat { display: block !important; }
 .pspot:active { background: rgba(255,255,255,.25); }
 .ball { position: absolute; z-index: 700; background: none; border: 0; padding: 0; box-shadow: none; transition: left .65s cubic-bezier(.3,.1,.5,1), top .65s; }
 .ball svg { width: 100%; height: 100%; display: block; }
+/* B-05: 48px tap pad round the park ball, like the map spots. */
+.ball::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(48px, 100%); height: max(48px, 100%); transform: translate(-50%, -50%); }
 .ball.flying svg { animation: ballArc .65s ease-out; }
 @keyframes ballArc { 0% { transform: translateY(0) rotate(0); } 45% { transform: translateY(-120px) rotate(300deg); } 100% { transform: translateY(0) rotate(720deg); } }
 .ripples { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
@@ -1001,7 +1003,7 @@ body:not(.phone) .grScene .framePhone { display: none; }
 .grChair:active, .grTable:active, .grDoor:active { transform: scale(.96); background: rgba(255, 255, 255, .28); }
 .grSolo { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 30; pointer-events: none;
   background: #fff; border: 4px solid var(--ink); border-radius: 22px; padding: 10px 18px; font-weight: 900; font-size: 22px;
-  box-shadow: 0 6px 0 rgba(90, 61, 92, .25); color: #e0558a; text-align: center; max-width: 92vw; }
+  box-shadow: 0 6px 0 rgba(90, 61, 92, .25); color: #b8326a; text-align: center; max-width: 92vw; }
 .grSolo.bump { animation: petHop .45s ease; }
 #gavatars { pointer-events: none; }
 #gavatars .savatar.other { pointer-events: none; }
@@ -1254,7 +1256,9 @@ body.view-street #secrets { display: none !important; }
   background: #fff; border: 4px solid var(--ink); border-radius: 22px; padding: 8px 8px 12px;
   box-shadow: 0 8px 0 rgba(90,61,92,.28); max-height: calc(100vh - var(--chrome-h, 64px) - 24px); overflow: auto; }
 .menuCard .close { width: 44px; height: 44px; top: 4px; right: 4px; }
-.menuGroup { margin: 8px 8px 4px; padding-right: 44px; font-size: 13px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; color: #9a7a90; }
+.menuGroup { margin: 8px 8px 4px; padding-right: 44px; font-size: 14px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); }
+/* B-06: the first heading is as tall as the close button, so the first row starts below the X. */
+.menuGroup:first-of-type { min-height: 36px; display: flex; align-items: center; }
 .menuGroup:first-of-type { margin-top: 4px; }
 .menuRow { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 4px 10px; border-radius: 14px;
   background: #fff; font-weight: 800; font-size: 16px; text-align: left; }
@@ -1277,7 +1281,7 @@ html[data-sky-choice="auto"] #menuDaySlot::after { content: 'Sky: Auto (follows 
 /* Polish b4: the sky row looks like the other rows (32px icon, same indent) and the whole row is the tap target. */
 #menuDaySlot { position: relative; border-radius: 14px; background: #fff; }
 #menuPop #menuDaySlot > #skyMount { position: static; }
-#menuPop #menuDaySlot .skyBtn { width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+#menuPop #menuDaySlot .skyBtn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 6px; margin: 0 -6px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 #menuPop #menuDaySlot .skyBtn::before { content: ''; position: absolute; inset: 0; border-radius: 14px; }
 #menuPop #menuDaySlot:active { background: #ffe4ef; }
 #menuPop .menuSlot[hidden] { display: none !important; margin: 0; padding: 0; height: 0; }
