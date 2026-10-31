@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
-# Publish dist/ to the gh-pages branch (GitHub Pages source).
-set -e
-cd dist && touch .nojekyll && rm -rf .git && git init -q -b gh-pages && git add -A && git -c user.name=andrewmunruh -c user.email=andrewmunruh@users.noreply.github.com commit -qm "deploy" && git push -f "$(cd .. && git remote get-url origin)" gh-pages && rm -rf .git
+# RETIRED in Batch 9: this script force-pushed gh-pages. It now refuses to run.
+# Use scripts/guarded-deploy.sh (see docs/deploy.md).
+echo "REFUSED: $(basename "$0") is retired (it force-pushed gh-pages). Use scripts/guarded-deploy.sh, see docs/deploy.md." >&2
+exit 3
