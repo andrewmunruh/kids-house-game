@@ -12,6 +12,11 @@ M = '/tmp/b0mig'
 WWW_B0 = M + '/www-b0'
 WWW_B1 = M + '/www-b1'
 PORT_B0 = 4195
+# De-flake (Batch 9): under a shared, busy box the cold `npx tsx` server start and the first scene
+# decode of the old build can exceed the fixed waits. Every explicit wait is scaled by
+# B0_TIMEOUT_SCALE (default 2) and server start-up gets 90 s instead of 30 s. Assertions are unchanged.
+SCALE = float(os.environ.get('B0_TIMEOUT_SCALE', '2'))
+def T(ms): return int(ms * SCALE)
 PORT_B1 = 4196
 PORT_HOOD = 8799
 B0_TREE = '/tmp/b0tree'
@@ -39,7 +44,7 @@ def server(cwd, data):
     env = dict(os.environ, PORT=str(PORT_HOOD), HOOD_DATA=data)
     return subprocess.Popen(['npx', 'tsx', 'server/node.ts'], cwd=cwd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, start_new_session=True)
 
-def wait_port(port, t=30):
+def wait_port(port, t=90):
     import socket
     end = time.time() + t
     while time.time() < end:
@@ -166,7 +171,7 @@ async def join(pg, code, nick, bring):
     await pg.click('#codeForm button')
     await pg.click(f'.nicks button:has-text("{nick}")')
     await pg.click('[data-m="bring"]' if bring else '[data-m="fresh"]')
-    await pg.wait_for_selector('body.view-map .mapHouse', timeout=15000)
+    await pg.wait_for_selector('body.view-map .mapHouse', timeout=T(15000))
 
 async def enter_house(pg, sel):
     """A face marker covers the house, and the map zoom can eat the first click. Click the house element itself and retry."""
@@ -177,7 +182,7 @@ async def enter_house(pg, sel):
         except Exception as e:
             last = str(e)
         try:
-            await pg.wait_for_function("() => !document.body.classList.contains('view-map') && !!document.querySelector('#layer')", timeout=12000)
+            await pg.wait_for_function("() => !document.body.classList.contains('view-map') && !!document.querySelector('#layer')", timeout=T(12000))
             return
         except Exception as e:
             last = str(e)
@@ -204,6 +209,7 @@ async def main():
             async def ctx(port_skip=True):
                 c = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
                 await c.add_init_script("localStorage.setItem('cozy-whatsnew','999')")
+                c.set_default_timeout(T(30000))
                 return c
             P = await (await ctx()).new_page()
             K = await (await ctx()).new_page()
@@ -228,7 +234,7 @@ async def main():
             await join(K, code, 'Quinn', False)
             k_house = await K.evaluate('__hood().myHouseId()')
             await P.evaluate("(id) => __hood().sendMail(id, 'Come play in the yard!', 1, 2)", k_house)
-            await K.wait_for_function("(id) => { const L = (__hood().view(id).mailbox || {}).letters; return L && L[0] && L[0].text.indexOf('yard') >= 0; }", arg=k_house, timeout=15000)
+            await K.wait_for_function("(id) => { const L = (__hood().view(id).mailbox || {}).letters; return L && L[0] && L[0].text.indexOf('yard') >= 0; }", arg=k_house, timeout=T(15000))
             await K.wait_for_timeout(800)
             before = await K.evaluate(SNAP)
             saved = disk_letter(DATA, 'yard')
@@ -247,8 +253,8 @@ async def main():
             await P.goto(url(PORT_B0))
             await K.goto(url(PORT_B0))
             try:
-                await K.wait_for_selector('body.view-map .mapHouse', timeout=12000)
-                await P.wait_for_selector('body.view-map .mapHouse', timeout=12000)
+                await K.wait_for_selector('body.view-map .mapHouse', timeout=T(12000))
+                await P.wait_for_selector('body.view-map .mapHouse', timeout=T(12000))
             except Exception:
                 info = await K.evaluate("() => document.body.className + ' ' + (document.body.innerText || '').slice(0, 180)")
                 await K.screenshot(path='/tmp/b0-reload.png')
@@ -273,13 +279,14 @@ async def main():
                   'yard=' + json.dumps(ya.get('items')))
             # A local copy of that save, opened on B1, keeps the mailbox when she edits and when she adds a look.
             solo = await b.new_context(viewport={'width': 820, 'height': 1180}, device_scale_factor=1, has_touch=True)
+            solo.set_default_timeout(T(30000))
             payload = json.dumps(saved)
             await solo.add_init_script("localStorage.setItem('cozy-whatsnew','999'); localStorage.setItem('cozy-house', " + json.dumps(payload) + ");")
             sp = await solo.new_page()
             serrs = []
             sp.on('pageerror', lambda e: serrs.append(str(e)))
             await sp.goto(f'http://localhost:{PORT_B0}/kids-house-game/')
-            await sp.wait_for_selector('#stage .char', timeout=15000)
+            await sp.wait_for_selector('#stage .char', timeout=T(15000))
             await sp.evaluate("""() => {
               __store.dispatch({type:'room/wallpaper', room:'living', color:'#ddeeff'});
               const look2 = __avatar.sanitizeLook2({ v:1, hair:'puffs', hairC:'#2b1d16', skin:'#f1c27d', eyes:'round', eyeC:'#5a321c', freckles:false, blush:true, top:'classic', topC:'#ff7aa8', bottom:'pants', bottomC:'#5aa9e6', dress:'', dressC:'#ff7aa8', shoes:'classic', shoesC:'#5a3d5c', acc:['bow'], accC:'#ffd166' });
@@ -332,15 +339,15 @@ async def main():
             visible = await B1.evaluate("""() => { const el = document.querySelector('.mapFace.mine svg'); return el ? el.getAttribute('data-chibi') : 'missing'; }""")
             check('look2 is invisible to the fbd04db client and drawn by B1', invisible is None and visible == '1', f'old={invisible} new={visible}')
             await B0.evaluate("(id) => __hood().sendMail(id, 'Hi from the old iPad', 0, 0)", b1house)
-            await B1.wait_for_function("(id) => { const L = (__hood().view(id).mailbox || {}).letters; return L && L.some(x => x.text.indexOf('old iPad') >= 0 && x.from === 'Sloane'); }", arg=b1house, timeout=15000)
+            await B1.wait_for_function("(id) => { const L = (__hood().view(id).mailbox || {}).letters; return L && L.some(x => x.text.indexOf('old iPad') >= 0 && x.from === 'Sloane'); }", arg=b1house, timeout=T(15000))
             b0house = await B0.evaluate('__hood().myHouseId()')
             await B1.evaluate("(id) => __hood().sendMail(id, 'Hi from the new iPad', 3, 2)", b0house)
-            await B0.wait_for_function("(id) => { const L = (__hood().view(id).mailbox || {}).letters; return L && L.some(x => x.text.indexOf('new iPad') >= 0 && x.from === 'Chloe'); }", arg=b0house, timeout=15000)
+            await B0.wait_for_function("(id) => { const L = (__hood().view(id).mailbox || {}).letters; return L && L.some(x => x.text.indexOf('new iPad') >= 0 && x.from === 'Chloe'); }", arg=b0house, timeout=T(15000))
             check('the mailbox works for the old client and the new one', True)
             await B0.evaluate("""(id) => { const h = __hood(); const kind = Object.keys(__items)[0]; h.dispatch(id, {type:'item/add', room:'living', item:{id:'b0-keep', kind, x:420, y:520, flip:false}}); }""", b1house)
             await B0.evaluate("""() => { const L = __hood().players.get(__hood().pid).look; __hood().setLook({ skin:L.skin, hair:L.hair, hairStyle:L.hairStyle, shirt:'#80ed99', pants:L.pants, size:L.size, acc:L.acc }); }""")
             try:
-                await B1.wait_for_function("(id) => ((__hood().view(id).rooms.living || {}).items || []).some(i => i.id === 'b0-keep')", arg=b1house, timeout=15000)
+                await B1.wait_for_function("(id) => ((__hood().view(id).rooms.living || {}).items || []).some(i => i.id === 'b0-keep')", arg=b1house, timeout=T(15000))
             except Exception:
                 pass
             kept_mix = await B1.evaluate("""(id) => {
@@ -357,13 +364,13 @@ async def main():
               const legacy = __avatar.legacyFromLook2(look2);
               __hood().dispatch(id, { type:'char/update', id:'c1', patch: Object.assign({ size:'kid' }, legacy, { look2 }) });
             }""", b1house)
-            await B1.wait_for_function("""(id) => { const c = (__hood().view(id).characters || []).find(x => x.id === 'c1'); return c && c.look2 && c.look2.hair === 'puffs'; }""", arg=b1house, timeout=15000)
+            await B1.wait_for_function("""(id) => { const c = (__hood().view(id).characters || []).find(x => x.id === 'c1'); return c && c.look2 && c.look2.hair === 'puffs'; }""", arg=b1house, timeout=T(15000))
             # wait for the server round-trip: the fbd04db page must have received the B1 update before it edits (else last-writer-wins reorders)
-            await B0.wait_for_function("""(id) => { const c = ((__hood().view(id) || {}).characters || []).find(x => x.id === 'c1'); return c && c.shirt === '#ff7aa8'; }""", arg=b1house, timeout=15000, polling=250)
+            await B0.wait_for_function("""(id) => { const c = ((__hood().view(id) || {}).characters || []).find(x => x.id === 'c1'); return c && c.shirt === '#ff7aa8'; }""", arg=b1house, timeout=T(15000), polling=250)
             await B0.evaluate("""(id) => {
               __hood().dispatch(id, { type:'char/update', id:'c1', patch: { skin:'#f1c27d', hair:'#2b1d16', hairStyle:2, shirt:'#80ed99', pants:'#5aa9e6', size:'kid', acc:1 } });
             }""", b1house)
-            await B1.wait_for_function("""(id) => { const c = (__hood().view(id).characters || []).find(x => x.id === 'c1'); return c && c.shirt === '#80ed99'; }""", arg=b1house, timeout=15000)
+            await B1.wait_for_function("""(id) => { const c = (__hood().view(id).characters || []).find(x => x.id === 'c1'); return c && c.shirt === '#80ed99'; }""", arg=b1house, timeout=T(15000))
             kept_kid = await B1.evaluate("""(id) => { const c = (__hood().view(id).characters || []).find(x => x.id === 'c1') || {}; return { hair: c.look2 && c.look2.hair, shirt: c.shirt }; }""", b1house)
             check('an old client look update keeps her chibi look', kept_kid and kept_kid.get('hair') == 'puffs' and kept_kid.get('shirt') == '#80ed99' and not merrs, str(kept_kid) + ' ' + '; '.join(merrs[:3]))
             # Yard case beside the mailbox and look2 cases. The fbd04db client is the old iPad.
@@ -406,7 +413,7 @@ async def main():
             check('the fbd04db client has five tabs, no back door, and does not draw the swing',
                   old_ui['tabs'] == 5 and old_ui['door'] == 0 and old_ui['swing'] == 0 and not merrs, str(old_ui) + ' ' + '; '.join(merrs[:2]))
             await B1.evaluate("""(id) => { const kind = Object.keys(__items)[0]; __hood().dispatch(id, {type:'item/add', room:'living', item:{id:'b1-keep', kind, x:560, y:520, flip:false, z:1, scale:1}}); }""", b1house)
-            await B0.wait_for_function("(id) => ((__hood().view(id).rooms.living || {}).items || []).some(i => i.id === 'b1-keep')", arg=b1house, timeout=15000)
+            await B0.wait_for_function("(id) => ((__hood().view(id).rooms.living || {}).items || []).some(i => i.id === 'b1-keep')", arg=b1house, timeout=T(15000))
             both_ways = await B1.evaluate("""(id) => {
               const items = __hood().view(id).rooms.living.items;
               return { old: items.some(i => i.id === 'b0-keep'), neu: items.some(i => i.id === 'b1-keep'), yard: __hood().view(id).rooms.backyard.items.map(i => i.id) };
@@ -417,7 +424,7 @@ async def main():
             await B0.evaluate("""(id) => {
               __hood().dispatch(id, { type:'char/update', id:'c1', patch: { skin:'#f1c27d', hair:'#2b1d16', hairStyle:2, shirt:'#c9a0dc', pants:'#5aa9e6', size:'kid', acc:1 } });
             }""", b1house)
-            await B1.wait_for_function("""(id) => { const c = (__hood().view(id).characters || []).find(x => x.id === 'c1'); return c && c.shirt === '#c9a0dc'; }""", arg=b1house, timeout=15000)
+            await B1.wait_for_function("""(id) => { const c = (__hood().view(id).characters || []).find(x => x.id === 'c1'); return c && c.shirt === '#c9a0dc'; }""", arg=b1house, timeout=T(15000))
             kept_yard = await B1.evaluate("""(id) => {
               const c = (__hood().view(id).characters || []).find(x => x.id === 'c1') || {};
               return { hair: c.look2 && c.look2.hair, yard: (__hood().view(id).rooms.backyard.items || []).map(i => i.id) };
