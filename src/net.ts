@@ -178,17 +178,21 @@ export class HoodClient {
         break;
       case 'act': {
         const h = this.houses.get(m.houseId); if (!h) return;
+        // The piece as it was before this act, so "Chloe put the lamp away" can still name it.
+        const a0 = m.action as { room?: string; id?: string };
+        const before = a0.id && a0.room ? (h.confirmed.rooms as Record<string, { items: { id: string; kind: string }[] } | undefined>)[a0.room]?.items.find(i => i.id === a0.id) : undefined;
         h.confirmed = reduce(adoptHouse(h.confirmed), m.action);
         const mine = m.by === this.pid && h.pending[0]?.cid === m.cid;
         if (mine) h.pending.shift();
         h.view = null;
-        if (!mine) this.emit('act', m.houseId, m.action);
+        if (!mine) this.emit('act', m.houseId, m.action, m.by, before?.kind ?? '');
         break;
       }
       case 'nack': {
         const h = this.houses.get(m.houseId); if (!h) return;
+        const was = h.pending.find(p => p.cid === m.cid)?.action ?? null;
         h.pending = h.pending.filter(p => p.cid !== m.cid); if (m.state) h.confirmed = adoptHouse(m.state); h.view = null;
-        this.emit('reset', m.houseId, m.reason); break;
+        this.emit('reset', m.houseId, m.reason, was); break;
       }
       case 'pres': if (m.pid !== this.pid) { m.p ? this.presence.set(m.pid, m.p) : this.presence.delete(m.pid); this.emit('pres', m.pid); } break;
       case 'players': this.players = new Map(m.players.map(p => [p.pid, p])); this.emit('players'); break;

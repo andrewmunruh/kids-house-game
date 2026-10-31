@@ -44,6 +44,10 @@ import { MORE_CHAR_FX, MORE_ITEM_FX, MORE_PERIOD, keysPlaying, moreItemFx, syncS
 import { installNeeds } from './needs-ui';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
+// First run shows one card at a time: welcome / what's-new first, then the phone mode tip.
+let firstCardDone = false;
+import { glide } from './glide';
+import { plural, nackText, movedNote, noteGate, ALL_SIGNED_IN, dupName } from './words';
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
 import { emptyRoomStarters, setRoomScenery, syncScenery, roomSceneArt } from './scenery';
 import { showSceneArt, releaseSceneArt } from './art/scene';
@@ -161,7 +165,7 @@ app.innerHTML = `
     <button type="button" class="menuRow" id="btnPaint" aria-label="Colors"><span class="mIco">${ICON.paint}</span><span class="mLabel">Wall &amp; floor colors</span></button>
     <button type="button" class="menuRow" id="secrets" aria-label="Surprises, 0 of 5"><span class="mIco secGift">🎁</span><span class="mLabel"><span class="secWord">Surprises </span><span class="secCount">0/5</span></span></button>
     <p class="menuGroup houseGroup">House</p>
-    <button type="button" class="menuRow lockRow" id="btnLock" aria-label="Lock house"><span class="mIco" id="lockIco">${ICONS.lockOff}</span><span class="mLabel" id="lockLabel">Lock my house</span></button>
+    <button type="button" class="menuRow lockRow" id="btnLock" aria-label="Lock my house"><span class="mIco" id="lockIco">${ICONS.lockOff}</span><span class="mLabel" id="lockLabel">Lock my house</span></button>
     <button type="button" class="menuRow mailRow" id="btnMail" aria-label="Mailbox"><span class="mIco">${MAIL_ICON}</span><span class="mLabel">Mailbox</span><span class="menuNew" id="mailNew"></span></button>
     <!-- Day / Night / Auto. The clock stays on Auto until she taps. -->
     <div id="menuDaySlot" class="menuSlot" hidden></div>
@@ -375,7 +379,7 @@ function fit() {
   clampPhoneBubbles();
   if (phone && view === 'ranch') layoutPaddock();
   placeSecretsPill();
-  play.hint();
+  if (firstCardDone) play.hint();
   frameYardCam();
   placeYardHints();
 }
@@ -998,8 +1002,7 @@ function showTabOn() {
   else if (r > t.scrollLeft + t.clientWidth - 24) t.scrollLeft = r - t.clientWidth + 24;
 }
 function placeEl(el: HTMLElement, x: number, y: number, w: number, h: number) {
-  el.style.left = (x - w / 2) / W * 100 + '%';
-  el.style.top = (y - h) / H * 100 + '%';
+  glide(el, (x - w / 2) / W * 100 + '%', (y - h) / H * 100 + '%');
   el.style.width = w / W * 100 + '%';
   el.style.height = h / H * 100 + '%';
 }
@@ -2610,7 +2613,7 @@ function renderHoodChrome() {
     $('houseTag').innerHTML = `${h.meta.locked ? '🔒 ' : ''}<b>${esc(h.meta.name)}</b>${own ? ' · yours' : owner ? ' · ' + esc(owner) : ''}`;
     const ico = $('lockIco'); if (ico) ico.innerHTML = h.meta.locked ? ICONS.lockOn : ICONS.lockOff;
     const label = h.meta.locked ? 'Unlock my house' : 'Lock my house';
-    $('btnLock').setAttribute('aria-label', h.meta.locked ? 'Unlock house' : 'Lock house');
+    $('btnLock').setAttribute('aria-label', h.meta.locked ? 'Unlock my house' : 'Lock my house');
     const lab = $('lockLabel'); if (lab) lab.textContent = label;
   }
   updateNear();
@@ -2762,7 +2765,7 @@ function renderCandyBucket() {
   if (!trickOrTreatOn()) { b?.remove(); return; }
   if (!b) { b = document.createElement('div'); b.id = 'candyBucket'; b.className = 'candyBucket'; b.setAttribute('aria-live', 'polite'); st.appendChild(b); }
   const n = candyCount(localStorage);
-  b.innerHTML = `<span class="pail">🎃</span><b>${n}</b>`; b.setAttribute('aria-label', `${n} treats in your bucket`);
+  b.innerHTML = `<span class="pail">🎃</span><b>${n}</b>`; b.setAttribute('aria-label', `${plural(n, 'treat')} in your bucket`);
 }
 function knockDoor(btn: HTMLElement) {
   const { treat } = knockTreat(localStorage);
@@ -2815,11 +2818,11 @@ function renderMap(force = false) {
     });
     const place = (cls: string, go: string, label: string, art: string, x: number, y: number, wd: number, ht: number, signDy: number) => {
       spots += `<button class="mapSpot ${cls}" data-go="${go}" aria-label="${label}" style="left:${px(x - wd / 2)};top:${px(y - ht / 2)};width:${px(wd)};height:${px(ht)}">${art}</button>`;
-      signs += `<div class="mapSign place" style="left:${px(x)};top:${px(y + signDy)}">${label === 'The park' ? 'Park' : label === 'Rainbow Ranch' ? 'Rainbow Ranch' : 'Clubhouse'}</div>`;
+      signs += `<div class="mapSign place" style="left:${px(x)};top:${px(y + signDy)}">${label === 'The Park' ? 'Park' : label === 'Rainbow Ranch' ? 'Rainbow Ranch' : 'Clubhouse'}</div>`;
     };
-    place('mapPark', 'park', 'The park', parkMiniSVG, plan.park.x, plan.park.y, 148, 126, 68);
+    place('mapPark', 'park', 'The Park', parkMiniSVG, plan.park.x, plan.park.y, 148, 126, 68);
     place('mapRanch', 'ranch', 'Rainbow Ranch', ranchMiniSVG, plan.ranch.x, plan.ranch.y, 156, 128, 72);
-    place('mapClub', 'gameroom', 'The clubhouse', clubhouseMiniSVG, plan.club.x, plan.club.y, 146, 120, 68);
+    place('mapClub', 'gameroom', 'The Clubhouse', clubhouseMiniSVG, plan.club.x, plan.club.y, 146, 120, 68);
     mapAnchors.set('park', { x: plan.park.x, y: plan.park.y - 78 });
     mapAnchors.set('ranch', { x: plan.ranch.x, y: plan.ranch.y - 80 });
     mapAnchors.set('barn', { x: plan.ranch.x, y: plan.ranch.y + 8 });
@@ -2854,11 +2857,11 @@ function renderMap(force = false) {
         <button class="mapMail ${flag ? 'up' : ''}" data-mail="${h ? h.id : 'home'}" aria-label="${esc(name)} mailbox" style="left:${px(mx)};top:${px(my)};width:${px(mw)};height:${px(mh)}">${mailboxArt(flag)}</button>${knockBtn(h, Math.max(4, c.x - hw / 2 - 40 / sc), c.y - hh * 0.05, px)}`;
       signs += `<div class="mapSign ${h?.mine || !h ? 'mine' : ''}" style="left:${px(c.x)};top:${px(c.y + hh / 2 - 2)}">${esc(name)}</div>`;
     });
-    spots += `<button class="mapSpot mapPark" data-go="park" aria-label="The park" style="left:${px(PARK.x - 100)};top:${px(PARK.y - 85)};width:${px(200)};height:${px(170)}">${parkMiniSVG}</button>`;
+    spots += `<button class="mapSpot mapPark" data-go="park" aria-label="The Park" style="left:${px(PARK.x - 100)};top:${px(PARK.y - 85)};width:${px(200)};height:${px(170)}">${parkMiniSVG}</button>`;
     signs += `<div class="mapSign place" style="left:${px(PARK.x)};top:${px(PARK.y + 70)}">Park</div>`;
     spots += `<button class="mapSpot mapRanch" data-go="ranch" aria-label="Rainbow Ranch" style="left:${px(RANCH.x - 110)};top:${px(RANCH.y - 90)};width:${px(220)};height:${px(180)}">${ranchMiniSVG}</button>`;
     signs += `<div class="mapSign place" style="left:${px(RANCH.x)};top:${px(RANCH.y + 78)}">Rainbow Ranch</div>`;
-    spots += `<button class="mapSpot mapClub" data-go="gameroom" aria-label="The clubhouse" style="left:${px(CLUB.x - 95)};top:${px(CLUB.y - 78)};width:${px(190)};height:${px(156)}">${clubhouseMiniSVG}</button>`;
+    spots += `<button class="mapSpot mapClub" data-go="gameroom" aria-label="The Clubhouse" style="left:${px(CLUB.x - 95)};top:${px(CLUB.y - 78)};width:${px(190)};height:${px(156)}">${clubhouseMiniSVG}</button>`;
     signs += `<div class="mapSign place" style="left:${px(CLUB.x)};top:${px(CLUB.y + 82)}">Clubhouse</div>`;
     mapAnchors.set('park', { x: PARK.x, y: PARK.y - 60 }); mapAnchors.set('ranch', { x: RANCH.x - 30, y: RANCH.y - 60 }); mapAnchors.set('barn', { x: RANCH.x + 10, y: RANCH.y + 10 });
     mapAnchors.set('gameroom', { x: CLUB.x, y: CLUB.y - 52 });
@@ -3021,7 +3024,7 @@ function paintBadges() {
   const map = $('mapBadge');
   map.textContent = friends > 9 ? '9+' : String(friends);
   map.classList.toggle('on', friends > 0);
-  $('btnMap').setAttribute('aria-label', friends > 0 ? `Map, ${friends} friends online` : 'Map');
+  $('btnMap').setAttribute('aria-label', friends > 0 ? `Map, ${plural(friends, 'friend')} online` : 'Map');
   const near = nearbyCount();
   const chat = $('chatBadge');
   chat.textContent = near > 9 ? '9+' : String(near);
@@ -3170,7 +3173,7 @@ function enterNeighborhood(client: HoodClient) {
     // One note per friend per 20s, so a fast knocker does not stack the lane.
     if (hood !== client) return; const now = Date.now(); if ((knockSeen.get(name) ?? 0) > now - 20000) return; knockSeen.set(name, now); toast(knockNote(name));
   });
-  client.on('sayFail', (r: string) => toast(r === 'presetsOnly' ? 'Typing is turned off: pick a bubble!' : FILTER_MSG[r] || "Couldn't send that"));
+  client.on('sayFail', (r: string) => toast(r === 'presetsOnly' ? 'Typing is off. Pick a bubble!' : FILTER_MSG[r] || "Couldn't send that. Try again!"));
   client.on('mailbox', () => { if (hood !== client) return; if (view === 'street') renderMap(true); syncMailCue(); mailUI.refresh(); paintBadges(); });
   client.on('mailFail', (r: string) => { if (hood === client) mailUI.fail(r); });
   client.on('settings', () => { if (hood !== client) return; if (!$('chatTray').classList.contains('hidden')) renderChatTray(); mailUI.refresh(); });
@@ -3192,7 +3195,16 @@ function enterNeighborhood(client: HoodClient) {
   });
   client.on('tblFail', (tb: number, reason: string) => { if (hood === client) tableApi()?.fail(tb, reason); });
   client.on('welcome', () => { if (hood !== client) return; if (view === 'street') renderMap(true); else if (view === 'park' || view === 'ranch') { const p = myPres(); if (p) setMyPres(p); view === 'park' ? renderPark() : renderRanch(); phoneShowKids(); } else if (view === 'gameroom') { const p = myPres(); if (p) setMyPres(p); renderGameRoom(); phoneShowKids(); tableApi()?.refresh(); } else if (client.houses.has(currentHouseId)) renderAll(); else goMap(); });
-  client.on('reset', (_hid: string, reason: string) => { if (hood === client && reason === 'cuddling') toast('Someone is cuddling!'); });
+  client.on('reset', (_hid: string, reason: string, a: Action | null) => { if (hood !== client) return; const msg = nackText(reason, a); if (msg) toast(msg); });
+  // "Chloe moved the sofa": the act already says who (m.by). Only for the room on screen, one note per friend per piece.
+  const noteOk = noteGate(5000);
+  client.on('act', (hid: string, a: Action, by: string, kind: string) => {
+    if (hood !== client || view !== 'house' || hid !== currentHouseId || !by || by === client.pid) return;
+    if (a.type !== 'item/move' && a.type !== 'item/delete') return;
+    if (a.room !== store.get().currentRoom || !noteOk(by + ':' + a.id)) return;
+    const msg = movedNote(client.players.get(by)?.nickname ?? '', a, ITEM_MAP[kind]?.name ?? '');
+    if (msg) toast(msg, 2000);
+  });
   goMap();
 }
 async function initHood() {
@@ -3222,7 +3234,7 @@ function openHoodMenu() {
       <button class="big grown" data-m="create">${ICONS.shield}<span>${cfg?.parentKey ? 'Grown-ups' : 'Grown-ups: start a street'}</span></button></div>`,
     async (t, close) => {
       const m = t.closest<HTMLElement>('[data-m]')?.dataset.m;
-      if (m === 'go') { close(); const c = new HoodClient(cfg!); const r = await c.connect(); if (r === 'ok') enterNeighborhood(c); else { c.close(); toast(r.startsWith('badtoken') ? 'Please join again' : "Couldn't reach the street"); } }
+      if (m === 'go') { close(); const c = new HoodClient(cfg!); const r = await c.connect(); if (r === 'ok') enterNeighborhood(c); else { c.close(); toast(r.startsWith('badtoken') ? "Let's join again. Tap your name!" : "Couldn't reach the street. Try again!"); } }
       if (m === 'join') { close(); askCode(url); }
       if (m === 'create') { close(); if (await adultCheck()) cfg?.parentKey ? parentScreen() : createFlow(url); }
     });
@@ -3248,21 +3260,21 @@ function askCode(url: string, err = '') {
   inp.addEventListener('input', () => { inp.value = normCode(inp.value); });
   m.root.querySelector('#codeForm')!.addEventListener('submit', e => {
     e.preventDefault(); const code = normCode(inp.value);
-    if (!validInvite(code)) { m.close(); askCode(url, 'That code looks wrong. Try again!'); return; }
+    if (!validInvite(code)) { m.close(); askCode(url, "Hmm, that code doesn't look right. Check it and try again!"); return; }
     m.close(); joinWithCode(url, code);
   });
 }
 async function joinWithCode(url: string, code: string, err = '') {
   let r; try { r = await lookupNeighborhood(url, code); } catch { askCode(url, "Couldn't reach the street. Try again!"); return; }
   if ('slow' in r) { askCode(url, 'Too many tries. Ask a grown-up and try again in a few minutes.'); return; }
-  if (!r.exists) { askCode(url, "Hmm, we couldn't find that street."); return; }
+  if (!r.exists) { askCode(url, "Hmm, we couldn't find that street. Check the code with a grown-up."); return; }
   (window as any).__lastLookupId = r.id;
   pickNickname(url, code, r.id, r.roster, err);
 }
 function pickNickname(url: string, code: string, id: string, roster: { name: string; claimed: boolean; hasHouse: boolean }[], err = '') {
   if (roster.length) {
     // sign in with the first name a grown-up added; a name already signed in on another iPad can't be picked
-    modal(`${X}<h2>Who are you?</h2>${err ? `<p class="err">${esc(err)}</p>` : '<p class="hint">Tap your name</p>'}<div class="nicks roster">${roster.map((r, i) =>
+    modal(`${X}<h2>Who are you?</h2>${err ? `<p class="err">${esc(err)}</p>` : roster.every(r => r.claimed) ? `<p class="err" id="allSignedIn">${ALL_SIGNED_IN}</p>` : '<p class="hint">Tap your name</p>'}<div class="nicks roster">${roster.map((r, i) =>
       `<button data-nick="${i}" ${r.claimed ? 'disabled' : ''}>${esc(r.name)}${r.claimed ? '<small>signed in</small>' : ''}</button>`).join('')}</div>
       <p class="hint small">Not on the list? Ask a grown-up to add your name.</p>`,
       (t, close) => {
@@ -3307,7 +3319,7 @@ async function connectJoin(url: string, code: string, id: string, nickname: stri
   }
   c.close();
   if (r.startsWith('nickname')) joinWithCode(url, code, r.endsWith('notOnList') ? 'That name is not on the list anymore.' : 'That name is already signed in on another iPad. Ask a grown-up!');
-  else toast(r === 'full' ? 'That street is full' : "Couldn't join right now");
+  else toast(r === 'full' ? 'That street is full right now. Try again later!' : "Couldn't join right now. Try again in a minute!");
 }
 $('btnParent').addEventListener('click', async () => { if (await adultCheck()) parentScreen(); });
 const PARENT_NOTES: Record<string, string> = {
@@ -3327,13 +3339,21 @@ async function parentScreen() {
   if (!client) { client = new HoodClient({ ...cfg, token: undefined }); await client.connect(); }
   const c = client;
   const val = (sel: string) => m.root.querySelector<HTMLInputElement>(sel)!.value;
+  // The street skips a name that is already listed without saying so. Say it here instead.
+  let listed: string[] = [];
+  const addName = (raw: string) => {
+    const name = raw.trim().replace(/\s+/g, ' ');
+    const hit = listed.find(n => n.toLowerCase() === name.toLowerCase());
+    if (hit) { toast(dupName(hit)); return; }
+    c.parent({ op: 'rosterAdd', name: raw });
+  };
   const m = modal(`${X}<h2>Grown-up screen</h2><div id="parentBody"><p class="hint">Loading…</p></div>`, async (t) => {
     const a = t.closest<HTMLElement>('[data-p]'); if (!a) return;
     const op = a.dataset.p;
     if (op === 'free') c.parent({ op: 'freeChat', on: a.dataset.on !== '1' });
     if (op === 'freeMail') c.parent({ op: 'freeMail', on: a.dataset.on !== '1' });
     if (op === 'rename') c.parent({ op: 'rename', houseId: a.dataset.hid, name: val(`input[data-hid="${a.dataset.hid}"]`) });
-    if (op === 'add') c.parent({ op: 'rosterAdd', name: a.dataset.name ?? val('#rosterInput') });
+    if (op === 'add') addName(a.dataset.name ?? val('#rosterInput'));
     if (op === 'unname') c.parent({ op: 'rosterRemove', name: a.dataset.name });
     if (op === 'unclaim') { if (a.dataset.sure !== '1') { a.dataset.sure = '1'; a.textContent = 'Tap again'; return; } c.parent({ op: 'unclaim', name: a.dataset.name }); }
     if (op === 'setcode') c.parent({ op: 'setCode', code: val('#codeEdit') });
@@ -3345,7 +3365,7 @@ async function parentScreen() {
     }
     if (op === 'leave') { if (a.dataset.sure !== '1') { a.dataset.sure = '1'; a.textContent = 'Tap again: forget this street here'; return; } saveHoodConfig(null); m.close(); goSolo(); toast('This iPad left the street'); }
   }, 'wide parent');
-  m.root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).id; if (f === 'rosterForm') c.parent({ op: 'rosterAdd', name: val('#rosterInput') }); if (f === 'codeForm2') c.parent({ op: 'setCode', code: val('#codeEdit') }); });
+  m.root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).id; if (f === 'rosterForm') addName(val('#rosterInput')); if (f === 'codeForm2') c.parent({ op: 'setCode', code: val('#codeEdit') }); });
   const letterDate = (at: number) => {
     const d = new Date(at);
     if (!Number.isFinite(d.getTime())) return '';
@@ -3357,6 +3377,7 @@ async function parentScreen() {
     // remember the current code on this device (sockets use the permanent id, so changing the code never kicks anyone)
     const saved = loadHoodConfig(); if (saved && saved.code !== info.code) { saved.code = info.code; saveHoodConfig(saved); } c.cfg.code = info.code;
     const roster: { name: string; claimed: boolean; hasHouse: boolean }[] = info.roster ?? [];
+    listed = roster.map(r => r.name);
     const names = new Set(roster.map(r => r.name.toLowerCase()));
     const sugg = ROSTER_SUGGEST.filter(n => !names.has(n.toLowerCase()));
     const firstName = roster[0]?.name ?? 'Reagan';
@@ -3431,7 +3452,7 @@ function renderParkAvatars() {
     const key = JSON.stringify(w.look) + w.name;
     if (el.dataset.look !== key) { const b = el.querySelector('.bubble'); el.innerHTML = w.name ? avatarHTML(w.look, w.name) : `<div class="inner">${characterSVG(w.look)}</div>`; if (b) el.appendChild(b); el.dataset.look = key; }
     const k = (SIZE_SCALE[w.look.size] ?? 1) * sc * 0.95, wd = CHAR_W * k, h = CHAR_H * k;
-    el.style.left = w.p.x * sc - wd / 2 + 'px'; el.style.top = w.p.y * sc - h + 'px'; el.style.width = wd + 'px'; el.style.height = h + 'px';
+    glide(el, w.p.x * sc - wd / 2 + 'px', w.p.y * sc - h + 'px'); el.style.width = wd + 'px'; el.style.height = h + 'px';
     el.style.zIndex = String(100 + Math.round(w.p.y)); el.classList.toggle('flipped', w.p.flip);
     stampAvatar(el, w.look, w.mine);
     const pose = w.p.pose ?? '';
@@ -4338,7 +4359,8 @@ function openPets(tab: 'cat' | 'dog' = 'cat') {
     if (act === 'bye') { if (!d.bye) { d.bye = true; render(); return; }
       if (d.tab === 'cat') catDispatch({ type: 'cat/set', cat: null });
       else { catDispatch({ type: 'dog/kennel', item: null }); if (hood) hood.setDog(null); else local.dispatch({ type: 'dog/set', dog: null }); }
-      close(); toast('They went to live with a kind friend 💛'); return; }
+      const byeName = d.tab === 'cat' ? cat0?.name : dog0?.name;
+      close(); toast(`${byeName || 'They'} went to live with a kind friend 💛`); return; }
   }, 'wide pets');
   const card = m.root.querySelector('.card')!;
   function render() {
@@ -4627,7 +4649,7 @@ function renderRanchAvatars() {
     const lx = parseFloat(el.dataset.lx ?? 'NaN');
     if (Number.isFinite(lx) && Math.abs(lx - w.p.x) > 2) { el.classList.add('moving'); clearTimeout(+(el.dataset.mt ?? 0)); el.dataset.mt = String(window.setTimeout(() => el!.classList.remove('moving'), 260)); }
     el.dataset.lx = String(w.p.x);
-    el.style.left = w.p.x * sc - wd / 2 + 'px'; el.style.top = w.p.y * sc - h + 'px'; el.style.width = wd + 'px'; el.style.height = h + 'px';
+    glide(el, w.p.x * sc - wd / 2 + 'px', w.p.y * sc - h + 'px'); el.style.width = wd + 'px'; el.style.height = h + 'px';
     el.style.zIndex = depthZ(w.p.y); el.classList.toggle('flipped', w.p.flip);
     stampAvatar(el, w.look, w.mine);
   }
@@ -4855,10 +4877,21 @@ function openBasket() {
 
 // ---------- "What's new!" (once per device per update) / welcome on a brand-new device ----------
 function showWhatsNew() {
-  if (firstRun.kind === 'none') return;
+  // After the welcome, the portrait-phone "turn sideways" note (if it shows) goes next, then the mode tip.
+  const next = () => {
+    const note = document.getElementById('phoneNote');
+    if (note && !note.classList.contains('hidden') && getComputedStyle(note).display !== 'none') {
+      $('phoneOk').addEventListener('click', () => { firstCardDone = true; play.hint(); }, { once: true });
+      return;
+    }
+    firstCardDone = true; play.hint();
+  };
+  if (firstRun.kind === 'none') { next(); return; }
   markSeen();
   const m = modal(whatsNewHTML(firstRun.kind, firstRun.entries), (t, close) => { if (t.closest('#wnGo')) { sfx.sparkle(); close(); } }, 'whatsNew ' + firstRun.kind);
   m.root.querySelector('.card')!.insertAdjacentHTML('afterbegin', X);
+  const gone = new MutationObserver(() => { if (!m.root.isConnected) { gone.disconnect(); next(); } });
+  gone.observe(document.body, { childList: true });
 }
 setTimeout(showWhatsNew, 500);
 (window as any).__whatsnew = firstRun;

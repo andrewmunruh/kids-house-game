@@ -1,3 +1,4 @@
+import { glide } from './glide';
 // Game Room scene: walk around the clubhouse, sit, and open a table.
 import { characterSVG, SIZE_SCALE } from './character';
 import { stampAvatar } from './avatar/motion';
@@ -124,7 +125,7 @@ export function renderGamePeople() {
     }
     const k = (SIZE_SCALE[w.look.size] ?? 1) * sc * 0.95, wd = CHAR_W * k, h = CHAR_H * k;
     const feet = w.seated ? w.y - 8 : w.y;
-    el.style.left = w.x * sc - wd / 2 + 'px'; el.style.top = feet * sc - h + 'px';
+    glide(el, w.x * sc - wd / 2 + 'px', feet * sc - h + 'px');
     el.style.width = wd + 'px'; el.style.height = h + 'px';
     el.style.zIndex = String(100 + Math.round(w.y));
     el.classList.toggle('flipped', w.flip); el.classList.toggle('away', w.away); el.classList.toggle('seated', w.seated);
