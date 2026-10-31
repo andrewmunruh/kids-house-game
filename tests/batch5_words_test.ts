@@ -52,13 +52,15 @@ check('glide cap', glideMs(5000) === 300);
 
 // name tags at different heights (B-24): lane 1 of a low kid must not land on a higher kid's lane 0 tag
 const H = 24;
-const tags = assignLanes([
+const boxes = [
   { id: 'low1', x: 100, w: 80, y: 300, h: H },
-  { id: 'low2', x: 110, w: 80, y: 300, h: H },
-  { id: 'high', x: 120, w: 80, y: 300 - H, h: H },
-]);
-const top = (id: string) => { const t = tags.find(r => r.id === id)!; const y = id === 'high' ? 300 - H : 300; return y - t.lane * H; };
-const ys = ['low1', 'low2', 'high'].map(top);
-check('tags at different heights do not overlap', ys.every((y, i) => ys.every((z, j) => i === j || Math.abs(y - z) >= H)));
+  { id: 'low2', x: 150, w: 80, y: 300, h: H },
+  { id: 'high', x: 200, w: 80, y: 300 - H, h: H },
+];
+const tags = assignLanes(boxes);
+const rect = (id: string) => { const b = boxes.find(x => x.id === id)!, t = tags.find(r => r.id === id)!; return { x: b.x, w: b.w, y: b.y - t.lane * H }; };
+const rs = boxes.map(b => rect(b.id));
+const overlap = rs.some((a, i) => rs.some((b, j) => i !== j && Math.abs(a.x - b.x) < (a.w + b.w) / 2 && Math.abs(a.y - b.y) < H));
+check('tags at different heights do not overlap', !overlap);
 check('x-only callers keep old lanes', assignLanes([{ id: 'a', x: 100, w: 80 }, { id: 'b', x: 120, w: 80 }]).map(t => t.lane).join() === '0,1');
 console.log(`batch5_words: ${pass} passed`);
