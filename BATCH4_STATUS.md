@@ -1,5 +1,5 @@
 # Batch 4 — heartbeat, wake, re-send, idle timeout (MP-1/2/3/7)
-Status: review fixes DONE + main merged (not deployed). LOCAL ONLY. Production untouched: main d8d63b5b481ffb555dcce3e1e4c1e82efb8ec180, bundle index-DMnbpk6d.js, gh-pages e15cd07306247fe9124851f4cc2c570623c3fbfe, Worker cozy-hood 0de9fa76-aeea-47ca-962c-0bd2b62c0bc0.
+Status: DONE — review fixes + main merged + all results in (not deployed). LOCAL ONLY. Production untouched: main d8d63b5b481ffb555dcce3e1e4c1e82efb8ec180, bundle index-DMnbpk6d.js, gh-pages e15cd07306247fe9124851f4cc2c570623c3fbfe, Worker cozy-hood 0de9fa76-aeea-47ca-962c-0bd2b62c0bc0.
 PR: https://github.com/andrewmunruh/kids-house-game/pull/56 (draft) — branch cursor/batch4-heartbeat
 Head: 70e5ce5b834760104d0c2d6cccda3957bae29d8c (= merge 6e22f6e of main d8d63b5 + 2 test-only commits 3a00c20, 70e5ce5)   App code: affda9c91bebb35df64453da11c89889362e5d47 (review fixes; src/net.ts) merged as 6e22f6e
 Previous head 17a533b / app code 81326ce6 (bundle index-B062ggIK.js, kept at dist-pr and dist-pr-17a533b).
@@ -39,7 +39,7 @@ silent-drop/resend/wake as before (expected, old code); compat PASS.
 ### Gate (gate_merged vs base /workspace/t-batch1/gate_prod on d8d63b5): IDENTICAL
 tsc ok; art_bounds 2/0, art_catalog 13/0, art_raster 59/2 (same known FAILs), avatar 50/0, avatar_test 34/0, b0 14/0,
 costume 20/0, eggs 25/0, hood 44/0, mail_persist b0 1/0 node 4/0 worker 4/0, migration 44/0, phone 383/0, rooms 71/0,
-scene_hotspot 613/0, shift 594/19 (same FAIL set as base). art_copy: RUNNING.
+scene_hotspot 613/0, shift 594/19 (same FAIL set as base). art_copy 392/0 (base 392/0).
 ### Smoke re-run on final head: smoke-final.log SMOKE PASS (same 11 checks).
 
 ## Previous results (17a533b, before the fixes)
