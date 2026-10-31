@@ -15,9 +15,12 @@ MEASURE = r"""(joint) => {
     const [x, y] = joint[kind + side];
     const p = svg.createSVGPoint(); p.x = x; p.y = y;
     // the limb's rendered local transform (attribute + CSS origin), joint through it
-    const m = g.parentNode.getScreenCTM().inverse().multiply(g.getScreenCTM());
+    // climb past one plain pose wrapper (<g transform> with no class) so the check holds whichever node carries the pose
+    let a = g.parentNode, posed = g;
+    if (a && a.tagName === 'g' && !a.getAttribute('class') && /^translate\(0 /.test(a.getAttribute('transform') || '') && a.children.length === 1) { posed = a; a = a.parentNode; }
+    const m = a.getScreenCTM().inverse().multiply(g.getScreenCTM());
     const q = p.matrixTransform(m);
-    const t = /translate\(0 (-?[\d.]+)\)/.exec(g.getAttribute('transform') || '');
+    const t = /translate\(0 (-?[\d.]+)\)/.exec(posed.getAttribute('transform') || g.getAttribute('transform') || '');
     const lift = t ? parseFloat(t[1]) : 0;  // the pose's deliberate step-lift
     out.push({ kind, side, cls: g.getAttribute('class'), dx: q.x - x, dy: q.y - y - lift });
   }
