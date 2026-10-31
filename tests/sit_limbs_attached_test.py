@@ -2,7 +2,7 @@
 # inline transform-origin at the joint, which browsers also apply to the transform
 # attribute, so a rotate() that repeats the pivot sent sitting legs/sleeves off the body
 # (Reagan's helper costume on iPad). Renders real chibi SVGs in WebKit and Chromium and
-# checks each shoulder/hip point stays put (apart from the pose's own lift) (within 1 view-box px). No server needed.
+# checks that sit/lie limbs really turn by the pose angle and that each shoulder/hip point stays put (apart from the pose's own lift) (within 1 view-box px). No server needed.
 import asyncio, json, os, subprocess, sys
 from playwright.async_api import async_playwright
 
@@ -22,7 +22,8 @@ MEASURE = r"""(joint) => {
     const q = p.matrixTransform(m);
     const t = /translate\(0 (-?[\d.]+)\)/.exec(posed.getAttribute('transform') || g.getAttribute('transform') || '');
     const lift = t ? parseFloat(t[1]) : 0;  // the pose's deliberate step-lift
-    out.push({ kind, side, cls: g.getAttribute('class'), dx: q.x - x, dy: q.y - y - lift });
+    const deg = Math.atan2(m.b, m.a) * 180 / Math.PI;  // the limb's actual on-screen turn
+    out.push({ kind, side, cls: g.getAttribute('class'), dx: q.x - x, dy: q.y - y - lift, deg });
   }
   return out;
 }"""
@@ -36,7 +37,8 @@ async def main():
         for eng in ('webkit', 'chromium'):
             b = await getattr(p, eng).launch()
             pg = await b.new_page(viewport={'width': 400, 'height': 640}, device_scale_factor=2)
-            for name, svg in svgs.items():
+            for name, rec in svgs.items():
+                svg, pose = rec['svg'], rec['pose']
                 await pg.set_content(f'<html><body style="margin:0"><div style="width:200px;height:320px">{svg}</div></body></html>')
                 await pg.evaluate("() => { const s = document.querySelector('svg'); s.setAttribute('width','200'); s.setAttribute('height','320'); }")
                 rows = await pg.evaluate(MEASURE, joint)
@@ -45,6 +47,11 @@ async def main():
                     print('FAIL', eng, name, 'no legs drawn'); bad += 1
                 for r in rows:
                     checked += 1
+                    if name.split(':')[0] in ('sit', 'lie') and 'sleeve' not in r['cls'] and set(r['cls'].split()) & {'l', 'r'}:  # skirt/dress 'leg' has no side
+                        want = pose[r['kind'] + r['side'].upper()]
+                        if abs(want) >= 5 and abs(r['deg'] - want) > 1.0:
+                            bad += 1
+                            print(f"FAIL {eng} {name} {r['cls']} turned {r['deg']:.1f} deg, pose wants {want}")
                     off = (r['dx'] ** 2 + r['dy'] ** 2) ** 0.5
                     if off > 1.0:
                         bad += 1
