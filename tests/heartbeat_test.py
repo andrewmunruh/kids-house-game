@@ -9,7 +9,7 @@ sys.path.insert(0, '/workspace/t-qa-C'); sys.path.insert(0, '/workspace/qa-revie
 from playwright.async_api import async_playwright
 from testnav import tap, SKIP_WN, to_map
 from common import adult, join, wait_js
-DISTS = {'pr': '/workspace/t-batch4/dist-pr', 'base': '/workspace/t-batch3/dist-pr', 'old': '/workspace/t-batchB-old10/dist'}
+DISTS = {'pr': os.environ.get('DIST_PR', '/workspace/t-batch4/dist-pr'), 'base': '/workspace/t-batch3/dist-pr', 'old': '/workspace/t-batchB-old10/dist'}
 TREES = {'pr': '/workspace/t-batch4/wt', 'base': '/workspace/t-batch3/wt'}
 WEB = {'pr': 6940, 'base': 6941, 'old': 6942}; HOOD = 6943; PX = 6944; PX2 = 6945
 CL, SV = sys.argv[1], sys.argv[2]; OUTF = sys.argv[3] if len(sys.argv) > 3 else f'/workspace/t-batch4/hb-{CL}-{SV}.json'
@@ -121,8 +121,8 @@ async def s_resend(p, px):
     await A.evaluate("([h,a,b]) => { __hood().dispatch(h, {type:'item/move', room:'living', id:a, x:555, y:300}); __hood().dispatch(h, {type:'item/move', room:'living', id:b, x:333, y:300}) }", [hid, it[0], it[1]])
     await asyncio.sleep(1)
     await B.evaluate("([h,b]) => __hood().dispatch(h, {type:'item/move', room:'living', id:b, x:700, y:300})", [hid, it[1]])
-    off = await wait_js(A, "() => __hood().status !== 'online'", None, 25)
-    rec(f'[{CL}/{SV}] silent drop detected (no close event)', off is not None and off < 17, f'left online after {None if off is None else round(off + 1, 1)} s (heartbeat 10 s + 5 s wait)')
+    off = await wait_js(A, "() => __hood().status !== 'online'", None, 35)
+    rec(f'[{CL}/{SV}] silent drop detected (no close event)', off is not None and off < 27, f'left online after {None if off is None else round(off + 1, 1)} s (heartbeat 10 s + two 5 s waits)')
     px.kill_all()  # the old half-open pair dies; new sockets pass
     on = await wait_status(A, 'online', 20); await asyncio.sleep(3)
     xa = [await pg.evaluate(VX, [hid, it[0]]) for pg in (A, B)]; xb = [await pg.evaluate(VX, [hid, it[1]]) for pg in (A, B)]
@@ -222,14 +222,54 @@ async def s_compat(p, px):
     rec(f'[{CL}/{SV}] compat: page errors', not any(errs.values()), json.dumps(errs)[:400])
     await cb.close(); await wb.close()
 
+async def s_safety(p, px):
+    """App Builder review fixes. (a) A slow-but-alive socket (one pong late >5 s, e.g. a frozen main thread) is not dropped: two misses needed.
+    (b) An add whose ack was lost is not re-sent (a friend may have deleted it). (c) A pet move whose ack was lost does not overwrite a friend's newer move."""
+    cb, wb, A, B, _, hid, it, errs = await setup(p, CL, True)
+    speaks = await A.evaluate("() => !!__hood().speaksHb")
+    if speaks:
+        await wait_js(A, "() => !__hood().hbWaitT", None, 12)
+        ws0 = await A.evaluate("() => (window.__ws0 = __hood().ws, 1)")
+        px.freeze('down'); await A.evaluate("() => __hood().probe(5000)")
+        await asyncio.sleep(7); px.freeze(None); await asyncio.sleep(8)
+        same = await A.evaluate("() => __hood().ws === window.__ws0 && __hood().status === 'online'")
+        rec(f'[{CL}/{SV}] one late pong (7 s) does not drop a live socket (2-miss rule)', same, f'same socket, still online={same}')
+    else: rec(f'[{CL}/{SV}] one late pong (7 s) does not drop a live socket (2-miss rule)', 'n/a', 'no hb on this server')
+    px.kill_all(); await wait_status(A, 'online', 20); await asyncio.sleep(1.5)
+    # (b) add landed, ack lost, friend deletes it before she reconnects
+    px.freeze('down')
+    await A.evaluate("(h) => __hood().dispatch(h, {type:'item/add', room:'living', item:{id:'qahbz', kind:'plant', x:210, y:300}})", hid)
+    seen = await wait_js(B, "(h) => __hood().view(h)?.rooms.living.items.some(i=>i.id==='qahbz')", hid, 8)
+    await B.evaluate("(h) => __hood().dispatch(h, {type:'item/delete', room:'living', id:'qahbz'})", hid); await asyncio.sleep(1.5)
+    px.kill_all(); await wait_status(A, 'online', 20); await asyncio.sleep(3)
+    n = [await pg.evaluate("(h) => __hood().view(h).rooms.living.items.filter(i=>i.id==='qahbz').length", hid) for pg in (A, B)]
+    rec(f'[{CL}/{SV}] ack-lost item/add is not re-sent after a friend deleted it', seen is not None and n == [0, 0], f'friend saw add={seen is not None}; count after reconnect A,B={n}')
+    # (c) cat: she moves it (ack lost), friend moves it later; her stale move must not win
+    await A.evaluate("(h) => __hood().dispatch(h, {type:'cat/set', cat:{name:'Mittens', coat:0, room:'living', x:400}})", hid); await asyncio.sleep(1.5)
+    px.freeze('down')
+    await A.evaluate("(h) => __hood().dispatch(h, {type:'cat/move', room:'living', x:300})", hid)
+    await wait_js(B, "(h) => __hood().view(h)?.cat?.x === 300", hid, 8)
+    await B.evaluate("(h) => __hood().dispatch(h, {type:'cat/move', room:'living', x:700})", hid); await asyncio.sleep(1.5)
+    px.kill_all(); await wait_status(A, 'online', 20); await asyncio.sleep(3)
+    cx = [await pg.evaluate("(h) => __hood().view(h)?.cat?.x ?? null", hid) for pg in (A, B)]
+    rec(f'[{CL}/{SV}] ack-lost cat/move does not overwrite a friend\'s newer move', cx == [700, 700], f'cat x A,B={cx}')
+    # (d) an unacked cat move whose target did not change is still delivered
+    px.freeze('up')
+    await A.evaluate("(h) => __hood().dispatch(h, {type:'cat/move', room:'living', x:520})", hid); await asyncio.sleep(1)
+    px.kill_all(); await wait_status(A, 'online', 20); await asyncio.sleep(3)
+    cx = [await pg.evaluate("(h) => __hood().view(h)?.cat?.x ?? null", hid) for pg in (A, B)]
+    rec(f'[{CL}/{SV}] cat/move sent into a dead socket (target unchanged) is still delivered', cx == [520, 520], f'cat x A,B={cx}')
+    rec(f'[{CL}/{SV}] safety errors', 'INFO' if not any(errs.values()) else 'FAIL', json.dumps(errs)[:400])
+    await cb.close(); await wb.close()
+
 async def main():
     start_servers(); px = Proxy(PX, HOOD); await px.start()
     global px2; px2 = Proxy(PX2, HOOD); await px2.start()
-    which = os.environ.get('ONLY', 'resend,wake,idle,chat,compat').split(',')
+    which = os.environ.get('ONLY', 'resend,wake,idle,chat,compat,safety').split(',')
     try:
         async with async_playwright() as p:
             for name, fn in (('compat', lambda: s_compat(p, px)), ('resend', lambda: s_resend(p, px)), ('wake', lambda: s_wake(p, px)),
-                             ('chat', lambda: s_chat(p, px)), ('idle', lambda: s_idle(p, px, 'old' if CL != 'old' else None))):
+                             ('chat', lambda: s_chat(p, px)), ('safety', lambda: s_safety(p, px)), ('idle', lambda: s_idle(p, px, 'old' if CL != 'old' else None))):
                 if name not in which: continue
                 px.mode = 'normal'; px.kill_all()
                 try: await fn()

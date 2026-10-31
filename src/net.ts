@@ -49,14 +49,21 @@ const canon = (v: unknown): string => v === undefined ? 'u' : JSON.stringify(v, 
 function targetOf(s: GameState, a: Action): string | undefined {
   if (a.type.startsWith('item/') && a.type !== 'item/add' && 'id' in a && 'room' in a) return canon(s.rooms[a.room]?.items.find(i => i.id === a.id) ?? null);
   if (a.type.startsWith('room/') && a.type !== 'room/switch' && 'room' in a) { const r = s.rooms[a.room]; return canon(r ? [r.wallpaper, r.floor, r.pattern, r.wallTile ?? null, r.floorTile ?? null] : null); }
+  // Pets: re-sent only if the cat (or dog) still looks exactly as she last saw it, so a friend's newer move wins.
+  if (a.type === 'cat/move' || a.type === 'cat/set') return canon(s.cat ?? null);
+  if (a.type === 'dog/set') return canon(s.dog ?? null);
   if ((a.type === 'char/update' || a.type === 'char/move' || a.type === 'char/delete' || a.type === 'char/hold' || a.type === 'char/release') && 'id' in a) return canon(s.characters.find(c => c.id === a.id) ?? null);
   return undefined;
 }
-/** Untargeted edits that are safe to send twice (a duplicate id or an explicit value is a no-op on the server). */
-const SAFE_AGAIN = new Set(['item/add', 'char/add', 'cat/set', 'cat/move', 'dog/set', 'dog/kennel', 'baby/meet', 'baby/name']);
+/**
+ * Untargeted edits that are safe to send twice. Not item/add or char/add: if hers landed (ack lost) and a friend
+ * deleted it before she reconnected, a re-send would bring it back. An add that never left the device is still sent.
+ * Pets are targeted (see targetOf), so they are re-sent only when unchanged.
+ */
+const SAFE_AGAIN = new Set(['dog/kennel', 'baby/meet', 'baby/name']);
 /** Chat bubbles and sparkles said while offline are dropped after this long instead of popping up late (MP-7). */
 export const SAY_STALE_MS = 10_000;
-/** Heartbeat (only when the welcome said hb:1): a ping every 10 s; no reply within 5 s means the socket is dead. */
+/** Heartbeat (only when the welcome said hb:1): a ping every 10 s; two pings in a row with no reply within 5 s each mean the socket is dead. */
 export const HB_EVERY_MS = 10_000, HB_WAIT_MS = 5_000, WAKE_WAIT_MS = 3_000;
 const coalesceKey = (a: Action) => a.type === 'item/move' ? 'im:' + a.id : a.type === 'char/move' ? 'cm:' + a.id : a.type === 'item/size' ? 'is:' + ('id' in a ? a.id : '') : null;
 
@@ -92,7 +99,7 @@ export class HoodClient {
   private saidAt = new WeakMap<object, number>();
   /** The welcome said hb:1: the Worker answers ping with pong and drops a silent hb:1 socket after 40 s. */
   speaksHb = false;
-  private lastRx = 0; private hbT = 0; private hbWaitT = 0; private hiddenAt = 0; private wakeOn = false;
+  private lastRx = 0; private hbT = 0; private hbWaitT = 0; private hbMissed = 0; private hiddenAt = 0; private wakeOn = false;
   /** Test hook: how many sent-but-unanswered edits the last welcome sent again, and how many it let go. */
   resent = { again: 0, dropped: 0 };
 
@@ -141,14 +148,19 @@ export class HoodClient {
   private clearStable() { if (this.stableT) { clearTimeout(this.stableT); this.stableT = 0; } }
 
   // ---------- heartbeat + wake (MP-1) ----------
-  private stopHb() { clearInterval(this.hbT); this.hbT = 0; if (this.hbWaitT) { clearTimeout(this.hbWaitT); this.hbWaitT = 0; } }
+  private stopHb() { clearInterval(this.hbT); this.hbT = 0; this.hbMissed = 0; if (this.hbWaitT) { clearTimeout(this.hbWaitT); this.hbWaitT = 0; } }
   private startHb() { this.stopHb(); if (this.speaksHb) this.hbT = window.setInterval(() => this.probe(HB_WAIT_MS), HB_EVERY_MS); }
   /** Ping and wait. Any message back proves the socket is alive; silence means it died without telling us. */
   private probe(wait: number) {
     if (!this.speaksHb || this.status !== 'online' || this.hbWaitT) return;
     const at = Date.now();
     if (!this.send({ t: 'ping' })) return;
-    this.hbWaitT = window.setTimeout(() => { this.hbWaitT = 0; if (this.lastRx < at && this.status === 'online') this.dropDead(); }, wait);
+    this.hbWaitT = window.setTimeout(() => {
+      this.hbWaitT = 0; if (this.status !== 'online') return;
+      if (this.lastRx >= at) { this.hbMissed = 0; return; }
+      // Two misses in a row, not one: a main thread frozen >5 s (big art decode) can run this timer before the queued pong.
+      if (++this.hbMissed >= 2) { this.hbMissed = 0; this.dropDead(); } else this.probe(wait);
+    }, wait);
   }
   /** The socket is silently dead (wifi gone, iPad slept). Do not wait for the browser's own close, which can take minutes. */
   private dropDead() {
@@ -192,7 +204,7 @@ export class HoodClient {
         else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, halloween: 1, cos: 1, needs: 1, art: 1, hb: 1 });
         else done('notoken');
       };
-      ws.onmessage = e => { this.lastRx = Date.now(); const m: ServerMsg = JSON.parse(e.data); this.handle(m); if (m.t === 'welcome') { this.armStable(); done('ok'); } if (m.t === 'error') done(m.code + (m.msg ? ':' + m.msg : '')); if (m.t === 'removed') done('removed'); };
+      ws.onmessage = e => { this.lastRx = Date.now(); this.hbMissed = 0; const m: ServerMsg = JSON.parse(e.data); this.handle(m); if (m.t === 'welcome') { this.armStable(); done('ok'); } if (m.t === 'error') done(m.code + (m.msg ? ':' + m.msg : '')); if (m.t === 'removed') done('removed'); };
       ws.onclose = (ev: CloseEvent) => {
         if (this.ws !== ws) return;
         this.clearStable();
