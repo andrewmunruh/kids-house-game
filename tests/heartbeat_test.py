@@ -149,7 +149,7 @@ async def s_wake(p, px):
     # new sockets pass (only the old pair is frozen)
     on = await wait_js(A, "() => __hood().status !== 'online'", None, 8)
     back = await wait_status(A, 'online', 8) if on is not None else None
-    rec(f'[{CL}/{SV}] wake event after silent drop -> fresh socket', on is not None and back is not None and on < 5, f'dropped after {on and round(on,1)} s, online again {back and round(back,1)} s later')
+    rec(f'[{CL}/{SV}] wake event after silent drop -> fresh socket (3 s probe x2 = ~6 s)', on is not None and back is not None and on < 9, f'dropped after {on and round(on,1)} s, online again {back and round(back,1)} s later')
     px.kill_all(); await cb.close(); await wb.close()
 
 async def s_idle(p, px, third):
