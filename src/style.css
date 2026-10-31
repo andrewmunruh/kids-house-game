@@ -554,7 +554,6 @@ body.view-gameroom #btnHood { display: none !important; }
 .wnLine b { color: #e0558a; }
 .wnGo { margin-top: 18px; font-size: 30px; font-weight: 900; padding: 14px 48px; border-radius: 30px; background: #b9f6ca; border: 5px solid var(--ink); box-shadow: 0 6px 0 #5a3d5c55; animation: wnPulse 1.6s ease-in-out 3; }
 @media (prefers-reduced-motion: reduce) { .wnGo { animation: none; } }
-body.firstCardShown .phoneNote { display: none !important; }
 .wnGo:active { transform: scale(.95); }
 @keyframes wnPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
 

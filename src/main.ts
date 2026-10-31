@@ -4877,11 +4877,17 @@ function openBasket() {
 
 // ---------- "What's new!" (once per device per update) / welcome on a brand-new device ----------
 function showWhatsNew() {
-  const next = () => { firstCardDone = true; play.hint(); };
+  // After the welcome, the portrait-phone "turn sideways" note (if it shows) goes next, then the mode tip.
+  const next = () => {
+    const note = document.getElementById('phoneNote');
+    if (note && !note.classList.contains('hidden') && getComputedStyle(note).display !== 'none') {
+      $('phoneOk').addEventListener('click', () => { firstCardDone = true; play.hint(); }, { once: true });
+      return;
+    }
+    firstCardDone = true; play.hint();
+  };
   if (firstRun.kind === 'none') { next(); return; }
   markSeen();
-  // One card this visit: the "turn sideways" note waits for another day.
-  document.body.classList.add('firstCardShown');
   const m = modal(whatsNewHTML(firstRun.kind, firstRun.entries), (t, close) => { if (t.closest('#wnGo')) { sfx.sparkle(); close(); } }, 'whatsNew ' + firstRun.kind);
   m.root.querySelector('.card')!.insertAdjacentHTML('afterbegin', X);
   const gone = new MutationObserver(() => { if (!m.root.isConnected) { gone.disconnect(); next(); } });

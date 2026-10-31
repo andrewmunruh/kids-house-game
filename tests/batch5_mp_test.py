@@ -45,8 +45,12 @@ async def first_run(b):
     for _ in range(20):
         s = await pg.evaluate(FIRST); seen.append(s); peak = max(peak, s['wn'] + s['phone'] + s['hint']); await asyncio.sleep(0.05)
     check('first run: never more than one card or tip at a time', peak <= 1, json.dumps(seen[-1]))
-    check('first run: no second "turn sideways" card after the welcome', seen[-1]['phone'] == 0)
+    check('first run: after the welcome, the "turn sideways" note comes alone', seen[-1]['phone'] == 1 and seen[-1]['hint'] == 0, json.dumps(seen[-1]))
     await pg.screenshot(path=f'{SHOTS}/b5-02-first-run-after-welcome.png')
+    await pg.click('#phoneOk'); await pg.wait_for_timeout(400)
+    s = await pg.evaluate(FIRST)
+    check('first run: the mode tip comes last, on its own', s == {'wn': 0, 'phone': 0, 'hint': 1}, json.dumps(s))
+    await pg.screenshot(path=f'{SHOTS}/b5-02b-first-run-tip.png')
     await c.close()
 
 async def street(cb, wb):
