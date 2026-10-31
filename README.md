@@ -10,7 +10,7 @@ A private, touch-first 2D dollhouse game for kids. Original art (no third-party 
 - Characters: up to 8 (People tab in the drawer or the shirt button); size little/kid/adult, accessory, skin/hair/clothes. Drag a character onto a room tab to send them there.
 - Holding: drop a holdable item onto a character's hand (one per hand). Held items move, flip and travel with the character; drag one off to put it down. `holdable` defaults to small/medium non-furniture; manifest may override.
 - Packs: `assets/items/manifest.json` (items; optional `pack`, `holdable`, `gameW`+`widthUnits`/`heightUnits`, explicit `svg`/`png` paths; SVG preferred) and pattern entries `{type: 'wallpaper'|'floor', slug, name, pack}` with images in `assets/patterns/<pack>/`. Packs get their own drawer tab; patterns appear in the paint panel.
-- Deploy: `npm run deploy` builds and force-pushes `dist/` to the `gh-pages` branch.
+- Deploy: only with `scripts/guarded-deploy.sh` (see [docs/deploy.md](docs/deploy.md)). It needs a recorded approval, commits on top of `gh-pages` and never force-pushes. The old `deploy.sh` / `deploy-preview.sh` are retired and refuse to run.
 - No accounts, no chat, no analytics, no network calls beyond loading the app.
 
 ## Hidden surprises
@@ -33,7 +33,7 @@ Server code: `server/core.ts` (platform-agnostic) with two adapters:
 
 ### Live server
 Deployed at **https://cozy-hood.andrewmunruh.workers.dev** (Cloudflare Workers + Durable Objects, free plan).
-`.env.production` points production builds at it, so `npm run deploy` ships a client that talks to it.
+`.env.production` points production builds at it, so a production deploy (docs/deploy.md) ships a client that talks to it.
 Redeploy the server with `CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… npm run worker:deploy`.
 For local multiplayer testing, open the preview with `?hood=http://localhost:8787` (Node) or `?hood=http://localhost:8788` (Worker).
 

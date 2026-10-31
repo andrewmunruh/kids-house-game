@@ -77,6 +77,17 @@ const waitNew = async (sock: Sock, pred: (m: any) => boolean, ms = 8000) => {
   }
   throw new Error('no message');
 };
+// De-flake (Batch 9): under box load the wrangler-dev Durable Object sometimes answers a single
+// say/mail later than 8 s (gate saw 'block "fuuuuck" no message' once, 207/208). A blocked line has
+// no side effect, so we wait longer in worker mode and resend once on silence instead of failing.
+const REPLY_MS = Number(process.env.MAIL_REPLY_MS) || (mode === 'worker' ? 20000 : 8000);
+const ask = async (sock: Sock, msg: unknown, pred: (m: any) => boolean) => {
+  for (let attempt = 0; ; attempt++) {
+    sock.send(msg);
+    try { return await waitNew(sock, pred, REPLY_MS); }
+    catch (err) { if (attempt >= 1) throw err; console.log('note: no reply in ' + REPLY_MS + ' ms, resent once'); }
+  }
+};
 const waitHealth = async (port: number, ms = 60000) => {
   const start = Date.now();
   while (Date.now() - start < ms) {
@@ -136,14 +147,13 @@ async function checkLines(port: number, lines: string[], bad: string[]): Promise
       const text = lines[i];
       let lineBad = false;
       const pal = senders[Math.floor(i / 5)];
-      pal.sock.send({ t: 'say', b: { kind: 'text', v: text } });
-      const say = await waitNew(pal.sock, m => m.t === 'sayFail');
+      const say = await ask(pal.sock, { t: 'say', b: { kind: 'text', v: text } }, m => m.t === 'sayFail');
       if (say.reason !== 'nowhere') { bad.push('say ' + text + ' ' + say.reason); lineBad = true; }
       pal.sock.send({ t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
       const sentAt = pal.sock.inbox.length;
       let box: any;
       try {
-        box = await waitNew(owner.sock, m => m.t === 'mailbox' && (m.mailbox?.letters ?? []).some((l: { text: string }) => l.text === text));
+        box = await waitNew(owner.sock, m => m.t === 'mailbox' && (m.mailbox?.letters ?? []).some((l: { text: string }) => l.text === text), REPLY_MS);
       } catch {
         const fail = pal.sock.inbox.slice(sentAt).find(m => m.t === 'mailFail');
         bad.push('mail ' + text + ' ' + (fail?.reason ?? 'missing'));
@@ -169,10 +179,8 @@ async function corpusLive(port: number, label: string) {
   try {
     for (const text of BLOCK_LINES) {
       try {
-        owner.sock.send({ t: 'say', b: { kind: 'text', v: text } });
-        const say = await waitNew(owner.sock, m => m.t === 'sayFail');
-        owner.sock.send({ t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
-        const mail = await waitNew(owner.sock, m => m.t === 'mailFail');
+        const say = await ask(owner.sock, { t: 'say', b: { kind: 'text', v: text } }, m => m.t === 'sayFail');
+        const mail = await ask(owner.sock, { t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 }, m => m.t === 'mailFail');
         if (say.reason === 'words' && mail.reason === 'mail') blocks++;
         else bad.push('block ' + JSON.stringify(text) + ' say=' + say.reason + ' mail=' + mail.reason);
       } catch (err) {
@@ -194,11 +202,9 @@ async function gate(port: number, label: string) {
   const bad: string[] = [];
   try {
     for (const text of LEAKS) {
-      owner.sock.send({ t: 'say', b: { kind: 'text', v: text } });
-      const say = await waitNew(owner.sock, m => m.t === 'sayFail');
+      const say = await ask(owner.sock, { t: 'say', b: { kind: 'text', v: text } }, m => m.t === 'sayFail');
       if (say.reason !== 'words') bad.push('say ' + text + ' ' + say.reason);
-      owner.sock.send({ t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 });
-      const mail = await waitNew(owner.sock, m => m.t === 'mailFail');
+      const mail = await ask(owner.sock, { t: 'mail', op: 'send', houseId: owner.hid, text, color: 0, sticker: 0 }, m => m.t === 'mailFail');
       if (mail.reason !== 'mail') bad.push('mail ' + text + ' ' + mail.reason);
     }
   } finally { owner.sock.ws.close(); }
