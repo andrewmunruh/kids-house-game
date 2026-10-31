@@ -5,7 +5,7 @@
 #   scripts/guarded-deploy.sh --production --sha <40-hex> [--dry-run] [--expect-dist DIR]
 #   scripts/guarded-deploy.sh --preview    --sha <40-hex> [--pr N] [--dry-run] [--expect-dist DIR]
 #   scripts/guarded-deploy.sh --production --rollback-to <old gh-pages SHA> --expect-tip <current gh-pages SHA> [--dry-run]
-#   scripts/guarded-deploy.sh --production --verify-only --sha <40-hex>     # re-run the bundle curl check
+#   scripts/guarded-deploy.sh --production --verify-only                    # live files == gh-pages tip (curl)
 #   scripts/guarded-deploy.sh --production --smoke                          # explicit post-deploy smoke step
 #
 # Refuses: dirty tree, a SHA not on origin/main (preview: or the head of the named PR), a missing approval
@@ -132,6 +132,11 @@ verify_live() {
   [ $bad = 0 ] || die "live files differ from the build (see above). Roll back if players are affected."
   echo "verify: OK"
 }
+
+# ---------------------------------------------------------------- verify-only: live site == gh-pages tip
+if [ $VERIFY_ONLY = 1 ]; then
+  fetch_pages; echo "gh-pages tip: $PREV"; verify_live "$WORK/pages"; exit 0
+fi
 
 # ---------------------------------------------------------------- smoke (explicit step)
 if [ $SMOKE = 1 ]; then
