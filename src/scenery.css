@@ -5,6 +5,11 @@
 .scenery .sceneLamp { position: absolute; left: 30%; top: 40%; width: 7%; height: 42%; }
 .scenery .scenePlant { position: absolute; left: 62%; top: 46%; width: 8%; height: 36%; }
 .scenery svg { width: 100%; height: 100%; overflow: visible; }
+/* Painted built-in window (living room). Same box as the vector one. The painting is square
+   like a placed Window, so its night plate lines up. Sized so its drawn box is within ±3% of the
+   vector window's (tests/scene_window_bounds.py: dw +1.7%, dh -2.5%), same centre. */
+.scenery .sceneWin.painted > .pwin { position: absolute; top: 4.6%; left: 50%; height: 91%; aspect-ratio: 1 / 1; transform: translateX(-50%); }
+.scenery .sceneWin.painted img.artimg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; user-select: none; -webkit-user-drag: none; }
 /* Optional painted scene (src/art/scene.ts). Sits over the vector wall/floor, under everything else. */
 .sceneArtHost { position: absolute; inset: 0; pointer-events: none; }
 .sceneArtHost > img.sceneArt { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; pointer-events: none; user-select: none; -webkit-user-drag: none; }
