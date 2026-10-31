@@ -11,7 +11,12 @@ export function glide(el: HTMLElement, left: string, top: string, now = performa
   if (el.classList.contains('other')) {
     const last = Number(el.dataset.glideAt || 0);
     el.dataset.glideAt = String(now);
-    el.style.transitionDuration = glideMs(last ? now - last : GLIDE_MIN) + 'ms';
+    // Smooth the gap a little and slide slightly longer than it, so she keeps moving until the next update lands.
+    const gap = last ? Math.min(now - last, 600) : GLIDE_MIN;
+    const prev = Number(el.dataset.glideGap || 0) || gap;
+    const avg = prev * 0.5 + gap * 0.5;
+    el.dataset.glideGap = String(avg);
+    el.style.transitionDuration = glideMs(avg * 1.15) + 'ms';
   }
   el.style.left = left; el.style.top = top;
 }
