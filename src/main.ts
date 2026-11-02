@@ -1609,6 +1609,35 @@ function renderToolbar(s: GameState) {
       const shift = canL && (!canR || -toLeft <= toRight) ? toLeft : canR ? toRight : 0;
       if (shift) placeToolbarAnchor(parseFloat(toolbar.style.left) / 100 * W + shift / sc, parseFloat(toolbar.style.top) / 100 * H);
     }
+    // Never over a doll's head (she is usually standing right under the painting she just hung): try the other side,
+    // then sliding off sideways; keep the spot that covers no head, the handle, and the least painting.
+    const heads = () => [...layer.querySelectorAll<HTMLElement>('.char')].map(e => { const r = e.getBoundingClientRect(); return new DOMRect(r.left, r.top, r.width, r.height * 0.42); });
+    const headCover = () => { const b = toolbarScreenBox(), t = new DOMRect(b.left, b.top, b.width, b.height); return heads().reduce((a, h) => a + ov(h, t), 0); }; // resting box: the bar may still be popping in
+        if (headCover() > 0) {
+      const sc = stage.getBoundingClientRect().width / Math.max(1, VIEW_W) || 1;
+      const rest = () => { const b = toolbarScreenBox(); return new DOMRect(b.left, b.top, b.width, b.height); };
+      const onGrip = () => gEl.classList.contains('hidden') ? 0 : ov(gEl.getBoundingClientRect(), rest());
+      const onArt = () => pel ? ov(pel.getBoundingClientRect(), rest()) : 0;
+      const score = () => (onGrip() > 0 ? 1e9 : 0) + headCover() * 20 + onArt(); // the handle must stay grabbable, always
+      const save = () => ({ l: toolbar.style.left, t: toolbar.style.top, below: toolbar.classList.contains('below') });
+      const load = (k: { l: string; t: string; below: boolean }) => { toolbar.style.left = k.l; toolbar.style.top = k.t; toolbar.classList.toggle('below', k.below); };
+      const clampIn = () => { const b = toolbarScreenBox(); let ex = 0, ey = 0;
+        if (b.left < limits.left) ex = limits.left - b.left; if (b.right + ex > limits.right) ex = limits.right - b.right;
+        if (b.top < limits.top) ey = limits.top - b.top; if (b.bottom + ey > limits.bottom) ey = limits.bottom - b.bottom;
+        if (ex || ey) placeToolbarAnchor(parseFloat(toolbar.style.left) / 100 * W + ex / sc, parseFloat(toolbar.style.top) / 100 * H + ey / sc); };
+      let best = save(), bestS = score();
+      const tryAt = (below: boolean, slide: number) => {
+        toolbar.classList.toggle('below', below); placeToolbarAnchor(it.x + slide / sc, below ? foot + gap : pieceTop - gap); clampIn();
+        const v = score(); if (v < bestS - 0.5) { bestS = v; best = save(); }
+      };
+      const t0 = toolbarScreenBox();
+      for (const below of [!best.below, best.below]) {
+        tryAt(below, 0);
+        const cx = stage.getBoundingClientRect().left + (6 + it.x - camX) * sc, hw = t0.width / 2; // where it.x is on screen
+        for (const h of heads()) { tryAt(below, h.left - 8 - hw - cx); tryAt(below, h.right + 8 + hw - cx); }
+      }
+      load(best);
+    }
 
   }
   const step = itemSizeOf(it.size);
