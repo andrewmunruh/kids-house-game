@@ -270,6 +270,11 @@ const avatarEls = new Map<string, HTMLElement>();
 // ---------- camera (view-only, not part of game state) ----------
 const cams: Record<string, number> = {};
 let camX = V1_OFFSET, inertia = 0;
+/** Rooms the kid has panned by hand. Until she does: a later re-fit (drawer closing for Play,
+ *  rotation) may slide it again so a big floor piece is not cut by the view edge. */
+const panned = new Set<string>();
+const camAuto = () => !panned.has(store.get().currentRoom);
+const markPanned = () => { panned.add(store.get().currentRoom); };
 modeFit = true;
 let glideTarget: number | null = null;
 const stopGlide = () => { cancelAnimationFrame(inertia); glideTarget = null; };
@@ -373,6 +378,7 @@ function fit() {
   if (camX > maxCam()) setCam(camX);
   else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
   phoneShowKids();
+  if (!phone && view === 'house' && camAuto()) refitCutPiece();
   if (!phone && view === 'house') frameHouseKid(false);
   syncTabMode();
   if (view === 'ranch') requestAnimationFrame(frameRanchSign);
@@ -517,6 +523,7 @@ function raisePlayZoom() {
   if (document.body.classList.contains('phone')) stage.style.setProperty('--fit', String(sc));
   if (camX > maxCam()) setCam(camX);
   else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
+  if (camAuto() && view === 'house' && !document.body.classList.contains('phone')) refitCutPiece();
 }
 /** The piece she is sitting on, or the one under her finger in Play. */
 let playAim: string | null = null;
@@ -1660,7 +1667,8 @@ function renderAll() {
   const first = s.characters.find(c => c.room === s.currentRoom);
   const me = hood && myPres();
   const focusX = me && me.where === 'house' ? me.x : first?.x;
-  stopGlide(); setCam(cams[s.currentRoom] ?? clampCam(focusX !== undefined ? focusX - VIEW_W / 2 : V1_OFFSET));
+  stopGlide(); setCam(cams[s.currentRoom] ?? clampCam(focusX !== undefined ? fitCutPiece(s, focusX, focusX - VIEW_W / 2) : V1_OFFSET));
+  if (cams[s.currentRoom] !== undefined && camAuto() && view === 'house' && !document.body.classList.contains('phone')) refitCutPiece();
   renderAvatars(); renderHoodChrome();
   if (document.body.classList.contains('phone') && view === 'house') requestAnimationFrame(() => phoneShowHouseKid());
 }
@@ -1903,7 +1911,7 @@ stage.addEventListener('pointerdown', e => {
 window.addEventListener('pointermove', e => {
   if (!touches.has(e.pointerId)) return;
   touches.set(e.pointerId, e.clientX);
-  if (twoFinger && touches.size >= 2) { const a = avgX(); setCam(camX - (a - twoLastX) / stageScale()); twoLastX = a; }
+  if (twoFinger && touches.size >= 2) { markPanned(); const a = avgX(); setCam(camX - (a - twoLastX) / stageScale()); twoLastX = a; }
 }, true);
 const endTouch = (e: PointerEvent) => { touches.delete(e.pointerId); if (touches.size < 2 && twoFinger) { if (touches.size === 0) twoFinger = false; else twoLastX = avgX(); } };
 window.addEventListener('pointerup', endTouch, true); window.addEventListener('pointercancel', endTouch, true);
@@ -2366,7 +2374,7 @@ stage.addEventListener('pointerdown', e => {
       if (Math.abs(ev.clientX - x0) > 6) moved = true;
       if (!moved) return;
       const now = performance.now(); vx = (ev.clientX - lx) / Math.max(1, now - lt); lx = ev.clientX; lt = now;
-      setCam(cam0 - (ev.clientX - x0) / stageScale());
+      markPanned(); setCam(cam0 - (ev.clientX - x0) / stageScale());
     },
     onUp() {
       if (!moved) { if (selected) { selected = null; renderItems(store.get()); } return; }
@@ -2377,13 +2385,13 @@ stage.addEventListener('pointerdown', e => {
     },
   });
 });
-stage.addEventListener('wheel', e => { e.preventDefault(); stopGlide(); setCam(camX + (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) / stageScale()); }, { passive: false });
-$('nudgeL').addEventListener('pointerdown', e => { e.stopPropagation(); sfx.swish(); glideTo((glideTarget ?? camX) - VIEW_W * 0.6); });
-$('nudgeR').addEventListener('pointerdown', e => { e.stopPropagation(); sfx.swish(); glideTo((glideTarget ?? camX) + VIEW_W * 0.6); });
+stage.addEventListener('wheel', e => { e.preventDefault(); stopGlide(); markPanned(); setCam(camX + (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) / stageScale()); }, { passive: false });
+$('nudgeL').addEventListener('pointerdown', e => { e.stopPropagation(); sfx.swish(); markPanned(); glideTo((glideTarget ?? camX) - VIEW_W * 0.6); });
+$('nudgeR').addEventListener('pointerdown', e => { e.stopPropagation(); sfx.swish(); markPanned(); glideTo((glideTarget ?? camX) + VIEW_W * 0.6); });
 const mm = $('minimap');
 mm.addEventListener('pointerdown', e => {
   e.stopPropagation(); e.preventDefault();
-  const jump = (ev: PointerEvent) => { const r = mm.getBoundingClientRect(); glideTo((ev.clientX - r.left) / r.width * W - VIEW_W / 2); };
+  const jump = (ev: PointerEvent) => { markPanned(); const r = mm.getBoundingClientRect(); glideTo((ev.clientX - r.left) / r.width * W - VIEW_W / 2); };
   jump(e); sfx.click();
   startDrag(e, { edgeScroll: false, onMove: jump, onUp() {} });
 });
@@ -3599,7 +3607,7 @@ function goGameRoom() {
   $('streetTitle').textContent = 'The Clubhouse'; renderHoodChrome(); renderGameRoom();
   requestAnimationFrame(() => {
     const sc = grScale(), scroll = $('grScroll');
-    const focus = seat?.x ?? (grWide() ? 60 + GR_PORTRAIT_VIEW / 2 : grSpawnX());
+    const focus = seat?.x ?? (grWide() ? GR_PORTRAIT_VIEW / 2 : grSpawnX());
     scroll.scrollLeft = Math.max(0, focus * sc - scroll.clientWidth / 2);
     phoneShowKids();
     frameClubSign();
@@ -5155,6 +5163,34 @@ function goThroughYardDoor(go: 'backyard' | 'living') {
     if (p && p.where === 'house') { const at = p.houseId ? apartIn(p.houseId, go, spot) : spot; setMyPres({ ...p, room: go, x: at.x, y: at.y, flip: spot.flip }); }
   }
   requestAnimationFrame(() => frameYardCam());
+}
+/**
+ * First look at a room on a narrow (iPad portrait) stage: centring on the kid can leave a big piece half off the
+ * edge (the living-room sofa at 820x1180). Slide just enough to show the largest such piece whole, as long as the
+ * kid stays well inside. View only; phones and the wide stage keep the plain centring.
+ */
+function refitCutPiece() {
+  const s = store.get(), me = hood && myPres();
+  const kidX = me && me.where === 'house' ? me.x : s.characters.find(c => c.room === s.currentRoom)?.x;
+  if (kidX === undefined) return;
+  const next = fitCutPiece(s, kidX, camX);
+  if (Math.abs(next - camX) > 0.5) setCam(next);
+}
+function fitCutPiece(s: GameState, kidX: number, cam: number) {
+  if (VIEW_W >= 1000 || document.body.classList.contains('phone') || s.currentRoom === 'backyard') return cam;
+  cam = clampCam(cam);
+  const keep = 90; // the kid's half-width plus a little air
+  let best: { cam: number; w: number } | null = null;
+  for (const it of s.rooms[s.currentRoom]?.items ?? []) {
+    const def = ITEM_MAP[it.kind]; if (!def || def.wall) continue;
+    const w = def.w * drawnScale(it), l = it.x - w / 2, r = it.x + w / 2;
+    if (w < 160 || w > VIEW_W - 2 * keep) continue;
+    const cut = (l < cam && r > cam) || (l < cam + VIEW_W && r > cam + VIEW_W); if (!cut) continue;
+    const next = clampCam(l < cam ? l - 16 : r + 16 - VIEW_W);
+    if (kidX - keep < next || kidX + keep > next + VIEW_W || l < next - 1 || r > next + VIEW_W + 1) continue;
+    if (!best || w > best.w) best = { cam: next, w };
+  }
+  return best ? best.cam : cam;
 }
 function frameYardCam() {
   if (store.get().currentRoom === 'backyard') {
