@@ -14,13 +14,23 @@ force-pushed `gh-pages` and are retired: they now print a refusal and exit 3. Th
 You must give exactly one of the two flags. There is no default and no URL option.
 
 **Build environment.** Vite lets shell variables override `.env.production`, so a `VITE_STORE_PREFIX=preview:` or
-`VITE_BASE=/cozy-preview/` left over from a preview build would otherwise go into a production build. The script drops
-**every** `VITE_*` variable from your shell before building and then sets the target's values itself (it prints
-`build env: dropping leftover ...` when it drops any).
+`VITE_BASE=/cozy-preview/` left over from a preview build would otherwise go into a production build. Other process env leaks
+the same way (`NODE_ENV=development` makes Vite compile out the service-worker registration; `NODE_OPTIONS` changes
+node). So the build runs in an **empty** environment: `env -i PATH=$PATH HOME=$HOME` plus the target's `VITE_*` values,
+nothing else from your shell (it prints `build env: ignoring caller's ...` when it ignores any). Every build must also
+contain the `serviceWorker.register` call, for both targets.
+
+**node_modules.** It is git-ignored, so the clean-tree check cannot see it. Instead the clean-tree step also requires
+`node_modules/.package-lock.json` (written by `npm ci`/`npm install`) to list exactly the packages, versions and
+integrity hashes of `package-lock.json`. This catches a stale or hand-changed install; it does not hash every file in
+`node_modules` (a file edited inside a package is not caught here; the double build and `--expect-dist` limit that).
 
 ## 1. Record the approval
 
-Append one line to `/workspace/deploy-approvals.log` (or pass `--approvals FILE`). It lives outside the
+**Only App Builder appends approval lines, and only after Andy's own explicit yes.** The operator running the script
+never writes one. The log is fixed at `/workspace/deploy-approvals.log`: `--approvals FILE` and `DEPLOY_APPROVALS` are
+refused outside test mode. (This stops accidents and SHA/target/ref mix-ups; it is not a security boundary against
+someone who can write that file.) It lives outside the
 repo, so the tree stays clean, and it is private: Andy's exact words stay in this file only. Public gh-pages
 commit messages carry only the **ref** (a card id or short tag) and the approval time.
 
@@ -30,8 +40,11 @@ commit messages carry only the **ref** (a card id or short tag) and the approval
 
 (Single spaces around each `|` in the real line; the columns above are padded for reading.)
 
-- `action` is `deploy` (SHA = the app commit) or `rollback` (SHA = the gh-pages commit you roll back **to**).
+- `action` is `deploy` (SHA = the app commit), `rollback` (SHA = the gh-pages commit you roll back **to**), or
+  `worker-changed` (SHA = the app commit; needed for `--worker-changed-ok` on production, see step 5).
 - Pass the same tag with `--approval-ref <tag>` (alias `--card`). Tags are 3-64 characters of `A-Z a-z 0-9 . _ -`.
+  Every field is compared as an exact plain string: `card.43` does not match `ref=card-43`, and `card-4` does not
+  match `ref=card-43`.
 - An approval for preview does not count for production, a deploy approval does not count for a rollback, and an
   approval for one SHA or ref does not count for another. The old 5-field format is no longer accepted.
 
@@ -56,7 +69,10 @@ The dry run does everything except the push. It:
 5. reads the live app SHA (from `version.json` on gh-pages, or `(abc1234)` in older deploy messages) and refuses if
    `server/`, `src/shared/`, `wrangler.toml`, `package.json` or `package-lock.json` changed since then. It also
    refuses when it cannot tell which build is live. If the Worker was deliberately deployed and verified first, with
-   its own approval, or you checked the live build by hand, pass `--worker-changed-ok`;
+   its own approval, or you checked the live build by hand, pass `--worker-changed-ok`. On **production** that flag
+   also needs its own approval line (`action` = `worker-changed`, same SHA and ref). It is not simply refused for
+   production, because a deploy that ships a Worker-side change (after the Worker itself was deployed) would then
+   never be possible; preview needs no extra line;
 6. records the live Worker (the version id and the health probe);
 7. builds the SHA in a temp worktree **twice**, with the cleared and explicit env above, and refuses unless the builds
    are byte-identical and (when given) byte-identical to `--expect-dist`. Then it checks the target:
@@ -108,8 +124,8 @@ run it by hand as before.
 A rollback needs its own approval line (`action` = `rollback`, SHA = the `--rollback-to` commit) and a clean working
 tree, the same as a deploy. It makes a new gh-pages commit whose files are exactly those of the old commit, and pushes
 it normally: history is kept and nothing is forced. It refuses if gh-pages has moved since `--expect-tip`, or if the old
-commit is not the target's content. It writes `PENDING`/`PUSHED` history lines and runs the same live check as a
-deploy. `--dry-run` works here too. Run the smoke step afterwards.
+commit is not the target's content. It writes `PENDING`/`PUSHED` history lines, runs the same live check as a
+deploy, and writes a `ROLLBACK VERIFIED` line when the check passes. `--dry-run` works here too. Run the smoke step afterwards.
 
 ## Re-checking a live deploy
 
