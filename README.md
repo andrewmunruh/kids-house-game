@@ -22,9 +22,9 @@ confetti, and unlocks a special item into the drawer (🎁 tab). Solutions are i
 A parent creates a street (adult check) and gets a 6-character invite code. Kids join with the code plus a
 preset nickname, and can bring their local house along. Everyone sees changes live. The server validates every
 action. Owners can lock their house (look, don't touch). Chat is proximity speech bubbles: preset phrases and emotes,
-plus optional typed text up to 60 characters, filtered for bad words, numbers, links, emails, and addresses.
+plus optional typed text up to 60 characters, run through a light filter for swears and slurs.
 Free typing can be switched off on the grown-up screen. Bubbles are only relayed live, never stored or logged.
-Letters live in each house's mailbox for up to 30 days. They are filtered more strictly than chat, and only the writer's first name is stored. A friend can leave three unread letters. A grown-up can read and clear one mailbox or every mailbox, or turn off “Let kids type their own letters” so new letters can only use the same preset phrases as chat bubbles. That letters switch follows free typing until a grown-up sets it on its own.
+Letters live in each house's mailbox for up to 30 days. They use the same light swear-and-slur filter as chat, and only the writer's first name is stored. A friend can leave three unread letters. A grown-up can read and clear one mailbox or every mailbox, or turn off “Let kids type their own letters” so new letters can only use the same preset phrases as chat bubbles. That letters switch follows free typing until a grown-up sets it on its own.
 No emails, real names, or analytics. Offline single-player keeps working at any time.
 
 Server code: `server/core.ts` (platform-agnostic) with two adapters:

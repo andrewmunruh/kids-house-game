@@ -7,6 +7,7 @@ import { isFridge, isTub } from './shared/ambient';
 import { prefersReducedMotion } from './juice';
 import { storeKey } from './shared/storekey';
 import { sfx } from './sound';
+import { toast } from './hood-ui';
 
 export interface NeedsDeps {
   get(): GameState;
@@ -54,7 +55,7 @@ export function installNeeds(d: NeedsDeps) {
   btn.type = 'button'; btn.className = 'menuRow'; btn.id = 'btnWishes';
   btn.innerHTML = `<span class="mIco" id="wishIco"></span><span class="mLabel">Wishes</span>`;
   const paintBtn = () => { const on = showWishes(); btn.querySelector('#wishIco')!.innerHTML = on ? EYE_OPEN : EYE_OFF; btn.setAttribute('aria-label', on ? 'Wishes on' : 'Wishes off'); btn.setAttribute('aria-pressed', String(on)); };
-  btn.addEventListener('click', () => { try { localStorage.setItem(KEY, showWishes() ? '0' : '1'); } catch { /* private mode */ } paintBtn(); sfx.click(); paint(); });
+  btn.addEventListener('click', () => { try { localStorage.setItem(KEY, showWishes() ? '0' : '1'); } catch { /* private mode */ } paintBtn(); sfx.click(); paint(); toast(showWishes() ? 'Wishes on' : 'Wishes off', 1400); });
   d.menuAfter?.insertAdjacentElement('afterend', btn); paintBtn();
 
   function burst(el: HTMLElement) {

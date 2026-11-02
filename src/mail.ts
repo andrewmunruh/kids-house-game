@@ -41,11 +41,11 @@ const FAIL: Record<string, string> = {
   empty: 'Write a little note!',
   slow: "Let's wait a moment!",
   full: 'This mailbox is full!',
-  notyours: 'Only she can open her mail.',
+  notyours: "That's her mailbox. Only she can open it 💌",
   nohouse: 'That house is not on the street.',
   gone: 'That letter is already gone.',
   toobig: 'The mailbox is too full!',
-  presetsOnly: 'Typing is turned off: pick a phrase!',
+  presetsOnly: 'Typing is off. Pick a phrase!',
   unread: 'She still has your letters! Wait until she reads them.',
 };
 
