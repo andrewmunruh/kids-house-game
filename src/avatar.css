@@ -110,7 +110,8 @@
 .savatar.riding > .inner .skirt { opacity: 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .chibi-move .leg, .chibi-move .arm, .chibi-bob > .inner, .char.chibi > .inner, .savatar.chibi > .inner { animation: none; }
+  /* .leg.l/.leg.r/.arm.l/.arm.r are listed too: the walk rules above use those, and they outrank plain .leg/.arm. */
+  .chibi-move .leg, .chibi-move .arm, .chibi-move .leg.l, .chibi-move .leg.r, .chibi-move .arm.l, .chibi-move .arm.r, .chibi-bob > .inner, .char.chibi > .inner, .savatar.chibi > .inner { animation: none; }
 }
 
 body.phone .card.avCard { min-width: 0; }
