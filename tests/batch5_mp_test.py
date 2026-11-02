@@ -144,7 +144,8 @@ async def street(cb, wb):
     await K.emulate_media(reduced_motion='reduce'); await asyncio.sleep(0.3)
     for _ in range(3): await step(25); await asyncio.sleep(0.25)
     d = (await K.evaluate(AV, pid))[1]
-    check('MP-14: reduced motion turns the friend slide off (<= 1 ms)', float(d.rstrip('ms').rstrip('m')) * (0.001 if d.endswith('ms') else 1) <= 0.001, d)
+    gm = await K.evaluate("(id) => document.querySelector(`.char.avatar[data-pid=\"${id}\"]`)?.dataset.glideMs ?? null", pid)
+    check('MP-14: reduced motion sets the friend slide time to 0', gm == '0' and float(d.rstrip('ms').rstrip('m')) * (0.001 if d.endswith('ms') else 1) <= 0.001, f'glideMs={gm} computed={d}')
     return P, K, X
 
 async def main():
