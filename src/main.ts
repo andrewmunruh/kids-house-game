@@ -453,7 +453,7 @@ function finishPortraitFrame() {
   if (view === 'ranch' && !inBarn) { keepDoorHintOnScreen(); settleRanchSigns(); }
 }
 function nudgeScroll(scroll: HTMLElement, nodes: HTMLElement[]) {
-  const pad = 8;
+  const pad = 12; // the drawn piece can sit a few px off its box, so a piece within 12px of the edge counts as cut
   const port = scroll.getBoundingClientRect();
   const rightLimit = Math.min(port.right, window.innerWidth) - pad;
   const leftLimit = Math.max(port.left, 0) + pad;
@@ -5190,7 +5190,31 @@ function fitCutPiece(s: GameState, kidX: number, cam: number) {
     if (kidX - keep < next || kidX + keep > next + VIEW_W || l < next - 1 || r > next + VIEW_W + 1) continue;
     if (!best || w > best.w) best = { cam: next, w };
   }
+  if (s.currentRoom === 'living') return fitLivingGroup(s, kidX, best ? best.cam : cam, keep);
   return best ? best.cam : cam;
+}
+/**
+ * Portrait living room: the sofa, rug and toy cat sit side by side, and a 480-wide view showed the sofa but cut
+ * the cat (and rug) at the right edge. Slide so every floor piece the view touches (60 wide or more) is whole,
+ * with a 12px edge, kid still inside; the left wall/door/lamp side gives way first. If they cannot all fit,
+ * the smallest piece is dropped from the set until the rest do. View only; other rooms keep fitCutPiece.
+ */
+function fitLivingGroup(s: GameState, kidX: number, cam: number, keep: number) {
+  const pad = 8;
+  const boxes = (s.rooms.living?.items ?? []).flatMap(it => {
+    const def = ITEM_MAP[it.kind]; if (!def || def.wall) return [];
+    const w = def.w * drawnScale(it); return w >= 60 ? [{ l: it.x - w / 2, r: it.x + w / 2, w }] : [];
+  });
+  let set = boxes.filter(b => b.r > cam && b.l < cam + VIEW_W);
+  if (!set.some(b => b.l < cam + pad || b.r > cam + VIEW_W - pad)) return cam;
+  set.sort((a, b) => b.w - a.w);
+  while (set.length) {
+    const lo = Math.max(Math.max(...set.map(b => b.r)) + pad - VIEW_W, kidX + keep - VIEW_W);
+    const hi = Math.min(Math.min(...set.map(b => b.l)) - pad, kidX - keep);
+    if (lo <= hi) { const next = clampCam(Math.min(hi, Math.max(lo, cam))); if (next >= lo - 1 && next <= hi + 1) return next; }
+    set = set.slice(0, -1);
+  }
+  return cam;
 }
 function frameYardCam() {
   if (store.get().currentRoom === 'backyard') {
