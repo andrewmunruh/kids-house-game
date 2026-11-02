@@ -317,7 +317,7 @@ ln -s "$(readlink -f "$NM")" "$WORK/src/node_modules"
 # Every VITE_* variable from the caller's shell is dropped (a leftover VITE_STORE_PREFIX / VITE_BASE from a preview
 # build would otherwise override .env.production), then the target's values are set explicitly.
 UNSET=(); for v in $(compgen -e | grep '^VITE_' || true); do UNSET+=(-u "$v"); done
-[ ${#UNSET[@]} = 0 ] || echo "build env: dropping leftover ${UNSET[*]//-u /}"
+[ ${#UNSET[@]} = 0 ] || echo "build env: dropping leftover $(compgen -e | grep "^VITE_" | tr "\n" " ")"
 TENV=(VITE_BASE="$T_BASE" VITE_HOOD_URL="$T_HOOD"); [ -n "$T_PREFIX" ] && TENV+=(VITE_STORE_PREFIX="$T_PREFIX")
 build() {
   local out=$1
