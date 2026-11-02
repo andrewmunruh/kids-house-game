@@ -22,7 +22,10 @@ set -e
 b=${VITE_BASE:-/kids-house-game/}; p=${VITE_STORE_PREFIX:-}; hood=${VITE_HOOD_URL:-https://cozy-hood.andrewmunruh.workers.dev}
 case "${FAKE_MODE:-}" in leak) b=/cozy-preview/; p=preview: ;; prefixonly) p=preview: ;; badbase) b=/elsewhere/ ;; wronghood) hood=https://cozy-hood-preview.andrewmunruh.workers.dev ;; nohood) hood=https://example.invalid ;; noribbon) ;; esac
 h=$(git rev-parse --short HEAD); mkdir -p "$OUT/assets"
+# like vite: NODE_ENV=development compiles the service-worker registration out; NODE_OPTIONS changes the output
+[ -n "${NODE_OPTIONS:-}" ] && h=$h-nodeopts
 { cat app.txt; echo "const hood=\"$hood\";"
+  [ "${NODE_ENV:-}" != development ] && [ "${FAKE_MODE:-}" != nosw ] && echo "navigator.serviceWorker.register(B+'sw.js');"
   [ -n "$p" ] && echo "const k=e=>\"$p\"+e;"
   [ -n "$p" ] && [ "${FAKE_MODE:-}" != noribbon ] && echo "x('<div class=\"previewRibbon\">PREVIEW</div>');"; true; } > "$OUT/assets/index-$h.js"
 echo "body{color:red}" > "$OUT/assets/index-$h.css"
@@ -35,7 +38,7 @@ F
 # --- fixtures: app origin (bare), pages remotes (bare, non-fast-forward denied, push log, served over 127.0.0.1)
 G init -q --bare "$T/origin.git"
 G init -q "$T/seed"; cd "$T/seed"
-mkdir -p server src/shared; echo w1 > server/worker.ts; echo s > src/shared/x.ts; echo a1 > app.txt; echo 'name="cozy-hood"' > wrangler.toml; echo '{}' > package.json
+mkdir -p server src/shared; echo w1 > server/worker.ts; echo s > src/shared/x.ts; echo a1 > app.txt; echo 'name="cozy-hood"' > wrangler.toml; echo '{}' > package.json; echo '{"packages":{"":{},"node_modules/a":{"version":"1.0.0","integrity":"sha-a"}}}' > package-lock.json
 G add -A; G commit -qm base; BASE=$(git rev-parse HEAD)
 echo a2 > app.txt; G commit -qam "app change"; MAIN=$(git rev-parse HEAD)
 G push -q "$T/origin.git" HEAD:main
@@ -76,7 +79,7 @@ PORT=$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print
 python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$T/www" >/dev/null 2>&1 & HTTP_PID=$!
 for i in $(seq 50); do curl -fs "http://127.0.0.1:$PORT/api/health" >/dev/null && break; sleep 0.1; done
 G clone -q "$T/origin.git" "$T/work" 2>/dev/null; cd "$T/work"
-mkdir -p "$T/nm"
+mkdir -p "$T/nm"; echo '{"packages":{"node_modules/a":{"version":"1.0.0","integrity":"sha-a"}}}' > "$T/nm/.package-lock.json"
 export GUARD_TEST_MODE=1 GUARD_PAGES_REMOTE="$T/pages.git" GUARD_NODE_MODULES="$T/nm" DEPLOY_HISTORY="$T/history.log"
 export GUARD_BUILD_CMD="bash $T/fakebuild.sh" GUARD_SITE="http://127.0.0.1:$PORT/kids-house-game/" GUARD_HEALTH_URL="http://127.0.0.1:$PORT/api/health" GUARD_VERIFY_TRIES=5
 PSITE="http://127.0.0.1:$PORT/cozy-preview/"
@@ -171,7 +174,7 @@ run --production --sha "$MAIN" $(P) --dry-run
 # 6. leftover build env (R2) and target checks
 ( export VITE_STORE_PREFIX=preview: VITE_BASE=/cozy-preview/ VITE_HOOD_URL=https://cozy-hood-preview.andrewmunruh.workers.dev VITE_EXTRA=1
   run --production --sha "$MAIN" $(P) --dry-run )
-[ "$(rc)" = 0 ] && has "dropping leftover" && has "byte-identical to the gate-tested dist" && ok "leftover VITE_* preview env is dropped: production build is still the gate-tested one" || bad "env leak cleared"
+[ "$(rc)" = 0 ] && has "ignoring caller's VITE_" && has "byte-identical to the gate-tested dist" && ok "leftover VITE_* preview env is dropped: production build is still the gate-tested one" || bad "env leak cleared"
 mkdist "$MAIN" "$T/gd-leak" FAKE_MODE=leak
 FAKE_MODE=leak run --production --sha "$MAIN" $(P) --expect-dist "$T/gd-leak" --dry-run
 refused "asset base is not /kids-house-game/" && ok "production build loading assets from /cozy-preview/ refused" || bad "base check"
@@ -276,6 +279,8 @@ RB=$(tip)
 [ "$(rc)" = 0 ] && [ "$(git -C "$T/pages.git" rev-parse "$RB^")" = "$NEW" ] && [ "$(git -C "$T/pages.git" rev-parse "$RB^{tree}")" = "$(git -C "$T/pages.git" rev-parse "$PAGES0^{tree}")" ] \
   && grep -q "^refs/heads/gh-pages $NEW $RB$" "$T/pushlog" && has "verify: OK" && grep -q "ROLLBACK PENDING prev=$NEW" "$T/history.log" \
   && ok "rollback = new commit with the old tree on top, normal push, live check, pending history line" || bad "rollback"
+grep -q "ROLLBACK PENDING prev=$NEW" "$T/history.log" && grep -q "ROLLBACK PUSHED prev=$NEW" "$T/history.log" && grep -q "ROLLBACK VERIFIED prev=$NEW new=$RB" "$T/history.log" \
+  && ok "rollback writes PENDING, PUSHED and VERIFIED history lines" || bad "rollback verified line"
 G -C "$T/p0" push -q -f "$T/pages.git" "$PAGES0:gh-pages" > "$T/out" 2>&1; [ "$(tip)" = "$RB" ] && ok "fixture remote rejects non-fast-forward (sanity)" || bad "fixture nff"
 
 # 10. after the push, the remote tip must be ours
@@ -283,8 +288,46 @@ G -C "$T/seed" push -q -f "$T/origin.git" "$MAIN3:main"
 mkdist "$MAIN3" "$T/gd-main3"; approve production deploy "$MAIN3" card-43 "yes main3"
 touch "$T/race"
 run --production --sha "$MAIN3" --expect-dist "$T/gd-main3" --worker-version v-test-1 --approval-ref card-43 --worker-changed-ok
+refused "no approval line for target=production action=worker-changed sha=$MAIN3 ref=card-43" && [ "$(tip)" = "$RB" ] && ok "production --worker-changed-ok needs its own worker-changed approval line" || bad "worker-changed approval"
+approve production worker-changed "$MAIN3" card-43 "yes worker is fine"
+run --production --sha "$MAIN3" --expect-dist "$T/gd-main3" --worker-version v-test-1 --approval-ref card-43 --worker-changed-ok
 rm -f "$T/race"
 refused "after push the remote gh-pages is $RB" && ok "remote gh-pages not at our commit after the push is caught" || bad "after-push tip check"
+
+# 11. Batch 9 recheck: M1 caller env, M2 exact ref, approvals file, node_modules
+G -C "$T/seed" push -q -f "$T/origin.git" "$MAIN:main"; PG=$(tip)
+mkdist "$MAIN" "$T/gd-m1"
+# the live tip is now a rollback commit (live app SHA unknown): production then needs a worker-changed approval too
+approve production worker-changed "$MAIN" card-42 "yes"; approve production worker-changed "$MAIN" card-77 "yes"
+NODE_ENV=development run --production --sha "$MAIN" $(P) --expect-dist "$T/gd-m1" --worker-changed-ok --dry-run
+[ "$(rc)" = 0 ] && has "ignoring caller's NODE_ENV" && has "service worker registered" && ok "M1: leaked NODE_ENV=development does not reach the build (SW still registered)" || bad "M1 NODE_ENV"
+NODE_OPTIONS=--no-warnings run --production --sha "$MAIN" $(P) --expect-dist "$T/gd-m1" --worker-changed-ok --dry-run
+[ "$(rc)" = 0 ] && has "ignoring caller's NODE_OPTIONS" && ok "M1: leaked NODE_OPTIONS does not reach the build (identical to the clean gate dist)" || bad "M1 NODE_OPTIONS"
+mkdist "$MAIN" "$T/gd-nosw" FAKE_MODE=nosw
+FAKE_MODE=nosw run --production --sha "$MAIN" $(P) --expect-dist "$T/gd-nosw" --worker-changed-ok --dry-run
+refused "has no serviceWorker.register call" && ok "M1: production build without service-worker registration refused" || bad "M1 nosw prod"
+FAKE_MODE=nosw runp --sha "$MAIN" --approval-ref pv-2 --worker-changed-ok --dry-run
+refused "preview build has no serviceWorker.register call" && ok "M1: preview build without service-worker registration refused" || bad "M1 nosw preview"
+mkdist "$MAIN" "$T/gd-dev" NODE_ENV=development
+NODE_ENV=development run --production --sha "$MAIN" $(P) --expect-dist "$T/gd-dev" --worker-changed-ok --dry-run
+refused "build differs from the gate-tested dist" && ok "M1: a gate dist built with NODE_ENV=development is refused" || bad "M1 dev gate dist"
+approve production deploy "$MAIN" card-77 "yes"
+run --production --sha "$MAIN" $(P | sed 's/card-42/card.77/') --dry-run
+refused "no approval line for target=production action=deploy sha=$MAIN ref=card.77" && ok "M2: --approval-ref card.77 does not match ref=card-77 (plain string compare)" || bad "M2 dot"
+run --production --sha "$MAIN" $(P | sed 's/card-42/card-7/') --dry-run
+refused "ref=card-7 in" && ok "M2: a prefix of the approved ref does not match (whole-ref compare)" || bad "M2 prefix"
+run --production --sha "$MAIN" $(P | sed 's/card-42/card-77/') --worker-changed-ok --dry-run
+[ "$(rc)" = 0 ] && ok "M2: the exact ref still matches" || bad "M2 exact"
+GUARD_TEST_MODE=0 GUARD_PAGES_REMOTE= GUARD_BUILD_CMD= GUARD_SITE= GUARD_HEALTH_URL= GUARD_NODE_MODULES= GUARD_VERIFY_TRIES= run --production --sha "$MAIN" $(P) --dry-run
+refused "--approvals is only allowed in test mode" && ok "--approvals refused outside test mode" || bad "approvals outside test"
+GUARD_TEST_MODE=0 GUARD_PAGES_REMOTE= GUARD_BUILD_CMD= GUARD_SITE= GUARD_HEALTH_URL= GUARD_NODE_MODULES= GUARD_VERIFY_TRIES= DEPLOY_APPROVALS="$AP" "$SCRIPT" --production --sha "$MAIN" $(P) --dry-run > "$T/out" 2>&1; echo $? > "$T/rc"
+refused "DEPLOY_APPROVALS is only allowed in test mode" && ok "DEPLOY_APPROVALS refused outside test mode" || bad "DEPLOY_APPROVALS outside test"
+cp "$T/nm/.package-lock.json" "$T/nmlock.bak"; echo '{"packages":{"node_modules/a":{"version":"1.0.1","integrity":"sha-x"}}}' > "$T/nm/.package-lock.json"
+run --production --sha "$MAIN" $(P) --dry-run
+refused "node_modules does not match package-lock.json" && ok "node_modules that differs from the lockfile refused" || bad "node_modules mismatch"
+rm "$T/nm/.package-lock.json"; run --production --sha "$MAIN" $(P) --dry-run
+refused "was not installed by npm from the lockfile" && ok "node_modules without npm's lock record refused" || bad "node_modules no lock"
+cp "$T/nmlock.bak" "$T/nm/.package-lock.json"
 
 echo; echo "deploy_guard_test: $PASS passed, $FAIL failed"
 [ $FAIL = 0 ]

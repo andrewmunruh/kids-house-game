@@ -53,7 +53,7 @@ set_target() {
 }
 
 # ---------------------------------------------------------------- args
-TARGET= SHA= PR= DRY=0 EXPECT_DIST= APPROVALS=${DEPLOY_APPROVALS:-/workspace/deploy-approvals.log}
+TARGET= SHA= PR= DRY=0 EXPECT_DIST= APPROVALS=/workspace/deploy-approvals.log APPROVALS_GIVEN=0
 ROLLBACK_TO= EXPECT_TIP= VERIFY_ONLY=0 SMOKE=0 WORKER_OK=0 REF= WORKER_VERSION= REAL_STREET_OK=0
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -63,7 +63,7 @@ while [ $# -gt 0 ]; do
     --pr) PR=${2:-}; shift ;;
     --dry-run) DRY=1 ;;
     --expect-dist) EXPECT_DIST=${2:-}; shift ;;
-    --approvals) APPROVALS=${2:-}; shift ;;
+    --approvals) APPROVALS=${2:-}; APPROVALS_GIVEN=1; shift ;;
     --approval-ref|--card) REF=${2:-}; shift ;;
     --rollback-to) ROLLBACK_TO=${2:-}; shift ;;
     --expect-tip) EXPECT_TIP=${2:-}; shift ;;
@@ -96,10 +96,14 @@ if [ "${GUARD_TEST_MODE:-}" = 1 ]; then
   SRC_REMOTE=${GUARD_SOURCE_REMOTE:-origin}
   T_SITE=${GUARD_SITE:-}
   HEALTH_URL=${GUARD_HEALTH_URL:-}
+  [ -z "${DEPLOY_APPROVALS:-}" ] || APPROVALS=$DEPLOY_APPROVALS
 else
+  # The approvals log is fixed outside test mode: only App Builder appends lines to it, after Andy's own yes.
   for v in GUARD_BUILD_CMD GUARD_PAGES_REMOTE GUARD_SOURCE_REMOTE GUARD_SITE GUARD_HEALTH_URL GUARD_NODE_MODULES GUARD_VERIFY_TRIES; do
     [ -z "${!v:-}" ] || die "$v is only allowed in test mode (GUARD_TEST_MODE=1 with local remotes); unset it"
   done
+  [ $APPROVALS_GIVEN = 0 ] || die "--approvals is only allowed in test mode; the approvals log is fixed at /workspace/deploy-approvals.log"
+  [ -z "${DEPLOY_APPROVALS:-}" ] || die "DEPLOY_APPROVALS is only allowed in test mode; unset it"
 fi
 case "$T_PAGES_REMOTE" in https://github.com/andrewmunruh/kids-house-game.git|https://github.com/andrewmunruh/cozy-preview.git|/*) ;; *) die "pages remote not allowed: $T_PAGES_REMOTE";; esac
 if [ "$TARGET" = production ] && [ "$T_PAGES_REMOTE" = https://github.com/andrewmunruh/cozy-preview.git ]; then die "production target pointed at the preview repo"; fi
@@ -144,17 +148,33 @@ hist() { echo "$(date -Iseconds) $*" >> "$HIST"; }
 check_approval() {  # $1 = action, $2 = sha
   [[ "$REF" =~ ^[A-Za-z0-9._-]{3,64}$ ]] || die "--approval-ref <card id or short tag> is required for a $1 (3-64 of A-Z a-z 0-9 . _ -)"
   [ -f "$APPROVALS" ] || die "no approvals log at $APPROVALS"
-  LINE=$(grep -E "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}([+-][0-9]{2}:[0-9]{2}|Z) \| $T_NAME \| $1 \| $2 \| Andy \| ref=$REF \| \".+\"\s*$" "$APPROVALS" | tail -1 || true)
+  # Fields are compared as plain strings (awk ==), never as a pattern: '.' in a ref is a literal dot.
+  LINE=$(awk -F' [|] ' -v t="$T_NAME" -v a="$1" -v h="$2" -v r="ref=$REF" '
+    NF==7 && $1 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}([+-][0-9]{2}:[0-9]{2}|Z)$/ && $2==t && $3==a && $4==h && $5=="Andy" && $6==r && $7 ~ /^".+"[ \t]*$/ { l=$0 }
+    END { if (l!="") print l }' "$APPROVALS")
   [ -n "$LINE" ] || die "no approval line for target=$T_NAME action=$1 sha=$2 ref=$REF in $APPROVALS (need: <ISO time> | $T_NAME | $1 | $2 | Andy | ref=$REF | \"<exact words>\")"
   APPROVED_AT=$(echo "$LINE" | cut -d'|' -f1 | tr -d ' ')
   date -d "$APPROVED_AT" >/dev/null 2>&1 || die "approval time is not a valid timestamp: $LINE"
   echo "approval: $T_NAME $1 ${2:0:12} ref=$REF at $APPROVED_AT (words kept in the private log only)"
 }
 check_clean() {
+  # node_modules is git-ignored, so git status cannot see it. Instead the installed tree must match the lockfile
+  # exactly (npm's hidden node_modules/.package-lock.json vs package-lock.json: same packages, versions, integrity).
+  check_node_modules "${GUARD_NODE_MODULES:-$ROOT/node_modules}" "$ROOT/package-lock.json"
   [ -z "$(git status --porcelain --untracked-files=normal)" ] || { git status --short | head -20; die "working tree is dirty (commit or stash first)"; }
   echo "clean"
 }
 
+check_node_modules() {  # $1 node_modules dir, $2 package-lock.json
+  [ -f "$2" ] || die "no package-lock.json at $2"
+  [ -f "$1/.package-lock.json" ] || die "node_modules at $1 was not installed by npm from the lockfile (no .package-lock.json); run npm ci"
+  node -e '
+const fs=require("fs"),[nm,lf]=process.argv.slice(1);
+const L=JSON.parse(fs.readFileSync(lf)).packages||{},H=JSON.parse(fs.readFileSync(nm+"/.package-lock.json")).packages||{},bad=[];
+for(const k in H){const b=L[k];if(!b)bad.push("extra "+k);else if(H[k].version!==b.version||(H[k].integrity||"")!==(b.integrity||""))bad.push("differs "+k);}
+for(const k in L){if(k!==""&&!H[k]&&!L[k].optional&&!L[k].peer)bad.push("missing "+k);}
+if(bad.length){console.log(bad.slice(0,10).join("\n"));process.exit(1);}' "$1" "$2" || die "node_modules does not match package-lock.json (run npm ci)"
+}
 # ---------------------------------------------------------------- live verification: follow what index.html loads
 # Fetch the live index.html, then every URL it actually loads (script src, link href: bundle, CSS, manifest, icons),
 # resolved the way a browser would, plus sw.js. Each must be 200 and byte-identical to the deployed tree. Every
@@ -245,6 +265,7 @@ if [ -n "$ROLLBACK_TO" ]; then
   hist "target=$T_NAME ROLLBACK PUSHED prev=$PREV new=$NEW tree_of=$ROLLBACK_TO ref=$REF"
   step "rollback 4. verify the live site serves the rolled-back files"
   verify_live "$WORK/pages"
+  hist "target=$T_NAME ROLLBACK VERIFIED prev=$PREV new=$NEW tree_of=$ROLLBACK_TO ref=$REF"
   echo "ROLLED BACK. Next: run $0 --$T_NAME --smoke"
   exit 0
 fi
@@ -287,15 +308,21 @@ if [ -z "$LIVE_APP" ]; then
   SHORT=$(git -C "$WORK/pages" log -1 --format=%B "$PREV" | grep -oE '\(([0-9a-f]{7,40})\)' | tr -d '()' | head -1 || true)
   [ -n "$SHORT" ] && LIVE_APP=$(git rev-parse -q --verify "$SHORT^{commit}" 2>/dev/null || true)
 fi
+worker_ok_approval() {  # production: --worker-changed-ok needs its own approval line (action worker-changed, same SHA)
+  [ "$T_NAME" = production ] || return 0
+  local keep=$APPROVED_AT; check_approval worker-changed "$SHA"; APPROVED_AT=$keep
+}
 WORKER_PATHS="server src/shared wrangler.toml package.json package-lock.json"
 if [ -z "$LIVE_APP" ]; then
   [ $WORKER_OK = 1 ] || die "cannot tell which app SHA is live on $T_NAME (no version.json or (sha) in the gh-pages message). Check by hand, then pass --worker-changed-ok."
+  worker_ok_approval
   echo "live app SHA unknown; --worker-changed-ok given"
 else
   CHANGED=$(git diff --name-only "$LIVE_APP" "$SHA" -- $WORKER_PATHS | tr '\n' ' ')
   echo "live app SHA: $LIVE_APP"
   if [ -n "$CHANGED" ]; then
     [ $WORKER_OK = 1 ] || die "Worker-side files changed since the live build: $CHANGED. Deploy/verify the $T_WORKER Worker first (separate approval), then pass --worker-changed-ok."
+  worker_ok_approval
     echo "Worker-side files changed ($CHANGED); --worker-changed-ok given"
   else echo "$WORKER_PATHS unchanged: the live $T_WORKER Worker stays compatible"; fi
 fi
@@ -316,15 +343,19 @@ NM=${GUARD_NODE_MODULES:-$ROOT/node_modules}
 ln -s "$(readlink -f "$NM")" "$WORK/src/node_modules"
 # Every VITE_* variable from the caller's shell is dropped (a leftover VITE_STORE_PREFIX / VITE_BASE from a preview
 # build would otherwise override .env.production), then the target's values are set explicitly.
-UNSET=(); for v in $(compgen -e | grep '^VITE_' || true); do UNSET+=(-u "$v"); done
-[ ${#UNSET[@]} = 0 ] || echo "build env: dropping leftover $(compgen -e | grep "^VITE_" | tr "\n" " ")"
+# The build runs in an EMPTY environment (env -i) plus PATH and HOME and the target's values: nothing from the caller's
+# shell reaches vite (a leftover VITE_STORE_PREFIX/VITE_BASE, NODE_ENV=development, NODE_OPTIONS, ...).
+LEFT=$(compgen -e | grep -E '^(VITE_|NODE_ENV$|NODE_OPTIONS$|BABEL_ENV$)' | tr '\n' ' ' || true)
+[ -z "$LEFT" ] || echo "build env: ignoring caller's $LEFT(the build gets only PATH, HOME and the target values)"
+CLEAN=(-i PATH="$PATH" HOME="$HOME")
+[ "${GUARD_TEST_MODE:-}" = 1 ] && [ -n "${FAKE_MODE:-}" ] && CLEAN+=(FAKE_MODE="$FAKE_MODE")   # test fixture knob only
 TENV=(VITE_BASE="$T_BASE" VITE_HOOD_URL="$T_HOOD"); [ -n "$T_PREFIX" ] && TENV+=(VITE_STORE_PREFIX="$T_PREFIX")
 build() {
   local out=$1
   if [ -n "${GUARD_BUILD_CMD:-}" ]; then
-    (cd "$WORK/src" && env "${UNSET[@]}" "${TENV[@]}" OUT="$out" bash -c "$GUARD_BUILD_CMD") > "$out.log" 2>&1 || { tail -20 "$out.log"; die "build failed"; }
+    (cd "$WORK/src" && env "${CLEAN[@]}" "${TENV[@]}" OUT="$out" bash -c "$GUARD_BUILD_CMD") > "$out.log" 2>&1 || { tail -20 "$out.log"; die "build failed"; }
   else
-    ( cd "$WORK/src" && env "${UNSET[@]}" "${TENV[@]}" bash -c 'npx tsc --noEmit && npx vite build --outDir "$0" --emptyOutDir' "$out" ) > "$out.log" 2>&1 || { tail -20 "$out.log"; die "build failed"; }
+    ( cd "$WORK/src" && env "${CLEAN[@]}" "${TENV[@]}" bash -c 'npx tsc --noEmit && npx vite build --outDir "$0" --emptyOutDir' "$out" ) > "$out.log" 2>&1 || { tail -20 "$out.log"; die "build failed"; }
   fi
   if [ "$T_NAME" = preview ]; then
     sed -i 's/"name": "Cozy House", "short_name": "Cozy House"/"name": "Cozy Preview", "short_name": "Cozy Preview"/' "$out/manifest.webmanifest"
@@ -347,6 +378,7 @@ ABS=$(grep -oE '(src|href)="/[^"]*"' "$D/index.html" | sed -E 's/^(src|href)="//
 for p in $ABS; do [[ "$p" == "$T_BASE"* ]] || die "index.html loads $p: asset base is not $T_BASE"; done
 grep -qF "\"${T_BASE}assets/index-" "$D/index.html" || die "index.html does not load its bundle from ${T_BASE}assets/"
 JS=$(find "$D/assets" -name '*.js')
+grep -qF "serviceWorker.register" $JS || die "$T_NAME build has no serviceWorker.register call (built with NODE_ENV=development or a non-production mode?)"
 if [ -n "$T_PREFIX" ]; then
   grep -qF "\"$T_PREFIX\"" $JS || die "preview build has no '$T_PREFIX' store prefix: it would read and write the real save"
   grep -qE "$PREVIEW_RIBBON" $JS || die "preview build has no PREVIEW ribbon"
@@ -354,7 +386,7 @@ else
   ! grep -qF '"preview:"' $JS || die "production build contains the 'preview:' store prefix (leftover preview env?)"
   ! grep -qE "$PREVIEW_RIBBON" $JS || die "production build contains the PREVIEW ribbon (leftover preview env?)"
 fi
-echo "target config: base $T_BASE, manifest '$T_MANIFEST_NAME', hood $T_HOOD, prefix '${T_PREFIX:-<none>}', ribbon $( [ -n "$T_PREFIX" ] && echo present || echo absent ), no '$T_MUST_NOT_CONTAIN'"
+echo "target config: base $T_BASE, manifest '$T_MANIFEST_NAME', hood $T_HOOD, service worker registered, prefix '${T_PREFIX:-<none>}', ribbon $( [ -n "$T_PREFIX" ] && echo present || echo absent ), no '$T_MUST_NOT_CONTAIN'"
 BUNDLE=$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' "$D/index.html" | head -1 || true)
 echo "bundle: ${BUNDLE:-<none>}"
 
