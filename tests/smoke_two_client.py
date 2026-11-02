@@ -69,57 +69,76 @@ async def tour(pg):
                 else: out['barn'] = 'n/a'
     except Exception as e: out['exc'] = str(e).splitlines()[0][:100]
     return out
+# Browser-crash retry (smoke only). A WebKit/Chromium process that dies mid-tour raises TargetClosedError on every
+# page (seen once in 20 runs, Batch 9, no app error logged). That is the harness, not the app, so the size is run
+# ONCE more in a fresh browser. Any app error (pageerror, failed assertion, timeout, wrong map count) is never retried.
+CLOSED = 'Target page, context or browser has been closed'
+def crashed(r):
+    txt = ' '.join(str(v) for k, v in r.items() if k in ('exc', 'tourNew', 'tourOld'))
+    return (CLOSED in txt or 'TargetClosedError' in txt) and not r.get('ok') and not r['errs']['new'] and not r['errs']['old']
+
+async def one(b, w, h):
+    """One size: a NEW-client street with an OLD client joining. Returns the result row."""
+    mob = w < 820 or h < 820; errs = {'new': [], 'old': []}; r = {}
+    async def mk(url, who):
+        c = await b.new_context(viewport={'width': w, 'height': h}, has_touch=True, is_mobile=mob and BR == 'chromium')
+        await c.add_init_script(SK); pg = await c.new_page()
+        if who == 'old':
+            import os, mimetypes
+            async def serve(route):
+                path = route.request.url.split('?')[0].split('/kids-house-game/', 1)[1] or 'index.html'
+                f = os.path.join(ODIST, path)
+                if os.path.isfile(f): await route.fulfill(path=f, content_type=mimetypes.guess_type(f)[0] or 'application/octet-stream')
+                else: await route.fulfill(status=404, body='')
+            await pg.route('https://andrewmunruh.github.io/kids-house-game/**', serve)
+        pg.on('request', lambda q: HOSTS.add(q.url.split('/')[2]) if q.url.startswith('http') or q.url.startswith('ws') else None)
+        pg.on('pageerror', lambda e: errs[who].append(str(e)[:120]))
+        await pg.goto(url); await pg.wait_for_selector('#stage', timeout=20000); await pg.wait_for_timeout(2500)
+        await clear_popups(pg)
+        return c, pg
+    try:
+        cA, A = await mk(NEW, 'new')
+        # drawer icons
+        if not await A.locator('#cats').is_visible(): await A.click('#modeToggle', force=True); await A.wait_for_timeout(600)
+        r['chips_before_touch'] = await A.evaluate("document.querySelectorAll('#cats .cat img.artimg').length")
+        await A.dispatch_event('#cats', 'pointerdown'); await A.wait_for_timeout(2500)
+        r['chips'] = await A.evaluate("[...document.querySelectorAll('#cats .cat')].filter(b=>b.querySelector('img,svg')).length + '/' + document.querySelectorAll('#cats .cat').length + ' painted=' + document.querySelectorAll('#cats .cat img.artimg').length")
+        # backyard
+        await A.evaluate("document.querySelector('[data-yard-go=\"backyard\"]')?.click()"); await A.wait_for_timeout(2500)
+        r['yard'] = await A.evaluate("document.querySelectorAll('#layer .item img.artimg').length + '/' + document.querySelectorAll('#layer .item').length")
+        # secret popup assets: painted popups ship, no faces in egg svg
+        # street with old client
+        await cA.close(); cA, A = await mk(NEW, 'new')
+        await tap(A, '#btnHood'); await tap(A, '[data-m="create"]'); await adult(A)
+        STEP[0]='newCode'; await A.wait_for_selector('#newCode'); code = (await A.inner_text('#newCode')).strip()
+        await tap(A, '[data-m="setup"]'); await A.wait_for_selector('#pCode')
+        STEP[0]='roster'
+        for i in range(2):
+            n = await A.locator('.sugg button').count()
+            await A.locator('.sugg button').nth(0).click(force=True)
+            await A.wait_for_function("n => document.querySelectorAll('.sugg button').length < n", arg=n, timeout=10000)
+        await tap(A, '.hoodSheet [data-m="close"]'); await A.wait_for_timeout(500); await join(A, code, True)
+        cB, B = await mk(OLD, 'old'); await join(B, code, False); await A.wait_for_timeout(4000)
+        r['map'] = await A.locator('.mapHouse').count()
+        r['tourNew'] = await tour(A); r['tourOld'] = await tour(B)
+        r['ok'] = r['map'] >= 2 and not errs['new'] and not errs['old']
+        await cA.close(); await cB.close()
+    except Exception as e: r['exc'] = STEP[0] + ' :: ' + str(e).splitlines()[0][:120]; r['ok'] = False
+    r['errs'] = errs
+    return r
 async def main():
     rows = []
     async with async_playwright() as p:
         b = await getattr(p, BR).launch()
         for w, h in [tuple(map(int,x.split("x"))) for x in (sys.argv[3] if len(sys.argv)>3 else "820x1180,844x390,390x844").split(",")]:
-            mob = w < 820 or h < 820; errs = {'new': [], 'old': []}; r = {}
-            async def mk(url, who):
-                c = await b.new_context(viewport={'width': w, 'height': h}, has_touch=True, is_mobile=mob and BR == 'chromium')
-                await c.add_init_script(SK); pg = await c.new_page()
-                if who == 'old':
-                    import os, mimetypes
-                    async def serve(route):
-                        path = route.request.url.split('?')[0].split('/kids-house-game/', 1)[1] or 'index.html'
-                        f = os.path.join(ODIST, path)
-                        if os.path.isfile(f): await route.fulfill(path=f, content_type=mimetypes.guess_type(f)[0] or 'application/octet-stream')
-                        else: await route.fulfill(status=404, body='')
-                    await pg.route('https://andrewmunruh.github.io/kids-house-game/**', serve)
-                pg.on('request', lambda q: HOSTS.add(q.url.split('/')[2]) if q.url.startswith('http') or q.url.startswith('ws') else None)
-                pg.on('pageerror', lambda e: errs[who].append(str(e)[:120]))
-                await pg.goto(url); await pg.wait_for_selector('#stage', timeout=20000); await pg.wait_for_timeout(2500)
-                await clear_popups(pg)
-                return c, pg
-            try:
-                cA, A = await mk(NEW, 'new')
-                # drawer icons
-                if not await A.locator('#cats').is_visible(): await A.click('#modeToggle', force=True); await A.wait_for_timeout(600)
-                r['chips_before_touch'] = await A.evaluate("document.querySelectorAll('#cats .cat img.artimg').length")
-                await A.dispatch_event('#cats', 'pointerdown'); await A.wait_for_timeout(2500)
-                r['chips'] = await A.evaluate("[...document.querySelectorAll('#cats .cat')].filter(b=>b.querySelector('img,svg')).length + '/' + document.querySelectorAll('#cats .cat').length + ' painted=' + document.querySelectorAll('#cats .cat img.artimg').length")
-                # backyard
-                await A.evaluate("document.querySelector('[data-yard-go=\"backyard\"]')?.click()"); await A.wait_for_timeout(2500)
-                r['yard'] = await A.evaluate("document.querySelectorAll('#layer .item img.artimg').length + '/' + document.querySelectorAll('#layer .item').length")
-                # secret popup assets: painted popups ship, no faces in egg svg
-                # street with old client
-                await cA.close(); cA, A = await mk(NEW, 'new')
-                await tap(A, '#btnHood'); await tap(A, '[data-m="create"]'); await adult(A)
-                STEP[0]='newCode'; await A.wait_for_selector('#newCode'); code = (await A.inner_text('#newCode')).strip()
-                await tap(A, '[data-m="setup"]'); await A.wait_for_selector('#pCode')
-                STEP[0]='roster'
-                for i in range(2):
-                    n = await A.locator('.sugg button').count()
-                    await A.locator('.sugg button').nth(0).click(force=True)
-                    await A.wait_for_function("n => document.querySelectorAll('.sugg button').length < n", arg=n, timeout=10000)
-                await tap(A, '.hoodSheet [data-m="close"]'); await A.wait_for_timeout(500); await join(A, code, True)
-                cB, B = await mk(OLD, 'old'); await join(B, code, False); await A.wait_for_timeout(4000)
-                r['map'] = await A.locator('.mapHouse').count()
-                r['tourNew'] = await tour(A); r['tourOld'] = await tour(B)
-                r['ok'] = r['map'] >= 2 and not errs['new'] and not errs['old']
-                await cA.close(); await cB.close()
-            except Exception as e: r['exc'] = STEP[0] + ' :: ' + str(e).splitlines()[0][:120]; r['ok'] = False
-            r['errs'] = errs; rows.append((f'{w}x{h}', r)); print(BR, f'{w}x{h}', r, flush=True)
+            r = await one(b, w, h)
+            if crashed(r):
+                print(BR, f'{w}x{h}', 'browser closed mid-run (TargetClosedError, no app error): retrying once in a fresh browser:', str(r.get('exc'))[:160], flush=True)  # not the row dict: callers grep for 'ok': False
+                try: await b.close()
+                except Exception: pass
+                b = await getattr(p, BR).launch()
+                r = await one(b, w, h); r['retried_after_browser_crash'] = True
+            rows.append((f'{w}x{h}', r)); print(BR, f'{w}x{h}', r, flush=True)
             await (await b.new_context()).close()
         await b.close()
     print(BR, 'hosts', sorted(HOSTS))

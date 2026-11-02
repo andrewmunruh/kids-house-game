@@ -6,78 +6,122 @@ force-pushed `gh-pages` and are retired: they now print a refusal and exit 3. Th
 
 ## Targets (fixed, never mixed)
 
-| flag | pages repo | site | build | Worker |
+| flag | pages repo | site | build env (set by the script) | Worker |
 |---|---|---|---|---|
-| `--production` | andrewmunruh/kids-house-game `gh-pages` | https://andrewmunruh.github.io/kids-house-game/ | default base, `.env.production` (cozy-hood) | cozy-hood |
-| `--preview` | andrewmunruh/cozy-preview `gh-pages` | https://andrewmunruh.github.io/cozy-preview/ | `VITE_BASE=/cozy-preview/`, `VITE_HOOD_URL=cozy-hood-preview`, `VITE_STORE_PREFIX=preview:`, manifest "Cozy Preview" | cozy-hood-preview |
+| `--production` | andrewmunruh/kids-house-game `gh-pages` | https://andrewmunruh.github.io/kids-house-game/ | `VITE_BASE=/kids-house-game/`, `VITE_HOOD_URL=https://cozy-hood.andrewmunruh.workers.dev`, no store prefix, manifest "Cozy House" | cozy-hood |
+| `--preview` | andrewmunruh/cozy-preview `gh-pages` | https://andrewmunruh.github.io/cozy-preview/ | `VITE_BASE=/cozy-preview/`, `VITE_HOOD_URL=https://cozy-hood-preview.andrewmunruh.workers.dev`, `VITE_STORE_PREFIX=preview:`, manifest "Cozy Preview" | cozy-hood-preview |
 
 You must give exactly one of the two flags. There is no default and no URL option.
+
+**Build environment.** Vite lets shell variables override `.env.production`, so a `VITE_STORE_PREFIX=preview:` or
+`VITE_BASE=/cozy-preview/` left over from a preview build would otherwise go into a production build. The script drops
+**every** `VITE_*` variable from your shell before building and then sets the target's values itself (it prints
+`build env: dropping leftover ...` when it drops any).
 
 ## 1. Record the approval
 
 Append one line to `/workspace/deploy-approvals.log` (or pass `--approvals FILE`). It lives outside the
-repo, so the tree stays clean. Use Andy's exact words and the time he said them:
+repo, so the tree stays clean, and it is private: Andy's exact words stay in this file only. Public gh-pages
+commit messages carry only the **ref** (a card id or short tag) and the approval time.
 
-    2026-10-31T05:37:00-05:00 | production | e100cc11c594fffd07807f1e167933ad911757ba | Andy | "yes ship batch 2 to prod"
+    <ISO time>                | <target>   | <action> | <40-hex SHA>                             | Andy | ref=<tag>  | "<Andy's exact words>"
+    2026-11-02T13:08:00-06:00 | production | deploy   | e0a4cfdd5a14b50c08262130923275136693bf36 | Andy | ref=card-123 | "..."
+    2026-11-02T14:00:00-06:00 | production | rollback | 8f31b9d629296016668f08cb614d0541f7cee483 | Andy | ref=rb-7     | "..."
 
-The line must have an ISO time with offset, the target, the full 40-hex SHA, `Andy`, and non-empty quoted words.
-An approval for preview does not count for production, and an approval for one SHA does not count for another.
+(Single spaces around each `|` in the real line; the columns above are padded for reading.)
+
+- `action` is `deploy` (SHA = the app commit) or `rollback` (SHA = the gh-pages commit you roll back **to**).
+- Pass the same tag with `--approval-ref <tag>` (alias `--card`). Tags are 3-64 characters of `A-Z a-z 0-9 . _ -`.
+- An approval for preview does not count for production, a deploy approval does not count for a rollback, and an
+  approval for one SHA or ref does not count for another. The old 5-field format is no longer accepted.
 
 ## 2. Dry run (always first)
 
-    scripts/guarded-deploy.sh --production --sha <sha> --expect-dist <gate-tested dist> --dry-run
+    scripts/guarded-deploy.sh --production --sha <sha> --approval-ref <tag> \
+      --expect-dist <gate-tested dist> --worker-version <live cozy-hood version id> --dry-run
 
-This does everything except the push. It:
+For production, `--expect-dist` and `--worker-version` are **mandatory**. Read the version id from
+`npx wrangler deployments list --name cozy-hood` or the Cloudflare dashboard. The script does not log in to
+Cloudflare: it records the id you give it, and it probes `https://cozy-hood.andrewmunruh.workers.dev/api/health`
+read-only, which must answer `{"ok":true}`. Both are optional for preview, but the health probe always runs.
+
+The dry run does everything except the push. It:
 
 1. refuses a dirty working tree (modified or untracked files);
 2. refuses a SHA that is not reachable from `origin/main`. Preview may also take the exact head of a PR
    with `--pr N`;
-3. refuses if the approval line is missing;
-4. reads the live app SHA (from `version.json` on gh-pages, or `(abc1234)` in older deploy messages) and refuses if
-   `server/`, `src/shared/` or `wrangler.toml` changed since then. If the Worker was deliberately deployed
-   and verified first, with its own approval, pass `--worker-changed-ok`;
-5. builds the SHA in a temp worktree **twice** and refuses unless the builds are byte-identical. With `--expect-dist`
-   the build must also be byte-identical to the dist the gate tested. It checks the target config (manifest name,
-   hood URL, no strings from the other target);
-6. commits the dist (plus `.nojekyll` and `version.json`) **on top of** the fetched gh-pages tip, then prints the
-   previous gh-pages SHA and a one-line rollback command.
+3. refuses if the approval line is missing (see above);
+4. fetches the target's gh-pages and cross-checks its **content**: the live `index.html` must load assets from the
+   target's base path (`/kids-house-game/` or `/cozy-preview/`) and not from the other one;
+5. reads the live app SHA (from `version.json` on gh-pages, or `(abc1234)` in older deploy messages) and refuses if
+   `server/`, `src/shared/`, `wrangler.toml`, `package.json` or `package-lock.json` changed since then. It also
+   refuses when it cannot tell which build is live. If the Worker was deliberately deployed and verified first, with
+   its own approval, or you checked the live build by hand, pass `--worker-changed-ok`;
+6. records the live Worker (the version id and the health probe);
+7. builds the SHA in a temp worktree **twice**, with the cleared and explicit env above, and refuses unless the builds
+   are byte-identical and (when given) byte-identical to `--expect-dist`. Then it checks the target:
+   - the manifest name;
+   - the hood URL is in the bundle and the other target's hood is not;
+   - every absolute `src`/`href` in `index.html` starts with the target's base path;
+   - production: **no** `"preview:"` store prefix and **no** PREVIEW ribbon in the JS;
+   - preview: the `"preview:"` prefix **and** the PREVIEW ribbon **are** in the JS;
+8. commits the dist (plus `.nojekyll` and `version.json`) **on top of** the fetched gh-pages tip. The commit message
+   has the app SHA, `Approval-Ref: <tag> (<time>)` and the Worker version. It then prints the previous gh-pages SHA
+   and a one-line rollback command.
 
 ## 3. Deploy
 
-Run the same command without `--dry-run`. After step 6 it:
+Run the same command without `--dry-run`. After step 8 it:
 
-7. pushes `gh-pages` normally (no `-f`, no `+`). This works only as a fast-forward of the tip it just fetched;
-8. curls the live `index.html` until it serves the new bundle, then checks `index.html`, `sw.js`, the manifest, the
-   bundle and the CSS: each must return 200 and match the build byte for byte. It appends a line to
-   `/workspace/deploy-history.log`.
+9. writes a `PENDING` line to `/workspace/deploy-history.log` (app SHA, previous and new gh-pages SHAs, ref,
+   Worker version, health), then pushes `gh-pages` normally (no `-f`, no `+`). This works only as a fast-forward
+   of the tip it just fetched. It then checks with `ls-remote` that the remote tip is exactly the new commit, and
+   writes a `PUSHED` line;
+10. polls the live `index.html` until it is byte-identical to the deployed one. Then it fetches **every URL that
+   index.html actually loads** (the script bundle, the stylesheet, the manifest and the icons), resolved the way a
+   browser does, plus `sw.js`. Each must return 200 and match the deployed file byte for byte. A path outside the
+   base path, or an off-site URL, fails the check. On success it writes a `VERIFIED` line.
 
 It does **not** fast-forward `main`. Do that yourself if the deploy came from a PR head.
 
 ## 4. Smoke (explicit, required)
 
-    scripts/guarded-deploy.sh --production --smoke     # or --preview --smoke
+    scripts/guarded-deploy.sh --preview --smoke
+    scripts/guarded-deploy.sh --production --smoke --real-street-ok
 
-This runs under `/workspace/surprise/gate.lock`: `tests/testnav_portrait_test.py` and `tests/ui_contrast_touch_test.py`
-against the live URL, then `tests/smoke_two_client.py` (new live client plus the old 10ef736 client from `OLD_DIST`)
-in Chromium and WebKit. Logs go to `work/smoke-<target>-<time>/`. `v3_prod_check.py` is not in the repo yet, so
+The smoke runs under `/workspace/surprise/gate.lock`. It runs `tests/testnav_portrait_test.py` and
+`tests/ui_contrast_touch_test.py` against the live URL. Then it runs `tests/smoke_two_client.py` in Chromium and WebKit:
+the new live client plus the old 10ef736 client from `OLD_DIST`. Logs go to `work/smoke-<target>-<time>/`.
+
+**The two-client smoke creates a real street** on the target's Worker. On preview (cozy-hood-preview) that does no
+harm. On production it leaves a real street in the production cozy-hood Durable Object, so production smoke is refused
+unless you pass `--real-street-ok`. Prefer smoking preview with the same SHA. If a WebKit or Chromium process dies mid-run
+(`TargetClosedError` on every page, no app error), `smoke_two_client.py` retries that size once in a fresh browser and
+marks the row `retried_after_browser_crash`. App errors are never retried. `v3_prod_check.py` is not in the repo yet, so
 run it by hand as before.
 
 ## Rollback
 
-    scripts/guarded-deploy.sh --production --rollback-to <previous gh-pages SHA> --expect-tip <current gh-pages SHA>
+    scripts/guarded-deploy.sh --production --rollback-to <previous gh-pages SHA> --expect-tip <current gh-pages SHA> \
+      --approval-ref <tag>
 
-This makes a new gh-pages commit whose files are exactly those of the old commit, and pushes it normally (history is
-kept, nothing is forced). It refuses if gh-pages has moved since `--expect-tip`. `--dry-run` works here too.
-Run the smoke step afterwards.
+A rollback needs its own approval line (`action` = `rollback`, SHA = the `--rollback-to` commit) and a clean working
+tree, the same as a deploy. It makes a new gh-pages commit whose files are exactly those of the old commit, and pushes
+it normally: history is kept and nothing is forced. It refuses if gh-pages has moved since `--expect-tip`, or if the old
+commit is not the target's content. It writes `PENDING`/`PUSHED` history lines and runs the same live check as a
+deploy. `--dry-run` works here too. Run the smoke step afterwards.
 
 ## Re-checking a live deploy
 
     scripts/guarded-deploy.sh --production --verify-only
 
-This fetches the gh-pages tip and curls the live site: the bundle, CSS, `index.html`, `sw.js` and manifest must all be 200 and
-byte-identical to it. It is read-only.
+This fetches the gh-pages tip and runs the live check from step 10 against it. It is read-only.
 
 ## Tests
 
-`tests/deploy_guard_test.sh` runs every guard against throwaway local bare repos (`GUARD_TEST_MODE=1`, which refuses
-any non-local remote and fakes the build). It never contacts GitHub.
+- `tests/deploy_guard_test.sh` runs every guard against throwaway local bare repos, plus a `127.0.0.1` http server that
+  publishes pushes the way Pages does. It sets `GUARD_TEST_MODE=1`, which refuses any non-local remote or URL and
+  uses a fake build that honours `VITE_*` like Vite. It never contacts GitHub or a Worker.
+- `GUARD_*` variables, including `GUARD_BUILD_CMD`, are refused outside test mode.
+- `tests/deploy_guard_mutation_test.sh` removes one guard at a time from a temp copy of the script and checks that
+  the guard tests then fail.
