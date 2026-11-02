@@ -318,6 +318,16 @@ export function withRandomStarter<T extends { characters: any[] }>(state: T, rng
   return { ...state, characters };
 }
 
+/** Fixed first-run look for automated runs and a house reset: c1's own colours in the chibi style with sparkle eyes.
+ *  Deterministic so tests and shots stay stable. A doll that already has a look2 is left alone. */
+export function withStarterLook<T extends { characters: any[] }>(state: T): T {
+  const c0 = state.characters[0];
+  if (!c0 || c0.look2) return state;
+  const characters = state.characters.slice();
+  characters[0] = { ...c0, look2: { ...look2FromLegacy(c0), eyes: 'sparkle' } };
+  return { ...state, characters };
+}
+
 export function lookStamp(c: { skin: string; hair: string; hairStyle: number; shirt: string; pants: string; acc: number; look2?: Look2 | null; costume?: string | null }): string {
   const base = [c.skin, c.hair, c.hairStyle, c.shirt, c.pants, c.acc, c.look2 ? JSON.stringify(c.look2) : ''].join('|');
   return c.costume ? base + '|cos:' + c.costume : base;
