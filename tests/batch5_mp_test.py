@@ -62,6 +62,11 @@ async def first_run(b):
     s = await pg.evaluate(FIRST); ph = await pg.evaluate("document.body.classList.contains('phone')")
     check('first run: rotating sideways (no OK tap) still brings the mode tip', before['phone'] == 1 and s['phone'] == 0 and s['hint'] == 1, json.dumps([before, s, ph]))
     await pg.screenshot(path=f'{SHOTS}/b5-02c-rotated-tip.png')
+    # Turn back to portrait: the "turn sideways" note must not come back over the tip (she already turned).
+    await pg.set_viewport_size({'width': 390, 'height': 844}); await pg.wait_for_timeout(1200)
+    s2 = await pg.evaluate(FIRST)
+    check('first run: back in portrait, the turn-sideways note stays away', s2['phone'] == 0 and s2['wn'] == 0, json.dumps(s2))
+    await pg.screenshot(path=f'{SHOTS}/b5-02d-portrait-again.png')
     await c.close()
 
 async def street(cb, wb):

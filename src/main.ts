@@ -4885,6 +4885,8 @@ function showWhatsNew() {
       // The note also hides on its own when the phone turns sideways (CSS), with no OK tap. Either way, the tip is next.
       const done = () => {
         if (firstCardDone || (!note.classList.contains('hidden') && getComputedStyle(note).display !== 'none')) return;
+        // She turned sideways, so the note did its job: keep it away if she turns back (same as tapping OK).
+        note.classList.add('hidden');
         firstCardDone = true; window.removeEventListener('resize', done); play.hint();
       };
       $('phoneOk').addEventListener('click', () => setTimeout(done, 0), { once: true });
