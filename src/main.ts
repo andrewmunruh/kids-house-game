@@ -2872,6 +2872,7 @@ function renderMap(force = false) {
   renderCandyBucket();
   renderMapFaces();
   placeMap(sc);
+  renderMapFaces(); // again once laid out, so faces can step clear of mailboxes/pumpkins
 }
 const baseTaken = () => [{ x: PARK.x, y: PARK.y, r: 115 }, { x: RANCH.x, y: RANCH.y, r: 125 }, { x: SQUARE.x, y: SQUARE.y, r: 100 }, { x: CLUB.x, y: CLUB.y, r: 90 }];
 /** Where n houses go: evenly along the road, on whichever side has more room (never on the park, ranch or square). */
@@ -2934,6 +2935,7 @@ function renderMapFaces() {
         fx = an.x + (col - (m - 1) / 2) * step; fy = an.y - row * (activeMap.portrait ? 108 : 64);
       }
       if (activeMap.portrait) { fx = Math.max(100, Math.min(activeMap.w - 100, fx)); fy = Math.max(48, Math.min(activeMap.h - 84, fy)); }
+      ({ fx, fy } = clearOfSmallTargets(fx, fy, sc));
       keep.add(x.key);
       let el = box.querySelector<HTMLElement>(`.mapFace[data-pid="${x.key}"]`);
       if (!el) { el = document.createElement('button'); el.className = 'mapFace ' + (x.mine ? 'mine' : 'other'); el.dataset.pid = x.key; el.setAttribute('aria-label', x.mine ? 'You' : x.name); box.appendChild(el); }
@@ -2945,6 +2947,31 @@ function renderMapFaces() {
   }
   box.querySelectorAll<HTMLElement>('.mapFace').forEach(el => { if (!keep.has(el.dataset.pid!)) el.remove(); });
   updateNear();
+}
+/**
+ * On a small map (phone sideways) a face can land on a mailbox or a pumpkin, and then one of them
+ * cannot get a 44px tap. Slide the face just far enough (straight up/down/left/right) that each keeps
+ * its own 44px square. Map units in and out; a no-op when nothing is that close.
+ */
+const TAP = 54; // half a 46px mailbox/pumpkin pad + half the face pad (48px) + its name tag
+function clearOfSmallTargets(fx: number, fy: number, sc: number) {
+  const box = document.querySelector<HTMLElement>('#mapWorld .mapFaces'); if (!box) return { fx, fy };
+  const br = box.getBoundingClientRect();
+  const obs = [...document.querySelectorAll<HTMLElement>('#mapWorld .mapMail, #mapWorld .mapKnock')].map(e => e.getBoundingClientRect()).filter(r => r.width > 0)
+    .map(r => ({ x: (r.left + r.width / 2 - br.left) / sc, y: (r.top + r.height / 2 - br.top) / sc }));
+  const need = TAP / sc;
+  const free = (x: number, y: number) => !obs.some(o => Math.abs(o.x - x) < need && Math.abs(o.y - y) < need);
+  if (free(fx, fy)) return { fx, fy };
+  // Candidates: beside each obstacle, and beside pairs (corner spots), nearest one that clears them all.
+  const n2 = need + 0.5; // a hair past the edge, so float rounding can't put it back inside
+  const xs = [fx, ...obs.flatMap(o => [o.x - n2, o.x + n2])], ys = [fy, ...obs.flatMap(o => [o.y - n2, o.y + n2])];
+  let best: { fx: number; fy: number } | null = null, bd = 1e9;
+  for (const x of xs) for (const y of ys) {
+    if (x < 24 / sc || x > activeMap.w - 24 / sc || y < 24 / sc || y > activeMap.h - 24 / sc || !free(x, y)) continue;
+    const d = Math.hypot(x - fx, y - fy); if (d < bd) { bd = d; best = { fx: x, fy: y }; }
+  }
+  if (best) { fx = best.fx; fy = best.fy; }
+  return { fx, fy };
 }
 /** Zoom into the tapped spot, then go there (the new scene fades in). */
 /** Clear a leftover zoom class (older builds zoomed for 360ms before going; now the trip is instant and the new scene fades in). */
