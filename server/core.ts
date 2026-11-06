@@ -26,7 +26,7 @@ const byAge = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
 const ART_BURST = 14, ART_REFILL_MS = 4000;
 /** A just-saved painting is placed by the client after the ack; until it is hung (or this long passes) it is never cleared. */
 const ART_FRESH_MS = 90_000;
-export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; halloween?: number; cos?: number; needs?: number; art?: number }
+export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; halloween?: number; cos?: number; needs?: number; art?: number; hb?: number; lastRx?: number }
 /** Not a real socket. Baby release is broadcast to every baby client, including the kid who just left. */
 const RELEASE_SENDER: Conn = { send() {}, close() {} };
 
@@ -41,6 +41,9 @@ export async function sha256(s: string) { const d = await crypto.subtle.digest('
 export function randomToken(bytes = 18) { const a = new Uint8Array(bytes); crypto.getRandomValues(a); return [...a].map(b => b.toString(16).padStart(2, '0')).join(''); }
 export function randomCode(alphabet: string, len: number) { const a = new Uint8Array(len); crypto.getRandomValues(a); return [...a].map(b => alphabet[b % alphabet.length]).join(''); }
 
+/** A socket that said hb:1 and then sends nothing for this long is treated as gone (iPad asleep, wifi dropped). Old clients never say hb:1 and are never dropped this way. */
+export const IDLE_MS = 40_000;
+const IDLE_SWEEP_MS = 5_000;
 const MAX_MSG = 300_000;          // join with an imported house can be large-ish
 const MAX_HOUSE_JSON = 400_000;
 const MSGS_PER_SEC = 80;
@@ -130,7 +133,7 @@ export class Neighborhood {
   private welcome(c: Conn) {
     const presence: Record<string, Presence> = {};
     this.presence.forEach((p, k) => { presence[k] = this.viewPresence(p, c); });
-    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean).map(h => this.wireHouse(h, c)), presence, sit: 1, baby: 1, amb: 1, cos: 1, needs: 1, art: 1, ranch: { plots: cleanPlots(this.meta!.ranch?.plots), now: Date.now() }, ...((c.v ?? 1) >= PROTO_GAMES ? { tables: this.tables.map((_, i) => this.tablePub(i, c.pid!)) } : {}) });
+    this.send(c, { t: 'welcome', pid: c.pid!, settings: this.meta!.settings, players: this.players(), houses: this.meta!.houseOrder.map(id => this.houses.get(id)!).filter(Boolean).map(h => this.wireHouse(h, c)), presence, sit: 1, baby: 1, amb: 1, cos: 1, needs: 1, art: 1, ...(c.hb ? { hb: 1 as const } : {}), ranch: { plots: cleanPlots(this.meta!.ranch?.plots), now: Date.now() }, ...((c.v ?? 1) >= PROTO_GAMES ? { tables: this.tables.map((_, i) => this.tablePub(i, c.pid!)) } : {}) });
   }
   /** Clients that did not say sit:1 draw her standing. The seat field stays off their copy. */
   private viewPresence(p: Presence, c: Conn): Presence {
@@ -419,6 +422,23 @@ export class Neighborhood {
       try { old.close(4000, 'replaced'); } catch { /* peer already gone */ }
     }
   }
+  // ---------- idle drop (hb:1 sockets only) ----------
+  private idleT: ReturnType<typeof setInterval> | null = null;
+  private armIdle() {
+    if (this.idleT) return;
+    this.idleT = setInterval(() => this.sweepIdle(), IDLE_SWEEP_MS);
+  }
+  /** Close hb:1 sockets that went silent. She leaves friends' screens like any closed socket; her token rejoins her cleanly. */
+  sweepIdle(now = Date.now()) {
+    let any = false;
+    for (const c of [...this.conns]) {
+      if (!c.hb || !c.pid) continue;
+      if (now - (c.lastRx ?? now) <= IDLE_MS) { any = true; continue; }
+      try { c.close(4001, 'idle'); } catch { /* peer already gone */ }
+      this.onClose(c); // a half-open socket may never report its close
+    }
+    if (!any && this.idleT) { clearInterval(this.idleT); this.idleT = null; }
+  }
   onClose(c: Conn) {
     // Only the socket still registered for this connection. A replaced socket, or a close that fires twice, leaves the live one alone.
     if (!this.conns.has(c)) return;
@@ -438,6 +458,7 @@ export class Neighborhood {
   /** Messages are processed strictly one at a time so validation can't race (e.g. two kids picking the same nickname). */
   private queue: Promise<void> = Promise.resolve();
   onMessage(c: Conn, raw: string): Promise<void> {
+    c.lastRx = Date.now();
     const run = this.queue.then(() => this.handle(c, raw)).catch(() => {});
     this.queue = run; return run;
   }
@@ -461,6 +482,7 @@ export class Neighborhood {
         c.cos = m.cos === 1 ? 1 : 0;
         c.needs = m.needs === 1 ? 1 : 0;
         c.art = m.art === 1 ? 1 : 0;
+        c.hb = m.hb === 1 ? 1 : 0; if (c.hb) { c.lastRx = Date.now(); this.armIdle(); }
         const h = typeof m.token === 'string' ? await sha256(m.token) : '';
         const p = h ? Object.values(meta.players).find(p => p.tokenHash === h) : undefined;
         if (!p) { this.send(c, { t: 'error', code: 'badtoken' }); return; }
@@ -480,6 +502,7 @@ export class Neighborhood {
         c.cos = m.cos === 1 ? 1 : 0;
         c.needs = m.needs === 1 ? 1 : 0;
         c.art = m.art === 1 ? 1 : 0;
+        c.hb = m.hb === 1 ? 1 : 0; if (c.hb) { c.lastRx = Date.now(); this.armIdle(); }
         const roster = meta.roster ?? [];
         let nickname: string;
         if (roster.length) {
@@ -516,6 +539,7 @@ export class Neighborhood {
         return;
       }
       case 'parent': return this.onParent(c, m);
+      case 'ping': if (c.hb) this.send(c, { t: 'pong' }); return;
     }
     if (!c.pid || !meta.players[c.pid]) { // everything below needs a joined player of this street
       if (m.t === 'art' && (c.art ?? 0) >= 1) this.send(c, { t: 'artFail', houseId: String(m.houseId ?? '').slice(0, 40), id: String(m.id ?? '').slice(0, 30), reason: 'member' });
