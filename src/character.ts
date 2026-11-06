@@ -1,5 +1,5 @@
 import type { Character } from './shared/state';
-import type { Look2 } from './shared/avatar';
+import { look2FromLegacy, type Look2 } from './shared/avatar';
 import { chibiCradleFront, chibiSVG, handsOf, poseFor } from './avatar/draw';
 import { cradleArm, cradleSkin } from './baby/arms';
 import { poseNamed } from './avatar/sit';
@@ -47,9 +47,20 @@ function hair(style: number, c: string, back: boolean) {
   return `<path d="M21 46 Q18 12 50 12 Q82 12 79 46 Q72 30 58 28 Q50 36 36 30 Q26 34 21 46 Z" fill="${c}" ${s}/>`;
 }
 
+/**
+ * Andy's call (A-05, A-16, A-20): when true, a legacy kid who is sitting, lying, or wearing a costume
+ * draws with the chibi rig built from her legacy colors. Render only: her save keeps no look2.
+ * Default off, so legacy kids look exactly as they did.
+ */
+export const LEGACY_SIT_RIG = false;
+
 export function characterSVG(c: Pick<Character, 'skin' | 'hair' | 'hairStyle' | 'shirt' | 'pants'> & { acc?: number; look2?: Look2 | null } & Cos, poseName?: 'sit' | 'lie' | null, holding?: boolean) {
   const pose = poseNamed(poseName);
   const cos = costumeOf(c);
+  if (LEGACY_SIT_RIG && !c.look2) {
+    const lcos = shownCostume(c);
+    if (poseName === 'sit' || poseName === 'lie' || lcos) return chibiSVG(look2FromLegacy(c), { rich: richAvatars(), pose: pose ?? undefined, poseName: poseName || undefined, holding, costume: lcos });
+  }
   if (cos && c.look2) return chibiSVG(c.look2, { rich: richAvatars(), pose: pose ?? undefined, poseName: poseName || undefined, holding, costume: cos });
   if (c.look2) return chibiSVG(c.look2, { rich: richAvatars(), pose: pose ?? undefined, poseName: poseName || undefined, holding });
   if (poseName === 'sit' || poseName === 'lie') return classicPose(c, poseName, holding);

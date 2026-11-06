@@ -40,7 +40,8 @@ def pillow_ok(kind, c):
     L = 0.3 * r + 0.5 * g + 0.2 * b
     if 'checker' in kind: return r > 200 and g > 160 and b < 170
     if 'wooden' in kind: return r > 180 and g > 140 and L > 150
-    if 'bunk' in kind: return L > 170 and r > 170
+    # Bottom bunk: the light-blue pillow (A-07), not the white sheet the old head used.
+    if 'bunk' in kind: return L > 150 and b > 180 and b > r
     if 'heart' in kind: return L > 150 and b > 140
     # Red plaid quilt, cream pillow: the pillow is light but not the default red-white.
     if 'wc-plaid' in kind: return L > 170 and r > 175 and g > 155
@@ -326,14 +327,17 @@ async def own_avatar(browser):
       const br = bed ? bed.getBoundingClientRect() : null;
       const hr = head ? head.getBoundingClientRect() : null;
       let widest = 0;
-      document.querySelectorAll('.item').forEach(n => { const r = n.getBoundingClientRect(); if (r.width > 2) widest = Math.max(widest, r.width / stage.width); });
+      let widestKind = '';
+      document.querySelectorAll('.item').forEach(n => { const r = n.getBoundingClientRect(); if (r.width > 2 && r.width / stage.width > widest) { widest = r.width / stage.width; widestKind = n.dataset.kind || n.dataset.id || n.className; } });
       const inside = (r) => r && r.left > stage.left - 8 && r.right < stage.right + 8 && r.top > stage.top - 8 && r.bottom < stage.bottom + 40;
-      return { matrix: m, widest, bedIn: inside(br), headIn: inside(hr), lie: !!(el && el.classList.contains('pose-lie')) };
+      return { matrix: m, widest, widestKind, bedIn: inside(br), headIn: inside(hr), lie: !!(el && el.classList.contains('pose-lie')) };
     }""")
     if not phone.get('lie') or not phone.get('matrix') or abs(phone['matrix'][0]) > 0.2 or abs(phone['matrix'][1]) < 0.9:
         fail('390 own avatar upright ' + str(phone.get('matrix')))
-    if phone.get('widest', 1) > 0.58:
-        fail(f'390 play zoom {phone.get("widest")}')
+    # 390 portrait play now fills the width (later portrait zoom), so the 300px bed is ~0.70 of the stage.
+    # What matters here is that the bed and her head stay in view (checked below); 0.58 was the old zoom.
+    if phone.get('widest', 1) > 0.75:
+        fail(f'390 play zoom {phone.get("widest")} {phone.get("widestKind")}')
     if not phone.get('bedIn') or not phone.get('headIn'):
         fail('390 play did not keep the doll and the bed in view ' + str(phone))
     await pg.locator('.stage').screenshot(path=f'{OUT}/avatar-lie-390x844.png')

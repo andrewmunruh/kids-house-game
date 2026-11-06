@@ -12,7 +12,7 @@ import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROS
 import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } from './pets';
 import { mailboxArt, installMail } from './mail';
 import { installPlayMode, playGesture } from './playmode';
-import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, standBeside, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
+import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, seatFrontKind, standBeside, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
 import { babyOccupant } from './shared/baby';
 import { installBaby } from './baby/view';
 import { poseNamed } from './avatar/sit';
@@ -890,15 +890,7 @@ function seatUnderPointer(cx: number, cy: number): PlacedItem | null {
   }
   return null;
 }
-function seatFrontClass(kind: string): string {
-  const art = bedArt(kind);
-  if (art) return 'k-bed k-bed-' + art.clip;
-  const k = kind.toLowerCase();
-  if (/sofa|couch|loveseat/.test(k)) return 'k-sofa';
-  if (/bench/.test(k)) return 'k-bench';
-  if (/chair|stool|rocker/.test(k)) return 'k-chair';
-  return '';
-}
+function seatFrontClass(kind: string): string { return seatFrontKind(kind); }
 function seatedHere(): Map<string, number> {
   const s = store.get();
   const ids = new Map<string, number>();
