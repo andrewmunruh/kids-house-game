@@ -5,7 +5,8 @@ usage: sw_killswitch_test.py --old OLD_DIST --new NEW --new2 NEW2 --kill KILL --
 OLD  = a build with the pre-Batch-8 worker ('cozy-v1' forever), e.g. main 12cdfdc or prod 10ef736
 NEW/NEW2 = two builds of the branch (different COZY_BUILD); KILL = COZY_SW_KILL=1 build;
 OFF  = NEW with sw-switch.json {"sw":"off"}.
-One tiny local web server swaps which build it serves at /kids-house-game/ (Cache-Control: no-cache),
+One tiny local web server swaps which build it serves at /kids-house-game/ and optionally /cozy-preview/
+(Cache-Control: no-cache),
 and can go "offline" (drops connections). Every page is opened with ?hood=<local hood>; any request
 to a host other than localhost fails the test.
 """
@@ -18,9 +19,13 @@ ap = argparse.ArgumentParser()
 for a in ('old', 'new', 'new2', 'kill', 'off', 'hood'): ap.add_argument('--' + a, required=True)
 ap.add_argument('--browser', default='chromium'); ap.add_argument('--port', type=int, default=7471)
 ap.add_argument('--only', default='')
+# Preview-base builds for the dual-scope isolation case (same origin, /cozy-preview/).
+ap.add_argument('--prev-new', default=''); ap.add_argument('--prev-kill', default=''); ap.add_argument('--prev-off', default='')
 A = ap.parse_args()
-STATE = {'dir': A.old, 'down': False}
-PREFIX = '/kids-house-game/'
+PROD = '/kids-house-game/'
+PREV = '/cozy-preview/'
+# dirs maps URL prefix -> dist directory. Single-prefix scenarios only set PROD.
+STATE = {'dirs': {PROD: A.old}, 'down': False}
 TYPES = {'.js': 'text/javascript', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.webp': 'image/webp',
          '.svg': 'image/svg+xml', '.png': 'image/png', '.css': 'text/css', '.html': 'text/html', '.mp3': 'audio/mpeg', '.woff2': 'font/woff2'}
 
@@ -32,9 +37,13 @@ class H(SimpleHTTPRequestHandler):
             except OSError: pass
             self.close_connection = True; return
         p = urlparse(self.path).path
-        if not p.startswith(PREFIX): self.send_error(404); return
-        rel = p[len(PREFIX):] or 'index.html'
-        f = os.path.join(STATE['dir'], rel)
+        prefix = None
+        for pref in sorted(STATE['dirs'], key=len, reverse=True):
+            if p.startswith(pref):
+                prefix = pref; break
+        if not prefix: self.send_error(404); return
+        rel = p[len(prefix):] or 'index.html'
+        f = os.path.join(STATE['dirs'][prefix], rel)
         if os.path.isdir(f): f = os.path.join(f, 'index.html')
         if not os.path.isfile(f): self.send_error(404); return
         body = open(f, 'rb').read()
@@ -44,17 +53,33 @@ class H(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
 srv = ThreadingHTTPServer(('127.0.0.1', A.port), H); threading.Thread(target=srv.serve_forever, daemon=True).start()
-URL = f'http://localhost:{A.port}{PREFIX}?hood={A.hood}'
+URL = f'http://localhost:{A.port}{PROD}?hood={A.hood}'
+PREV_URL = f'http://localhost:{A.port}{PREV}?hood={A.hood}'
 RES = []; FOREIGN = []
 def ok(name, cond, extra=''):
     RES.append(bool(cond)); print(('PASS ' if cond else 'FAIL ') + name + (f'  [{extra}]' if extra else ''), flush=True)
 
 WAIT_CTL = """async (ms) => { const sw = navigator.serviceWorker; if (!sw) return false; if (sw.controller) return true;
   return await new Promise(r => { const t = setTimeout(() => r(!!sw.controller), ms); sw.addEventListener('controllerchange', () => { clearTimeout(t); r(true); }, { once: true }); }); }"""
-INFO = """async () => ({ ctl: !!navigator.serviceWorker.controller, ctlUrl: navigator.serviceWorker.controller ? navigator.serviceWorker.controller.scriptURL : '',
-  regs: (await navigator.serviceWorker.getRegistrations()).length, caches: await caches.keys(),
-  stage: !!document.getElementById('stage') && document.getElementById('stage').getBoundingClientRect().width > 100,
-  save: localStorage.getItem('cozy-house') })"""
+INFO = """async () => {
+  const regs = await navigator.serviceWorker.getRegistrations();
+  const cachesNames = await caches.keys();
+  let v1urls = [];
+  if (cachesNames.includes('cozy-v1')) {
+    const c = await caches.open('cozy-v1');
+    v1urls = (await c.keys()).map(r => new URL(r.url).pathname);
+  }
+  return {
+    ctl: !!navigator.serviceWorker.controller,
+    ctlUrl: navigator.serviceWorker.controller ? navigator.serviceWorker.controller.scriptURL : '',
+    regs: regs.length,
+    scopes: regs.map(r => new URL(r.scope).pathname),
+    caches: cachesNames,
+    v1urls,
+    stage: !!document.getElementById('stage') && document.getElementById('stage').getBoundingClientRect().width > 100,
+    save: localStorage.getItem('cozy-house')
+  };
+}"""
 
 def poll(page, js, pred, secs=20):
     end = time.time() + secs; v = None
@@ -81,11 +106,14 @@ def fresh(pw, bname):
     page.on('pageerror', lambda e: errs.append(str(e)))
     return br, ctx, page, errs
 
-def load_controlled(page, d):
-    STATE['dir'] = d; STATE['down'] = False
-    page.goto(URL, wait_until='load'); page.evaluate(WAIT_CTL, 15000)
+def load_controlled(page, d, prefix=PROD, url=None):
+    STATE['dirs'][prefix] = d; STATE['down'] = False
+    page.goto(url or (PREV_URL if prefix == PREV else URL), wait_until='load'); page.evaluate(WAIT_CTL, 15000)
     rl(page); page.wait_for_timeout(1500)  # second load goes through the worker (cached for offline)
     return page.evaluate(INFO)
+
+def set_dir(prefix, d):
+    STATE['dirs'][prefix] = d
 
 def rl(page):
     """Reload; a worker-driven navigation may race it, so settle on whatever page ends up loaded."""
@@ -113,7 +141,7 @@ with sync_playwright() as pw:
         br, ctx, page, errs = fresh(pw, A.browser)
         i0 = load_controlled(page, A.old); save0 = put_house(page)
         ok('kill: old build is controlled by its worker', i0['ctl'] and i0['regs'] >= 1, str(i0['caches']))
-        STATE['dir'] = A.kill
+        set_dir(PROD, A.kill)
         rl(page)
         i1, gone = poll(page, INFO, lambda v: v['regs'] == 0 and not any(k == 'cozy-v1' or k.startswith('cozy:') for k in v['caches']), 25)
         ok('kill: old worker unregistered and its caches deleted', gone, str({k: i1.get(k) for k in ('regs', 'caches', 'ctl')}))
@@ -129,7 +157,7 @@ with sync_playwright() as pw:
         br, ctx, page, errs = fresh(pw, A.browser)
         i0 = load_controlled(page, A.old); save0 = put_house(page)
         ok('upgrade: old build caches into cozy-v1', 'cozy-v1' in i0['caches'], str(i0['caches']))
-        STATE['dir'] = A.new
+        set_dir(PROD, A.new)
         rl(page)
         i1, up = poll(page, INFO, lambda v: v['ctl'] and 'cozy-v1' not in v['caches'], 25)
         ok('upgrade: new worker took over, cozy-v1 deleted', up, str(i1.get('caches')))
@@ -147,7 +175,7 @@ with sync_playwright() as pw:
         ok('update: first build controlled, one app cache', i0['ctl'] and len(apps0) == 1, str(i0['caches']))
         page.wait_for_timeout(1500)
         ok('update: no refresh note on a fresh install', page.locator('.updateNote').count() == 0)
-        STATE['dir'] = A.new2
+        set_dir(PROD, A.new2)
         page.evaluate("async () => { const r = await navigator.serviceWorker.getRegistration(); await r.update(); }")
         try: page.wait_for_selector('.updateNote', timeout=20000); shown = True
         except Exception: shown = False
@@ -167,7 +195,7 @@ with sync_playwright() as pw:
         navs = []; page.on('framenavigated', lambda f: navs.append(time.time()) if f == page.main_frame else None)
         i0 = load_controlled(page, A.new); save0 = put_house(page)
         ok('off: controlled before the switch', i0['ctl'])
-        STATE['dir'] = A.off; n0 = len(navs)
+        set_dir(PROD, A.off); n0 = len(navs)
         rl(page)
         i1, gone = poll(page, INFO, lambda v: v['regs'] == 0 and not v['ctl'] and not any(k.startswith('cozy:') or k == 'cozy-v1' for k in v['caches']), 25)
         page.wait_for_timeout(3000); i1 = page.evaluate(INFO)
@@ -192,6 +220,70 @@ with sync_playwright() as pw:
         hood_cached = page.evaluate("async (h) => { for (const k of await caches.keys()) { const c = await caches.open(k); for (const r of await c.keys()) if (r.url.startsWith(h) || r.url.includes('sw-switch.json')) return r.url; } return ''; }", A.hood)
         ok('offline: no hood server or switch response in any cache', hood_cached == '', hood_cached)
         STATE['down'] = False; br.close()
+
+
+    # F. Same origin, two scopes: preview Batch 8 must not wipe production's cozy-v1 or its registration.
+    # Requires --prev-new/--prev-kill/--prev-off (VITE_BASE=/cozy-preview/ builds).
+    if want('scopes'):
+        if not (A.prev_new and A.prev_kill and A.prev_off):
+            ok('scopes: preview dists provided (--prev-new/--prev-kill/--prev-off)', False, 'missing args')
+        else:
+            br, ctx, page, errs = fresh(pw, A.browser)
+            # Populate production-style cozy-v1 from the old client at /kids-house-game/.
+            i0 = load_controlled(page, A.old, PROD, URL)
+            ok('scopes: prod old controlled with cozy-v1', i0['ctl'] and 'cozy-v1' in i0['caches'] and PROD in i0['scopes'], str(i0.get('caches')))
+            ok('scopes: cozy-v1 holds production URLs', any(u.startswith(PROD) for u in i0.get('v1urls', [])), str(i0.get('v1urls', [])[:5]))
+
+            def assert_prod_untouched(label, info):
+                ok(f'scopes/{label}: cozy-v1 still present', 'cozy-v1' in info['caches'], str(info.get('caches')))
+                ok(f'scopes/{label}: production URLs still in cozy-v1', any(u.startswith(PROD) for u in info.get('v1urls', [])), str(info.get('v1urls', [])[:5]))
+                ok(f'scopes/{label}: production registration still present', PROD in info.get('scopes', []), str(info.get('scopes')))
+
+            # F1: preview NEW worker activates — must not delete cozy-v1.
+            set_dir(PREV, A.prev_new)
+            prev = ctx.new_page()
+            i1 = load_controlled(prev, A.prev_new, PREV, PREV_URL)
+            ok('scopes/new: preview controlled under /cozy-preview/', i1['ctl'] and PREV in i1.get('scopes', []), str(i1.get('scopes')))
+            i1b = page.evaluate(INFO)
+            assert_prod_untouched('new', i1b)
+            ok('scopes/new: preview has scoped caches', any(k.startswith('cozy:' + PREV) for k in i1b['caches']), str(i1b['caches']))
+            prev.close()
+
+            # F2: preview KILL worker — cleans preview scope only.
+            set_dir(PREV, A.prev_kill)
+            prev = ctx.new_page()
+            prev.goto(PREV_URL, wait_until='load')
+            i2, done = poll(prev, INFO, lambda v: PREV not in v.get('scopes', []) and 'cozy-v1' in v.get('caches', []), 25)
+            ok('scopes/kill: preview registration gone', done and PREV not in i2.get('scopes', []), str(i2.get('scopes')))
+            i2b = page.evaluate(INFO)
+            assert_prod_untouched('kill', i2b)
+            prev.close()
+
+            # Re-seed preview NEW so switch-off has a worker to remove.
+            set_dir(PREV, A.prev_new)
+            prev = ctx.new_page()
+            load_controlled(prev, A.prev_new, PREV, PREV_URL)
+            prev.close()
+
+            # F3: preview switch-off (page JS killSW) — must not delete cozy-v1.
+            set_dir(PREV, A.prev_off)
+            prev = ctx.new_page()
+            prev.goto(PREV_URL, wait_until='load')
+            i3, done = poll(prev, INFO, lambda v: PREV not in v.get('scopes', []) and 'cozy-v1' in v.get('caches', []), 25)
+            ok('scopes/off: preview registration gone after switch-off', done and PREV not in i3.get('scopes', []), str(i3.get('scopes')))
+            i3b = page.evaluate(INFO)
+            assert_prod_untouched('off', i3b)
+            prev.close()
+
+            # F4 reverse: production NEW build still cleans its own cozy-v1.
+            set_dir(PROD, A.new)
+            rl(page)
+            i4, cleaned = poll(page, INFO, lambda v: v['ctl'] and 'cozy-v1' not in v['caches'] and any(k.startswith('cozy:' + PROD) for k in v['caches']), 25)
+            ok('scopes/prod: production Batch 8 deletes cozy-v1', cleaned, str(i4.get('caches')))
+            ok('scopes/prod: production scoped app cache present', any(k.startswith('cozy:' + PROD + 'app:') for k in i4.get('caches', [])), str(i4.get('caches')))
+            ok('scopes: no page errors', not errs, '; '.join(errs[:3]))
+            br.close()
+
 
 ok('no request left localhost', not FOREIGN, ' '.join(FOREIGN[:3]))
 srv.shutdown()

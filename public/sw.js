@@ -4,7 +4,8 @@
 //   on the same origin never delete each other's files.
 // - Only same-origin GETs inside our scope are handled. The neighborhood server (another origin)
 //   and sw-switch.json always go straight to the network and are never cached.
-// - On activate, old app caches of this scope and the legacy one-cache-forever 'cozy-v1' are deleted.
+// - On activate, old app caches of this scope are deleted. The legacy 'cozy-v1' cache is deleted
+//   only when this worker's scope is /kids-house-game/ (production); preview never touches it.
 // - Kill switch: see sw/kill.js and src/sw-client.ts (sw-switch.json).
 const BUILD = '__COZY_BUILD__';
 const SCOPE = new URL(self.registration.scope).pathname;
@@ -12,13 +13,19 @@ const PFX = 'cozy:' + SCOPE + ':';
 const APP = PFX + 'app:' + BUILD;
 const ART = PFX + 'art';
 const ART_MAX = 900; // paintings kept (oldest dropped first); a full house set is ~600
-const LEGACY = ['cozy-v1'];
+// Pre-Batch-8 builds stored everything in one origin-wide 'cozy-v1' cache.
+// Production (/kids-house-game/) and preview (/cozy-preview/) share andrewmunruh.github.io,
+// so only the production scope may delete that legacy cache. Preview must leave it alone
+// or an iPad that opened both would lose production's offline shell. When production ships
+// Batch 8 it still clears cozy-v1 (and moves to scoped cozy:/kids-house-game/:… caches).
+const LEGACY = 'cozy-v1';
+const OWN_LEGACY = SCOPE === '/kids-house-game/';
 
 self.addEventListener('install', () => { self.skipWaiting(); });
 async function sweep() {
   try {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(k => LEGACY.includes(k) || (k.startsWith(PFX + 'app:') && k !== APP)).map(k => caches.delete(k)));
+    await Promise.all(keys.filter(k => (OWN_LEGACY && k === LEGACY) || (k.startsWith(PFX + 'app:') && k !== APP)).map(k => caches.delete(k)));
   } catch (err) { /* storage trouble must never block the game */ }
 }
 // Sweep again on the first request this worker serves: a write the old worker had in flight
