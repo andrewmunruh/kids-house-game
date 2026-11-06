@@ -870,6 +870,13 @@ async def check_yard_door(pg, tag):
           and box['doorIn'] and box['artIn'] and box['hintIn'] and box['clear'] and box['onDoor'] and box['fs'] >= 13,
           str(box))
 
+async def finger_tap(pg, sel):
+    """Touch the centre of `sel` without Playwright's hit-target wait (whatever is on top gets the touch)."""
+    loc = pg.locator(sel)
+    await loc.wait_for(state='visible', timeout=10000)
+    b = await loc.bounding_box()
+    await pg.touchscreen.tap(b['x'] + b['width'] / 2, b['y'] + b['height'] / 2)
+
 async def tap_yard_door(pg, tag):
     """A real click, not a dispatched event, and the kid is in the yard afterwards."""
     await pg.evaluate("""() => { if (__store.get().currentRoom !== 'living') __store.dispatch({type:'room/switch', room:'living'}); }""")
@@ -913,7 +920,11 @@ async def tap_yard_door(pg, tag):
         top: (document.elementFromPoint((hint.getBoundingClientRect().left + hint.getBoundingClientRect().right) / 2, (hint.getBoundingClientRect().top + hint.getBoundingClientRect().bottom) / 2) || {}).className || '' };
     }""")
     check(f'{tag} a pet sits on the back door', cover and cover['hint'] and cover['door'], str(cover))
-    await pg.locator('.yardHintLabel').tap()
+    # De-flake (Batch 9): the cat is pinned ON the label on purpose, so Playwright's
+    # locator.tap() actionability check ("<circle> from .pet-cat intercepts pointer events")
+    # retries for 30 s and times out at WebKit 375x667. A real finger does not wait for the
+    # label to be topmost: touch the label's centre point directly, as the kid would.
+    await finger_tap(pg, '.yardHintLabel')
     await pg.wait_for_timeout(350)
     room = await pg.evaluate("() => __store.get().currentRoom")
     check(f'{tag} a real touch on Back inside still works with a pet on the door', room == 'living', str(room))
@@ -1147,12 +1158,14 @@ async def yard_door_pass(browser, engine, w, h):
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
-        for w, h in IPADS:
+        # PHONE_ONLY=doors runs just the back-door tap passes (used for the Batch 9 20x de-flake reruns).
+        only_doors = os.environ.get('PHONE_ONLY') == 'doors'
+        for w, h in ([] if only_doors else IPADS):
             await ipad_pass(b, w, h)
-        for w, h in PHONES:
+        for w, h in [] if only_doors else PHONES:
             save = (w, h) in ((390, 844), (844, 390))
             await phone_pass(b, w, h, save)
-        for w, h in SHORT:
+        for w, h in [] if only_doors else SHORT:
             await short_chrome_pass(b, w, h)
         for w, h in DOOR_TAPS:
             await yard_door_pass(b, 'chromium', w, h)
