@@ -76,6 +76,8 @@ The dry run does everything except the push. It:
 6. records the live Worker (the version id and the health probe);
 7. builds the SHA in a temp worktree **twice**, with the cleared and explicit env above, and refuses unless the builds
    are byte-identical and (when given) byte-identical to `--expect-dist`. Then it checks the target:
+
+**Gate dist.** Build `--expect-dist` in a **clean, separate environment** (for example `env -i PATH=$PATH HOME=$HOME` plus the target's `VITE_*` values, or the same empty env the script uses). The script's empty build env stops the caller's shell from leaking into *this* build, but `--expect-dist` is the only check that catches a tampered build tool or a polluted *gate* build of the same SHA. If the gate dist was built in the same polluted shell as a bad deploy candidate, both trees match and the tampering slips through.
    - the manifest name;
    - the hood URL is in the bundle and the other target's hood is not;
    - every absolute `src`/`href` in `index.html` starts with the target's base path;

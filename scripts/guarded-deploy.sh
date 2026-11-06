@@ -104,6 +104,7 @@ else
   done
   [ $APPROVALS_GIVEN = 0 ] || die "--approvals is only allowed in test mode; the approvals log is fixed at /workspace/deploy-approvals.log"
   [ -z "${DEPLOY_APPROVALS:-}" ] || die "DEPLOY_APPROVALS is only allowed in test mode; unset it"
+[ -z "${DEPLOY_HISTORY:-}" ] || die "DEPLOY_HISTORY is only allowed in test mode; unset it"
 fi
 case "$T_PAGES_REMOTE" in https://github.com/andrewmunruh/kids-house-game.git|https://github.com/andrewmunruh/cozy-preview.git|/*) ;; *) die "pages remote not allowed: $T_PAGES_REMOTE";; esac
 if [ "$TARGET" = production ] && [ "$T_PAGES_REMOTE" = https://github.com/andrewmunruh/cozy-preview.git ]; then die "production target pointed at the preview repo"; fi
@@ -337,7 +338,8 @@ echo "live Worker: $T_WORKER version=${WORKER_VERSION:-<not given>} health=$HEAL
 
 # ---------------------------------------------------------------- 5. build twice, byte-identical, target-checked
 step "5. build $SHA for $T_NAME (twice, must be byte-identical)"
-git worktree add -q --detach "$WORK/src" "$SHA"
+# Disable any checkout hooks from the caller's repo: the worktree is for building only.
+git -c core.hooksPath=/dev/null worktree add -q --detach "$WORK/src" "$SHA"
 NM=${GUARD_NODE_MODULES:-$ROOT/node_modules}
 [ -d "$NM" ] || die "no node_modules at $NM (npm ci first)"
 ln -s "$(readlink -f "$NM")" "$WORK/src/node_modules"

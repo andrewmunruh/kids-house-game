@@ -209,7 +209,7 @@ GUARD_PAGES_REMOTE=https://github.com/andrewmunruh/kids-house-game.git run --pro
 refused "needs local absolute paths" && ok "test mode refuses a real (URL) remote" || bad "test mode url"
 GUARD_SITE=https://andrewmunruh.github.io/kids-house-game/ run --production --sha "$MAIN" $(P) --dry-run
 refused "must be http://127.0.0.1" && ok "test mode refuses a real site URL" || bad "test mode site"
-GUARD_TEST_MODE=0 run --production --sha "$MAIN" $(P) --dry-run
+GUARD_TEST_MODE=0 DEPLOY_HISTORY= run --production --sha "$MAIN" $(P) --dry-run
 refused "GUARD_BUILD_CMD is only allowed in test mode" && ok "GUARD_BUILD_CMD refused outside test mode" || bad "build cmd outside test"
 GUARD_PAGES_REMOTE="$T/ppages.git" run --production --sha "$MAIN" $(P) --dry-run
 refused "does not load assets from /kids-house-game/" && ok "production pointed at a preview pages repo refused (content cross-check)" || bad "repo cross-check"
@@ -318,10 +318,18 @@ run --production --sha "$MAIN" $(P | sed 's/card-42/card-7/') --dry-run
 refused "ref=card-7 in" && ok "M2: a prefix of the approved ref does not match (whole-ref compare)" || bad "M2 prefix"
 run --production --sha "$MAIN" $(P | sed 's/card-42/card-77/') --worker-changed-ok --dry-run
 [ "$(rc)" = 0 ] && ok "M2: the exact ref still matches" || bad "M2 exact"
-GUARD_TEST_MODE=0 GUARD_PAGES_REMOTE= GUARD_BUILD_CMD= GUARD_SITE= GUARD_HEALTH_URL= GUARD_NODE_MODULES= GUARD_VERIFY_TRIES= run --production --sha "$MAIN" $(P) --dry-run
+GUARD_TEST_MODE=0 GUARD_PAGES_REMOTE= GUARD_BUILD_CMD= GUARD_SITE= GUARD_HEALTH_URL= GUARD_NODE_MODULES= GUARD_VERIFY_TRIES= DEPLOY_HISTORY= run --production --sha "$MAIN" $(P) --dry-run
 refused "--approvals is only allowed in test mode" && ok "--approvals refused outside test mode" || bad "approvals outside test"
-GUARD_TEST_MODE=0 GUARD_PAGES_REMOTE= GUARD_BUILD_CMD= GUARD_SITE= GUARD_HEALTH_URL= GUARD_NODE_MODULES= GUARD_VERIFY_TRIES= DEPLOY_APPROVALS="$AP" "$SCRIPT" --production --sha "$MAIN" $(P) --dry-run > "$T/out" 2>&1; echo $? > "$T/rc"
+GUARD_TEST_MODE=0 GUARD_PAGES_REMOTE= GUARD_BUILD_CMD= GUARD_SITE= GUARD_HEALTH_URL= GUARD_NODE_MODULES= GUARD_VERIFY_TRIES= DEPLOY_HISTORY= DEPLOY_APPROVALS="$AP" "$SCRIPT" --production --sha "$MAIN" $(P) --dry-run > "$T/out" 2>&1; echo $? > "$T/rc"
 refused "DEPLOY_APPROVALS is only allowed in test mode" && ok "DEPLOY_APPROVALS refused outside test mode" || bad "DEPLOY_APPROVALS outside test"
+GUARD_TEST_MODE=0 GUARD_PAGES_REMOTE= GUARD_BUILD_CMD= GUARD_SITE= GUARD_HEALTH_URL= GUARD_NODE_MODULES= GUARD_VERIFY_TRIES= DEPLOY_HISTORY="$T/h2.log" "$SCRIPT" --production --sha "$MAIN" $(P) --dry-run > "$T/out" 2>&1; echo $? > "$T/rc"
+refused "DEPLOY_HISTORY is only allowed in test mode" && ok "DEPLOY_HISTORY refused outside test mode" || bad "DEPLOY_HISTORY outside test"
+# worktree add must not run the caller's checkout hooks (core.hooksPath=/dev/null)
+mkdir -p "$T/work/.git/hooks"
+printf '#!/bin/sh\necho fired >> "%s/hook.fired"\n' "$T" > "$T/work/.git/hooks/post-checkout"
+chmod +x "$T/work/.git/hooks/post-checkout"; rm -f "$T/hook.fired"
+run --production --sha "$MAIN" $(P) --worker-changed-ok --dry-run
+[ "$(rc)" = 0 ] && [ ! -f "$T/hook.fired" ] && ok "git worktree add runs with core.hooksPath=/dev/null (caller post-checkout did not fire)" || bad "worktree hooksPath"
 cp "$T/nm/.package-lock.json" "$T/nmlock.bak"; echo '{"packages":{"node_modules/a":{"version":"1.0.1","integrity":"sha-x"}}}' > "$T/nm/.package-lock.json"
 run --production --sha "$MAIN" $(P) --dry-run
 refused "node_modules does not match package-lock.json" && ok "node_modules that differs from the lockfile refused" || bad "node_modules mismatch"

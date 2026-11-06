@@ -20,6 +20,7 @@ MUTS=(
   'approval ref compared as a prefix (M2)|s/\$6==r/index(\$6, r)==1/'
   '--approvals allowed outside test mode|s/\[ \$APPROVALS_GIVEN = 0 \] \|\| die/true || die/'
   'DEPLOY_APPROVALS allowed outside test mode|s/\[ -z "\$\{DEPLOY_APPROVALS:-\}" \] \|\| die/true || die/'
+  'DEPLOY_HISTORY allowed outside test mode|s/\[ -z "\$\{DEPLOY_HISTORY:-\}" \] \|\| die/true || die/'
   'production --worker-changed-ok without its own approval|s/\[ "\$T_NAME" = production \] \|\| return 0/return 0/'
   'rollback VERIFIED history line dropped|s/^  hist "target=\$T_NAME ROLLBACK VERIFIED.*$/  true/m'
   'node_modules lockfile check removed|s/^  check_node_modules "\$\{GUARD_NODE_MODULES.*$/  true/m'
