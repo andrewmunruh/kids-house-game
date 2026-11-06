@@ -532,7 +532,7 @@ body.mode-hood.view-park #btnChat { display: block !important; }
 .petPreview svg { width: 150px; height: 120px; }
 .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
 .swatches button { width: 100px; min-height: 48px; padding: 6px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; font-size: 13px; font-weight: 800; border: 3px solid transparent; background: #fff; }
-.swatches button div { width: 84px; height: 62px; } .swatches button svg { width: 100%; height: 100%; }
+.swatches button div { width: 84px; height: 62px; } .swatches button svg, .swatches button img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .nameChips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
 .nameChips button { min-height: 48px; min-width: 48px; padding: 8px 14px; font-size: 16px; font-weight: 800; border-radius: 18px; border: 3px solid var(--ink); background: #fff; box-shadow: 0 4px 0 #e6c9d8; }
 .nameChips button.on { background: #fff3b0; box-shadow: 0 4px 0 #e6c9d8, 0 0 0 3px #ffd166; }
@@ -556,7 +556,7 @@ body.view-gameroom #btnHood { display: none !important; }
 .wnLine:nth-child(1) { background: #e9f9ee; } .wnLine:nth-child(2) { background: #fff1f6; } .wnLine:nth-child(3) { background: #fff8e1; }
 @keyframes wnIn { from { opacity: 0; transform: translateY(16px) scale(.94); } to { opacity: 1; transform: none; } }
 .wnArt { width: 96px; height: 80px; flex: none; }
-.wnArt svg { width: 100%; height: 100%; }
+.wnArt svg, .wnArt img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .wnLine p { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.25; color: var(--ink); }
 .wnLine b { color: #e0558a; }
 .wnGo { margin-top: 18px; font-size: 30px; font-weight: 900; padding: 14px 48px; border-radius: 30px; background: #b9f6ca; border: 5px solid var(--ink); box-shadow: 0 6px 0 #5a3d5c55; animation: wnPulse 1.6s ease-in-out 3; }
@@ -642,7 +642,7 @@ body.phone.phone-portrait .ranchWorld .horse.stallOff svg * { pointer-events: no
 /* basket */
 .basketChip { position: fixed; left: 14px; bottom: 14px; z-index: 9000; display: flex; align-items: center; gap: 8px; background: #fff; border: 4px solid var(--ink); border-radius: 22px; padding: 6px 12px 6px 8px; box-shadow: 0 5px 0 rgba(90,61,92,.25); }
 .basketChip.hidden { display: none; }
-.basketChip .bIcon { width: 44px; height: 38px; } .basketChip .bIcon svg { width: 100%; height: 100%; }
+.basketChip .bIcon { width: 44px; height: 38px; } .basketChip .bIcon svg, .basketChip .bIcon img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .basketChip .bcount { display: flex; align-items: center; gap: 2px; font-size: 19px; font-weight: 900; color: var(--ink); touch-action: none; }
 .basketChip .bcount svg { width: 28px; height: 28px; }
 .basketChip.bump { animation: petHop .35s ease-out; }
@@ -654,7 +654,7 @@ body.view-house:not(.mode-hood) .basketChip, .basketChip { }
 .basketRows { display: flex; gap: 12px; justify-content: center; margin-top: 10px; }
 .bRow { width: 130px; display: flex; flex-direction: column; align-items: center; gap: 4px; border: 4px solid var(--ink); border-radius: 22px; padding: 10px; background: #fff8e1; font-weight: 900; }
 .bRow:disabled { opacity: .45; }
-.bRow svg { width: 64px; height: 64px; } .bRow b { font-size: 26px; }
+.bRow svg, .bRow img { width: 64px; height: 64px; object-fit: contain; display: block; } .bRow b { font-size: 26px; }
 .wnLine:nth-child(4) { background: #eef4ff; } .wnLine:nth-child(5) { background: #f3ecff; }
 .whatsNew .wnList { gap: 8px; }
 body.view-ranch.view-street #btnPark { display: block; }

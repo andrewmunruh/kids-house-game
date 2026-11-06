@@ -4437,7 +4437,7 @@ function openPets(tab: 'cat' | 'dog' = 'cat') {
       <div class="petTabs"><button data-pt="cat" class="${isCat ? 'on' : ''}">🐱 Cat</button><button data-pt="dog" class="${isCat ? '' : 'on'}">🐶 Dog</button></div>
       <p class="hint small">${isCat ? (hood ? 'Your cat lives in your house. Friends can see her when they visit!' : 'Your cat lives in your house. She naps, purrs, and plays!') : (hood ? 'Your dog follows you everywhere: the street, friends\' houses, and the park!' : 'Your dog follows you around the house and to the park!')}</p>
       <div class="petRow"><div class="petPreview">${isCat ? catSprite(d.coat, 'sit', catSVG(d.coat, 'sit')) : dogSprite(d.breed, 'stand', dogSVG(d.breed, 'stand'))}</div>
-        <div class="swatches">${(isCat ? CAT_COATS : DOG_BREEDS).map((c, i) => `<button ${isCat ? 'data-coat' : 'data-breed'}="${i}" class="${i === (isCat ? d.coat : d.breed) ? 'on' : ''}"><div>${isCat ? catSVG(i, 'sit') : dogSVG(i, 'stand')}</div><span>${c.name}</span></button>`).join('')}</div></div>
+        <div class="swatches">${(isCat ? CAT_COATS : DOG_BREEDS).map((c, i) => `<button ${isCat ? 'data-coat' : 'data-breed'}="${i}" class="${i === (isCat ? d.coat : d.breed) ? 'on' : ''}"><div>${isCat ? catSprite(i, 'sit', catSVG(i, 'sit')) : dogSprite(i, 'stand', dogSVG(i, 'stand'))}</div><span>${c.name}</span></button>`).join('')}</div></div>
       <div class="label">Name</div>
       <div class="nameChips">${names.map(n => `<button ${isCat ? 'data-cname' : 'data-dname'}="${n}" class="${n === cur ? 'on' : ''}">${n}</button>`).join('')}</div>
       <input id="petName" class="petName" maxlength="14" autocomplete="off" placeholder="…or type a name" value="${esc(prev)}"/>
@@ -4918,7 +4918,7 @@ function renderBasketChip() {
   const b = myBasket(), any = b.egg + b.carrot + b.flower > 0;
   const show = any && (view === 'ranch' || home);
   chip.classList.toggle('hidden', !show); chip.classList.toggle('inHouse', view === 'house'); if (!show) return;
-  chip.innerHTML = `<span class="bIcon">${basketSVG}</span><span class="bcount" data-kind="egg">${eggSVG}<b>${b.egg}</b></span><span class="bcount" data-kind="carrot">${carrotSVG}<b>${b.carrot}</b></span><span class="bcount" data-kind="flower">${flowerSVG()}<b>${b.flower}</b></span>`;
+  chip.innerHTML = `<span class="bIcon">${ranchPropSprite('basket', basketSVG)}</span><span class="bcount" data-kind="egg">${eggSVG}<b>${b.egg}</b></span><span class="bcount" data-kind="carrot">${carrotSVG}<b>${b.carrot}</b></span><span class="bcount" data-kind="flower">${flowerSVG()}<b>${b.flower}</b></span>`;
 }
 $('basketChip').addEventListener('pointerdown', e => {
   const c = (e.target as HTMLElement).closest<HTMLElement>('.bcount[data-kind="carrot"]');
