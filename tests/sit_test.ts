@@ -87,9 +87,9 @@ async function main() {
   const chair = piece('chair', 'chair-1', 400, 560);
   const bed = piece('bed', 'bed-1', 500, 560);
   const sofaAnchors = anchorsOf(sofa);
-  check('a sofa has two sit anchors', sofaAnchors.length === 2 && sofaAnchors[0].n === 0 && sofaAnchors[1].n === 1 && sofaAnchors[0].pose === 'sit' && Math.abs(sofaAnchors[0].x - (800 - 0.18 * 260)) < 0.01 && Math.abs(sofaAnchors[0].y - (560 - 0.33 * 260)) < 0.01);
+  check('a sofa has two sit anchors', sofaAnchors.length === 2 && sofaAnchors[0].n === 0 && sofaAnchors[1].n === 1 && sofaAnchors[0].pose === 'sit' && Math.abs(sofaAnchors[0].x - (800 - 0.24 * 260)) < 0.01 && Math.abs(sofaAnchors[0].y - (560 - 0.33 * 260)) < 0.01);
   const flipped = anchorsOf({ ...sofa, flip: true });
-  check('a flip mirrors the sofa anchors', Math.abs(flipped[0].x - (800 + 0.18 * 260)) < 0.01 && flipped[0].n === 0);
+  check('a flip mirrors the sofa anchors', Math.abs(flipped[0].x - (800 + 0.24 * 260)) < 0.01 && flipped[0].n === 0);
   const bedHead = lieSpot('bed', 300, 300, 'head', false)!;
   const bedAnchor = anchorsOf(bed)[0];
   check('a chair and a bed have one anchor', anchorsOf(chair).length === 1 && anchorsOf(chair)[0].pose === 'sit' && anchorsOf(bed).length === 1 && bedAnchor.pose === 'lie' && Math.abs(bedAnchor.x + lieOffset('head', false).x - (500 - 150 + bedHead.x * 300)) < 0.05);
