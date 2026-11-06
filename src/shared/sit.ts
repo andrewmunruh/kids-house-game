@@ -190,6 +190,8 @@ export function inLieRect(p: { x: number; y: number }, r: LieRect): boolean {
  */
 const SEAT_KIND: Record<string, SeatFractions> = {
   'picnic-table': { pose: 'sit', spots: [{ dx: -0.33, dy: -0.22 }, { dx: 0.33, dy: -0.22 }] },
+  // Cottage window seat: the pink cushion is lower than a bench seat; -0.30 left a small gap under her hips.
+  'cc-window-seat': { pose: 'sit', spots: [{ dx: -0.28, dy: -0.26 }, { dx: 0.28, dy: -0.26 }] },
 };
 
 /** Category spots. Two-seaters are spread so the kids overlap less and the piece shows between them. */
