@@ -277,18 +277,24 @@ with sync_playwright() as pw:
             assert_prod_untouched('off', i3b)
             prev.close()
 
-            # F4 reverse: production NEW build still cleans its own cozy-v1.
-            # Same cadence as the upgrade scenario: first reload lets the new worker take over and
-            # delete cozy-v1; a second reload fills the scoped app cache.
-            set_dir(PROD, A.new)
-            rl(page)
-            i4a, cleaned = poll(page, INFO, lambda v: v['ctl'] and 'cozy-v1' not in v.get('caches', []), 25)
-            ok('scopes/prod: production Batch 8 deletes cozy-v1', cleaned, str(i4a.get('caches')))
-            rl(page); page.wait_for_timeout(2000)
-            i4 = page.evaluate(INFO)
-            ok('scopes/prod: production scoped app cache present', any(k.startswith('cozy:' + PROD + 'app:') for k in i4.get('caches', [])), str(i4.get('caches')))
-            ok('scopes: no page errors', not errs, '; '.join(errs[:3]))
+            ok('scopes: no page errors (isolation browser)', not errs, '; '.join(errs[:3]))
             br.close()
+
+            # F4 reverse in a fresh browser: production NEW still cleans its own cozy-v1.
+            # Kept separate from the isolation browser so sessionStorage / multi-scope residue
+            # cannot leave the tab uncontrolled (seen as ctl=False, caches=[] after a long F1–F3).
+            br2, ctx2, page2, errs2 = fresh(pw, A.browser)
+            i_seed = load_controlled(page2, A.old, PROD, URL)
+            ok('scopes/prod-seed: cozy-v1 present before upgrade', 'cozy-v1' in i_seed.get('caches', []), str(i_seed.get('caches')))
+            set_dir(PROD, A.new)
+            rl(page2)
+            i4a, cleaned = poll(page2, INFO, lambda v: v['ctl'] and 'cozy-v1' not in v.get('caches', []), 25)
+            ok('scopes/prod: production Batch 8 deletes cozy-v1', cleaned, str({k: i4a.get(k) for k in ('ctl', 'caches', 'scopes')}))
+            rl(page2); page2.wait_for_timeout(2000)
+            i4 = page2.evaluate(INFO)
+            ok('scopes/prod: production scoped app cache present', any(k.startswith('cozy:' + PROD + 'app:') for k in i4.get('caches', [])), str(i4.get('caches')))
+            ok('scopes: no page errors (prod reverse)', not errs2, '; '.join(errs2[:3]))
+            br2.close()
 
 
 ok('no request left localhost', not FOREIGN, ' '.join(FOREIGN[:3]))
