@@ -9,8 +9,8 @@ sys.path.insert(0, '/workspace/t-qa-C'); sys.path.insert(0, '/workspace/qa-revie
 from playwright.async_api import async_playwright
 from testnav import tap, SKIP_WN, to_map
 from common import adult, join, wait_js
-DISTS = {'pr': os.environ.get('DIST_PR', '/workspace/t-batch4/dist-pr'), 'base': '/workspace/t-batch3/dist-pr', 'old': '/workspace/t-batchB-old10/dist'}
-TREES = {'pr': '/workspace/t-batch4/wt', 'base': '/workspace/t-batch3/wt'}
+DISTS = {'pr': os.environ.get('DIST_PR', '/workspace/t-batch4/dist-pr'), 'base': os.environ.get('DIST_BASE', '/workspace/t-batch3/dist-pr'), 'old': '/workspace/t-batchB-old10/dist'}
+TREES = {'pr': os.environ.get('TREE_PR', '/workspace/t-batch4/wt'), 'base': os.environ.get('TREE_BASE', '/workspace/t-batch3/wt')}
 WEB = {'pr': 6940, 'base': 6941, 'old': 6942}; HOOD = 6943; PX = 6944; PX2 = 6945
 CL, SV = sys.argv[1], sys.argv[2]; OUTF = sys.argv[3] if len(sys.argv) > 3 else f'/workspace/t-batch4/hb-{CL}-{SV}.json'
 SH = os.environ.get('SH', '/workspace/t-batch4/shots/'); os.makedirs(SH, exist_ok=True)
