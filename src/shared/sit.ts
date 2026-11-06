@@ -52,9 +52,10 @@ const BED_ART: Record<string, BedArt> = {
     mattress: { x: 0.38, y: 0.40, w: 0.32, h: 0.16 },
     clip: 'checker',
   },
+  // The blue pillow on the bottom bunk (A-07). The old head sat on the sheet below-left of it.
   'bunk-bed': {
-    head: { x: 0.17, y: 0.54 },
-    pillow: { x: 0.08, y: 0.44, w: 0.22, h: 0.14 },
+    head: { x: 0.20, y: 0.51 },
+    pillow: { x: 0.10, y: 0.43, w: 0.26, h: 0.14 },
     mattress: { x: 0.30, y: 0.54, w: 0.36, h: 0.13 },
     clip: 'bunk',
   },
