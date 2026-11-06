@@ -1,4 +1,5 @@
 import './style.css';
+import { startSW } from './sw-client';
 import { arriveSpot } from './shared/arrive';
 import './juice.css';
 import './scenery.css';
@@ -2402,7 +2403,11 @@ document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('contextmenu', e => e.preventDefault());
 
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js');
+// The "New stuff! Tap to refresh" note waits until no finger is down (never mid-drag).
+const swDown = new Set<number>();
+document.addEventListener('pointerdown', e => { swDown.add(e.pointerId); }, true);
+for (const ev of ['pointerup', 'pointercancel'] as const) document.addEventListener(ev, e => { swDown.delete(e.pointerId); }, true);
+if (import.meta.env.PROD) void startSW({ base: import.meta.env.BASE_URL, safeNow: () => swDown.size === 0 }); // never show the update note while a pointer is still down (no 15s hold escape)
 (window as any).__store = store; // handy for debugging / tests
 installNeeds({ get: () => store.get(), dispatch: a => store.dispatch(a), subscribe: fn => store.subscribe(fn), canDrift: () => view === 'house' && ownsDolls(), speaks: () => !hood || inner === local || hood.speaksNeeds, layer, menuAfter: $('btnSound') });
 (window as any).__items = Object.fromEntries(ITEMS.filter(i => i.img).map(i => [i.kind, { w: i.w, h: hOf(i), cat: i.cat, holdable: i.holdable, svg: i.img!.includes('.svg') }]));
