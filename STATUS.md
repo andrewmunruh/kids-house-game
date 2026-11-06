@@ -108,3 +108,9 @@ Base: main **6f89474** (PR #58 merged). Branch `cursor/batch10-painted-animals`.
 - (1) FOREIGN HOSTS (prior oldsmoke @ tip gate-logs): only `127.0.0.1:7630/7631/7632` harness — **not** workers.dev / real remote. Allowlist gap (`localhost` vs `127.0.0.1`). **No hard-stop.** Tip2 oldsmoke will reconfirm.
 - (2) gameroom: tip `a76b451` **68/69** — FAIL `390x844 paddock horses… mounts:False` (hit-test). Base (batch8 gate2-base) **69/69** mounts:True. CSS pe:auto fix landed in `c2c941e`; tip2 re-gate queued to confirm 69/69.
 - (3) tip-vs-base gate table: tip2 re-run queued (`work/run-gate-tip-rerun.sh` → `work/gate-logs-tip2/`) after pid 1534414 releases lock; will capture HEAD at start (expect e9f88b0+).
+
+## Ranch render fix @ tip (fence SVG + solid windmill)
+- **Bisect paddock-fence:** main `6f89474` has no asset; painted `paddock-fence.webp` from `c861528`/`01733e0` was a 2040×300 strip stretched to full ranch (3600×600) → giant posts, missing HORSES. **Fix:** remove painted asset → SVG `paddockFenceSVG()` (size/pos/HORSES match main).
+- **Windmill:** cream-key hollowed cream tower. **Fix:** SVG solid tower + rainbow sails composite; FIT_ADJUST OK dw=-1.9%.
+- Living/backyard/kitchen/bedroom: no analogous full-scene strip bug (no oversized non-sceneArt imgs).
+- Andy JPGs recaptured under `shots/batch10/andy/` @ tip with SVG fence + solid windmill.
