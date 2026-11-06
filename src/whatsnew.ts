@@ -3,6 +3,7 @@ import { storeKey } from './shared/storekey';
 // To announce a future update, add an entry to the TOP of CHANGELOG with the next version number.
 // Brand-new devices never see the changelog; they get a short welcome instead.
 import { catSVG, dogSVG } from './pets';
+import { catSprite, dogSprite, animalSprite, horseSprite, ranchPropSprite } from './art/sprites';
 import { treeIcon, pawIcon } from './park';
 import { animalSVG, horseSVG, eggSVG, plotSVG, rainbowIcon, RAINBOW } from './ranch';
 import { mapIcon, faceSVG } from './map';
@@ -74,32 +75,32 @@ export const CHANGELOG: ChangeEntry[] = [
   ] },
   { v: 5, title: 'Your house looks even cozier!', lines: [
     { art: wrap(brushArt), text: 'Wallpaper and floors show their <b>real patterns</b> when you paint!' },
-    { art: wrap(catSVG(0, 'sit')), text: 'Your cat is <b>big and cozy</b>, just like the toy cat.' },
+    { art: wrap(catSprite(0, 'sit', catSVG(0, 'sit'))), text: 'Your cat is <b>big and cozy</b>, just like the toy cat.' },
     { art: wrap(houseArt), text: 'Tap <b>home</b> to come back from the map, the park, or the ranch.' },
   ] },
   { v: 4, title: 'A map of our neighborhood!', lines: [
     { art: wrap(mapIcon), text: 'Tap the <b>map</b> to go anywhere!' },
     { art: wrap(faceArt), text: "Tap a friend's face to <b>find her</b>." },
-    { art: wrap(animalSVG(0)), text: 'The petting zoo is inside the <b>barn</b> now!' },
+    { art: wrap(animalSprite(0, animalSVG(0))), text: 'The petting zoo is inside the <b>barn</b> now!' },
   ] },
   { v: 3, title: 'Rainbow Ranch is open!', lines: [
     { art: wrap(ranchArt), text: 'Visit <b>Rainbow Ranch</b>!' },
-    { art: wrap(animalSVG(1)), text: 'Pet and feed animals at the <b>petting zoo</b>.' },
-    { art: wrap(`<svg viewBox="0 0 160 130">${inner(horseSVG(4), 0, 0, 1)}</svg>`), text: 'Ride <b>horses</b> and the <b>rainbow pony</b>!' },
-    { art: wrap(basketEggs), text: 'Collect <b>eggs</b> from the hens.' },
+    { art: wrap(animalSprite(1, animalSVG(1))), text: 'Pet and feed animals at the <b>petting zoo</b>.' },
+    { art: wrap(horseSprite(4, false, horseSVG(4))), text: 'Ride <b>horses</b> and the <b>rainbow pony</b>!' },
+    { art: wrap(ranchPropSprite('basket', basketEggs)), text: 'Collect <b>eggs</b> from the hens.' },
     { art: wrap(`<svg viewBox="0 0 70 90">${inner(plotSVG({ seed: 'carrot', at: 0, wet: 1 }, 3, 0), 0, 0, 1)}</svg>`), text: 'Grow carrots and flowers in the <b>garden</b>.' },
   ] },
   { v: 2, title: "What's new!", lines: [
     { art: wrap(parkArt), text: 'A new <b>park</b>! Swing, slide and splash with friends.' },
-    { art: wrap(catSVG(3, 'sit')), text: 'Adopt a <b>cat</b>! She lives in your house.' },
-    { art: wrap(dogSVG(3, 'stand')), text: 'Adopt a <b>dog</b>! Take it to the park to play fetch.' },
+    { art: wrap(catSprite(3, 'sit', catSVG(3, 'sit'))), text: 'Adopt a <b>cat</b>! She lives in your house.' },
+    { art: wrap(dogSprite(3, 'stand', dogSVG(3, 'stand'))), text: 'Adopt a <b>dog</b>! Take it to the park to play fetch.' },
   ] },
 ];
 export const LATEST = CHANGELOG[0].v;
 export const WELCOME: ChangeEntry = { v: LATEST, title: 'Welcome to your cozy house!', lines: [
   { art: wrap(houseArt), text: 'Drag furniture into your rooms.' },
   { art: wrap(shirtArt), text: 'Dress up your friends.' },
-  { art: wrap(catSVG(0, 'sit')), text: 'Adopt a pet from the Menu ☰!' },
+  { art: wrap(catSprite(0, 'sit', catSVG(0, 'sit'))), text: 'Adopt a pet from the Menu ☰!' },
 ] };
 
 const SEEN_KEY = storeKey('cozy-whatsnew');
