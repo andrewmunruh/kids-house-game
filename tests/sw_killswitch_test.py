@@ -271,8 +271,13 @@ with sync_playwright() as pw:
             set_dir(PREV, A.prev_off)
             prev = ctx.new_page()
             prev.goto(PREV_URL, wait_until='load')
-            i3, done = poll(prev, INFO, lambda v: PREV not in v.get('scopes', []) and 'cozy-v1' in v.get('caches', []), 25)
-            ok('scopes/off: preview registration gone after switch-off', done and PREV not in i3.get('scopes', []), str(i3.get('scopes')))
+            # Soft-kill reloads once; settle then poll. Broken-pipe races are OK as long as
+            # the preview registration ends up gone and production cozy-v1 is untouched.
+            try: prev.wait_for_timeout(2000)
+            except Exception: pass
+            i3, done = poll(prev, INFO, lambda v: isinstance(v, dict) and 'err' not in v and PREV not in v.get('scopes', []) and 'cozy-v1' in v.get('caches', []), 35)
+            scopes3 = (i3 or {}).get('scopes') if isinstance(i3, dict) else None
+            ok('scopes/off: preview registration gone after switch-off', bool(done) and isinstance(scopes3, list) and PREV not in scopes3, str(scopes3))
             i3b = page.evaluate(INFO)
             assert_prod_untouched('off', i3b)
             prev.close()
@@ -292,7 +297,7 @@ with sync_playwright() as pw:
             ok('scopes/prod: production Batch 8 deletes cozy-v1', cleaned, str({k: i4a.get(k) for k in ('ctl', 'caches', 'scopes')}))
             rl(page2); page2.wait_for_timeout(2000)
             i4 = page2.evaluate(INFO)
-            ok('scopes/prod: production scoped app cache present', any(k.startswith('cozy:' + PROD + 'app:') for k in i4.get('caches', [])), str(i4.get('caches')))
+            ok('scopes/prod: production scoped app cache present', any(k.startswith('cozy:' + PROD + ':app:') for k in i4.get('caches', [])), str(i4.get('caches')))
             ok('scopes: no page errors (prod reverse)', not errs2, '; '.join(errs2[:3]))
             br2.close()
 
