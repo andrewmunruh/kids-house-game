@@ -47,15 +47,15 @@ const BED_ART: Record<string, BedArt> = {
     clip: 'wooden',
   },
   'checker-bed': {
-    head: { x: 0.16, y: 0.45 },
-    pillow: { x: 0.08, y: 0.26, w: 0.22, h: 0.22 },
+    head: { x: 0.21, y: 0.34 },
+    pillow: { x: 0.09, y: 0.16, w: 0.25, h: 0.22 },
     mattress: { x: 0.38, y: 0.40, w: 0.32, h: 0.16 },
     clip: 'checker',
   },
   'bunk-bed': {
-    head: { x: 0.11, y: 0.62 },
-    pillow: { x: 0.05, y: 0.52, w: 0.18, h: 0.14 },
-    mattress: { x: 0.22, y: 0.56, w: 0.36, h: 0.14 },
+    head: { x: 0.17, y: 0.54 },
+    pillow: { x: 0.08, y: 0.44, w: 0.22, h: 0.14 },
+    mattress: { x: 0.30, y: 0.54, w: 0.36, h: 0.13 },
     clip: 'bunk',
   },
   'canopy-bed': {
@@ -71,14 +71,14 @@ const BED_ART: Record<string, BedArt> = {
     clip: 'heart',
   },
   'cc-canopy-daybed': {
-    head: { x: 0.37, y: 0.58 },
+    head: { x: 0.35, y: 0.60 },
     pillow: { x: 0.26, y: 0.50, w: 0.26, h: 0.16 },
     mattress: { x: 0.48, y: 0.54, w: 0.30, h: 0.16 },
     clip: 'daybed',
   },
   // The white pillow sits at the top-left of the painting. She lies along it, head on that pillow.
   'wc-plaid-bed': {
-    head: { x: 0.24, y: 0.26 },
+    head: { x: 0.25, y: 0.29 },
     pillow: { x: 0.08, y: 0.14, w: 0.30, h: 0.20 },
     mattress: { x: 0.36, y: 0.18, w: 0.30, h: 0.18 },
     clip: 'wooden',
@@ -182,17 +182,54 @@ export function inLieRect(p: { x: number; y: number }, r: LieRect): boolean {
  * A bunk uses the bottom bunk only (one lie anchor). Bed spots are filled in
  * by anchorsOf from the painted pillow, because the head offset is in pixels.
  */
+/**
+ * Per-kind spots, keyed by the slug without `pack:`. These win over the category rules below.
+ * Render only: the saved seat is still { item, pose, n } with n 0 or 1.
+ * The picnic table seats one kid on each bench (the painted benches sit at 8-48 and 112-152 of 160).
+ */
+const SEAT_KIND: Record<string, SeatFractions> = {
+  'picnic-table': { pose: 'sit', spots: [{ dx: -0.33, dy: -0.22 }, { dx: 0.33, dy: -0.22 }] },
+};
+
+/** Category spots. Two-seaters are spread so the kids overlap less and the piece shows between them. */
+const SOFA_DX = 0.24;
+const BENCH_DX = 0.28;
+/** A stool is short; at -0.38 the kid hid it. Lower hips let its legs show under hers. */
+const STOOL_DY = -0.30;
+
 export function seatFractions(kind: string): SeatFractions | null {
   const k = String(kind || '').toLowerCase();
   if (!k || NOT_SEAT.test(k)) return null;
   if (isLieBed(k)) return { pose: 'lie', spots: [{ dx: 0, dy: 0 }] };
-  if (/sofa|couch|loveseat/.test(k)) return { pose: 'sit', spots: [{ dx: -0.18, dy: -0.33 }, { dx: 0.18, dy: -0.33 }] };
+  const own = SEAT_KIND[k.replace(/^pack:/, '')];
+  if (own) return { pose: own.pose, spots: own.spots.map(p => ({ ...p })) };
+  if (/sofa|couch|loveseat/.test(k)) return { pose: 'sit', spots: [{ dx: -SOFA_DX, dy: -0.33 }, { dx: SOFA_DX, dy: -0.33 }] };
   if (/armchair/.test(k)) return { pose: 'sit', spots: [{ dx: 0, dy: -0.32 }] };
-  if (/bench|window-seat/.test(k)) return { pose: 'sit', spots: [{ dx: -0.22, dy: -0.30 }, { dx: 0.22, dy: -0.30 }] };
+  if (/bench|window-seat/.test(k)) return { pose: 'sit', spots: [{ dx: -BENCH_DX, dy: -0.30 }, { dx: BENCH_DX, dy: -0.30 }] };
   if (/ottoman/.test(k)) return { pose: 'sit', spots: [{ dx: 0, dy: -0.32 }] };
-  if (/stool|rocker/.test(k)) return { pose: 'sit', spots: [{ dx: 0, dy: -0.38 }] };
+  if (/stool/.test(k)) return { pose: 'sit', spots: [{ dx: 0, dy: STOOL_DY }] };
+  if (/rocker/.test(k)) return { pose: 'sit', spots: [{ dx: 0, dy: -0.38 }] };
   if (/chair/.test(k)) return { pose: 'sit', spots: [{ dx: 0, dy: -0.48 }] };
   return null;
+}
+
+/**
+ * Paint-only front overlay class for an occupied seat (main.ts adds `.seatFront.<class>`).
+ * Each is a CSS clip of the piece's own art, never new paint.
+ * k-window, k-ottoman, k-picnic and k-stool are new crops and need App Builder sign-off.
+ */
+export function seatFrontKind(kind: string): string {
+  const art = bedArt(kind);
+  if (art) return 'k-bed k-bed-' + art.clip;
+  const k = String(kind || '').toLowerCase();
+  if (/sofa|couch|loveseat/.test(k)) return 'k-sofa';
+  if (/window-seat/.test(k)) return 'k-window';
+  if (/bench/.test(k)) return 'k-bench';
+  if (/picnic-table/.test(k)) return 'k-picnic';
+  if (/ottoman/.test(k)) return 'k-ottoman';
+  if (/stool/.test(k)) return 'k-stool';
+  if (/chair|rocker/.test(k)) return 'k-chair';
+  return '';
 }
 
 export interface SeatPiece {
