@@ -23,7 +23,7 @@
 .stuSize { height: 56px; padding: 0; border-radius: 14px; border: 2.5px solid #d9c6e6; background: #fff; display: flex; align-items: center; justify-content: center; }
 .stuSize i { display: block; border-radius: 50%; background: #5a3d5c; }
 .stuSize.on, .stuStamp.on, .stuFrame.on { border: 3.5px solid #5a3d5c; background: #ffe0ec; box-shadow: 0 3px 0 #5a3d5c; }
-.stuColors { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; --sg: 6px; }
+.stuColors { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; --sg: 6px; } /* six a row in the 340px side panel: 48px dots (eight a row were 37px) */
 .stuColor { position: relative; aspect-ratio: 1; width: 100%; max-width: 48px; justify-self: center; border-radius: 50%; border: 2.5px solid #5a3d5c; padding: 0; }
 /* B-05: a 44px hit box round every swatch (at least dot + gap, so no dead gap); the dot keeps its size. */
 .stuColor::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(44px, calc(100% + var(--sg, 6px))); height: max(44px, calc(100% + var(--sg, 6px))); transform: translate(-50%, -50%); border-radius: 50%; }
@@ -75,8 +75,8 @@
   .stuTool { min-height: 56px; }
   .stuTool svg { width: 28px; height: 28px; }
   .stuTool span { font-size: 14px; }
-  .stuColors { gap: 4px; --sg: 4px; }
-  .stuColor { max-width: 38px; }
+  .stuColors { grid-template-columns: repeat(6, 1fr); gap: 6px; --sg: 6px; } /* 44px+ dots on a phone (eight a row were 38px) */
+  .stuColor { max-width: 48px; }
   .stuSize, .stuFrame { height: 50px; }
 }
 @media (orientation: portrait) and (max-height: 720px) {
@@ -97,7 +97,7 @@
   .stuTool span { font-size: 14px; }
   .stuSizes, .stuFrames { gap: 5px; }
   .stuSize { height: 40px; }
-  .stuColors { gap: 4px; --sg: 4px; }
+  .stuColors { grid-template-columns: repeat(8, 1fr); gap: 4px; --sg: 4px; } /* the wide 390px panel fits eight 44px dots a row */
   .stuColor { max-width: 36px; }
   .stuStamps { gap: 4px; }
   .stuStamp { aspect-ratio: auto; height: 40px; padding: 3px; }

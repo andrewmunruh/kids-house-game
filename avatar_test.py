@@ -182,7 +182,7 @@ async def customizer(b):
         await pg.goto(URL)
         await pg.wait_for_selector('#stage .char')
         classic = await pg.evaluate("""() => { const svg = document.querySelector('#stage .char svg'); return svg ? svg.getAttribute('data-chibi') : 'missing'; }""")
-        check(f'{w}x{h} starter kid is the classic avatar', classic is None, str(classic))
+        check(f'{w}x{h} starter kid wears the fixed starter look (chibi, see withStarterLook)', classic == '1', str(classic))
         await open_look(pg)
         info = await sheet_info(pg)
         await pg.screenshot(path=f'{SHOT}/{name}')

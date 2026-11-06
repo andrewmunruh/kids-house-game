@@ -4,7 +4,7 @@ import { characterSVG } from '../src/character';
 import { chibiSVG, handsOf, hemOf, poseFor } from '../src/avatar/draw';
 import { chibiRideLeg } from '../src/avatar/ride';
 import {
-  sanitizeLook2, fillLook2, legacyFromLook2, look2FromLegacy, patchFromLook2, randomLook2, withRandomStarter,
+  sanitizeLook2, fillLook2, legacyFromLook2, look2FromLegacy, patchFromLook2, randomLook2, withRandomStarter, withStarterLook,
   HAIR_IDS, EYE_IDS, ACC_IDS, accSlot, LOOK2_MAX,
 } from '../src/shared/avatar';
 import { applyLook, cleanHouseState, cleanLook, cleanLookPatch, cleanAction, PROTOCOL } from '../src/shared/hood';
@@ -96,6 +96,7 @@ check('surprise-me stays on the allow-list', !!sanitizeLook2(seeded) && JSON.str
 const house = withRandomStarter(initialState(), () => 0.2);
 check('a fresh house keeps one kid and gains a look', house.characters.length === 1 && !!house.characters[0].look2 && house.characters[0].skin === legacyFromLook2(house.characters[0].look2).skin);
 check('the deterministic starter is still classic', initialState().characters[0].look2 === undefined && initialState().characters[0].shirt === '#ff7aa8');
+check('the fixed first-run starter (webdriver/reset) is the chibi c1 with sparkle eyes', withStarterLook(initialState()).characters[0].look2?.eyes === 'sparkle' && withStarterLook(initialState()).characters[0].shirt === '#ff7aa8');
 
 const patched = patchFromLook2(maya);
 let state = reduce(initialState(), { type: 'char/update', id: 'c1', patch: { ...patched, size: 'kid' } });

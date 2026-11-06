@@ -83,3 +83,9 @@ brand-new device (no saved house) gets the short welcome instead.
 `npm run server` (or `npm run worker:dev`), `npx vite preview`, then `npm run test:hood` (3 simulated iPads,
 25 checks; add `'http://localhost:4173/kids-house-game/?hood=http://localhost:8788'` to target the Worker),
 `PORT=8788 node server/smoke.mjs` for the raw protocol, `npm run test:eggs`, and `npm run test:phone` (phone viewports only; iPad sizes must not pick up the phone layout).
+
+**Automated runs use a fixed starter look.** When `navigator.webdriver` is true (Playwright, preview shots), a brand-new house
+gets the same chibi doll every time: c1's colours with sparkle eyes (`withStarterLook`, src/shared/avatar.ts). A house reset
+gives that look too. Real first runs still get a random kid, `initialState()` stays the classic doll, and stored saves are never
+changed. `npx vite-node tests/firstrun_test.ts` checks `migrate()` against golden JSON from e0a4cfd (tests/fixtures/firstrun_golden);
+`python tests/firstrun_doll_test.py <url> [old-client-url] [shots]` checks storage byte-for-byte in WebKit.

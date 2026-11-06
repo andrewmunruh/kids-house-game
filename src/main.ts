@@ -270,6 +270,11 @@ const avatarEls = new Map<string, HTMLElement>();
 // ---------- camera (view-only, not part of game state) ----------
 const cams: Record<string, number> = {};
 let camX = V1_OFFSET, inertia = 0;
+/** Rooms the kid has panned by hand. Until she does: a later re-fit (drawer closing for Play,
+ *  rotation) may slide it again so a big floor piece is not cut by the view edge. */
+const panned = new Set<string>();
+const camAuto = () => !panned.has(store.get().currentRoom);
+const markPanned = () => { panned.add(store.get().currentRoom); };
 modeFit = true;
 let glideTarget: number | null = null;
 const stopGlide = () => { cancelAnimationFrame(inertia); glideTarget = null; };
@@ -373,6 +378,7 @@ function fit() {
   if (camX > maxCam()) setCam(camX);
   else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
   phoneShowKids();
+  if (!phone && view === 'house' && camAuto()) refitCutPiece();
   if (!phone && view === 'house') frameHouseKid(false);
   syncTabMode();
   if (view === 'ranch') requestAnimationFrame(frameRanchSign);
@@ -447,7 +453,7 @@ function finishPortraitFrame() {
   if (view === 'ranch' && !inBarn) { keepDoorHintOnScreen(); settleRanchSigns(); }
 }
 function nudgeScroll(scroll: HTMLElement, nodes: HTMLElement[]) {
-  const pad = 8;
+  const pad = 12; // the drawn piece can sit a few px off its box, so a piece within 12px of the edge counts as cut
   const port = scroll.getBoundingClientRect();
   const rightLimit = Math.min(port.right, window.innerWidth) - pad;
   const leftLimit = Math.max(port.left, 0) + pad;
@@ -517,6 +523,7 @@ function raisePlayZoom() {
   if (document.body.classList.contains('phone')) stage.style.setProperty('--fit', String(sc));
   if (camX > maxCam()) setCam(camX);
   else { const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%'; }
+  if (camAuto() && view === 'house' && !document.body.classList.contains('phone')) refitCutPiece();
 }
 /** The piece she is sitting on, or the one under her finger in Play. */
 let playAim: string | null = null;
@@ -1609,6 +1616,35 @@ function renderToolbar(s: GameState) {
       const shift = canL && (!canR || -toLeft <= toRight) ? toLeft : canR ? toRight : 0;
       if (shift) placeToolbarAnchor(parseFloat(toolbar.style.left) / 100 * W + shift / sc, parseFloat(toolbar.style.top) / 100 * H);
     }
+    // Never over a doll's head (she is usually standing right under the painting she just hung): try the other side,
+    // then sliding off sideways; keep the spot that covers no head, the handle, and the least painting.
+    const heads = () => [...layer.querySelectorAll<HTMLElement>('.char')].map(e => { const r = e.getBoundingClientRect(); return new DOMRect(r.left, r.top, r.width, r.height * 0.42); });
+    const headCover = () => { const b = toolbarScreenBox(), t = new DOMRect(b.left, b.top, b.width, b.height); return heads().reduce((a, h) => a + ov(h, t), 0); }; // resting box: the bar may still be popping in
+        if (headCover() > 0) {
+      const sc = stage.getBoundingClientRect().width / Math.max(1, VIEW_W) || 1;
+      const rest = () => { const b = toolbarScreenBox(); return new DOMRect(b.left, b.top, b.width, b.height); };
+      const onGrip = () => gEl.classList.contains('hidden') ? 0 : ov(gEl.getBoundingClientRect(), rest());
+      const onArt = () => pel ? ov(pel.getBoundingClientRect(), rest()) : 0;
+      const score = () => (onGrip() > 0 ? 1e9 : 0) + headCover() * 20 + onArt(); // the handle must stay grabbable, always
+      const save = () => ({ l: toolbar.style.left, t: toolbar.style.top, below: toolbar.classList.contains('below') });
+      const load = (k: { l: string; t: string; below: boolean }) => { toolbar.style.left = k.l; toolbar.style.top = k.t; toolbar.classList.toggle('below', k.below); };
+      const clampIn = () => { const b = toolbarScreenBox(); let ex = 0, ey = 0;
+        if (b.left < limits.left) ex = limits.left - b.left; if (b.right + ex > limits.right) ex = limits.right - b.right;
+        if (b.top < limits.top) ey = limits.top - b.top; if (b.bottom + ey > limits.bottom) ey = limits.bottom - b.bottom;
+        if (ex || ey) placeToolbarAnchor(parseFloat(toolbar.style.left) / 100 * W + ex / sc, parseFloat(toolbar.style.top) / 100 * H + ey / sc); };
+      let best = save(), bestS = score();
+      const tryAt = (below: boolean, slide: number) => {
+        toolbar.classList.toggle('below', below); placeToolbarAnchor(it.x + slide / sc, below ? foot + gap : pieceTop - gap); clampIn();
+        const v = score(); if (v < bestS - 0.5) { bestS = v; best = save(); }
+      };
+      const t0 = toolbarScreenBox();
+      for (const below of [!best.below, best.below]) {
+        tryAt(below, 0);
+        const cx = stage.getBoundingClientRect().left + (6 + it.x - camX) * sc, hw = t0.width / 2; // where it.x is on screen
+        for (const h of heads()) { tryAt(below, h.left - 8 - hw - cx); tryAt(below, h.right + 8 + hw - cx); }
+      }
+      load(best);
+    }
 
   }
   const step = itemSizeOf(it.size);
@@ -1631,7 +1667,8 @@ function renderAll() {
   const first = s.characters.find(c => c.room === s.currentRoom);
   const me = hood && myPres();
   const focusX = me && me.where === 'house' ? me.x : first?.x;
-  stopGlide(); setCam(cams[s.currentRoom] ?? clampCam(focusX !== undefined ? focusX - VIEW_W / 2 : V1_OFFSET));
+  stopGlide(); setCam(cams[s.currentRoom] ?? clampCam(focusX !== undefined ? fitCutPiece(s, focusX, focusX - VIEW_W / 2) : V1_OFFSET));
+  if (cams[s.currentRoom] !== undefined && camAuto() && view === 'house' && !document.body.classList.contains('phone')) refitCutPiece();
   renderAvatars(); renderHoodChrome();
   if (document.body.classList.contains('phone') && view === 'house') requestAnimationFrame(() => phoneShowHouseKid());
 }
@@ -1874,7 +1911,7 @@ stage.addEventListener('pointerdown', e => {
 window.addEventListener('pointermove', e => {
   if (!touches.has(e.pointerId)) return;
   touches.set(e.pointerId, e.clientX);
-  if (twoFinger && touches.size >= 2) { const a = avgX(); setCam(camX - (a - twoLastX) / stageScale()); twoLastX = a; }
+  if (twoFinger && touches.size >= 2) { markPanned(); const a = avgX(); setCam(camX - (a - twoLastX) / stageScale()); twoLastX = a; }
 }, true);
 const endTouch = (e: PointerEvent) => { touches.delete(e.pointerId); if (touches.size < 2 && twoFinger) { if (touches.size === 0) twoFinger = false; else twoLastX = avgX(); } };
 window.addEventListener('pointerup', endTouch, true); window.addEventListener('pointercancel', endTouch, true);
@@ -2337,7 +2374,7 @@ stage.addEventListener('pointerdown', e => {
       if (Math.abs(ev.clientX - x0) > 6) moved = true;
       if (!moved) return;
       const now = performance.now(); vx = (ev.clientX - lx) / Math.max(1, now - lt); lx = ev.clientX; lt = now;
-      setCam(cam0 - (ev.clientX - x0) / stageScale());
+      markPanned(); setCam(cam0 - (ev.clientX - x0) / stageScale());
     },
     onUp() {
       if (!moved) { if (selected) { selected = null; renderItems(store.get()); } return; }
@@ -2348,13 +2385,13 @@ stage.addEventListener('pointerdown', e => {
     },
   });
 });
-stage.addEventListener('wheel', e => { e.preventDefault(); stopGlide(); setCam(camX + (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) / stageScale()); }, { passive: false });
-$('nudgeL').addEventListener('pointerdown', e => { e.stopPropagation(); sfx.swish(); glideTo((glideTarget ?? camX) - VIEW_W * 0.6); });
-$('nudgeR').addEventListener('pointerdown', e => { e.stopPropagation(); sfx.swish(); glideTo((glideTarget ?? camX) + VIEW_W * 0.6); });
+stage.addEventListener('wheel', e => { e.preventDefault(); stopGlide(); markPanned(); setCam(camX + (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) / stageScale()); }, { passive: false });
+$('nudgeL').addEventListener('pointerdown', e => { e.stopPropagation(); sfx.swish(); markPanned(); glideTo((glideTarget ?? camX) - VIEW_W * 0.6); });
+$('nudgeR').addEventListener('pointerdown', e => { e.stopPropagation(); sfx.swish(); markPanned(); glideTo((glideTarget ?? camX) + VIEW_W * 0.6); });
 const mm = $('minimap');
 mm.addEventListener('pointerdown', e => {
   e.stopPropagation(); e.preventDefault();
-  const jump = (ev: PointerEvent) => { const r = mm.getBoundingClientRect(); glideTo((ev.clientX - r.left) / r.width * W - VIEW_W / 2); };
+  const jump = (ev: PointerEvent) => { markPanned(); const r = mm.getBoundingClientRect(); glideTo((ev.clientX - r.left) / r.width * W - VIEW_W / 2); };
   jump(e); sfx.click();
   startDrag(e, { edgeScroll: false, onMove: jump, onUp() {} });
 });
@@ -2872,6 +2909,7 @@ function renderMap(force = false) {
   renderCandyBucket();
   renderMapFaces();
   placeMap(sc);
+  renderMapFaces(); // again once laid out, so faces can step clear of mailboxes/pumpkins
 }
 const baseTaken = () => [{ x: PARK.x, y: PARK.y, r: 115 }, { x: RANCH.x, y: RANCH.y, r: 125 }, { x: SQUARE.x, y: SQUARE.y, r: 100 }, { x: CLUB.x, y: CLUB.y, r: 90 }];
 /** Where n houses go: evenly along the road, on whichever side has more room (never on the park, ranch or square). */
@@ -2934,6 +2972,7 @@ function renderMapFaces() {
         fx = an.x + (col - (m - 1) / 2) * step; fy = an.y - row * (activeMap.portrait ? 108 : 64);
       }
       if (activeMap.portrait) { fx = Math.max(100, Math.min(activeMap.w - 100, fx)); fy = Math.max(48, Math.min(activeMap.h - 84, fy)); }
+      ({ fx, fy } = clearOfSmallTargets(fx, fy, sc));
       keep.add(x.key);
       let el = box.querySelector<HTMLElement>(`.mapFace[data-pid="${x.key}"]`);
       if (!el) { el = document.createElement('button'); el.className = 'mapFace ' + (x.mine ? 'mine' : 'other'); el.dataset.pid = x.key; el.setAttribute('aria-label', x.mine ? 'You' : x.name); box.appendChild(el); }
@@ -2945,6 +2984,31 @@ function renderMapFaces() {
   }
   box.querySelectorAll<HTMLElement>('.mapFace').forEach(el => { if (!keep.has(el.dataset.pid!)) el.remove(); });
   updateNear();
+}
+/**
+ * On a small map (phone sideways) a face can land on a mailbox or a pumpkin, and then one of them
+ * cannot get a 44px tap. Slide the face just far enough (straight up/down/left/right) that each keeps
+ * its own 44px square. Map units in and out; a no-op when nothing is that close.
+ */
+const TAP = 54; // half a 46px mailbox/pumpkin pad + half the face pad (48px) + its name tag
+function clearOfSmallTargets(fx: number, fy: number, sc: number) {
+  const box = document.querySelector<HTMLElement>('#mapWorld .mapFaces'); if (!box) return { fx, fy };
+  const br = box.getBoundingClientRect();
+  const obs = [...document.querySelectorAll<HTMLElement>('#mapWorld .mapMail, #mapWorld .mapKnock')].map(e => e.getBoundingClientRect()).filter(r => r.width > 0)
+    .map(r => ({ x: (r.left + r.width / 2 - br.left) / sc, y: (r.top + r.height / 2 - br.top) / sc }));
+  const need = TAP / sc;
+  const free = (x: number, y: number) => !obs.some(o => Math.abs(o.x - x) < need && Math.abs(o.y - y) < need);
+  if (free(fx, fy)) return { fx, fy };
+  // Candidates: beside each obstacle, and beside pairs (corner spots), nearest one that clears them all.
+  const n2 = need + 0.5; // a hair past the edge, so float rounding can't put it back inside
+  const xs = [fx, ...obs.flatMap(o => [o.x - n2, o.x + n2])], ys = [fy, ...obs.flatMap(o => [o.y - n2, o.y + n2])];
+  let best: { fx: number; fy: number } | null = null, bd = 1e9;
+  for (const x of xs) for (const y of ys) {
+    if (x < 24 / sc || x > activeMap.w - 24 / sc || y < 24 / sc || y > activeMap.h - 24 / sc || !free(x, y)) continue;
+    const d = Math.hypot(x - fx, y - fy); if (d < bd) { bd = d; best = { fx: x, fy: y }; }
+  }
+  if (best) { fx = best.fx; fy = best.fy; }
+  return { fx, fy };
 }
 /** Zoom into the tapped spot, then go there (the new scene fades in). */
 /** Clear a leftover zoom class (older builds zoomed for 360ms before going; now the trip is instant and the new scene fades in). */
@@ -3543,7 +3607,7 @@ function goGameRoom() {
   $('streetTitle').textContent = 'The Clubhouse'; renderHoodChrome(); renderGameRoom();
   requestAnimationFrame(() => {
     const sc = grScale(), scroll = $('grScroll');
-    const focus = seat?.x ?? (grWide() ? 60 + GR_PORTRAIT_VIEW / 2 : grSpawnX());
+    const focus = seat?.x ?? (grWide() ? GR_PORTRAIT_VIEW / 2 : grSpawnX());
     scroll.scrollLeft = Math.max(0, focus * sc - scroll.clientWidth / 2);
     phoneShowKids();
     frameClubSign();
@@ -5099,6 +5163,58 @@ function goThroughYardDoor(go: 'backyard' | 'living') {
     if (p && p.where === 'house') { const at = p.houseId ? apartIn(p.houseId, go, spot) : spot; setMyPres({ ...p, room: go, x: at.x, y: at.y, flip: spot.flip }); }
   }
   requestAnimationFrame(() => frameYardCam());
+}
+/**
+ * First look at a room on a narrow (iPad portrait) stage: centring on the kid can leave a big piece half off the
+ * edge (the living-room sofa at 820x1180). Slide just enough to show the largest such piece whole, as long as the
+ * kid stays well inside. View only; phones and the wide stage keep the plain centring.
+ */
+function refitCutPiece() {
+  const s = store.get(), me = hood && myPres();
+  const kidX = me && me.where === 'house' ? me.x : s.characters.find(c => c.room === s.currentRoom)?.x;
+  if (kidX === undefined) return;
+  const next = fitCutPiece(s, kidX, camX);
+  if (Math.abs(next - camX) > 0.5) setCam(next);
+}
+function fitCutPiece(s: GameState, kidX: number, cam: number) {
+  if (VIEW_W >= 1000 || document.body.classList.contains('phone') || s.currentRoom === 'backyard') return cam;
+  cam = clampCam(cam);
+  const keep = 90; // the kid's half-width plus a little air
+  let best: { cam: number; w: number } | null = null;
+  for (const it of s.rooms[s.currentRoom]?.items ?? []) {
+    const def = ITEM_MAP[it.kind]; if (!def || def.wall) continue;
+    const w = def.w * drawnScale(it), l = it.x - w / 2, r = it.x + w / 2;
+    if (w < 160 || w > VIEW_W - 2 * keep) continue;
+    const cut = (l < cam && r > cam) || (l < cam + VIEW_W && r > cam + VIEW_W); if (!cut) continue;
+    const next = clampCam(l < cam ? l - 16 : r + 16 - VIEW_W);
+    if (kidX - keep < next || kidX + keep > next + VIEW_W || l < next - 1 || r > next + VIEW_W + 1) continue;
+    if (!best || w > best.w) best = { cam: next, w };
+  }
+  if (s.currentRoom === 'living') return fitLivingGroup(s, kidX, best ? best.cam : cam, keep);
+  return best ? best.cam : cam;
+}
+/**
+ * Portrait living room: the sofa, rug and toy cat sit side by side, and a 480-wide view showed the sofa but cut
+ * the cat (and rug) at the right edge. Slide so every floor piece the view touches (60 wide or more) is whole,
+ * with a 12px edge, kid still inside; the left wall/door/lamp side gives way first. If they cannot all fit,
+ * the smallest piece is dropped from the set until the rest do. View only; other rooms keep fitCutPiece.
+ */
+function fitLivingGroup(s: GameState, kidX: number, cam: number, keep: number) {
+  const pad = 8;
+  const boxes = (s.rooms.living?.items ?? []).flatMap(it => {
+    const def = ITEM_MAP[it.kind]; if (!def || def.wall) return [];
+    const w = def.w * drawnScale(it); return w >= 60 ? [{ l: it.x - w / 2, r: it.x + w / 2, w }] : [];
+  });
+  let set = boxes.filter(b => b.r > cam && b.l < cam + VIEW_W);
+  if (!set.some(b => b.l < cam + pad || b.r > cam + VIEW_W - pad)) return cam;
+  set.sort((a, b) => b.w - a.w);
+  while (set.length) {
+    const lo = Math.max(Math.max(...set.map(b => b.r)) + pad - VIEW_W, kidX + keep - VIEW_W);
+    const hi = Math.min(Math.min(...set.map(b => b.l)) - pad, kidX - keep);
+    if (lo <= hi) { const next = clampCam(Math.min(hi, Math.max(lo, cam))); if (next >= lo - 1 && next <= hi + 1) return next; }
+    set = set.slice(0, -1);
+  }
+  return cam;
 }
 function frameYardCam() {
   if (store.get().currentRoom === 'backyard') {

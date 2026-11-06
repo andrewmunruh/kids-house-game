@@ -37,7 +37,7 @@ let walkTarget: { x: number; y: number } | null = null;
 let bound = false;
 
 /** Portrait iPad shows a wide slice of the room (door, sign and the first table) instead of a zoomed-in corner. */
-export const GR_PORTRAIT_VIEW = 960;
+export const GR_PORTRAIT_VIEW = 1020; // 0..1020: the whole corner plant (x 2..78) on the left, the same right edge as before (60..1020)
 const grPortraitFit = (el: HTMLElement | null) => !!el && !document.body.classList.contains('phone') && el.clientHeight > el.clientWidth + 40;
 export const grScale = () => {
   const el = document.getElementById('gameroom'), h = el?.clientHeight || 600;
