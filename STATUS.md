@@ -49,3 +49,14 @@ Base: main **6f89474** (PR #58 merged). Branch `cursor/batch10-painted-animals`.
   - Stretch warnings (art_process >18%): cat-tabby-sit, dog-poodle-stand, dog-dachshund-sleep, dog-golden-stand, dog-spotty-stand, basket, eggs-sign, egg-quinn-pup, egg-sloane-snail — may need aspect regen before bounds gate.
   - Gate lock still busy (batches 6/7/8). No preview/deploy. No server/save/protocol change.
   - Next: App Builder art review → then art_ingame_bounds + decoded-memory + full gate + old-client smoke + draft PR polish.
+
+- 2026-11-06 ~02:43 CT  Face zoom-check:
+  - egg~cada-mouse, egg~quinn-pup, egg~sloane-snail, eggs-sign: FACLESS OK
+  - hen-house chick: HAS eyes → regenerate faceless
+  - Stretch outliers to regen: cat-tabby-sit, dog-poodle-stand, dog-dachshund-sleep,
+    dog-golden-stand, dog-spotty-stand, basket, eggs-sign, egg-quinn-pup, egg-sloane-snail
+  - Gate lock still BUSY (pids on lock). Will run gate when free.
+
+- 2026-11-06 ~02:48 CT  Regenerated hen-house (faceless chick confirmed). Regenerated stretch outliers;
+  cat-tabby-sit 0.99, basket/eggs-sign/egg-quinn ~1.07–1.11 OK. Still watching dog-poodle/golden/dachshund-sleep
+  and egg-sloane-snail stretch; will verify via art_ingame_bounds next.
