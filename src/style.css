@@ -600,6 +600,10 @@ body.mode-hood.view-ranch #btnChat { display: block !important; }
 body.phone.phone-portrait .ranchWorld .horse.stallOff { display: none; }
 body.phone.phone-portrait .ranchWorld .horse { pointer-events: none; }
 body.phone.phone-portrait .ranchWorld .horse svg * { pointer-events: visiblePainted; }
+/* Painted Batch 10 sprites: img fills the box; allow hits like SVG paint. */
+body.phone.phone-portrait .ranchWorld .horse img.horsesprite,
+body.phone.phone-portrait .ranchWorld .animal img.ranchsprite,
+body.phone.phone-portrait .ranchWorld .rprop img.ranchsprite { pointer-events: auto; }
 body.phone.phone-portrait .ranchWorld .horse.away svg *,
 body.phone.phone-portrait .ranchWorld .horse.stallOff svg * { pointer-events: none; }
 .ranchWorld .heart, .mount .heart { position: absolute; bottom: 60%; font-size: 26px; font-weight: 900; pointer-events: none; animation: heartUp 1.6s ease-out forwards; opacity: 0; z-index: 3; }
