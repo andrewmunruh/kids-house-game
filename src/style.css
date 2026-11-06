@@ -480,6 +480,13 @@ body.mode-hood.view-park #btnChat { display: block !important; }
 .pet { position: absolute; pointer-events: none; cursor: pointer; touch-action: none; }
 .pet .inner { width: 100%; height: 100%; transform-origin: 50% 100%; }
 .pet .inner svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.pet .inner img.petsprite { width: 100%; height: 100%; display: block; object-fit: contain; object-position: bottom center; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+.horse img.horsesprite, .animal img.ranchsprite, .rprop img.ranchsprite, .mount img.horsesprite {
+  width: 100%; height: 100%; display: block; object-fit: contain; object-position: bottom center; pointer-events: none; user-select: none; -webkit-user-drag: none;
+}
+.petPreview img.petsprite { width: 100%; height: 100%; display: block; object-fit: contain; }
+.fenceLayer img.ranchsprite, .parkWorld > img.ranchsprite { width: 100%; height: 100%; display: block; object-fit: fill; pointer-events: none; }
+
 .pet .inner svg > * { pointer-events: visiblePainted; }
 .pet.flipped .inner svg { transform: scaleX(-1); }
 .savatars .pet { transition: none; }

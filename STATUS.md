@@ -37,3 +37,15 @@ Base: main **6f89474** (PR #58 merged). Branch `cursor/batch10-painted-animals`.
 
 ## Log
 - 2026-11-06 ~02:21 CT  Worktree created at 6f89474. Gate lock BUSY. Starting art.
+
+- 2026-11-06 ~02:27 CT  Pushed branch. 55 SVG refs rendered. Generated 12/12 cat raws into work/raw. Generating dogs next. Gate still busy.
+
+- 2026-11-06 ~02:42 CT  Art pass complete (55/55 raws → webp). Total painted payload **0.66 MB** (under ~2.5 MB budget).
+  - `assets/art/pets/` 27 webp (cats 12 + dogs 15)
+  - `assets/art/ranch/` 25 webp (animals 6 + horses 10 + props 5 + fences/wall/sign 4)
+  - `assets/art/living/egg~{cada-mouse,quinn-pup,sloane-snail}.webp` faceless replace (A-18)
+  - Wired via `src/art/sprites.ts` + main.ts (SVG fallback; `?art=v1` forces SVG)
+  - Contact sheet: `/workspace/t-batch10/work/sheets/batch10-contact-sheet.png` (+ `-half.png`)
+  - Stretch warnings (art_process >18%): cat-tabby-sit, dog-poodle-stand, dog-dachshund-sleep, dog-golden-stand, dog-spotty-stand, basket, eggs-sign, egg-quinn-pup, egg-sloane-snail — may need aspect regen before bounds gate.
+  - Gate lock still busy (batches 6/7/8). No preview/deploy. No server/save/protocol change.
+  - Next: App Builder art review → then art_ingame_bounds + decoded-memory + full gate + old-client smoke + draft PR polish.
