@@ -101,3 +101,10 @@ Base: main **6f89474** (PR #58 merged). Branch `cursor/batch10-painted-animals`.
   - `before-after__barn__820x1180.jpg` (barn animals, SHA-labeled)
   - `before-after__ranch-windmill__820x1180.jpg` (windmill frame)
   - `crops-animals__compact.jpg` (horses incl. rainbow unicorn, cats, dogs+sleeps, egg critters, barn animals, windmill, tractor, eggs-sign)
+
+
+## Verification 1–3 (in progress after Andy assets)
+- Tip HEAD: `e9f88b0` (rainbow windmill + Andy JPGs). In-flight tip gate locked at `a76b451`.
+- (1) FOREIGN HOSTS (prior oldsmoke @ tip gate-logs): only `127.0.0.1:7630/7631/7632` harness — **not** workers.dev / real remote. Allowlist gap (`localhost` vs `127.0.0.1`). **No hard-stop.** Tip2 oldsmoke will reconfirm.
+- (2) gameroom: tip `a76b451` **68/69** — FAIL `390x844 paddock horses… mounts:False` (hit-test). Base (batch8 gate2-base) **69/69** mounts:True. CSS pe:auto fix landed in `c2c941e`; tip2 re-gate queued to confirm 69/69.
+- (3) tip-vs-base gate table: tip2 re-run queued (`work/run-gate-tip-rerun.sh` → `work/gate-logs-tip2/`) after pid 1534414 releases lock; will capture HEAD at start (expect e9f88b0+).
