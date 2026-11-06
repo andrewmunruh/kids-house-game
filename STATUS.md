@@ -60,3 +60,18 @@ Base: main **6f89474** (PR #58 merged). Branch `cursor/batch10-painted-animals`.
 - 2026-11-06 ~02:48 CT  Regenerated hen-house (faceless chick confirmed). Regenerated stretch outliers;
   cat-tabby-sit 0.99, basket/eggs-sign/egg-quinn ~1.07–1.11 OK. Still watching dog-poodle/golden/dachshund-sleep
   and egg-sloane-snail stretch; will verify via art_ingame_bounds next.
+
+- 2026-11-06 ~02:49 CT  App Builder ART_REVIEW received (/workspace/quality-audit/2026-11-06/batch10/ART_REVIEW.md).
+  Pausing bounds/gate. Doing P0 → P1 → P2 regenerations before continuing.
+
+- 2026-11-06 ~03:10 CT  ART_REVIEW P0+P1+P2 regenerations applied (before bounds/gate):
+  P0: horse-rainbow bare+saddle yellow conical horn restored (no forehead star);
+       all 4 cat-*-sit front-facing with faces visible; dog-dachshund-sleep real curled lying sleep.
+  P1: native-aspect regen — basket, egg-quinn-pup, dog-spotty/poodle/golden-stand, egg-sloane-snail, eggs-sign (stretch ≤1.12).
+  P2: all dog-*-sleep now lie/curl; animal-chicks + egg-cada-mouse + dog-dachshund-sit aspect-fixed;
+       apple-tree + basket weave toned to furniture level; hen-house chick re-checked FACELESS;
+       paddock-fence kept prior HEAD paint (near-stretch 1.17; ultra-wide regen was worse).
+  Stretch audit after regen: hard STRETCH cleared on prior outliers except dachshund-sleep ~0.87 (near) and paddock 1.17 (near).
+  New contact sheet: work/sheets/batch10-review-*.png + shots/batch10/batch10-contact-sheet*.png (SHA stamp after commit).
+  Next: stamp SHA on sheet → art_ingame_bounds ±3% → decoded memory → in-game 820x1180 before/after → full gate vs 6f89474 when lock free → old-client smoke → update PR #66.
+  Still NOT cleared for Andy/preview until App Builder re-review.
