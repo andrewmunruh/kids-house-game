@@ -151,7 +151,7 @@ export function installNeeds(d: NeedsDeps) {
   d.subscribe(() => { paint(); setTimeout(care, 0); });
   // Tapping a doll that already sits at the right spot (a visitor tucking her in, say) gives the care too.
   d.layer.addEventListener('pointerup', e => { if ((e.target as HTMLElement).closest?.('.char[data-cid]')) { asked.clear(); care(); } });
-  setInterval(() => { tick(); paint(); }, 1000);
+  setInterval(() => { if (document.hidden) return; tick(); paint(); }, 1000); // D-09: no work while hidden
   document.addEventListener('visibilitychange', () => { last = performance.now(); });
   paint();
   // Test hook only with ?needsqa=1, so a normal session never sees it.

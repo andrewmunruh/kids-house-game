@@ -1,5 +1,6 @@
 // Day / Night / Auto. One mount node, so the menu branch can move it without rewriting the clock.
 import { storeKey } from './shared/storekey';
+import { whenShown } from './visibility';
 import { SKY_KEY, isSkyChoice, skyIsSimple, skyLook, type SkyChoice, type SkyLook } from './sky';
 
 export interface SkyHandle {
@@ -126,7 +127,7 @@ export function mountSkyToggle(host: HTMLElement): SkyHandle {
 
   const arm = () => {
     if (timer) clearInterval(timer);
-    timer = window.setInterval(() => { if (!frozen) go(); }, simple ? 60000 : 1000);
+    timer = window.setInterval(() => { if (!frozen && !document.hidden) go(); }, simple ? 60000 : 1000); // D-09
   };
 
   const pick = (c: SkyChoice) => {
@@ -140,6 +141,7 @@ export function mountSkyToggle(host: HTMLElement): SkyHandle {
   document.documentElement.classList.toggle('sky-static', simple);
   go();
   arm();
+  whenShown(() => { if (!frozen) go(); }); // back from hidden: catch the sky up at once
   const map = document.getElementById('mapWorld');
   if (map) keepStreetBits(map);
   try {

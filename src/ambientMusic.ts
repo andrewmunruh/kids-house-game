@@ -2,6 +2,7 @@
 // ORIGINAL: generated live with WebAudio oscillators (no samples, no recordings). See AUDIO_LICENSES.md.
 // Respects the sound toggle: nothing plays while sound is off.
 import { soundEnabled } from './sound';
+import { trackAudio, whenShown } from './visibility';
 import { BEAT_MS } from './shared/ambient';
 
 export type MusicKind = 'stereo' | 'musicbox' | null;
@@ -26,7 +27,7 @@ const BASS = [130.81, 98.0, 110.0, 98.0]; // C2-ish, G, A, G: one per phrase
 
 function ensure(): boolean {
   try {
-    ctx ??= new (window.AudioContext || (window as any).webkitAudioContext)();
+    ctx ??= trackAudio(new (window.AudioContext || (window as any).webkitAudioContext)() as AudioContext);
     if (!master) { master = ctx.createGain(); master.gain.value = 0.5; master.connect(ctx.destination); }
     if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
     return true;
@@ -46,6 +47,7 @@ function note(freq: number, t: number, dur: number, type: OscillatorType, vol: n
 
 function tick() {
   if (!ctx || !kind) return;
+  if (document.hidden && timer) { clearInterval(timer); timer = null; return; } // D-09: stop the scheduler while hidden
   if (!soundEnabled || document.hidden) { nextT = ctx.currentTime + 0.1; return; }
   const eighth = BEAT_MS / 2000 * (kind === 'musicbox' ? 1.35 : 1);
   if (nextT < ctx.currentTime) nextT = ctx.currentTime + 0.05;
@@ -81,3 +83,6 @@ export function setAmbientMusic(next: MusicKind) {
 }
 /** Call from a user tap: iOS only lets audio start inside a gesture. */
 export function primeAmbientMusic() { ensure(); }
+
+// Back in front: restart the scheduler where the wall clock is now (the friends' iPads stay in step).
+whenShown(() => { if (kind && ctx && !timer) { step = Math.floor(Date.now() / (BEAT_MS / 2)) % (PHRASES.length * 8); nextT = ctx.currentTime + 0.1; timer = setInterval(tick, 120); } });

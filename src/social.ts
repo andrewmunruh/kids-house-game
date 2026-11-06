@@ -1,6 +1,7 @@
 // M3 client side: the rest of the ambient items and social reactions (dolls, pets, baby).
 // Everything here is local and visual. Nothing is dispatched or sent, and no stored position moves.
 import { BEAT_MS, syncDelayMs, type Reaction, type ReactionKind } from './shared/ambient';
+import { trackAudio } from './visibility';
 import { KEYS_MS, isDucky, moreRoleOf, type MoreKind } from './shared/ambientMore';
 import { socialFor, type SocDoll, type SocPet } from './shared/social';
 import './social.css';
@@ -19,7 +20,8 @@ const keysUntil = new Map<string, number>();
 let actx: AudioContext | null = null;
 function tune(seed: number) {
   try {
-    actx ??= new (window.AudioContext || (window as any).webkitAudioContext)();
+    actx ??= trackAudio(new (window.AudioContext || (window as any).webkitAudioContext)() as AudioContext);
+    if (actx.state === 'suspended') void actx.resume().catch(() => {});
     const t0 = actx.currentTime + 0.02;
     const scale = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];
     for (let i = 0; i < 6; i++) {
