@@ -1689,6 +1689,16 @@ let shelfFrame = 0;
 // painting is on screen on the very first frame with no SVG flash. One card per kind
 // is on the shelf at a time; renderDrawer empties the shelf before reusing a node.
 const shelfDecoded = new Map<string, Node[]>();
+// D-01/D-17: keep the most recently used SHELF_KEEP kinds only (a full catalog browse used to keep
+// every decoded painting node for the whole session). A dropped kind just loads again from cache.
+const SHELF_KEEP = 60;
+function shelfRemember(kind: string, nodes: Node[]) {
+  shelfDecoded.delete(kind); shelfDecoded.set(kind, nodes);
+  while (shelfDecoded.size > SHELF_KEEP) shelfDecoded.delete(shelfDecoded.keys().next().value!);
+}
+function shelfRecall(kind: string): Node[] | undefined {
+  const n = shelfDecoded.get(kind); if (n) { shelfDecoded.delete(kind); shelfDecoded.set(kind, n); } return n;
+}
 
 function shelfNear(card: HTMLElement): boolean {
   const shelf = document.getElementById('shelf');
@@ -1730,7 +1740,7 @@ function swapShelfCard(card: HTMLElement, d: ItemDef): void {
     if (ok) {
       // Cache by kind as soon as it has loaded, even if this card was re-rendered meanwhile.
       const nodes = Array.prototype.slice.call(hold.childNodes) as Node[];
-      shelfDecoded.set(d.kind, nodes);
+      shelfRemember(d.kind, nodes);
       shelfFails.delete(d.kind);
       if (card.isConnected && card.dataset.artq === '1') {
         delete card.dataset.artq;
@@ -2206,7 +2216,7 @@ function renderDrawer() {
   if (!list.length) shelf.innerHTML = `<div class="empty">Nothing here yet!</div>`;
   for (const d of list) {
     const b = document.createElement('button'); b.className = 'thing'; b.setAttribute('aria-label', d.name); b.dataset.kind = d.kind;
-    const ready = rasterOn() && rasterUrl(d.kind) ? shelfDecoded.get(d.kind) : undefined;
+    const ready = rasterOn() && rasterUrl(d.kind) ? shelfRecall(d.kind) : undefined;
     if (ready) for (let i = 0; i < ready.length; i++) b.appendChild(ready[i]);
     else b.innerHTML = shelfThumb(d, artHas(d.kind));
     shelf.appendChild(b); attachShelfDrag(b, d);
@@ -2404,6 +2414,7 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js');
 (window as any).__store = store; // handy for debugging / tests
+(window as any).__shelfCache = () => shelfDecoded.size;
 installNeeds({ get: () => store.get(), dispatch: a => store.dispatch(a), subscribe: fn => store.subscribe(fn), canDrift: () => view === 'house' && ownsDolls(), speaks: () => !hood || inner === local || hood.speaksNeeds, layer, menuAfter: $('btnSound') });
 (window as any).__items = Object.fromEntries(ITEMS.filter(i => i.img).map(i => [i.kind, { w: i.w, h: hOf(i), cat: i.cat, holdable: i.holdable, svg: i.img!.includes('.svg') }]));
 (window as any).__cam = { get: () => camX, set: setCam };
@@ -3860,7 +3871,7 @@ const AMB_ITEM_FX: Record<string, string> = {
 const musicBoxSince = new Map<string, number>();
 let ambRaf = 0;
 // A slow heartbeat catches a view change, a lifted kid, and the music box winding down.
-setInterval(() => queueAmbient(), 1000);
+setInterval(() => { if (!document.hidden) queueAmbient(); }, 1000); // D-09: nothing to animate while hidden
 function queueAmbient() { if (!ambRaf) ambRaf = requestAnimationFrame(() => { ambRaf = 0; syncAmbient(); }); }
 function setFx(el: HTMLElement, html: string | null, key: string) {
   let fx = el.querySelector<HTMLElement>(':scope > .ambFx');
