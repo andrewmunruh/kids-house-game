@@ -75,3 +75,12 @@ Base: main **6f89474** (PR #58 merged). Branch `cursor/batch10-painted-animals`.
   New contact sheet: work/sheets/batch10-review-*.png + shots/batch10/batch10-contact-sheet*.png (SHA stamp after commit).
   Next: stamp SHA on sheet → art_ingame_bounds ±3% → decoded memory → in-game 820x1180 before/after → full gate vs 6f89474 when lock free → old-client smoke → update PR #66.
   Still NOT cleared for Andy/preview until App Builder re-review.
+
+- 2026-11-06 ~03:15 CT  Post-ART_REVIEW verification (SHA after this commit):
+  - Egg critters reprocessed with real catalog SVGs + FIT_ADJUST egg:cada-mouse [0,-0.5].
+  - art_ingame_bounds living eggs SKY=day: **3/3 OK** (±2%). SKY=night: **3/3 OK**.
+  - Decoded memory (scene_perf_mem): ranch still **34.6 MB** (unchanged scene backdrop); living rooms ~23 MB; park 27.8; map 11.2.
+  - In-game 820x1180 chromium before/after: shots/batch10/ingame/pr-<sha>__{ranch,room-living}__820x1180__chromium{,__artv1}.png
+  - Contact sheet: shots/batch10/batch10-contact-sheet.png (SHA-labeled).
+  - Gate lock `/workspace/surprise/gate.lock` still contended by batches 6/7/8 — full gate + old-client 10ef736 smoke still pending.
+  - Still NOT cleared for Andy/preview until App Builder re-reviews P0/P1 art.
