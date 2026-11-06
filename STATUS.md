@@ -91,3 +91,13 @@ Base: main **6f89474** (PR #58 merged). Branch `cursor/batch10-painted-animals`.
   - Ranch decoded mem: **34.6 MB HEAD = 34.6 MB main** (unchanged; sceneArt ranch.webp only)
   - Report: shots/batch10/REPORT-1-3.md
   - (4) full gate + 10ef736 oldsmoke: waiter holding for gate.lock (no kill); logs work/gate-logs/
+
+## Andy assets (report first) — tip `8faaa2c`
+- Rainbow windmill sails restored (Y/B/P/G); slim + FIT_ADJUST [2.5,0.6]; ranch bounds OK dw=-1.9%.
+- animal-chicks fill nudged (asp~1.2).
+- 2× downscale cancelled; sizes stay as committed.
+- Andy JPGs (<2 MB) in `shots/batch10/andy/`:
+  - `before-after__ranch__820x1180.jpg` (paddock horses, SHA-labeled)
+  - `before-after__barn__820x1180.jpg` (barn animals, SHA-labeled)
+  - `before-after__ranch-windmill__820x1180.jpg` (windmill frame)
+  - `crops-animals__compact.jpg` (horses incl. rainbow unicorn, cats, dogs+sleeps, egg critters, barn animals, windmill, tractor, eggs-sign)
