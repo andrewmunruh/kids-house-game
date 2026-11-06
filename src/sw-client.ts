@@ -28,8 +28,10 @@ async function switchOff(base: string): Promise<boolean> {
 
 export async function killSW(base: string): Promise<void> {
   const scope = location.origin + base;
+  // Preview shares andrewmunruh.github.io with production: only /kids-house-game/ may delete cozy-v1.
+  const ownLegacy = base === '/kids-house-game/';
   try { for (const reg of await navigator.serviceWorker.getRegistrations()) if (reg.scope === scope || reg.scope.startsWith(scope)) await reg.unregister(); } catch { /* ignore */ }
-  try { if ('caches' in self) for (const k of await caches.keys()) if (k === 'cozy-v1' || k.startsWith('cozy:' + base + ':')) await caches.delete(k); } catch { /* ignore */ }
+  try { if ('caches' in self) for (const k of await caches.keys()) if ((ownLegacy && k === 'cozy-v1') || k.startsWith('cozy:' + base + ':')) await caches.delete(k); } catch { /* ignore */ }
 }
 
 export async function startSW(o: Opts): Promise<void> {
