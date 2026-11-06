@@ -1,5 +1,6 @@
 // Game Room scene: walk around the clubhouse, sit, and open a table.
 import { characterSVG, SIZE_SCALE } from './character';
+import { glide } from './glide';
 import { stampAvatar } from './avatar/motion';
 import { confetti } from './eggs';
 import { createTableUI, type TableApi } from './games/ui';
@@ -36,7 +37,7 @@ let walkTarget: { x: number; y: number } | null = null;
 let bound = false;
 
 /** Portrait iPad shows a wide slice of the room (door, sign and the first table) instead of a zoomed-in corner. */
-export const GR_PORTRAIT_VIEW = 960;
+export const GR_PORTRAIT_VIEW = 1020; // 0..1020: the whole corner plant (x 2..78) on the left, the same right edge as before (60..1020)
 const grPortraitFit = (el: HTMLElement | null) => !!el && !document.body.classList.contains('phone') && el.clientHeight > el.clientWidth + 40;
 export const grScale = () => {
   const el = document.getElementById('gameroom'), h = el?.clientHeight || 600;
@@ -124,7 +125,7 @@ export function renderGamePeople() {
     }
     const k = (SIZE_SCALE[w.look.size] ?? 1) * sc * 0.95, wd = CHAR_W * k, h = CHAR_H * k;
     const feet = w.seated ? w.y - 8 : w.y;
-    el.style.left = w.x * sc - wd / 2 + 'px'; el.style.top = feet * sc - h + 'px';
+    glide(el, w.x * sc - wd / 2 + 'px', feet * sc - h + 'px');
     el.style.width = wd + 'px'; el.style.height = h + 'px';
     el.style.zIndex = String(100 + Math.round(w.y));
     el.classList.toggle('flipped', w.flip); el.classList.toggle('away', w.away); el.classList.toggle('seated', w.seated);

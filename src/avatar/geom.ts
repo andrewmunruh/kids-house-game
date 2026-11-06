@@ -103,5 +103,7 @@ export function limb(cls: 'arm' | 'leg', side: 'l' | 'r', inner: string, pose: P
   const lift = cls === 'leg' ? (side === 'l' ? pose.legLLift : pose.legRLift) : 0;
   const attr = ang || lift ? ` transform="translate(0 ${f(-lift)}) rotate(${f(ang)} ${piv[0]} ${piv[1]})"` : '';
   const hang = cls === 'arm' ? ' hang' : '';
-  return `<g class="${cls} ${side}${hang}"${attr} style="transform-box:view-box;transform-origin:${piv[0]}px ${piv[1]}px">${inner}</g>`;
+  const g = `<g class="${cls} ${side}${hang}" style="transform-box:view-box;transform-origin:${piv[0]}px ${piv[1]}px">${inner}</g>`;
+  // Pose rotation lives on a plain wrapper: the CSS transform-origin above also applies to an SVG transform attribute, which would pivot twice.
+  return attr ? `<g${attr}>${g}</g>` : g;
 }

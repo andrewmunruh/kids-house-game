@@ -22,9 +22,9 @@ confetti, and unlocks a special item into the drawer (🎁 tab). Solutions are i
 A parent creates a street (adult check) and gets a 6-character invite code. Kids join with the code plus a
 preset nickname, and can bring their local house along. Everyone sees changes live. The server validates every
 action. Owners can lock their house (look, don't touch). Chat is proximity speech bubbles: preset phrases and emotes,
-plus optional typed text up to 60 characters, filtered for bad words, numbers, links, emails, and addresses.
+plus optional typed text up to 60 characters, run through a light filter for swears and slurs.
 Free typing can be switched off on the grown-up screen. Bubbles are only relayed live, never stored or logged.
-Letters live in each house's mailbox for up to 30 days. They are filtered more strictly than chat, and only the writer's first name is stored. A friend can leave three unread letters. A grown-up can read and clear one mailbox or every mailbox, or turn off “Let kids type their own letters” so new letters can only use the same preset phrases as chat bubbles. That letters switch follows free typing until a grown-up sets it on its own.
+Letters live in each house's mailbox for up to 30 days. They use the same light swear-and-slur filter as chat, and only the writer's first name is stored. A friend can leave three unread letters. A grown-up can read and clear one mailbox or every mailbox, or turn off “Let kids type their own letters” so new letters can only use the same preset phrases as chat bubbles. That letters switch follows free typing until a grown-up sets it on its own.
 No emails, real names, or analytics. Offline single-player keeps working at any time.
 
 Server code: `server/core.ts` (platform-agnostic) with two adapters:
@@ -83,3 +83,9 @@ brand-new device (no saved house) gets the short welcome instead.
 `npm run server` (or `npm run worker:dev`), `npx vite preview`, then `npm run test:hood` (3 simulated iPads,
 25 checks; add `'http://localhost:4173/kids-house-game/?hood=http://localhost:8788'` to target the Worker),
 `PORT=8788 node server/smoke.mjs` for the raw protocol, `npm run test:eggs`, and `npm run test:phone` (phone viewports only; iPad sizes must not pick up the phone layout).
+
+**Automated runs use a fixed starter look.** When `navigator.webdriver` is true (Playwright, preview shots), a brand-new house
+gets the same chibi doll every time: c1's colours with sparkle eyes (`withStarterLook`, src/shared/avatar.ts). A house reset
+gives that look too. Real first runs still get a random kid, `initialState()` stays the classic doll, and stored saves are never
+changed. `npx vite-node tests/firstrun_test.ts` checks `migrate()` against golden JSON from e0a4cfd (tests/fixtures/firstrun_golden);
+`python tests/firstrun_doll_test.py <url> [old-client-url] [shots]` checks storage byte-for-byte in WebKit.

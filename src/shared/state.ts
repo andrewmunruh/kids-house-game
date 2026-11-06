@@ -1,6 +1,6 @@
 import { isPowerable } from './ambient';
 import { storeKey } from './storekey';
-import { sanitizeLook2, withRandomStarter, type Look2 } from './avatar';
+import { sanitizeLook2, withRandomStarter, withStarterLook, type Look2 } from './avatar';
 import { cleanCostume } from './costume';
 // All game state is plain serializable JSON. All changes go through `Action`s
 // so a future multiplayer server can validate/relay the same actions.
@@ -465,7 +465,7 @@ export function reduce(s: GameState, a: Action): GameState {
       return next;
     }
     case 'settings/sound': return { ...s, soundOn: a.on };
-    case 'game/reset': return initialState();
+    case 'game/reset': return withStarterLook(initialState());
     case 'baby/meet': return s.baby ? s : { ...s, baby: meetBaby(s.rooms, a.now) };
     case 'baby/name': {
       if (!s.baby || !a.name || a.name === s.baby.name) return s;
@@ -644,7 +644,8 @@ export function createStore() {
   } else {
     born = true;
     state = initialState();
-    if (typeof navigator !== 'undefined' && !navigator.webdriver) state = withRandomStarter(state);
+    // Real first runs get a random kid; automated (webdriver) runs get the same fixed starter look every time.
+    if (typeof navigator !== 'undefined') state = navigator.webdriver ? withStarterLook(state) : withRandomStarter(state);
   }
   const listeners: Listener[] = [];
   const troubleListeners: ((t: SaveTrouble) => void)[] = [];

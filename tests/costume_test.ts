@@ -13,8 +13,10 @@ const check = (n: string, ok: boolean, x = '') => { console.log((ok ? 'PASS ' : 
 // Hash of the same corpus rendered by 10ef736 (before costumes), re-pinned once for the
 // arm-layer fix: arms + sleeves moved to their own layer above clothes (markup order only,
 // no art changed; tests/arm_layer_test.ts guards the order). Old hash e5371abb...ec4b6.
-const BASE = 'c2b695a735daebd4ad1366a6169e79688e731a0a9a5f6c3d52dba3e6606ce3c9';
-check('no-costume avatars identical to 10ef736 (+arm-layer re-pin)', createHash('sha256').update(corpus().join('\n')).digest('hex') === BASE);
+// Re-pinned again for the P1 limb fix: posed limbs now sit in a plain <g transform> wrapper
+// (markup only, no art changed; tests/sit_limbs_attached_test.py guards it). Prev c2b695a7...e3c9.
+const BASE = 'cecdf3e480b20cb0f195acb9f11b3172feaa40ec9d35563500685a13c0e33138';
+check('no-costume avatars identical to 10ef736 (+arm-layer, limb-wrapper re-pins)', createHash('sha256').update(corpus().join('\n')).digest('hex') === BASE);
 check('protocol stays 4', PROTOCOL === 4);
 
 check('clean ok ids', COSTUME_IDS.every(id => cleanCostume(id) === id));
