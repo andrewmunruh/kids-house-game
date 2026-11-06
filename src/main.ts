@@ -4472,6 +4472,12 @@ const PHONE_RIDE_W = 156;
 const PHONE_RIDE_H = PHONE_RIDE_W * 130 / 160;
 const RIDE_RIDER_SCALE = 0.6;
 const SHIRT_STROKE = 3.5, SADDLE_STROKE = 3;
+/** Painted saddle sprites seat lower/further forward than the SVG horse's data-top=43 seat. ViewBox units (160×130). */
+const PAINTED_SADDLE_TOP = 66;
+/** Nudge the painted mount left (negative) so she sits nearer the withers, not over the rump. */
+const PAINTED_MOUNT_DX = -18;
+/** Rideleg shift in viewBox units so the near-side leg hangs down the barrel, not across the seat. */
+const PAINTED_LEG_DX = 4, PAINTED_LEG_DY = 16;
 const POND_PAD = 10;
 const trotting = new Map<number, { x: number; y: number }>();
 const lastRideAt = new Map<number, { x: number; y: number }>();
@@ -4703,14 +4709,27 @@ function renderRanchAvatars() {
       lastRideAt.set(ride, { x: w.p.x, y: w.p.y });
       const rw = phonePaddock() ? PHONE_RIDE_W : RIDE_HORSE_W, rh = phonePaddock() ? PHONE_RIDE_H : RIDE_HORSE_H;
       const mw = rw * sc, mh = rh * sc; const m = el.querySelector<HTMLElement>('.mount')!;
-      m.style.width = mw + 'px'; m.style.height = mh + 'px'; m.style.left = (wd - mw) / 2 + 'px'; m.style.top = (h - mh) + 'px';
+      const painted = !!m.querySelector('img.horsesprite');
+      m.classList.toggle('painted', painted);
+      m.style.width = mw + 'px'; m.style.height = mh + 'px';
+      const mountDx = painted ? PAINTED_MOUNT_DX / 160 * mw : 0;
+      m.style.left = (wd - mw) / 2 + mountDx + 'px'; m.style.top = (h - mh) + 'px';
       const hemY = Number(el.querySelector('.shirt')?.getAttribute('data-hem') ?? 126);
-      const sadY = Number(m.querySelector('.saddle')?.getAttribute('data-top') ?? 43);
+      const sadY = painted ? PAINTED_SADDLE_TOP : Number(m.querySelector('.saddle')?.getAttribute('data-top') ?? 43);
       const hem = (hemY + SHIRT_STROKE / 2) / 160 * h;
       const saddleTop = (h - mh) + (sadY - SADDLE_STROKE / 2) / 130 * mh;
       el.style.setProperty('--lift', (hem - saddleTop) + 'px');
       const leg = m.querySelector<SVGElement>('.rideleg');
-      if (leg) { leg.style.left = '0'; leg.style.top = '0'; leg.style.width = '100%'; leg.style.height = '100%'; }
+      if (leg) {
+        leg.style.left = '0'; leg.style.top = '0'; leg.style.width = '100%'; leg.style.height = '100%';
+        if (painted) {
+          leg.style.transformOrigin = '48% 38%';
+          leg.style.transform = `translate(${PAINTED_LEG_DX / 160 * 100}%, ${PAINTED_LEG_DY / 130 * 100}%) rotate(22deg)`;
+        } else {
+          leg.style.transformOrigin = '';
+          leg.style.transform = '';
+        }
+      }
     } else el.style.removeProperty('--lift');
     const lx = parseFloat(el.dataset.lx ?? 'NaN');
     if (Number.isFinite(lx) && Math.abs(lx - w.p.x) > 2) { el.classList.add('moving'); clearTimeout(+(el.dataset.mt ?? 0)); el.dataset.mt = String(window.setTimeout(() => el!.classList.remove('moving'), 260)); }
