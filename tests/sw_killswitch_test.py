@@ -278,10 +278,14 @@ with sync_playwright() as pw:
             prev.close()
 
             # F4 reverse: production NEW build still cleans its own cozy-v1.
+            # Same cadence as the upgrade scenario: first reload lets the new worker take over and
+            # delete cozy-v1; a second reload fills the scoped app cache.
             set_dir(PROD, A.new)
             rl(page)
-            i4, cleaned = poll(page, INFO, lambda v: v['ctl'] and 'cozy-v1' not in v['caches'] and any(k.startswith('cozy:' + PROD) for k in v['caches']), 25)
-            ok('scopes/prod: production Batch 8 deletes cozy-v1', cleaned, str(i4.get('caches')))
+            i4a, cleaned = poll(page, INFO, lambda v: v['ctl'] and 'cozy-v1' not in v.get('caches', []), 25)
+            ok('scopes/prod: production Batch 8 deletes cozy-v1', cleaned, str(i4a.get('caches')))
+            rl(page); page.wait_for_timeout(2000)
+            i4 = page.evaluate(INFO)
             ok('scopes/prod: production scoped app cache present', any(k.startswith('cozy:' + PROD + 'app:') for k in i4.get('caches', [])), str(i4.get('caches')))
             ok('scopes: no page errors', not errs, '; '.join(errs[:3]))
             br.close()
