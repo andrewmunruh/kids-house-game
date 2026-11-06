@@ -84,3 +84,10 @@ Base: main **6f89474** (PR #58 merged). Branch `cursor/batch10-painted-animals`.
   - Contact sheet: shots/batch10/batch10-contact-sheet.png (SHA-labeled).
   - Gate lock `/workspace/surprise/gate.lock` still contended by batches 6/7/8 — full gate + old-client 10ef736 smoke still pending.
   - Still NOT cleared for Andy/preview until App Builder re-reviews P0/P1 art.
+
+- 2026-11-06 ~03:25 CT  (1)–(3) ready for App Builder re-review:
+  - Shots: pr-cedf220 vs main-6f89474 WebKit 820x1180 ranch+living (+ artv1); crops under shots/batch10/crops/
+  - Egg art_ingame_bounds: all 7 rooms × day/night **3/3 OK** (±2%/±3% shipping)
+  - Ranch decoded mem: **34.6 MB HEAD = 34.6 MB main** (unchanged; sceneArt ranch.webp only)
+  - Report: shots/batch10/REPORT-1-3.md
+  - (4) full gate + 10ef736 oldsmoke: waiter holding for gate.lock (no kill); logs work/gate-logs/
