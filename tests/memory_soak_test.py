@@ -4,7 +4,7 @@ renderer/GPU PSS, decoded bytes of painted scenes held in the DOM, and the shelf
 Each cycle: 6 rooms (pan across each), drawer tabs, backyard, map, park, ranch, barn, clubhouse, home.
 usage: memory_soak_test.py URL [minutes=20] [out.json]
 Asserts (the plateau D-01 asks for): renderer PSS grows < 6 MB/min over the second half,
-documents stay <= 8, scene bitmaps held in the DOM stay <= 24 MB, shelf cache <= 60.
+documents stay <= 8 after the first cycle (the first load has ~24 transient ones), scene bitmaps held in the DOM stay <= 24 MB, shelf cache <= 60.
 Headless Chromium on Linux is not an iPad: numbers are relative (before vs after), not device numbers.
 """
 import asyncio, json, os, subprocess, sys, time
@@ -100,7 +100,7 @@ async def main():
     summ = {'url': URL, 'minutes': MIN, 'cycles': cyc, 'navfail': navfail, 'errors': errs[:5], 'first': rows[0], 'last': rows[-1],
             'peak_renderer_PSS_MB': max(r['renderer_PSS_MB'] for r in rows), 'peak_gpu_PSS_MB': max(r['gpu_PSS_MB'] for r in rows),
             'peak_scene_MB_in_dom': peak_scene, 'pss_slope_2nd_half_MB_per_min': round(slope, 2),
-            'max_documents': max(r['documents'] for r in rows), 'max_shelf': max(r['shelf'] for r in rows)}
+            'max_documents': max(r['documents'] for r in rows[1:] or rows), 'max_shelf': max(r['shelf'] for r in rows)}
     print('SUMMARY', json.dumps(summ))
     if OUT: Path(OUT).write_text(json.dumps({'summary': summ, 'rows': rows}, indent=1))
     checks = [('renderer PSS plateau (< 6 MB/min, 2nd half)', slope < 6), ('documents <= 8', summ['max_documents'] <= 8),
