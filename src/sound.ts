@@ -1,10 +1,11 @@
+import { trackAudio } from './visibility';
 let ctx: AudioContext | null = null;
 export let soundEnabled = true;
 export const setSound = (on: boolean) => { soundEnabled = on; };
 function tone(freq: number, dur: number, type: OscillatorType = 'sine', slide = 0, vol = 0.15) {
   if (!soundEnabled) return;
   try {
-    ctx ??= new (window.AudioContext || (window as any).webkitAudioContext)();
+    ctx ??= trackAudio(new (window.AudioContext || (window as any).webkitAudioContext)() as AudioContext);
     if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
     const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime;
     const f = Math.max(40, freq * (0.94 + Math.random() * 0.12));
