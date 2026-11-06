@@ -226,7 +226,9 @@ with sync_playwright() as pw:
     # Requires --prev-new/--prev-kill/--prev-off (VITE_BASE=/cozy-preview/ builds).
     if want('scopes'):
         if not (A.prev_new and A.prev_kill and A.prev_off):
-            ok('scopes: preview dists provided (--prev-new/--prev-kill/--prev-off)', False, 'missing args')
+            if 'scopes' in SC:
+                ok('scopes: preview dists provided (--prev-new/--prev-kill/--prev-off)', False, 'missing args')
+            # else skip when running the full suite without preview dists
         else:
             br, ctx, page, errs = fresh(pw, A.browser)
             # Populate production-style cozy-v1 from the old client at /kids-house-game/.
