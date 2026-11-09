@@ -54,7 +54,7 @@
 @keyframes socHop {
   0%, 55%, 100% { translate: 0 0; scale: 1 1; }
   12% { translate: 0 5px; scale: 1.10 .88; }      /* crouch — Batch 11 bump */
-  26% { translate: 0 -52px; scale: .92 1.10; }    /* up — clearly readable hop peak */
+  26% { translate: 0 -32px; scale: .95 1.06; }    /* up — Batch 11: ~2x base (-16→-32) */
   40% { translate: 0 0; scale: 1.08 .92; }        /* land */
   48% { translate: 0 0; scale: .99 1.01; }        /* settle */
 }
