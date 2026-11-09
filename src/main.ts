@@ -22,6 +22,7 @@ import { houseSVG, ICONS, toast, adultCheck, grownNotice } from './hood-ui';
 import { initEggs, foundSet, EGGS } from './eggs';
 import { ITEMS, ITEM_MAP, svgOf, shelfThumb, hOf, installArtFallback, type Category, type ItemDef } from './items';
 import { rasterOn, rasterUrl } from './art/cache';
+import { catSprite, dogSprite, animalSprite, horseSprite, ranchPropSprite } from './art/sprites';
 import { artSolid, topHit } from './art/hit';
 import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
 import { characterSVG, cradleFrontSVG, handsFor, SIZE_SCALE } from './character';
@@ -3720,7 +3721,7 @@ function tickDogs(now: number, dt: number) {
       // Leave the speech bubble where it is. Detaching it restarted the pop, so one
       // approach played the bubble again each time the dog stood or sat.
       for (const node of [...r.el.children]) if (!node.matches('.bubble, .kennelBtn')) node.remove();
-      r.el.insertAdjacentHTML('afterbegin', `<div class="inner">${dogSVG(o.dog.breed, pose as 'stand' | 'sit')}</div>`);
+      r.el.insertAdjacentHTML('afterbegin', `<div class="inner">${dogSprite(o.dog.breed, pose as 'stand' | 'sit' | 'sleep', dogSVG(o.dog.breed, pose as 'stand' | 'sit'))}</div>`);
       r.pose = pose; r.look = look;
     }
     r.el.dataset.name = o.dog.name;
@@ -4270,7 +4271,7 @@ function tickKennels() {
       // Swap only the drawing. Detaching and re-adding the speech bubble restarted its pop
       // animation, so a rest/peek flip made the bubble shrink and bounce again mid-sentence.
       for (const node of [...r.el.children]) if (!node.matches('.bubble, .kennelBtn')) node.remove();
-      r.el.insertAdjacentHTML('afterbegin', `<div class="inner">${dogSVG(spot.dog.breed, pose)}</div>${look === 'rest' ? '<div class="zzz"><b>Zzz</b><i>z</i><i>z</i><i>z</i></div>' : ''}`);
+      r.el.insertAdjacentHTML('afterbegin', `<div class="inner">${dogSprite(spot.dog.breed, pose, dogSVG(spot.dog.breed, pose))}</div>${look === 'rest' ? '<div class="zzz"><b>Zzz</b><i>z</i><i>z</i><i>z</i></div>' : ''}`);
       r.pose = pose; r.look = look + spot.dog.breed;
     }
     r.el.dataset.name = spot.dog.name;
@@ -4330,7 +4331,7 @@ function tickCat() {
     // Pose changes every few seconds. Keep the purr (bubble + hearts); replacing the
     // whole node used to throw the hearts away mid-animation.
     const keep = [...catEl.querySelectorAll('.bubble, .heart')];
-    catEl.innerHTML = `<div class="inner">${catSVG(cat.coat, pose)}</div>${pose === 'nap' ? '<div class="zzz"><i>z</i><i>z</i><i>z</i></div>' : ''}`;
+    catEl.innerHTML = `<div class="inner">${catSprite(cat.coat, pose, catSVG(cat.coat, pose))}</div>${pose === 'nap' ? '<div class="zzz"><i>z</i><i>z</i><i>z</i></div>' : ''}`;
     for (const node of keep) catEl.appendChild(node);
     catKey = key;
   }
@@ -4435,8 +4436,8 @@ function openPets(tab: 'cat' | 'dog' = 'cat') {
     card.innerHTML = `${X}<h2>Pets</h2>
       <div class="petTabs"><button data-pt="cat" class="${isCat ? 'on' : ''}">🐱 Cat</button><button data-pt="dog" class="${isCat ? '' : 'on'}">🐶 Dog</button></div>
       <p class="hint small">${isCat ? (hood ? 'Your cat lives in your house. Friends can see her when they visit!' : 'Your cat lives in your house. She naps, purrs, and plays!') : (hood ? 'Your dog follows you everywhere: the street, friends\' houses, and the park!' : 'Your dog follows you around the house and to the park!')}</p>
-      <div class="petRow"><div class="petPreview">${isCat ? catSVG(d.coat, 'sit') : dogSVG(d.breed, 'stand')}</div>
-        <div class="swatches">${(isCat ? CAT_COATS : DOG_BREEDS).map((c, i) => `<button ${isCat ? 'data-coat' : 'data-breed'}="${i}" class="${i === (isCat ? d.coat : d.breed) ? 'on' : ''}"><div>${isCat ? catSVG(i, 'sit') : dogSVG(i, 'stand')}</div><span>${c.name}</span></button>`).join('')}</div></div>
+      <div class="petRow"><div class="petPreview">${isCat ? catSprite(d.coat, 'sit', catSVG(d.coat, 'sit')) : dogSprite(d.breed, 'stand', dogSVG(d.breed, 'stand'))}</div>
+        <div class="swatches">${(isCat ? CAT_COATS : DOG_BREEDS).map((c, i) => `<button ${isCat ? 'data-coat' : 'data-breed'}="${i}" class="${i === (isCat ? d.coat : d.breed) ? 'on' : ''}"><div>${isCat ? catSprite(i, 'sit', catSVG(i, 'sit')) : dogSprite(i, 'stand', dogSVG(i, 'stand'))}</div><span>${c.name}</span></button>`).join('')}</div></div>
       <div class="label">Name</div>
       <div class="nameChips">${names.map(n => `<button ${isCat ? 'data-cname' : 'data-dname'}="${n}" class="${n === cur ? 'on' : ''}">${n}</button>`).join('')}</div>
       <input id="petName" class="petName" maxlength="14" autocomplete="off" placeholder="…or type a name" value="${esc(prev)}"/>
@@ -4471,6 +4472,17 @@ const PHONE_RIDE_W = 156;
 const PHONE_RIDE_H = PHONE_RIDE_W * 130 / 160;
 const RIDE_RIDER_SCALE = 0.6;
 const SHIRT_STROKE = 3.5, SADDLE_STROKE = 3;
+/**
+ * Per-coat painted saddle top (viewBox y in 160×130), from colour scan of each
+ * horse-*-saddle.webp (480×390 = 3×): opaque orange saddle band (lavender for
+ * rainbow) in x=180–300, y=90–250; longest contiguous row-run; top = first row
+ * with ≥14 hits; vb = px/3. Coats: chestnut, snowy, midnight, sunny, rainbow.
+ */
+const PAINTED_SADDLE_TOP = [46.3, 46.3, 48.7, 49.7, 53.0];
+/** Per-coat mount nudge in viewBox x (negative = horse left / rider toward withers when unflipped). Mirrored when savatar is flipped. */
+const PAINTED_MOUNT_DX = [0, 0, 0, 0, 0];
+/** Rideleg shift in viewBox units so the near-side leg hangs down the barrel, not across the seat. */
+const PAINTED_LEG_DX = 4, PAINTED_LEG_DY = 16;
 const POND_PAD = 10;
 const trotting = new Map<number, { x: number; y: number }>();
 const lastRideAt = new Map<number, { x: number; y: number }>();
@@ -4651,19 +4663,19 @@ function renderRanch() {
   if (inBarn) {
     w.innerHTML = barnSceneSVG() + '<div class="sceneArtHost" id="ranchArt"></div>'
       + `<button class="rprop barnExit" data-r="exit" aria-label="Go outside" style="${box(127, 444, 206, 244)}"><span class="exitHint"><span>Outside ☀️</span></span></button>`
-      + ANIMALS.map((_, i) => `<button class="animal" data-animal="${i}" aria-label="${ANIMAL_INFO[i].name}" style="${box(BARN_ANIMAL_X[i], ANIMAL_Y + 30, 128, 107)}">${animalSVG(i)}</button>`).join('')
+      + ANIMALS.map((_, i) => `<button class="animal" data-animal="${i}" aria-label="${ANIMAL_INFO[i].name}" style="${box(BARN_ANIMAL_X[i], ANIMAL_Y + 30, 128, 107)}">${animalSprite(i, animalSVG(i))}</button>`).join('')
       + [300, 1244].map(x0 => (['carrot', 'apple', 'hay'] as const).map((f, i) => `<button class="bucket" data-feed="${f}" aria-label="${f} bucket" style="${box(x0 + i * 56, 592, 54, 62)}">${bucketSVG(f)}</button>`).join('')).join('') // by the door + in the middle
       + `<div class="rfx" id="rfx"></div><div class="savatars" id="ravatars"></div>`;
     showSceneArt($('ranchArt'), 'barn', w); renderRanchAvatars(); phoneShowKids(); return;
   }
   w.innerHTML = ranchSceneSVG() + '<div class="sceneArtHost" id="ranchArt"></div>'
-    + paddockFenceSVG().replace('<svg ', `<svg style="z-index:${depthZ(FENCE_FOOT)}" `)
+    + ranchPropSprite('paddock-fence', paddockFenceSVG()).replace('<svg ', `<svg style="z-index:${depthZ(FENCE_FOOT)}" `).replace('<img ', `<img style="z-index:${depthZ(FENCE_FOOT)};position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none" `)
     + `<button class="rprop barnDoor" data-r="barn" aria-label="Go into the barn" style="${box(BARN_DOOR_X, 472, 150, 150)}"><span class="doorHint"><span>Petting zoo inside! 🐐</span></span></button>`
-    + `<button class="rprop windmill" data-r="mill" aria-label="Windmill" style="${box(1540, 478, 150, 240)}">${windmillSVG}</button>`
-    + `<button class="rprop henHouse" data-r="egg" aria-label="Hen house" style="${box(715, 482, 180, 170)}">${henHouseSVG}</button>`
-    + `<button class="rprop tractor" data-r="honk" aria-label="Tractor" style="${box(900, 580, 170, 130)}">${tractorSVG}</button>`
-    + `<button class="rprop appleTree" data-r="apple" aria-label="Apple tree" style="${box(2085, 482, 240, 300)}">${appleTreeSVG}</button>`
-    + HORSES.map((_, i) => { const hs = horseSize(); const off = phonePaddock() && shownHorseIds().indexOf(i) < 0 ? ' stallOff' : ''; return `<button class="horse${off}" data-horse="${i}" aria-label="${HORSE_COATS[i].name} horse" style="${box(horseHome(i), HORSE_Y, hs.w, hs.h)}">${horseSVG(i)}</button>`; }).join('')
+    + `<button class="rprop windmill" data-r="mill" aria-label="Windmill" style="${box(1540, 478, 150, 240)}">${ranchPropSprite('windmill', windmillSVG)}</button>`
+    + `<button class="rprop henHouse" data-r="egg" aria-label="Hen house" style="${box(715, 482, 180, 170)}">${ranchPropSprite('hen-house', henHouseSVG)}</button>`
+    + `<button class="rprop tractor" data-r="honk" aria-label="Tractor" style="${box(900, 580, 170, 130)}">${ranchPropSprite('tractor', tractorSVG)}</button>`
+    + `<button class="rprop appleTree" data-r="apple" aria-label="Apple tree" style="${box(2085, 482, 240, 300)}">${ranchPropSprite('apple-tree', appleTreeSVG)}</button>`
+    + HORSES.map((_, i) => { const hs = horseSize(); const off = phonePaddock() && shownHorseIds().indexOf(i) < 0 ? ' stallOff' : ''; return `<button class="horse${off}" data-horse="${i}" aria-label="${HORSE_COATS[i].name} horse" style="${box(horseHome(i), HORSE_Y, hs.w, hs.h)}">${horseSprite(i, false, horseSVG(i))}</button>`; }).join('')
     + Array.from({ length: PLOTS }, (_, i) => `<button class="plot" data-plot="${i}" aria-label="Garden plot" style="${box(PLOT_X(i), 594, 66, 86)}"></button>`).join('')
     + `<div class="rfx" id="rfx"></div><div class="savatars" id="ravatars"></div>`;
   showSceneArt($('ranchArt'), 'ranch', w); renderPlots(true); renderRanchAvatars();
@@ -4693,7 +4705,7 @@ function renderRanchAvatars() {
     const k = (SIZE_SCALE[w.look.size] ?? 1) * sc * 0.95 * (ride !== undefined ? RIDE_RIDER_SCALE : 1), wd = CHAR_W * k, h = CHAR_H * k;
     if (el.dataset.ride !== String(ride ?? '')) {
       el.querySelector('.mount')?.remove();
-      if (ride !== undefined) el.insertAdjacentHTML('afterbegin', `<div class="mount" data-mount="${ride}">${horseSVG(ride, true)}${rideLegHTML(w.look)}</div>`);
+      if (ride !== undefined) el.insertAdjacentHTML('afterbegin', `<div class="mount" data-mount="${ride}">${horseSprite(ride, true, horseSVG(ride, true))}${rideLegHTML(w.look)}</div>`);
       el.dataset.ride = String(ride ?? '');
     }
     el.classList.toggle('riding', ride !== undefined);
@@ -4702,14 +4714,31 @@ function renderRanchAvatars() {
       lastRideAt.set(ride, { x: w.p.x, y: w.p.y });
       const rw = phonePaddock() ? PHONE_RIDE_W : RIDE_HORSE_W, rh = phonePaddock() ? PHONE_RIDE_H : RIDE_HORSE_H;
       const mw = rw * sc, mh = rh * sc; const m = el.querySelector<HTMLElement>('.mount')!;
-      m.style.width = mw + 'px'; m.style.height = mh + 'px'; m.style.left = (wd - mw) / 2 + 'px'; m.style.top = (h - mh) + 'px';
+      const painted = !!m.querySelector('img.horsesprite');
+      m.classList.toggle('painted', painted);
+      m.style.width = mw + 'px'; m.style.height = mh + 'px';
+      const coat = ride ?? 0;
+      const rawDx = painted ? (PAINTED_MOUNT_DX[coat] ?? 0) : 0;
+      // .savatar.flipped > .mount uses scaleX(-1); negate left nudge so withers stay under her.
+      const mountDx = (w.p.flip ? -rawDx : rawDx) / 160 * mw;
+      m.style.left = (wd - mw) / 2 + mountDx + 'px'; m.style.top = (h - mh) + 'px';
       const hemY = Number(el.querySelector('.shirt')?.getAttribute('data-hem') ?? 126);
-      const sadY = Number(m.querySelector('.saddle')?.getAttribute('data-top') ?? 43);
+      const sadY = painted ? (PAINTED_SADDLE_TOP[coat] ?? PAINTED_SADDLE_TOP[0]) : Number(m.querySelector('.saddle')?.getAttribute('data-top') ?? 43);
+      m.dataset.saddleTop = String(sadY);
       const hem = (hemY + SHIRT_STROKE / 2) / 160 * h;
       const saddleTop = (h - mh) + (sadY - SADDLE_STROKE / 2) / 130 * mh;
       el.style.setProperty('--lift', (hem - saddleTop) + 'px');
       const leg = m.querySelector<SVGElement>('.rideleg');
-      if (leg) { leg.style.left = '0'; leg.style.top = '0'; leg.style.width = '100%'; leg.style.height = '100%'; }
+      if (leg) {
+        leg.style.left = '0'; leg.style.top = '0'; leg.style.width = '100%'; leg.style.height = '100%';
+        if (painted) {
+          leg.style.transformOrigin = '48% 38%';
+          leg.style.transform = `translate(${PAINTED_LEG_DX / 160 * 100}%, ${PAINTED_LEG_DY / 130 * 100}%) rotate(22deg)`;
+        } else {
+          leg.style.transformOrigin = '';
+          leg.style.transform = '';
+        }
+      }
     } else el.style.removeProperty('--lift');
     const lx = parseFloat(el.dataset.lx ?? 'NaN');
     if (Number.isFinite(lx) && Math.abs(lx - w.p.x) > 2) { el.classList.add('moving'); clearTimeout(+(el.dataset.mt ?? 0)); el.dataset.mt = String(window.setTimeout(() => el!.classList.remove('moving'), 260)); }
@@ -4917,7 +4946,7 @@ function renderBasketChip() {
   const b = myBasket(), any = b.egg + b.carrot + b.flower > 0;
   const show = any && (view === 'ranch' || home);
   chip.classList.toggle('hidden', !show); chip.classList.toggle('inHouse', view === 'house'); if (!show) return;
-  chip.innerHTML = `<span class="bIcon">${basketSVG}</span><span class="bcount" data-kind="egg">${eggSVG}<b>${b.egg}</b></span><span class="bcount" data-kind="carrot">${carrotSVG}<b>${b.carrot}</b></span><span class="bcount" data-kind="flower">${flowerSVG()}<b>${b.flower}</b></span>`;
+  chip.innerHTML = `<span class="bIcon">${ranchPropSprite('basket', basketSVG)}</span><span class="bcount" data-kind="egg">${eggSVG}<b>${b.egg}</b></span><span class="bcount" data-kind="carrot">${carrotSVG}<b>${b.carrot}</b></span><span class="bcount" data-kind="flower">${flowerSVG()}<b>${b.flower}</b></span>`;
 }
 $('basketChip').addEventListener('pointerdown', e => {
   const c = (e.target as HTMLElement).closest<HTMLElement>('.bcount[data-kind="carrot"]');
