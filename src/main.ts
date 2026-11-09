@@ -4472,10 +4472,15 @@ const PHONE_RIDE_W = 156;
 const PHONE_RIDE_H = PHONE_RIDE_W * 130 / 160;
 const RIDE_RIDER_SCALE = 0.6;
 const SHIRT_STROKE = 3.5, SADDLE_STROKE = 3;
-/** Painted saddle sprites seat lower/further forward than the SVG horse's data-top=43 seat. ViewBox units (160×130). */
-const PAINTED_SADDLE_TOP = 66;
-/** Nudge the painted mount left (negative) so she sits nearer the withers, not over the rump. */
-const PAINTED_MOUNT_DX = -18;
+/**
+ * Per-coat painted saddle top (viewBox y in 160×130), from colour scan of each
+ * horse-*-saddle.webp (480×390 = 3×): opaque orange saddle band (lavender for
+ * rainbow) in x=180–300, y=90–250; longest contiguous row-run; top = first row
+ * with ≥14 hits; vb = px/3. Coats: chestnut, snowy, midnight, sunny, rainbow.
+ */
+const PAINTED_SADDLE_TOP = [46.3, 46.3, 48.7, 49.7, 53.0];
+/** Per-coat mount nudge in viewBox x (negative = horse left / rider toward withers when unflipped). Mirrored when savatar is flipped. */
+const PAINTED_MOUNT_DX = [0, 0, 0, 0, 0];
 /** Rideleg shift in viewBox units so the near-side leg hangs down the barrel, not across the seat. */
 const PAINTED_LEG_DX = 4, PAINTED_LEG_DY = 16;
 const POND_PAD = 10;
@@ -4712,10 +4717,14 @@ function renderRanchAvatars() {
       const painted = !!m.querySelector('img.horsesprite');
       m.classList.toggle('painted', painted);
       m.style.width = mw + 'px'; m.style.height = mh + 'px';
-      const mountDx = painted ? PAINTED_MOUNT_DX / 160 * mw : 0;
+      const coat = ride ?? 0;
+      const rawDx = painted ? (PAINTED_MOUNT_DX[coat] ?? 0) : 0;
+      // .savatar.flipped > .mount uses scaleX(-1); negate left nudge so withers stay under her.
+      const mountDx = (w.p.flip ? -rawDx : rawDx) / 160 * mw;
       m.style.left = (wd - mw) / 2 + mountDx + 'px'; m.style.top = (h - mh) + 'px';
       const hemY = Number(el.querySelector('.shirt')?.getAttribute('data-hem') ?? 126);
-      const sadY = painted ? PAINTED_SADDLE_TOP : Number(m.querySelector('.saddle')?.getAttribute('data-top') ?? 43);
+      const sadY = painted ? (PAINTED_SADDLE_TOP[coat] ?? PAINTED_SADDLE_TOP[0]) : Number(m.querySelector('.saddle')?.getAttribute('data-top') ?? 43);
+      m.dataset.saddleTop = String(sadY);
       const hem = (hemY + SHIRT_STROKE / 2) / 160 * h;
       const saddleTop = (h - mh) + (sadY - SADDLE_STROKE / 2) / 130 * mh;
       el.style.setProperty('--lift', (hem - saddleTop) + 'px');
