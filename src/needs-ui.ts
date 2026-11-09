@@ -46,9 +46,10 @@ function spotX(s: GameState, c: Character, n: Need): number | null {
 }
 
 
-/** Room (other than current) that has something for this need, or null. Stable room-id order. */
+/** Room (other than current) with the same helper hintFor uses, or null. Stable room-id order.
+ *  Hungry → fridge only (not cake/juice elsewhere), so a snack left in the bedroom does not steal the Kitchen tab. */
 function elsewhereRoom(s: GameState, n: Need): string | null {
-  const ok = (k: string) => n === 'sleepy' ? /bed|crib|cot|bunk/.test(k) : n === 'hungry' ? isFridge(k) || isFood(k) : n === 'clean' ? isTub(k) : isToy(k);
+  const ok = (k: string) => hintFor(n, k);
   if ((s.rooms[s.currentRoom]?.items ?? []).some(it => ok(it.kind))) return null;
   const order = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'bathroom', 'backyard'];
   for (const id of order) {
