@@ -114,3 +114,8 @@ Base: main **6f89474** (PR #58 merged). Branch `cursor/batch10-painted-animals`.
 - **Windmill:** cream-key hollowed cream tower. **Fix:** SVG solid tower + rainbow sails composite; FIT_ADJUST OK dw=-1.9%.
 - Living/backyard/kitchen/bedroom: no analogous full-scene strip bug (no oversized non-sceneArt imgs).
 - Andy JPGs recaptured under `shots/batch10/andy/` @ tip with SVG fence + solid windmill.
+
+## GO-for-preview — 2026-11-09 9:25 AM CT
+- App Builder **GO-for-preview** at tip **`ddf0cac`** (PR #66). Per-coat saddle tops + scan in `shots/batch10/ride-fit/PER_COAT_SADDLE.md`; ride_pose **12/18** = known base fail (same on main `6f89474`) → https://github.com/andrewmunruh/kids-house-game/issues/67
+- **When rebased for its preview turn:** rerun the **full gate** at the rebased tip **vs a same-env base** (same box / WebKit / hood / gate.lock). Do not reuse gate columns from a different environment.
+
