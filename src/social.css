@@ -53,9 +53,9 @@
 .layer .char.soc-hop:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: socHop 1.8s cubic-bezier(.3,.7,.4,1) infinite; animation-delay: var(--soc-delay, 0s); }
 @keyframes socHop {
   0%, 55%, 100% { translate: 0 0; scale: 1 1; }
-  12% { translate: 0 2px; scale: 1.05 .93; }      /* crouch */
-  26% { translate: 0 -16px; scale: .97 1.04; }    /* up */
-  40% { translate: 0 0; scale: 1.04 .96; }        /* land */
+  12% { translate: 0 2px; scale: 1.06 .92; }      /* crouch */
+  26% { translate: 0 -22px; scale: .96 1.05; }    /* up — Batch 11: a bit higher so friends see the hop */
+  40% { translate: 0 0; scale: 1.05 .95; }        /* land */
   48% { translate: 0 0; scale: .99 1.01; }        /* settle */
 }
 .char.chibi-move.soc-wave.soc-r .arm.r:not(.sleeve), .char.chibi-move.soc-wave.soc-l .arm.l:not(.sleeve),
@@ -66,7 +66,7 @@
 .layer .char.soc-wave:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner, .layer .char.soc-baby:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: socNod 1.8s ease-in-out infinite; animation-delay: var(--soc-delay, 0s); }
 @keyframes socNod { 0%, 100% { translate: 0 0; } 30% { translate: 0 -3px; } 50% { translate: 0 0; } }
 .layer .char.soc-heart::before, .layer .char.soc-baby::before {
-  content: '♥'; position: absolute; left: 50%; top: -6%; color: #ff7aa8; font-size: 22px; pointer-events: none;
+  content: '♥'; position: absolute; left: 50%; top: -6%; color: #ff7aa8; font-size: 26px; pointer-events: none;
   animation: socHeart 1.8s ease-out infinite; animation-delay: var(--soc-delay, 0s); opacity: 0;
 }
 .layer .char.soc-baby::before { animation-duration: 3.6s; font-size: 16px; }

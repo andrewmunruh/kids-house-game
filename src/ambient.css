@@ -35,8 +35,8 @@
 .layer .char.amb-warm.amb-l:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation-name: ambWarmL; }
 @keyframes ambWarmR { 0%, 100% { transform: rotate(2deg); } 50% { transform: rotate(4deg) scale(1.01, .99); } }
 @keyframes ambWarmL { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(-4deg) scale(1.01, .99); } }
-.char.chibi-move.amb-warm .arm.l:not(.sleeve) { animation: none; transform: rotate(28deg); }
-.char.chibi-move.amb-warm .arm.r:not(.sleeve) { animation: none; transform: rotate(-28deg); }
+.char.chibi-move.amb-warm .arm.l:not(.sleeve) { animation: none; transform: rotate(30deg); }
+.char.chibi-move.amb-warm .arm.r:not(.sleeve) { animation: none; transform: rotate(-30deg); }
 
 .layer .char.amb-hug:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: ambHug var(--amb-period, 1.8s) ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
 @keyframes ambHug { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04, .96); } }
@@ -78,10 +78,11 @@
 
 /* ---- powered items ---- */
 .item.amb-on[data-amb="stereo"] > .inner { animation: ambThump .9s ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
-@keyframes ambThump { 0%, 100% { transform: scale(1); } 12% { transform: scale(1.035, .975); } 40% { transform: scale(1); } }
+@keyframes ambThump { 0%, 100% { transform: scale(1); } 12% { transform: scale(1.05, .97); } 40% { transform: scale(1); } }
 .item > .ambFx.fx-stereo > span, .item > .ambFx.fx-musicbox > span {
-  top: 0; left: 40%; font-size: 26px; font-weight: 900; color: #b36bd6; animation: ambNoteUp 2.7s ease-out infinite;
+  top: -4%; left: 40%; font-size: 30px; font-weight: 900; color: #b36bd6; z-index: 2; animation: ambNoteUp 2.7s ease-out infinite;
 }
+.item > .ambFx { z-index: 2; pointer-events: none; }
 .item > .ambFx > span:nth-child(2) { left: 64%; color: #ff7aa8; animation-delay: -.9s; }
 .item > .ambFx > span:nth-child(3) { left: 18%; color: #4fa3e0; animation-delay: -1.8s; }
 .item > .ambFx.fx-musicbox > span { font-size: 18px; animation-duration: 3.6s; }
@@ -99,10 +100,10 @@
 /* Fire: warm glow that breathes, two embers drifting up. */
 .item > .ambFx.fx-fire > .glow {
   left: 18%; right: 18%; top: 40%; height: 48%; border-radius: 50%;
-  background: radial-gradient(ellipse at 50% 70%, rgba(255, 196, 92, .75), rgba(255, 140, 60, .3) 55%, rgba(255, 140, 60, 0) 75%);
+  background: radial-gradient(ellipse at 50% 70%, rgba(255, 196, 92, .9), rgba(255, 140, 60, .42) 55%, rgba(255, 140, 60, 0) 75%);
   animation: ambFlame 1.6s ease-in-out infinite alternate;
 }
-.item > .ambFx.fx-fire > .ember { width: 6px; height: 6px; border-radius: 50%; background: #ffb347; left: 46%; top: 54%; animation: ambEmber 2.4s ease-out infinite; }
+.item > .ambFx.fx-fire > .ember { width: 7px; height: 7px; border-radius: 50%; background: #ffb347; left: 46%; top: 54%; animation: ambEmber 2.4s ease-out infinite; }
 .item > .ambFx.fx-fire > .ember:nth-child(3) { left: 56%; animation-delay: -1.2s; }
 @keyframes ambFlame { from { transform: scale(.94, .9); opacity: .7; } to { transform: scale(1.04, 1.06); opacity: 1; } }
 @keyframes ambEmber { 0% { transform: translate(0, 0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(6px, -70px); opacity: 0; } }
