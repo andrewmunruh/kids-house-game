@@ -26,7 +26,7 @@ const byAge = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
 const ART_BURST = 14, ART_REFILL_MS = 4000;
 /** A just-saved painting is placed by the client after the ack; until it is hung (or this long passes) it is never cleared. */
 const ART_FRESH_MS = 90_000;
-export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; halloween?: number; cos?: number; needs?: number; art?: number; hb?: number; lastRx?: number }
+export interface Conn { send(s: string): void; close(code?: number, reason?: string): void; pid?: string; parent?: boolean; budget?: { t: number; n: number }; v?: number; pet?: number; mail?: number; sit?: number; fit?: number; baby?: number; amb?: number; halloween?: number; cos?: number; needs?: number; art?: number; hb?: number; lastRx?: number; soak?: number }
 /** Not a real socket. Baby release is broadcast to every baby client, including the kid who just left. */
 const RELEASE_SENDER: Conn = { send() {}, close() {} };
 
@@ -423,6 +423,20 @@ export class Neighborhood {
     }
   }
   // ---------- idle drop (hb:1 sockets only) ----------
+  /** Preview soak traces only. Production clients never set c.soak, so this is a no-op for them. */
+  traceSoak(c: Conn, reason: string, extra?: Record<string, string | number | undefined | null>) {
+    if (!c.soak) return;
+    const street = this.meta?.code ?? this.meta?.id ?? 'unknown';
+    const client = c.pid ?? 'pre-join';
+    const parts = [`IDLE_TRACE ts=${new Date().toISOString()} street=${street} client=${client} reason=${reason}`];
+    if (extra) {
+      for (const [k, v] of Object.entries(extra)) {
+        if (v === undefined || v === null || v === '') continue;
+        parts.push(`${k}=${v}`);
+      }
+    }
+    console.log(parts.join(' '));
+  }
   private idleT: ReturnType<typeof setInterval> | null = null;
   private armIdle() {
     if (this.idleT) return;
@@ -434,6 +448,7 @@ export class Neighborhood {
     for (const c of [...this.conns]) {
       if (!c.hb || !c.pid) continue;
       if (now - (c.lastRx ?? now) <= IDLE_MS) { any = true; continue; }
+      this.traceSoak(c, '4001-idle', { rx_age_ms: now - (c.lastRx ?? now) });
       try { c.close(4001, 'idle'); } catch { /* peer already gone */ }
       this.onClose(c); // a half-open socket may never report its close
     }
@@ -482,7 +497,7 @@ export class Neighborhood {
         c.cos = m.cos === 1 ? 1 : 0;
         c.needs = m.needs === 1 ? 1 : 0;
         c.art = m.art === 1 ? 1 : 0;
-        c.hb = m.hb === 1 ? 1 : 0; if (c.hb) { c.lastRx = Date.now(); this.armIdle(); }
+        c.hb = m.hb === 1 ? 1 : 0; if (c.hb) { c.lastRx = Date.now(); this.armIdle(); } if ((m as { soak?: unknown }).soak === 1) c.soak = 1;
         const h = typeof m.token === 'string' ? await sha256(m.token) : '';
         const p = h ? Object.values(meta.players).find(p => p.tokenHash === h) : undefined;
         if (!p) { this.send(c, { t: 'error', code: 'badtoken' }); return; }
@@ -502,7 +517,7 @@ export class Neighborhood {
         c.cos = m.cos === 1 ? 1 : 0;
         c.needs = m.needs === 1 ? 1 : 0;
         c.art = m.art === 1 ? 1 : 0;
-        c.hb = m.hb === 1 ? 1 : 0; if (c.hb) { c.lastRx = Date.now(); this.armIdle(); }
+        c.hb = m.hb === 1 ? 1 : 0; if (c.hb) { c.lastRx = Date.now(); this.armIdle(); } if ((m as { soak?: unknown }).soak === 1) c.soak = 1;
         const roster = meta.roster ?? [];
         let nickname: string;
         if (roster.length) {
@@ -539,7 +554,7 @@ export class Neighborhood {
         return;
       }
       case 'parent': return this.onParent(c, m);
-      case 'ping': if (c.hb) this.send(c, { t: 'pong' }); return;
+      case 'ping': if (c.hb) this.send(c, { t: 'pong' }); this.traceSoak(c, 'ping'); return;
     }
     if (!c.pid || !meta.players[c.pid]) { // everything below needs a joined player of this street
       if (m.t === 'art' && (c.art ?? 0) >= 1) this.send(c, { t: 'artFail', houseId: String(m.houseId ?? '').slice(0, 40), id: String(m.id ?? '').slice(0, 30), reason: 'member' });
