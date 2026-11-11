@@ -66,13 +66,21 @@ export async function startSW(o: Opts): Promise<void> {
 }
 
 // A new worker that installed but is still waiting (Chromium, right after the pre-Batch-8 'cozy-v1' worker handled
-// one of our requests) gets one more skipWaiting via a message, so it activates now: it clears the old caches
-// (cozy-v1 only on /kids-house-game/) and takes over, instead of waiting for the next navigation.
-// Safe to repeat; a worker that is already active ignores it, and the kill-switch worker has no message handler.
+// one of our requests) gets skipWaiting again via a message, so it activates now: it clears the old caches
+// (cozy-v1 only on /kids-house-game/) and takes over, instead of waiting for the next navigation (which can hang).
+// A nudge sent while the old worker is still busy can be ignored, so it repeats with backoff (about 1 s to 28 s)
+// until nothing is waiting. Safe to repeat; the kill-switch worker has no message handler.
 function kickWaiting(reg: ServiceWorkerRegistration): void {
-  const kick = () => { try { reg.waiting?.postMessage({ type: 'cozy-skip' }); } catch { /* ignore */ } };
-  const watch = (w: ServiceWorker | null) => w?.addEventListener('statechange', () => { if (w.state === 'installed') kick(); });
-  kick(); watch(reg.installing);
+  let tries = 0; let timer: ReturnType<typeof setTimeout> | undefined;
+  const kick = () => {
+    timer = undefined;
+    const w = reg.waiting; if (!w) return;
+    try { w.postMessage({ type: 'cozy-skip' }); } catch { /* ignore */ }
+    if (++tries < 8) timer = setTimeout(kick, 1000 * tries);
+  };
+  const soon = () => { if (timer === undefined) kick(); };
+  const watch = (w: ServiceWorker | null) => w?.addEventListener('statechange', () => { if (w.state === 'installed') { tries = 0; soon(); } });
+  soon(); watch(reg.installing);
   reg.addEventListener('updatefound', () => watch(reg.installing));
 }
 
