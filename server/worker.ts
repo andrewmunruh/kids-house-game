@@ -72,17 +72,26 @@ export class HoodDO {
     // own — until we close our side the browser stays in CLOSING and never fires onclose, so it never reconnects.
     server.accept();
     let finished = false;
+    const tOpen = Date.now();
     const legal = (code?: number) => (code && code >= 1000 && code <= 4999 && code !== 1004 && code !== 1005 && code !== 1006 && code !== 1015 ? code : 1000);
     const conn: Conn = { send: s => { try { server.send(s); } catch { /* peer already gone */ } }, close: (code, reason) => end(code, reason) };
+    if (url.searchParams.get('soak') === '1') conn.soak = 1;
     const ready = this.hood.onConnect(conn);
     const end = (code?: number, reason?: string) => {
+      this.hood.traceSoak(conn, 'end', { code: legal(code), close_reason: reason, ms_since_open: Date.now() - tOpen });
       if (finished) return; finished = true;
       try { server.close(legal(code), (reason ?? '').slice(0, 120)); } catch { /* already closing */ }
       this.hood.onClose(conn); void this.hood.flush();
     };
     server.addEventListener('message', async (e: MessageEvent) => { await ready; if (typeof e.data === 'string' && e.data.length < 400_000) this.hood.onMessage(conn, e.data); });
-    server.addEventListener('close', (e: CloseEvent) => end(e.code, e.reason));
-    server.addEventListener('error', () => end(1011, 'error'));
+    server.addEventListener('close', (e: CloseEvent) => {
+      this.hood.traceSoak(conn, 'client-close', { code: e.code, close_reason: e.reason, ms_since_open: Date.now() - tOpen });
+      end(e.code, e.reason);
+    });
+    server.addEventListener('error', () => {
+      this.hood.traceSoak(conn, 'client-error', { code: 1011, close_reason: 'error', ms_since_open: Date.now() - tOpen });
+      end(1011, 'error');
+    });
     return new Response(null, { status: 101, webSocket: client } as any);
   }
 }
