@@ -55,6 +55,7 @@ export async function startSW(o: Opts): Promise<void> {
   sw.addEventListener('controllerchange', () => { try { sw.controller?.postMessage({ type: 'cozy-build?' }); } catch { /* ignore */ } });
   let reg: ServiceWorkerRegistration | undefined;
   try { reg = await sw.register(o.base + 'sw.js'); } catch { return; }
+  kickWaiting(reg);
   try { sw.controller?.postMessage({ type: 'cozy-build?' }); } catch { /* ignore */ }
   // An iPad app can stay open for days: look for a new build when it comes back to the front.
   let last = Date.now();
@@ -62,6 +63,17 @@ export async function startSW(o: Opts): Promise<void> {
     if (document.visibilityState !== 'visible' || Date.now() - last < 10 * 60e3) return;
     last = Date.now(); reg?.update().catch(() => {});
   });
+}
+
+// A new worker that installed but is still waiting (Chromium, right after the pre-Batch-8 'cozy-v1' worker handled
+// one of our requests) gets one more skipWaiting via a message, so it activates now: it clears the old caches
+// (cozy-v1 only on /kids-house-game/) and takes over, instead of waiting for the next navigation.
+// Safe to repeat; a worker that is already active ignores it, and the kill-switch worker has no message handler.
+function kickWaiting(reg: ServiceWorkerRegistration): void {
+  const kick = () => { try { reg.waiting?.postMessage({ type: 'cozy-skip' }); } catch { /* ignore */ } };
+  const watch = (w: ServiceWorker | null) => w?.addEventListener('statechange', () => { if (w.state === 'installed') kick(); });
+  kick(); watch(reg.installing);
+  reg.addEventListener('updatefound', () => watch(reg.installing));
 }
 
 function offer(o: Opts) {

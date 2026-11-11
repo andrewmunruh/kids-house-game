@@ -39,6 +39,11 @@ self.addEventListener('activate', e => e.waitUntil((async () => {
 })()));
 self.addEventListener('message', e => {
   if (e.data && e.data.type === 'cozy-build?' && e.source) e.source.postMessage({ type: 'cozy-sw', build: BUILD });
+  // Page nudge for a waiting worker (see sw-client.ts kickWaiting). Chromium can leave this worker 'installed'
+  // behind the pre-Batch-8 worker even though install already called skipWaiting(), when the old worker took a
+  // request right after we installed; it then only activates on the next navigation, and that navigation can hang.
+  // Calling skipWaiting() again from a message event activates it at once. Idempotent: no-op once active.
+  if (e.data && e.data.type === 'cozy-skip') e.waitUntil(self.skipWaiting());
 });
 
 function artRequest(url) {

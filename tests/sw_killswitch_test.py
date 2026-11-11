@@ -81,6 +81,22 @@ INFO = """async () => {
   };
 }"""
 
+# Resolves when the registration's active worker is activated, nothing is waiting/installing, and the
+# controller is a Batch 8 worker (answers 'cozy-build?' with its build). The pre-Batch-8 worker never answers.
+ACTIVE_B8 = """async (ms) => { const sw = navigator.serviceWorker; const t0 = performance.now();
+  let build = ''; sw.addEventListener('message', e => { if (e.data && e.data.type === 'cozy-sw') build = e.data.build; });
+  while (performance.now() - t0 < ms) {
+    const r = await sw.getRegistration();
+    if (r && r.active && r.active.state === 'activated' && !r.waiting && !r.installing && sw.controller) {
+      if (build) return { build, ms: Math.round(performance.now() - t0) };
+      try { sw.controller.postMessage({ type: 'cozy-build?' }); } catch (e) {}
+    }
+    await new Promise(res => setTimeout(res, 250));
+  }
+  const r = await sw.getRegistration(); const st = w => w ? w.state : '-';
+  return { build: '', ms: Math.round(performance.now() - t0), act: st(r && r.active), wait: st(r && r.waiting), inst: st(r && r.installing) };
+}"""
+
 def poll(page, js, pred, secs=20):
     end = time.time() + secs; v = None
     while time.time() < end:
@@ -293,8 +309,13 @@ with sync_playwright() as pw:
             ok('scopes/prod-seed: cozy-v1 present before upgrade', 'cozy-v1' in i_seed.get('caches', []), str(i_seed.get('caches')))
             set_dir(PROD, A.new)
             rl(page2)
-            i4a, cleaned = poll(page2, INFO, lambda v: v['ctl'] and 'cozy-v1' not in v.get('caches', []), 25)
-            ok('scopes/prod: production Batch 8 deletes cozy-v1', cleaned, str({k: i4a.get(k) for k in ('ctl', 'caches', 'scopes')}))
+            # Wait on the real signal, not a sleep: the Batch 8 worker is the active, activated controller and
+            # answers 'cozy-build?'. Its activate handler sweeps (deletes cozy-v1) BEFORE claim + that message,
+            # so once it answers, the delete has resolved. Then read caches once.
+            sig = page2.evaluate(ACTIVE_B8, 30000)
+            i4a = page2.evaluate(INFO)
+            cleaned = bool(sig.get('build')) and i4a['ctl'] and 'cozy-v1' not in i4a.get('caches', [])
+            ok('scopes/prod: production Batch 8 deletes cozy-v1', cleaned, str({**{k: i4a.get(k) for k in ('ctl', 'caches', 'scopes')}, 'signal': sig}))
             rl(page2); page2.wait_for_timeout(2000)
             i4 = page2.evaluate(INFO)
             ok('scopes/prod: production scoped app cache present', any(k.startswith('cozy:' + PROD + ':app:') for k in i4.get('caches', [])), str(i4.get('caches')))
