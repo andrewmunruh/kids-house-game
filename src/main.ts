@@ -24,7 +24,7 @@ import { ITEMS, ITEM_MAP, svgOf, shelfThumb, hOf, installArtFallback, type Categ
 import { rasterOn, rasterUrl } from './art/cache';
 import { artSolid, topHit } from './art/hit';
 import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
-import { characterSVG, cradleFrontSVG, handsFor, SIZE_SCALE } from './character';
+import { characterSVG, cradleFrontSVG, handsFor, LEGACY_SIT_RIG, SIZE_SCALE } from './character';
 import { lookStamp, look2FromLegacy, legacyFromLook2, randomLook2, patchFromLook2, sanitizeLook2, type Look2 } from './shared/avatar';
 import { stampAvatar, richAvatars } from './avatar/motion';
 import { avatarSheetHTML, avatarAct, avatarIntroPending, markAvatarIntro } from './avatar/sheet';
@@ -891,18 +891,22 @@ function seatUnderPointer(cx: number, cy: number): PlacedItem | null {
   return null;
 }
 function seatFrontClass(kind: string): string { return seatFrontKind(kind); }
+/** Seats with a kid drawn in the classic (legacy, no look2) sit pose; filled by seatedHere. */
+const seatClassic = new Set<string>();
+const drawsClassic = (l: { look2?: unknown } | null | undefined) => !LEGACY_SIT_RIG && !(l && l.look2);
 function seatedHere(): Map<string, number> {
   const s = store.get();
   const ids = new Map<string, number>();
+  seatClassic.clear();
   const note = (item: string, n: number) => { const prev = ids.get(item); ids.set(item, prev === undefined ? n : Math.max(prev, n)); };
   for (const c of s.characters) {
     const seat = c.room === s.currentRoom ? dollSeat(c) : null;
-    if (seat) note(seat.item, seat.n);
+    if (seat) { note(seat.item, seat.n); if (drawsClassic(c)) seatClassic.add(seat.item); }
   }
   if (hood && view === 'house') {
     const add = (pid: string, p: Presence) => {
       const seat = p.where === 'house' && p.houseId === currentHouseId && p.room === s.currentRoom ? presSeat(pid, p) : null;
-      if (seat) note(seat.item, seat.n);
+      if (seat) { note(seat.item, seat.n); if (drawsClassic(hood?.players.get(pid)?.look)) seatClassic.add(seat.item); }
     };
     hood.presence.forEach((p, pid) => add(pid, p));
     const me = myPres();
@@ -1213,6 +1217,8 @@ function syncSeatFronts() {
     const def = it && ITEM_MAP[it.kind];
     const cls = it && seatFrontClass(it.kind);
     if (!it || !def || !cls) return;
+    // The classic pose has no bent legs, so the picnic plank would cut across her shirt: no front for her (App Builder, B7 review).
+    if (cls === 'k-picnic' && seatClassic.has(id)) return;
     seen.add(id);
     let el = layer.querySelector<HTMLElement>(`.seatFront[data-id="${id}"]`);
     if (!el) {
