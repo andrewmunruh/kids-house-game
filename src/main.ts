@@ -4669,9 +4669,9 @@ function renderRanch() {
     showSceneArt($('ranchArt'), 'barn', w); renderRanchAvatars(); phoneShowKids(); return;
   }
   w.innerHTML = ranchSceneSVG() + '<div class="sceneArtHost" id="ranchArt"></div>'
-    + ranchPropSprite('paddock-fence', paddockFenceSVG()).replace('<svg ', `<svg style="z-index:${depthZ(FENCE_FOOT)}" `).replace('<img ', `<img style="z-index:${depthZ(FENCE_FOOT)};position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none" `)
+    + paddockFenceSVG().replace('<svg ', `<svg style="z-index:${depthZ(FENCE_FOOT)}" `)
     + `<button class="rprop barnDoor" data-r="barn" aria-label="Go into the barn" style="${box(BARN_DOOR_X, 472, 150, 150)}"><span class="doorHint"><span>Petting zoo inside! 🐐</span></span></button>`
-    + `<button class="rprop windmill" data-r="mill" aria-label="Windmill" style="${box(1540, 478, 150, 240)}">${ranchPropSprite('windmill', windmillSVG)}</button>`
+    + `<button class="rprop windmill" data-r="mill" aria-label="Windmill" style="${box(1540, 478, 150, 240)}">${windmillSVG}</button>`
     + `<button class="rprop henHouse" data-r="egg" aria-label="Hen house" style="${box(715, 482, 180, 170)}">${ranchPropSprite('hen-house', henHouseSVG)}</button>`
     + `<button class="rprop tractor" data-r="honk" aria-label="Tractor" style="${box(900, 580, 170, 130)}">${ranchPropSprite('tractor', tractorSVG)}</button>`
     + `<button class="rprop appleTree" data-r="apple" aria-label="Apple tree" style="${box(2085, 482, 240, 300)}">${ranchPropSprite('apple-tree', appleTreeSVG)}</button>`
