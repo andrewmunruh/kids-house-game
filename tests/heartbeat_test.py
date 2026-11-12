@@ -2,6 +2,8 @@
 usage: heartbeat_test.py CLIENT SERVER [OUT.json]
   CLIENT: pr | base | old   (built dists: PR, base 2dea54f, old 10ef736)
   SERVER: pr | base         (server/node.ts from the PR tree or the base tree = production core)
+  HB_BASE=1|0: force whether 'base' (client and server) has the Batch 4 heartbeat; default auto-detect.
+  Exit code: 1 if any FAIL or ERR (crashed scenario) line, else 0.
 Starts its own web + hood servers (ports 6940-6949), kills them by exact PID. Run under flock /workspace/surprise/gate.lock.
 """
 import asyncio, json, os, sys, time, subprocess, tempfile, signal
@@ -14,6 +16,21 @@ TREES = {'pr': os.environ.get('TREE_PR', '/workspace/t-batch4/wt'), 'base': os.e
 WEB = {'pr': 6940, 'base': 6941, 'old': 6942}; HOOD = 6943; PX = 6944; PX2 = 6945
 CL, SV = sys.argv[1], sys.argv[2]; OUTF = sys.argv[3] if len(sys.argv) > 3 else f'/workspace/t-batch4/hb-{CL}-{SV}.json'
 SH = os.environ.get('SH', '/workspace/t-batch4/shots/'); os.makedirs(SH, exist_ok=True)
+# Heartbeat capability per role. 'pr' always has it (Batch 4+). 'base' has it once main includes Batch 4
+# (main ced205f+), so base/base is then a hb client on a hb server and the 40 s idle drop is CORRECT there.
+# HB_BASE=1/0 forces it; otherwise detect it: client = 'hb:1' in the built JS, server = IDLE_MS in server/core.ts.
+# 'old' (10ef736) never has it, and an old no-hb client must never be dropped.
+import glob
+def _dist_hb(d):
+    try: return any('hb:1' in open(f, encoding='utf-8', errors='ignore').read() for f in glob.glob(os.path.join(d, 'assets', 'index-*.js')))
+    except OSError: return False
+def _srv_hb(t):
+    try: return 'IDLE_MS' in open(os.path.join(t, 'server', 'core.ts'), encoding='utf-8').read()
+    except OSError: return False
+_hbb = os.environ.get('HB_BASE')
+HB_CL = {'pr': True, 'old': False, 'base': (_hbb == '1') if _hbb in ('0', '1') else _dist_hb(DISTS['base'])}
+HB_SV = {'pr': True, 'base': (_hbb == '1') if _hbb in ('0', '1') else _srv_hb(TREES['base'])}
+print(f'HB_CAPS client {CL}={HB_CL[CL]} server {SV}={HB_SV[SV]} (HB_BASE={_hbb})', flush=True)
 rows = []
 def rec(scn, ok, notes=''):
     r = ok if isinstance(ok, str) else ('PASS' if ok else 'FAIL')
@@ -168,8 +185,8 @@ async def s_idle(p, px, third):
             if k not in gone and await B.evaluate("(id) => !__hood().players.get(id)?.online", pid): gone[k] = (round(time.monotonic() - t0, 1), round(time.monotonic() - last_up, 1))
         await asyncio.sleep(0.25)
     for k, pid in pids.items():
-        exp = (CL == 'pr' if k == 'A' else False) and SV == 'pr'
         who = CL if k == 'A' else third
+        exp = HB_CL[who] and HB_SV[SV]  # drop expected only when BOTH client and server have the heartbeat
         if exp: rec(f'[{CL}/{SV}] idle drop: frozen hb:1 client marked away at ~40 s', k in gone and 40 <= gone[k][1] <= 46, f'away {gone.get(k, (None,None))[1]} s after her last byte reached the server ({gone.get(k, (None,None))[0]} s after wifi went silent; 40 s limit + 5 s sweep; {nlive} socket(s) on her proxy)')
         else: rec(f'[{CL}/{SV}] idle drop: frozen {who} client on {SV} server is never dropped', k not in gone, f'away after {gone.get(k)} s (55 s silent)')
     px.mode = 'normal'; px2.mode = 'normal'
@@ -280,4 +297,8 @@ async def main():
                 except Exception as e:
                     import traceback; rec(f'[{CL}/{SV}] {name} crashed', 'ERR', traceback.format_exc()[-500:])
     finally: stop_servers()
-if __name__ == '__main__': asyncio.run(main())
+if __name__ == '__main__':
+    asyncio.run(main())
+    nf = sum(1 for r in rows if r[1] == 'FAIL'); ne = sum(1 for r in rows if r[1] == 'ERR'); npass = sum(1 for r in rows if r[1] == 'PASS')
+    print(f'HB_SUMMARY [{CL}/{SV}] PASS={npass} FAIL={nf} ERR={ne}', flush=True)
+    sys.exit(1 if (nf or ne) else 0)  # a setup crash (ERR) is a failure, never hidden behind a PASS count

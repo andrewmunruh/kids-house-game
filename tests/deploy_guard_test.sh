@@ -25,7 +25,11 @@ h=$(git rev-parse --short HEAD); mkdir -p "$OUT/assets"
 # like vite: NODE_ENV=development compiles the service-worker registration out; NODE_OPTIONS changes the output
 [ -n "${NODE_OPTIONS:-}" ] && h=$h-nodeopts
 { cat app.txt; echo "const hood=\"$hood\";"
-  [ "${NODE_ENV:-}" != development ] && [ "${FAKE_MODE:-}" != nosw ] && echo "navigator.serviceWorker.register(B+'sw.js');"
+  if [ "${NODE_ENV:-}" != development ]; then case "${FAKE_MODE:-}" in
+    nosw) echo "const sw=navigator.serviceWorker;sw.getRegistrations();" ;;                # no registration at all
+    otherfile) echo "const t=navigator.serviceWorker;t.register(B+'other-worker.js');" ;;   # registers a different file
+    minified) echo "const t=navigator.serviceWorker;t.register(e.base+\"sw.js\")" ;;     # Batch 8 minified shape
+    *) echo "navigator.serviceWorker.register(B+'sw.js');" ;; esac; fi
   [ -n "$p" ] && echo "const k=e=>\"$p\"+e;"
   [ -n "$p" ] && [ "${FAKE_MODE:-}" != noribbon ] && echo "x('<div class=\"previewRibbon\">PREVIEW</div>');"; true; } > "$OUT/assets/index-$h.js"
 echo "body{color:red}" > "$OUT/assets/index-$h.css"
@@ -305,9 +309,19 @@ NODE_OPTIONS=--no-warnings run --production --sha "$MAIN" $(P) --expect-dist "$T
 [ "$(rc)" = 0 ] && has "ignoring caller's NODE_OPTIONS" && ok "M1: leaked NODE_OPTIONS does not reach the build (identical to the clean gate dist)" || bad "M1 NODE_OPTIONS"
 mkdist "$MAIN" "$T/gd-nosw" FAKE_MODE=nosw
 FAKE_MODE=nosw run --production --sha "$MAIN" $(P) --expect-dist "$T/gd-nosw" --worker-changed-ok --dry-run
-refused "has no serviceWorker.register call" && ok "M1: production build without service-worker registration refused" || bad "M1 nosw prod"
+refused "has no service-worker registration of sw.js" && ok "M1: production build without service-worker registration refused" || bad "M1 nosw prod"
 FAKE_MODE=nosw runp --sha "$MAIN" --approval-ref pv-2 --worker-changed-ok --dry-run
-refused "preview build has no serviceWorker.register call" && ok "M1: preview build without service-worker registration refused" || bad "M1 nosw preview"
+refused "preview build has no service-worker registration of sw.js" && ok "M1: preview build without service-worker registration refused" || bad "M1 nosw preview"
+mkdist "$MAIN" "$T/gd-other" FAKE_MODE=otherfile
+FAKE_MODE=otherfile run --production --sha "$MAIN" $(P) --expect-dist "$T/gd-other" --worker-changed-ok --dry-run
+refused "has no service-worker registration of sw.js" && ok "register check: production build registering a different file (other-worker.js) refused" || bad "otherfile prod"
+FAKE_MODE=otherfile runp --sha "$MAIN" --approval-ref pv-2 --worker-changed-ok --dry-run
+refused "preview build has no service-worker registration of sw.js" && ok "register check: preview build registering a different file refused" || bad "otherfile preview"
+mkdist "$MAIN" "$T/gd-min" FAKE_MODE=minified
+FAKE_MODE=minified run --production --sha "$MAIN" $(P) --expect-dist "$T/gd-min" --worker-changed-ok --dry-run
+[ "$(rc)" = 0 ] && has "service worker registered" && ok "register check: minified t.register(e.base+\"sw.js\") accepted (no literal serviceWorker.register)" || bad "minified accepted"
+FAKE_MODE=minified runp --sha "$MAIN" --approval-ref pv-2 --worker-changed-ok --dry-run
+[ "$(rc)" = 0 ] && has "post-deploy (not run in a dry run): sw-scope check for /cozy-preview/" && ok "preview dry run accepts the minified shape and names the post-deploy sw-scope check" || bad "minified preview / sw-scope note"
 mkdist "$MAIN" "$T/gd-dev" NODE_ENV=development
 NODE_ENV=development run --production --sha "$MAIN" $(P) --expect-dist "$T/gd-dev" --worker-changed-ok --dry-run
 refused "build differs from the gate-tested dist" && ok "M1: a gate dist built with NODE_ENV=development is refused" || bad "M1 dev gate dist"
