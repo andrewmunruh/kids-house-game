@@ -485,7 +485,8 @@ body.mode-hood.view-park #btnChat { display: block !important; }
   width: 100%; height: 100%; display: block; object-fit: contain; object-position: bottom center; pointer-events: none; user-select: none; -webkit-user-drag: none;
 }
 .petPreview img.petsprite { width: 100%; height: 100%; display: block; object-fit: contain; }
-.fenceLayer img.ranchsprite, .parkWorld > img.ranchsprite { width: 100%; height: 100%; display: block; object-fit: fill; pointer-events: none; }
+/* Batch 10 pet refit: scale-only fit per sprite (src/art/pet_fit.json), feet stay on the floor. */
+img.petsprite { transform: scale(var(--fx, 1), var(--fy, 1)); transform-origin: 50% 100%; }
 
 .pet .inner svg > * { pointer-events: visiblePainted; }
 .pet.flipped .inner svg { transform: scaleX(-1); }
