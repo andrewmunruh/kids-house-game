@@ -1236,6 +1236,17 @@ function syncSeatFronts() {
     el.style.zIndex = String(1000 + it.z + 3);
   });
   layer.querySelectorAll<HTMLElement>('.seatFront').forEach(el => { if (!seen.has(el.dataset.id || '')) el.remove(); });
+  // Classic-pose kid at a picnic table: no plank in front of her, so her stand-alone feet would float under the bench. Hide them (render only).
+  const room = s.rooms[s.currentRoom];
+  const onPicnic = (item?: string) => !!item && !!room && room.items.some(i => i.id === item && seatFrontClass(i.kind) === 'k-picnic');
+  for (const c of s.characters) {
+    const el = layer.querySelector<HTMLElement>(`.char[data-cid="${c.id}"]`);
+    if (el) el.classList.toggle('classic-picnic', c.room === s.currentRoom && drawsClassic(c) && onPicnic(dollSeat(c)?.item));
+  }
+  if (hood && view === 'house') hood.presence.forEach((p, pid) => {
+    const el = layer.querySelector<HTMLElement>(`.char.avatar[data-pid="${pid}"]`);
+    if (el) el.classList.toggle('classic-picnic', drawsClassic(hood?.players.get(pid)?.look) && onPicnic(presSeat(pid, p)?.item));
+  });
 }
 
 /** True from pointerdown on the back door until pointerup. Framing must not move the door mid-tap. */
