@@ -7,6 +7,7 @@
 #   scripts/guarded-deploy.sh --production --rollback-to <old gh-pages SHA> --expect-tip <current gh-pages SHA> --approval-ref TAG [--dry-run]
 #   scripts/guarded-deploy.sh --production --verify-only                    # what live index.html loads == gh-pages tip (curl)
 #   scripts/guarded-deploy.sh --preview    --smoke                          # post-deploy smoke (production needs --real-street-ok)
+#   scripts/guarded-deploy.sh --preview    --check-sw                       # read-only: a SW registration exists for /cozy-preview/
 #
 # Refuses: dirty tree (deploy AND rollback), a SHA not on origin/main (preview: or the head of the named PR), a missing
 # approval line for this exact target+action+SHA+ref, Worker-side changes since the live build, a non-reproducible
@@ -24,6 +25,7 @@ cd "$ROOT"
 # PRODUCTION and PREVIEW are separate, fixed tables. A target is chosen only by --production or --preview;
 # there is no default and no free-form URL, so one can never be mistaken for the other.
 PREVIEW_RIBBON='previewRibbon\">PREVIEW'   # what src/main.ts compiles to in a preview build (grep -E, escaped quote optional)
+SW_REGISTER_RE='\.register\([^)]{0,120}sw\.js'   # a .register( call whose argument ends at sw.js (grep -E)
 set_target() {
   case "$1" in
     production)
@@ -54,7 +56,7 @@ set_target() {
 
 # ---------------------------------------------------------------- args
 TARGET= SHA= PR= DRY=0 EXPECT_DIST= APPROVALS=/workspace/deploy-approvals.log APPROVALS_GIVEN=0
-ROLLBACK_TO= EXPECT_TIP= VERIFY_ONLY=0 SMOKE=0 WORKER_OK=0 REF= WORKER_VERSION= REAL_STREET_OK=0
+ROLLBACK_TO= EXPECT_TIP= VERIFY_ONLY=0 CHECK_SW=0 SMOKE=0 WORKER_OK=0 REF= WORKER_VERSION= REAL_STREET_OK=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --production) [ -z "$TARGET" ] || die "give exactly one of --production / --preview"; TARGET=production ;;
@@ -69,6 +71,7 @@ while [ $# -gt 0 ]; do
     --expect-tip) EXPECT_TIP=${2:-}; shift ;;
     --worker-version) WORKER_VERSION=${2:-}; shift ;;
     --verify-only) VERIFY_ONLY=1 ;;
+    --check-sw) CHECK_SW=1 ;;
     --smoke) SMOKE=1 ;;
     --real-street-ok) REAL_STREET_OK=1 ;;
     --worker-changed-ok) WORKER_OK=1 ;;
@@ -215,6 +218,56 @@ verify_live() {
 # ---------------------------------------------------------------- verify-only: live site == gh-pages tip
 if [ $VERIFY_ONLY = 1 ]; then
   fetch_pages; echo "gh-pages tip: $PREV"; verify_live "$WORK/pages"; exit 0
+fi
+
+# ---------------------------------------------------------------- runtime check: SW registration for the target scope
+# Read-only: opens the live site in a fresh headless Chromium (no saved data) and requires a service-worker
+# registration whose scope is exactly $T_BASE and whose script is ${T_BASE}sw.js. Run after a PREVIEW deploy
+# (automatically) or by hand with --check-sw. Production is not checked here (no browser on the live game).
+sw_scope_check() {
+  [ -n "$T_SITE" ] || { echo "sw-scope: no site URL in test mode, skipped"; return 0; }
+  local py=${PY:-/workspace/.pwvenv/bin/python}
+  [ -x "$py" ] || command -v "$py" >/dev/null 2>&1 || die "sw-scope: no python with playwright at $py (set PY)"
+  # test mode: the page may only talk to 127.0.0.1 (a preview build would otherwise call the real preview Worker)
+  local localonly=0; [ "${GUARD_TEST_MODE:-}" = 1 ] && localonly=1
+  if "$py" - "$T_SITE" "$T_BASE" "$localonly" <<'PYEOF'
+import json, sys
+from playwright.sync_api import sync_playwright
+site, base, localonly = sys.argv[1], sys.argv[2], sys.argv[3] == '1'
+JS = """async (base) => {
+  if (!('serviceWorker' in navigator)) return {ok: false, why: 'no navigator.serviceWorker'};
+  const t0 = Date.now(); let regs = [];
+  while (Date.now() - t0 < 20000) {
+    regs = await navigator.serviceWorker.getRegistrations();
+    const m = regs.find(r => new URL(r.scope).pathname === base && (r.active || r.waiting || r.installing));
+    if (m) { const w = m.active || m.waiting || m.installing;
+      return {ok: true, scope: new URL(m.scope).pathname, script: new URL(w.scriptURL).pathname, state: w.state}; }
+    await new Promise(r => setTimeout(r, 500));
+  }
+  return {ok: false, why: 'no registration for ' + base + ' within 20 s', scopes: regs.map(r => new URL(r.scope).pathname)};
+}"""
+r = {'ok': False, 'why': 'not run'}
+with sync_playwright() as p:
+    b = p.chromium.launch()
+    try:
+        pg = b.new_page()
+        if localonly:
+            pg.route('**/*', lambda rt: rt.continue_() if rt.request.url.split('/')[2].split(':')[0] in ('127.0.0.1', 'localhost') else rt.abort())
+        pg.goto(site, wait_until='load', timeout=45000); r = pg.evaluate(JS, base)
+    except Exception as e:
+        r = {'ok': False, 'why': str(e).splitlines()[0]}
+    finally:
+        b.close()
+ok = bool(r.get('ok')) and r.get('script') == base + 'sw.js'
+print('sw-scope: ' + json.dumps(r))
+sys.exit(0 if ok else 1)
+PYEOF
+  then echo "sw-scope: OK (registration for $T_BASE serving ${T_BASE}sw.js)"
+  else die "sw-scope: no service-worker registration for $T_BASE at $T_SITE (see above)"; fi
+}
+if [ $CHECK_SW = 1 ]; then
+  [ "$T_NAME" = preview ] || die "--check-sw is for --preview only"
+  sw_scope_check; exit 0
 fi
 
 # ---------------------------------------------------------------- smoke (explicit step)
@@ -380,7 +433,9 @@ ABS=$(grep -oE '(src|href)="/[^"]*"' "$D/index.html" | sed -E 's/^(src|href)="//
 for p in $ABS; do [[ "$p" == "$T_BASE"* ]] || die "index.html loads $p: asset base is not $T_BASE"; done
 grep -qF "\"${T_BASE}assets/index-" "$D/index.html" || die "index.html does not load its bundle from ${T_BASE}assets/"
 JS=$(find "$D/assets" -name '*.js')
-grep -qF "serviceWorker.register" $JS || die "$T_NAME build has no serviceWorker.register call (built with NODE_ENV=development or a non-production mode?)"
+# The registration must be a .register( call whose argument reaches sw.js (minified bundles write
+# `const t=navigator.serviceWorker; ... t.register(e.base+"sw.js")`, so the literal "serviceWorker.register" is not there).
+grep -qE "$SW_REGISTER_RE" $JS || die "$T_NAME build has no service-worker registration of sw.js (no .register(...sw.js) call; built with NODE_ENV=development or a non-production mode?)"
 if [ -n "$T_PREFIX" ]; then
   grep -qF "\"$T_PREFIX\"" $JS || die "preview build has no '$T_PREFIX' store prefix: it would read and write the real save"
   grep -qE "$PREVIEW_RIBBON" $JS || die "preview build has no PREVIEW ribbon"
@@ -407,6 +462,7 @@ echo "new gh-pages:      $NEW (parent $PREV, fast-forward)"
 echo "ROLLBACK (one line): $0 --$T_NAME --rollback-to $PREV --expect-tip $NEW --approval-ref <ref>"
 
 if [ $DRY = 1 ]; then
+  [ "$T_NAME" = preview ] && echo "post-deploy (not run in a dry run): sw-scope check for $T_BASE at ${T_SITE:-<no site>}"
   echo; echo "DRY RUN complete: every check passed, nothing was pushed. $T_NAME gh-pages is still $PREV."
   exit 0
 fi
@@ -421,6 +477,11 @@ hist "target=$T_NAME PUSHED app=$SHA prev=$PREV new=$NEW bundle=$BUNDLE ref=$REF
 step "8. verify the live site serves this build"
 verify_live "$WORK/pages"
 hist "target=$T_NAME VERIFIED new=$NEW"
+if [ "$T_NAME" = preview ]; then
+  step "9. preview runtime check: service-worker registration for $T_BASE"
+  sw_scope_check
+  hist "target=$T_NAME SW-SCOPE OK new=$NEW"
+fi
 
 step "DEPLOYED $T_NAME: gh-pages $PREV..$NEW, bundle $BUNDLE"
 echo "NEXT (required): post-deploy smoke:  $0 --$T_NAME --smoke"
