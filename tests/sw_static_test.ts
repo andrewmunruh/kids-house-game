@@ -29,6 +29,9 @@ check('kill worker notes Client.navigate iPad standalone soak check', /iPad|stan
 check('kill worker leaves saved houses alone', !/localStorage|indexedDB/.test(kill.replace(/\/\/.*$/gm, '')));
 const vite = read('vite.config.ts');
 check('build stamps sw.js and COZY_SW_KILL swaps in the kill worker', vite.includes('__COZY_BUILD__') && vite.includes("COZY_SW_KILL === '1'") && vite.includes('{"sw":"off"}'));
+check('build id is reproducible: no clock fallback in vite.config.ts', !/Date\.now\(\)/.test(vite));
+check('build id comes from git rev-parse --short=12 HEAD or SOURCE_DATE_EPOCH', vite.includes("'rev-parse', '--short=12', 'HEAD'") && vite.includes('SOURCE_DATE_EPOCH'));
+check('a real build without an id source fails loudly (only the dev server falls back)', /command !== 'build'\) return 'dev'/.test(vite) && /throw new Error\('cozy build id/.test(vite));
 const client = read('src/sw-client.ts');
 check('client: switch read with no-store, offline = keep the worker', client.includes("cache: 'no-store'") && client.includes('catch { return false; }'));
 check('client: reload after a kill at most once per tab', client.includes('sessionStorage') && client.includes('cozy-sw-killed'));
