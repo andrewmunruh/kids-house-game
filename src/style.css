@@ -722,8 +722,12 @@ body.in-barn .barnOnly { display: block !important; }
 .barnDoor .doorHint { top: 42%; font-size: min(24px, calc(19px * var(--sc))); }
 @keyframes hintBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 .windmill .sails { animation: sails 6s linear infinite; }
-.windmill.whirl .sails { animation: sails .5s linear 6; }
+/* Tap whirl: its own keyframes, layered over the idle spin, so a tap always starts a fresh whirl
+   and the idle spin carries on underneath when the whirl ends. Explicit `from`: an implicit one would start
+   from the idle spin's current angle and the whirl would barely turn. */
+.windmill.whirl .sails { animation: sails 6s linear infinite, sailsWhirl .5s linear 6; }
 @keyframes sails { to { transform: rotate(360deg); } }
+@keyframes sailsWhirl { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .barnScene .lantern { animation: lantern 3.4s ease-in-out infinite; }
 .barnScene .lantern:nth-of-type(2n) { animation-delay: -1.7s; }
 @keyframes lantern { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
