@@ -53,9 +53,9 @@
 .layer .char.soc-hop:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: socHop 1.8s cubic-bezier(.3,.7,.4,1) infinite; animation-delay: var(--soc-delay, 0s); }
 @keyframes socHop {
   0%, 55%, 100% { translate: 0 0; scale: 1 1; }
-  12% { translate: 0 2px; scale: 1.05 .93; }      /* crouch */
-  26% { translate: 0 -16px; scale: .97 1.04; }    /* up */
-  40% { translate: 0 0; scale: 1.04 .96; }        /* land */
+  12% { translate: 0 5px; scale: 1.10 .88; }      /* crouch — Batch 11 bump */
+  26% { translate: 0 -32px; scale: .95 1.06; }    /* up — Batch 11: ~2x base (-16→-32) */
+  40% { translate: 0 0; scale: 1.08 .92; }        /* land */
   48% { translate: 0 0; scale: .99 1.01; }        /* settle */
 }
 .char.chibi-move.soc-wave.soc-r .arm.r:not(.sleeve), .char.chibi-move.soc-wave.soc-l .arm.l:not(.sleeve),
@@ -66,11 +66,11 @@
 .layer .char.soc-wave:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner, .layer .char.soc-baby:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: socNod 1.8s ease-in-out infinite; animation-delay: var(--soc-delay, 0s); }
 @keyframes socNod { 0%, 100% { translate: 0 0; } 30% { translate: 0 -3px; } 50% { translate: 0 0; } }
 .layer .char.soc-heart::before, .layer .char.soc-baby::before {
-  content: '♥'; position: absolute; left: 50%; top: -6%; color: #ff7aa8; font-size: 22px; pointer-events: none;
+  content: '♥'; position: absolute; left: 50%; top: -12%; color: #ff5a9a; font-size: 44px; pointer-events: none; z-index: 5;
   animation: socHeart 1.8s ease-out infinite; animation-delay: var(--soc-delay, 0s); opacity: 0;
 }
 .layer .char.soc-baby::before { animation-duration: 3.6s; font-size: 16px; }
-@keyframes socHeart { 0% { transform: translate(-50%, 6px) scale(.4); opacity: 0; } 20% { transform: translate(-50%, 0) scale(1.15); opacity: 1; } 35% { transform: translate(-50%, -6px) scale(1); } 100% { transform: translate(-50%, -38px); opacity: 0; } }
+@keyframes socHeart { 0% { transform: translate(-50%, 6px) scale(.4); opacity: 0; } 20% { transform: translate(-50%, -4px) scale(1.35); opacity: 1; } 35% { transform: translate(-50%, -18px) scale(1.15); } 100% { transform: translate(-50%, -72px); opacity: 0; } }
 @keyframes socHeartB { 0% { transform: translateY(6px) scale(.4); opacity: 0; } 20% { transform: scale(1.15); opacity: 1; } 35% { transform: translateY(-6px); } 100% { transform: translateY(-38px); opacity: 0; } }
 .layer .char.soc-heart:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: socNod 1.8s ease-in-out infinite; animation-delay: var(--soc-delay, 0s); }
 /* Duet: lean in toward the partner on the beat (M1 dance still runs underneath). */
