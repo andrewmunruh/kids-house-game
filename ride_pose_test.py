@@ -62,11 +62,19 @@ async def pose(pg):
       const shirt = av.querySelector('.shirt');
       const saddle = av.querySelector('.saddle');
       const svg = av.querySelector('.inner svg');
-      const horse = av.querySelector('svg.horsesvg');
-      const sr = shirt.getBoundingClientRect(), sad = saddle.getBoundingClientRect();
+      const mountEl = av.querySelector('.mount');
+      const horse = av.querySelector('svg.horsesvg') || av.querySelector('img.horsesprite');
+      const sr = shirt.getBoundingClientRect();
       const svgH = svg.getBoundingClientRect().height, horseH = horse.getBoundingClientRect().height;
       const hem = sr.bottom + (3.5 / 2) / 160 * svgH;
-      const top = sad.top - (3 / 2) / 130 * horseH;
+      let top;
+      if (saddle) {
+        top = saddle.getBoundingClientRect().top - (3 / 2) / 130 * horseH;
+      } else {
+        const sadY = Number(mountEl?.dataset.saddleTop ?? 43);
+        const hb = horse.getBoundingClientRect();
+        top = hb.top + (sadY - 3 / 2) / 130 * horseH;
+      }
       const hands = [...av.querySelectorAll('.inner .hand')].map(h => {
         const r = h.getBoundingClientRect();
         const cx = r.x + r.width / 2, cy = r.y + r.height / 2;
