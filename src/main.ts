@@ -1367,8 +1367,9 @@ function heldHTML(c: Character) {
     const k = Math.min(0.7, 120 * sc / Math.max(def.w, hOf(def)) / fit) * shrink;
     const iw = def.w * fit * k, ih = hOf(def) * fit * k;
     const hx = pts[hand].x / 100 * bw, hy = pts[hand].y / 160 * bh;
-    // Plush / small toys sit a touch higher in the hand (Batch 11). Non-toys keep 0.62 exactly.
-    const grip = isToy(it.kind) ? 0.70 : 0.62;
+    // Plush / small toys sit a touch higher in the hand for kid and grown-up dolls (Batch 11).
+    // Little dolls keep 0.62: their head is low enough that a raised toy reaches the cheek. Non-toys keep 0.62 exactly.
+    const grip = isToy(it.kind) && c.size !== 'little' ? 0.70 : 0.62;
     return `<div class="held ${it.flip ? 'flipped' : ''}" data-hand="${hand}" style="left:${(hx - iw / 2) / bw * 100}%;top:${(hy - ih * grip) / bh * 100}%;width:${iw / bw * 100}%;height:${ih / bh * 100}%"><div class="inner">${svgOf(def)}</div></div>`;
   }).join('');
 }
