@@ -4,11 +4,13 @@
 // the same painting as a lamp in the living room.
 // Kinds already in the save, just placed, or scrolled onto the shelf are
 // fetched. The service worker serves /assets/art/ from its own cache, so the
-// page does not fetch a painting a second time. A missing file, a failed fetch,
-// or ?art=v1 leaves the item on its SVG. Winter Cheer has no SVG, so v1 still
+// page does not fetch a painting a second time. A failed fetch is retried with
+// backoff (retry.ts). A missing file, a fetch that keeps failing, or ?art=v1
+// leaves the item on its SVG. Winter Cheer has no SVG, so v1 still
 // requests that pack's WebP.
 import { setArtFromSearch } from './flag';
 import { rememberRaster } from './cache';
+import { withRetry } from './retry';
 
 const loaders = import.meta.glob(['../../assets/art/*/*.webp', '!../../assets/art/scene/*.webp'], { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
 
@@ -38,16 +40,27 @@ function loaderFor(kind: string): (() => Promise<string>) | undefined {
   return undefined;
 }
 
+// A kind whose tries all failed is not asked for again for a minute. Callers that retry on
+// their own (the shelf) then get null at once instead of starting another round of requests.
+const GAVE_UP_MS = 60_000;
+const gaveUp = new Map<string, number>();
+
 function startKind(kind: string): Promise<string | null> {
   const pending = started.get(kind);
   if (pending) return pending;
+  const since = gaveUp.get(kind);
+  if (since !== undefined && Date.now() - since < GAVE_UP_MS) return Promise.resolve(null);
   const load = loaderFor(kind);
   if (!load) return Promise.resolve(null);
-  const job = load().then(url => {
+  // A failed chunk (e.g. a one-off 503) is tried again with backoff. If every try fails the
+  // item keeps its SVG, and the kind rests for GAVE_UP_MS before a later visit tries again.
+  const job = withRetry(load).then(url => {
+    gaveUp.delete(kind);
     rememberRaster(kind, url);
     return kind;
   }).catch(() => {
     started.delete(kind);
+    gaveUp.set(kind, Date.now());
     return null;
   });
   started.set(kind, job);
