@@ -6,6 +6,7 @@
 // Each painting is fetched on first entry to its scene and decoded off the main thread
 // (img.decode) before it is shown, so a scene switch never stalls a frame. Nothing is saved.
 import { artRasterOn } from './flag';
+import { withRetry, ART_RETRY_MS } from './retry';
 
 const files = import.meta.glob('../../assets/art/scene/*.webp', { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
 const byScene = new Map<string, () => Promise<string>>();
@@ -33,7 +34,9 @@ function load(scene: string): Job {
   const job: Job = { state: 'loading', p: null as any };
   // Only the URL here (Vite asset); the <img> that shows it decodes it off the main thread (img.decode)
   // before it is shown, and a bad or missing file marks the job failed there (vector stays).
-  job.p = get().then(url => { job.state = 'ok'; job.url = url; return url; }).catch(() => { job.state = 'failed'; return null; });
+  // A failed URL chunk is retried with backoff (retry.ts). If it still fails the vector stays, and the job is
+  // dropped so the next entry to this scene tries again instead of staying vector for the whole visit.
+  job.p = withRetry(get).then(url => { job.state = 'ok'; job.url = url; return url; }).catch(() => { job.state = 'failed'; if (jobs.get(scene) === job) jobs.delete(scene); return null; });
   jobs.set(scene, job);
   return job;
 }
@@ -89,7 +92,18 @@ export function showSceneArt(host: HTMLElement, scene: string | null, mark: HTML
     el.src = url;
     el.decode().then(
       () => { if (host.dataset.sceneWant === want && el.isConnected && el.getAttribute('src') === url) show(el); },
-      () => { job.state = 'failed'; if (host.dataset.sceneWant === want) release(host, mark); });
+      () => {
+        // The file itself failed (e.g. a 503): set the same src again after the next backoff wait,
+        // with the vector showing meanwhile. After the last try the vector stays for this entry.
+        const n = Number(el.dataset.tries || '0');
+        if (n < ART_RETRY_MS.length && host.dataset.sceneWant === want && el.isConnected) {
+          el.dataset.tries = String(n + 1);
+          setTimeout(() => { if (host.dataset.sceneWant === want && el.isConnected && el.getAttribute('src') === url) { el.removeAttribute('src'); put(url); } }, ART_RETRY_MS[n]);
+          return;
+        }
+        job.state = 'failed'; if (jobs.get(want) === job) jobs.delete(want);
+        if (host.dataset.sceneWant === want) release(host, mark);
+      });
   };
   const show = (el: HTMLImageElement) => { el.hidden = false; mark.classList.add('sceneArtOn'); mark.dataset.sceneArt = want; };
   if (job.state === 'ok') { put(job.url!); return; }

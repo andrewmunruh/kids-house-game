@@ -157,6 +157,9 @@ body.mode-play #toolbar { display: none !important; }
 .rf { border-radius: 16px; background: #fff; font-weight: 800; font-size: 15px; box-shadow: 0 3px 0 #e6c9d8; border: 3px solid transparent; min-height: 52px; min-width: 52px; padding: 0 14px; }
 .rf.on { background: #fff3b0; border-color: var(--ink); }
 .packimg { display: block; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; pointer-events: none; -webkit-user-drag: none; }
+/* Batch 12: a pack picture being retried after a failed load stays invisible (no broken-image glyph); one that never loads is a soft dashed tile. */
+.packimg.imgwait { visibility: hidden; }
+.imgmiss { display: block; width: 100%; height: 100%; pointer-events: none; }
 /* The pit is refit into the original footprint, which is taller than the painting.
    Scale only the vector (?art=v1) so its ink lands on the painting. The WebP is unchanged. */
 .item[data-kind="pack:fire-pit"] > .inner > img.packimg:not(.artimg) {
@@ -1391,3 +1394,7 @@ body.phone .grSolo { top: 6px; bottom: auto; font-size: 14px; padding: 4px 12px;
 .artFab.hidden { display: none; }
 @media (max-height: 500px) { .artFab { min-height: 56px; font-size: 17px; left: 10px; bottom: 10px; } .artFab svg { width: 34px; height: 34px; } }
 .artFab.tucked { display: none; }
+/* Batch 12: the Art Studio button is for the house only (renderArtFab hides it when view !== 'house', but that
+   runs only on a house render, so it stayed up outdoors and on a phone sat on the doll's face at the Ranch and Park).
+   body.view-street is set for every non-house view (map, park, ranch, barn, clubhouse). */
+body.view-street .artFab { display: none !important; }

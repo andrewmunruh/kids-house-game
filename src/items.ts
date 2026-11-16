@@ -4,6 +4,7 @@ import { NURSERY_ITEMS } from './nursery';
 import { YARD_ITEMS } from './yard';
 import { BATH_ITEMS, EXTRA_ITEMS } from './bathroom';
 import { rasterOn, rasterUrl } from './art/cache';
+import { ART_RETRY_MS, retryImage, withRetry } from './art/retry';
 // Original rounded SVG art. Each item: viewBox 0 0 100 100, anchored bottom-center.
 export type Category = string; // built-ins: furniture | decor | plants | food | pets (packs may add more)
 export interface ItemDef { kind: string; name: string; cat: Category; w: number; h?: number; svg: string; wall?: boolean; img?: string; rooms?: string[]; pack?: string; holdable?: boolean; secret?: string; vb?: string; light?: boolean }
@@ -127,20 +128,67 @@ export const shelfThumb = (d: ItemDef, painted: boolean) => {
 };
 
 let artFallbackOn = false;
-/** Swap a raster image that failed to load for the current SVG. One listener for the page. */
+// Shown in place of a pack picture that still fails after every retry. A soft, empty tile
+// rather than the browser's broken-image glyph. The piece keeps its spot and can still be moved or put away.
+const IMG_MISSING = `<svg class="imgmiss" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="20" y="20" width="60" height="60" rx="16" fill="#fff6ea" stroke="#5a3d5c" stroke-width="4" stroke-dasharray="9 7" opacity=".55"/></svg>`;
+
+const probeImage = (src: string) => new Promise<void>((res, rej) => {
+  const im = new Image();
+  im.onload = () => res();
+  im.onerror = () => rej(new Error('image failed'));
+  im.src = src;
+});
+
+/** A painting that failed now shows its SVG. Keep trying the file in the background and put
+ *  the painting back if it loads, so a one-off 503 does not cost the painting for the whole visit. */
+function healPainting(svgEl: Element, d: ItemDef, src: string, shade: boolean): void {
+  const [first, ...rest] = ART_RETRY_MS;
+  void new Promise(r => setTimeout(r, first)).then(() => withRetry(() => probeImage(src), rest)).then(() => {
+    if (!svgEl.isConnected || !rasterOn() || rasterUrl(d.kind) !== src) return;
+    const hold = document.createElement('div');
+    hold.innerHTML = svgOf(d, shade);
+    svgEl.replaceWith(...Array.from(hold.childNodes));
+  }, () => { /* still failing: the SVG stays */ });
+}
+
+/**
+ * One listener for the page.
+ * - A raster painting (img.artimg) that fails is swapped for its SVG at once. The file is
+ *   retried with backoff, and the painting comes back if it loads.
+ * - A pack picture (img.packimg, which has no SVG) that fails is hidden, not shown as a
+ *   broken image, and loaded again with backoff. If it never loads it becomes a soft
+ *   empty tile.
+ */
 export function installArtFallback(): void {
   if (artFallbackOn || typeof window === 'undefined') return;
   artFallbackOn = true;
+  // Load events stop at the document (they never reach window), so this one listens there.
+  document.addEventListener('load', ev => {
+    const img = ev.target;
+    if (img instanceof HTMLImageElement && img.classList.contains('imgwait')) img.classList.remove('imgwait');
+  }, true);
   window.addEventListener('error', ev => {
     const img = ev.target;
-    if (!(img instanceof HTMLImageElement) || !img.classList.contains('artimg') || img.dataset.fell === '1') return;
-    const d = ITEM_MAP[img.dataset.kind || ''];
-    if (!d) return;
+    if (!(img instanceof HTMLImageElement) || img.dataset.fell === '1') return;
+    if (img.classList.contains('artimg')) {
+      const d = ITEM_MAP[img.dataset.kind || ''];
+      if (!d) return;
+      img.dataset.fell = '1';
+      const src = img.getAttribute('src') || '';
+      const shade = !!img.parentElement?.querySelector('.artshade');
+      img.parentElement?.querySelector('.artshade')?.remove();
+      img.parentElement?.querySelector('.artnight')?.remove();
+      const hold = document.createElement('div');
+      hold.innerHTML = svgMarkup(d);
+      const next = hold.firstElementChild;
+      if (next) { img.replaceWith(next); if (src) healPainting(next, d, src, shade); }
+      return;
+    }
+    if (!img.classList.contains('packimg')) return;
+    if (retryImage(img)) { img.classList.add('imgwait'); return; }
     img.dataset.fell = '1';
-    img.parentElement?.querySelector('.artshade')?.remove();
-    img.parentElement?.querySelector('.artnight')?.remove();
     const hold = document.createElement('div');
-    hold.innerHTML = svgMarkup(d);
+    hold.innerHTML = IMG_MISSING;
     const next = hold.firstElementChild;
     if (next) img.replaceWith(next);
   }, true);
