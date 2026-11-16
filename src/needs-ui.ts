@@ -45,6 +45,21 @@ function spotX(s: GameState, c: Character, n: Need): number | null {
   return best;
 }
 
+
+/** Room (other than current) with the same helper hintFor uses, or null. Stable room-id order.
+ *  Hungry → fridge only (not cake/juice elsewhere), so a snack left in the bedroom does not steal the Kitchen tab. */
+function elsewhereRoom(s: GameState, n: Need): string | null {
+  const ok = (k: string) => hintFor(n, k);
+  if ((s.rooms[s.currentRoom]?.items ?? []).some(it => ok(it.kind))) return null;
+  const order = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'bathroom', 'backyard'];
+  for (const id of order) {
+    if (id === s.currentRoom) continue;
+    const items = (s.rooms as Record<string, { items?: { kind: string }[] } | undefined>)[id]?.items ?? [];
+    if (items.some(it => ok(it.kind))) return id;
+  }
+  return null;
+}
+
 export function installNeeds(d: NeedsDeps) {
   const prev = new Map<string, Record<Need, number>>();
   const asked = new Map<string, number>(); // id|need -> time a meet was sent (stops a resend storm)
@@ -53,7 +68,7 @@ export function installNeeds(d: NeedsDeps) {
   // ---- Menu: "Show wishes" (this iPad only) ----
   const btn = document.createElement('button');
   btn.type = 'button'; btn.className = 'menuRow'; btn.id = 'btnWishes';
-  btn.innerHTML = `<span class="mIco" id="wishIco"></span><span class="mLabel">Wishes</span>`;
+  btn.innerHTML = `<span class="mIco" id="wishIco"></span><span class="mLabel">Show wishes</span>`;
   const paintBtn = () => { const on = showWishes(); btn.querySelector('#wishIco')!.innerHTML = on ? EYE_OPEN : EYE_OFF; btn.setAttribute('aria-label', on ? 'Wishes on' : 'Wishes off'); btn.setAttribute('aria-pressed', String(on)); };
   btn.addEventListener('click', () => { try { localStorage.setItem(KEY, showWishes() ? '0' : '1'); } catch { /* private mode */ } paintBtn(); sfx.click(); paint(); toast(showWishes() ? 'Wishes on' : 'Wishes off', 1400); });
   d.menuAfter?.insertAdjacentElement('afterend', btn); paintBtn();
@@ -119,6 +134,23 @@ export function installNeeds(d: NeedsDeps) {
     if (on) for (const c of s.characters) { if (c.room !== s.currentRoom) continue; if (!wishOf(c)) continue;
       for (const n of NEEDS) if (levelOf(c, n) <= 1) for (const it of s.rooms[s.currentRoom]?.items ?? []) if (hintFor(n, it.kind)) want.add(it.id); }
     for (const el of d.layer.querySelectorAll<HTMLElement>('.item[data-id]')) el.classList.toggle('need-hint', want.has(el.dataset.id!));
+
+    // Soft pulse on at most one room tab when the wish's helper is in another room (Play + wishes on only).
+    const tabs = document.getElementById('tabs');
+    if (tabs) {
+      const play = document.body.classList.contains('mode-play');
+      let elseId: string | null = null;
+      if (on && play) {
+        for (const c of s.characters) {
+          if (c.room !== s.currentRoom) continue;
+          const w = wishOf(c); if (!w) continue;
+          elseId = elsewhereRoom(s, w); if (elseId) break;
+        }
+      }
+      for (const el of tabs.querySelectorAll<HTMLElement>('[data-room]')) {
+        el.classList.toggle('need-elsewhere', !!elseId && el.dataset.room === elseId);
+      }
+    }
   }
 
   /** Care: a doll at the right spot with a need below full gets it met. Anyone may do this, visitors too. */
