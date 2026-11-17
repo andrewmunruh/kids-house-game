@@ -10,7 +10,7 @@
 // requests that pack's WebP.
 import { setArtFromSearch } from './flag';
 import { rememberRaster } from './cache';
-import { withRetry } from './retry';
+import { importWithRetry } from './retry';
 
 const loaders = import.meta.glob(['../../assets/art/*/*.webp', '!../../assets/art/scene/*.webp'], { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
 
@@ -54,7 +54,7 @@ function startKind(kind: string): Promise<string | null> {
   if (!load) return Promise.resolve(null);
   // A failed chunk (e.g. a one-off 503) is tried again with backoff. If every try fails the
   // item keeps its SVG, and the kind rests for GAVE_UP_MS before a later visit tries again.
-  const job = withRetry(load).then(url => {
+  const job = importWithRetry(load).then(url => {
     gaveUp.delete(kind);
     rememberRaster(kind, url);
     return kind;
