@@ -291,6 +291,10 @@ function setCam(x: number) {
   if (selected) renderToolbar(store.get());
   // Re-check the Backyard label after a pan so it appears on the painted door, not earlier.
   placeYardHints();
+  // WebKit's box for an off-screen lying sprite is unreliable; re-clamp now that the
+  // camera may have brought the bed onto the stage. Queue a second pass after pose layout.
+  nudgeSeatedSprites();
+  queueNudgeSeated();
 }
 function glideTo(target: number) {
   cancelAnimationFrame(inertia); target = clampCam(target); glideTarget = target;
@@ -1030,6 +1034,51 @@ function spriteScreenBox(el: HTMLElement) {
   return { left: l, right: r, top, bottom: btm };
 }
 /** Keep a sitting/lying sprite inside the room frame. Does not change saved x/y or seat. */
+let nudgeSeatedTok = 0;
+/** Pose CSS/SVG can finish a frame later (WebKit lie-right). Re-clamp until the box settles. */
+function queueNudgeSeated() {
+  const tok = ++nudgeSeatedTok;
+  let last = '', frames = 0;
+  const step = () => {
+    if (tok !== nudgeSeatedTok) return;
+    nudgeSeatedSprites();
+    const sig = [...document.querySelectorAll('#layer .char.pose-sit, #layer .char.pose-lie, #layer .avatar.pose-sit, #layer .avatar.pose-lie')]
+      .map(el => { const b = el.getBoundingClientRect(); return `${b.left.toFixed(1)},${b.right.toFixed(1)}`; }).join('|');
+    frames++;
+    if (sig === last || frames > 16) return;
+    last = sig;
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+function nudgeSeatedSprites() {
+  const s = store.get();
+  const room = s.currentRoom;
+  for (const c of s.characters) {
+    if (c.room !== room) continue;
+    const el = charEls.get(c.id);
+    const seat = dollSeat(c);
+    const pose = seat?.pose ?? null;
+    if (!el || !pose) continue;
+    const sc = charScale(c);
+    nudgeSeatedInRoom(el, seatedAt(room, seat, c), CHAR_W * sc, CHAR_H * sc);
+  }
+  if (hood && inner !== local && view === 'house') {
+    const entries: [string, Presence][] = [...hood.presence.entries()];
+    const mine = myPres(); if (mine) entries.push([hood.pid, mine]);
+    for (const [pid, p] of entries) {
+      if (p.where !== 'house' || p.houseId !== currentHouseId || p.room !== room) continue;
+      const el = avatarEls.get(pid);
+      const seat = presSeat(pid, p);
+      const pose = seat?.pose ?? null;
+      const pl = hood.players.get(pid);
+      if (!el || !pose || !pl) continue;
+      const sc = SIZE_SCALE[pl.look.size] ?? 1;
+      nudgeSeatedInRoom(el, seatedAt(room, seat, p), CHAR_W * sc, CHAR_H * sc);
+    }
+  }
+}
+
 function nudgeSeatedInRoom(el: HTMLElement, at: { x: number; y: number }, w: number, h: number) {
   const st = stage.getBoundingClientRect();
   if (st.width < 20) return;
@@ -1526,6 +1575,7 @@ function renderChars(s: GameState) {
     el.style.setProperty('--hx-l', pts.left.x + '%');
     el.style.setProperty('--hx-r', pts.right.x + '%');
   }
+  if (here.some(c => dollSeat(c)?.pose)) queueNudgeSeated();
   if (babyHolderId(s) === '' || !here.some(c => c.id === babyHolderId(s))) clearCradleSlot('doll');
   queueAmbient();
   renderMinimap(s);
@@ -2562,6 +2612,7 @@ function renderAvatars() {
   updateNear();
   renderBaby();
   queueAmbient();
+  queueNudgeSeated();
 }
 function attachMyAvatarDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
@@ -2701,7 +2752,7 @@ function renderHoodChrome() {
   const inHouse = !!hood && inner !== local && view === 'house';
   const h = inHouse ? hood!.houses.get(currentHouseId) : undefined;
   const own = !!h && h.meta.ownerId === hood!.pid;
-  b.toggle('mode-hood', !!hood); b.toggle('view-street', view !== 'house'); b.toggle('view-park', view === 'park'); b.toggle('view-ranch', view === 'ranch'); b.toggle('view-map', view === 'street'); b.toggle('view-gameroom', view === 'gameroom'); b.toggle('in-barn', view === 'ranch' && inBarn); b.toggle('mode-play', view === 'house' && play.isPlay()); renderBasketChip(); syncMailCue();
+  b.toggle('mode-hood', !!hood); b.toggle('view-street', view !== 'house'); b.toggle('view-park', view === 'park'); b.toggle('view-ranch', view === 'ranch'); b.toggle('view-map', view === 'street'); b.toggle('view-gameroom', view === 'gameroom'); b.toggle('in-barn', view === 'ranch' && inBarn); b.toggle('mode-play', view === 'house' && play.isPlay()); renderArtFab(); renderBasketChip(); syncMailCue();
   b.toggle('own-house', own); b.toggle('locked', !!h && !canEdit()); b.toggle('has-hood', !!hoodServerUrl());
   paintBadges();
   if (h) {
@@ -5352,9 +5403,12 @@ function placeYardHints() {
   const overlapH = Math.min(painted.bottom, stageBox.bottom) - Math.max(painted.top, stageBox.top);
   const doorOnStage = overlapW > Math.max(16, painted.width * 0.3) && overlapH > 20;
   const sceneOn = stage.classList.contains('sceneArtOn');
+  // sceneArtOn is also on in Decorate (the painted room). Only Play should pin the
+  // painted door and hide the floating label; Decorate still slides the control on-stage.
+  const pinPaintedDoor = sceneOn && play.isPlay();
   // Play: the painting stays put. Hide the label until the kid pans the door on-stage.
   // Decorate: keep sliding the door control onto the stage (tests and the editor still need it).
-  if (!doorOnStage && sceneOn) {
+  if (!doorOnStage && pinPaintedDoor) {
     if (hint) hint.style.visibility = 'hidden';
     liftDoorOverFurniture(door);
     return;
@@ -5384,7 +5438,7 @@ function placeYardHints() {
     }
     return { leftLimit, rightLimit, doorR, artR, hintR };
   };
-  if (!sceneOn) {
+  if (!pinPaintedDoor) {
     let guard = 0;
     let dx = 0;
     while (guard++ < 4) {
@@ -5411,7 +5465,7 @@ function placeYardHints() {
     if (ink.height > 2 && Math.abs(dy) >= 0.1) el.style.transform = `translateY(${(dy / sc).toFixed(2)}px)`;
     else el.style.transform = '';
   }
-  if (!sceneOn) {
+  if (!pinPaintedDoor) {
     const h2 = hint.getBoundingClientRect();
     const stage2 = stage.getBoundingClientRect();
     let hx = 0;

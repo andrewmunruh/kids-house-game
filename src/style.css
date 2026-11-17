@@ -1388,3 +1388,5 @@ body.phone .grSolo { top: 6px; bottom: auto; font-size: 14px; padding: 4px 12px;
 .artFab.hidden { display: none; }
 @media (max-height: 500px) { .artFab { min-height: 56px; font-size: 17px; left: 10px; bottom: 10px; } .artFab svg { width: 34px; height: 34px; } }
 .artFab.tucked { display: none; }
+/* House-only: the Paint button must not sit on the clubhouse door or the park gate. */
+body.view-street .artFab, body.view-street #bin { display: none !important; }
