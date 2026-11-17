@@ -23,6 +23,7 @@ import { houseSVG, ICONS, toast, adultCheck, grownNotice } from './hood-ui';
 import { initEggs, foundSet, EGGS } from './eggs';
 import { ITEMS, ITEM_MAP, svgOf, shelfThumb, hOf, installArtFallback, type Category, type ItemDef } from './items';
 import { rasterOn, rasterUrl } from './art/cache';
+import { importWithRetry, installChunkRetry } from './art/retry';
 import { catSprite, dogSprite, animalSprite, horseSprite, ranchPropSprite } from './art/sprites';
 import { artSolid, topHit } from './art/hit';
 import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
@@ -1781,7 +1782,7 @@ function pumpShelf(): void {
     if (!d) { delete card.dataset.artq; continue; }
     shelfActive++;
     if (rasterUrl(kind)) { swapShelfCard(card, d); continue; }
-    void import('./art/load').then(m => m.loadArtKinds([kind])).then(() => {
+    void importWithRetry(() => import('./art/load')).then(m => m.loadArtKinds([kind])).then(() => {
       if (!card.isConnected || card.dataset.artq !== '1') { releaseShelf(); return; }
       if (!rasterUrl(kind)) { retryShelf(card, kind); releaseShelf(); return; }
       if (!shelfNear(card)) { delete card.dataset.shelfq; releaseShelf(); return; }
@@ -3392,7 +3393,7 @@ async function connectJoin(url: string, code: string, id: string, nickname: stri
   // your first character becomes "you" on the street; the rest stay in the house
   const look = cleanLook(meChar ?? {});
   let house: GameState | undefined;
-  if (bring) { house = s; if (meChar) { const { reduce } = await import('./shared/state'); house = reduce(s, { type: 'char/delete', id: meChar.id }); } }
+  if (bring) { house = s; if (meChar) { const { reduce } = await importWithRetry(() => import('./shared/state')); house = reduce(s, { type: 'char/delete', id: meChar.id }); } }
   const prev = loadHoodConfig();
   const cfg: HoodConfig = { url, code, id, parentKey: prev?.id === id || prev?.code === code ? prev.parentKey : undefined };
   const dog = s.dog ? { name: s.dog.name, breed: s.dog.breed } : null; // her solo dog comes along
@@ -5043,7 +5044,7 @@ let artBoot: Promise<void> | null = null;
 let artHas: (kind: string) => boolean = () => false;
 function refreshArt(_room?: string): Promise<void> {
   if (artBoot) return artBoot;
-  artBoot = import('./art/load').then(m => {
+  artBoot = importWithRetry(() => import('./art/load')).then(m => {
     artHas = m.hasArt;
     return m.boot(location.search, artKinds(store.get()));
   }).then(ids => {
@@ -5076,16 +5077,17 @@ let chipArt: Promise<void> | null = null;
 function loadChipArt(): void {
   if (chipArt) return;
   const kinds = TABS.filter(t => t.kind !== 'people' && t.icon && ITEM_MAP[t.icon]).map(t => t.icon);
-  chipArt = import('./art/load').then(m => m.loadArtKinds(kinds)).then(() => refreshChipArt(), () => {});
+  chipArt = importWithRetry(() => import('./art/load')).then(m => m.loadArtKinds(kinds)).then(() => refreshChipArt(), () => {});
 }
 for (const id of ['cats', 'shelf']) document.getElementById(id)?.addEventListener('pointerdown', loadChipArt, { once: true, passive: true });
 function loadNewArt(): Promise<void> {
-  return import('./art/load').then(m => m.boot(location.search, artKinds(store.get()))).then(ids => {
+  return importWithRetry(() => import('./art/load')).then(m => m.boot(location.search, artKinds(store.get()))).then(ids => {
     paintLoaded(ids.filter(id => !!ITEM_MAP[id]));
   });
 }
 
 // ---------- start ----------
+installChunkRetry();
 installArtFallback();
 loadLocalArt();
 installJuice();

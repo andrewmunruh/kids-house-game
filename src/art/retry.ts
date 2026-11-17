@@ -42,3 +42,57 @@ export function retryImage(img: HTMLImageElement, delays: readonly number[] = AR
   }, delays[tries]);
   return true;
 }
+
+/**
+ * Dynamic import() of a JS chunk, with the same backoff. Production Vite wraps
+ * those imports so a 503 (e.g. assets/armchair-*.js on GitHub Pages) becomes
+ * vite:preloadError; the caller still sees a rejected promise, which we retry.
+ * A final failure shows a gentle note once — never a blank screen, and never
+ * a location.reload() loop.
+ */
+export async function importWithRetry<T>(load: () => Promise<T>, delays: readonly number[] = ART_RETRY_MS): Promise<T> {
+  try {
+    return await withRetry(load, delays);
+  } catch (e) {
+    showSoftArtMiss();
+    throw e;
+  }
+}
+
+let chunkRetryOn = false;
+let missShown = false;
+
+/** Call once at startup, before any lazy import(). Does not reload the page. */
+export function installChunkRetry(): void {
+  if (chunkRetryOn || typeof window === 'undefined') return;
+  chunkRetryOn = true;
+  window.addEventListener('vite:preloadError', ev => {
+    // Do not preventDefault: Vite would then swallow the rejection and withRetry
+    // would think the import succeeded. Do not reload: an always-503 would loop.
+    void ev;
+  });
+}
+
+/** A soft, kid-safe note after every retry of a JS chunk (or art URL module) has failed. Shown once. */
+export function showSoftArtMiss(): void {
+  if (missShown || typeof document === 'undefined') return;
+  missShown = true;
+  if (document.getElementById('artRetryNote')) return;
+  const el = document.createElement('div');
+  el.id = 'artRetryNote';
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  el.textContent = 'Some pictures could not load. You can still play!';
+  const go = document.createElement('button');
+  go.type = 'button';
+  go.className = 'artRetryNoteOk';
+  go.textContent = 'OK';
+  go.addEventListener('click', () => el.remove());
+  el.appendChild(go);
+  const mount = () => { (document.body || document.documentElement).appendChild(el); };
+  if (document.body) mount();
+  else document.addEventListener('DOMContentLoaded', mount, { once: true });
+}
+
+/** Tests only: reset the once-per-visit note flag. */
+export function resetSoftArtMiss(): void { missShown = false; }

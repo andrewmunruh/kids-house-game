@@ -6,7 +6,7 @@
 // Each painting is fetched on first entry to its scene and decoded off the main thread
 // (img.decode) before it is shown, so a scene switch never stalls a frame. Nothing is saved.
 import { artRasterOn } from './flag';
-import { withRetry, ART_RETRY_MS } from './retry';
+import { importWithRetry, ART_RETRY_MS } from './retry';
 
 const files = import.meta.glob('../../assets/art/scene/*.webp', { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
 const byScene = new Map<string, () => Promise<string>>();
@@ -53,7 +53,7 @@ function load(scene: string): Job {
   // before it is shown, and a bad or missing file marks the job failed there (vector stays).
   // A failed URL chunk is retried with backoff (retry.ts). If it still fails the vector stays, and the job is
   // dropped so the next entry to this scene tries again instead of staying vector for the whole visit.
-  job.p = withRetry(get).then(url => { job.state = 'ok'; job.url = url; return url; }).catch(() => { job.state = 'failed'; if (jobs.get(scene) === job) jobs.delete(scene); return null; });
+  job.p = importWithRetry(get).then(url => { job.state = 'ok'; job.url = url; return url; }).catch(() => { job.state = 'failed'; if (jobs.get(scene) === job) jobs.delete(scene); return null; });
   jobs.set(scene, job);
   while (jobs.size > JOBS_MAX) jobs.delete(jobs.keys().next().value!);
   return job;
@@ -196,23 +196,34 @@ function loadTile(host: HTMLElement, st: Tiled, img: HTMLImageElement, i: number
   img.dataset.state = 'loading';
   const key = st.scene + '.' + i;
   const cached = tileUrl.get(key);
-  const p = cached ? Promise.resolve(cached) : tilesOf.get(st.scene)!.parts[i].get().then(u => { tileUrl.set(key, u); return u; });
-  p.then(url => {
+  // B12 retry on B6 strips: a one-off 503 on a tile URL chunk is retried before we
+  // give up and fall back to the single painting (B6's fallback stays after the last try).
+  const p = cached ? Promise.resolve(cached) : importWithRetry(() => tilesOf.get(st.scene)!.parts[i].get()).then(u => { tileUrl.set(key, u); return u; });
+  const put = (url: string, tries = 0) => {
     if (tiled.get(host) !== st || !img.isConnected) return;
     img.src = url;
-    return img.decode().then(() => {
+    img.decode().then(() => {
       if (tiled.get(host) !== st || !img.isConnected) return;
       if (img.dataset.state !== 'loading') return; // let go of while it loaded
       img.hidden = false; img.dataset.state = 'ok'; wantTiles(host);
+    }, () => {
+      if (tiled.get(host) !== st || !img.isConnected) return;
+      if (tries < ART_RETRY_MS.length) {
+        setTimeout(() => { if (tiled.get(host) === st && img.isConnected && img.dataset.state === 'loading') { img.removeAttribute('src'); put(url, tries + 1); } }, ART_RETRY_MS[tries]);
+        return;
+      }
+      fallBackToSingle();
     });
-  }).catch(() => {
+  };
+  const fallBackToSingle = () => {
     // A strip that will not load: fall back to the single painting for this host (vector stays meanwhile).
     if (tiled.get(host) !== st) return;
     tiled.delete(host); if (!tiled.size) stopWatch();
     host.querySelectorAll<HTMLImageElement>(':scope > img.sceneTile').forEach(x => { x.removeAttribute('src'); x.remove(); });
     tilesOf.delete(st.scene);
     showSceneArt(host, st.scene, st.mark);
-  });
+  };
+  p.then(url => put(url), () => fallBackToSingle());
 }
 
 /** Tests: which strips of the shown scene are loaded. */
