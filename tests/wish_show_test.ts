@@ -43,6 +43,9 @@ s = reduce(s, { type: 'char/move', id: 'd1', room: 'bedroom', x: 1150, y: 480, s
 const c = s.characters[0];
 check('lying in bed: wishOf is still the leftover apple', wishOf(c) === 'hungry', String(wishOf(c)));
 check('lying in bed: wishToShow hides the apple (she is meeting sleepy)', wishToShow(s, c) === null, String(wishToShow(s, c)));
+s = reduce(s, { type: 'need/meet', id: 'd1', need: 'sleepy' });
+check('still lying after sleepy is filled: apple stays hidden so z z can read', wishToShow(s, s.characters[0]) === null && wishOf(s.characters[0]) === 'hungry', String(wishToShow(s, s.characters[0])));
+
 
 s = house();
 s = reduce(s, { type: 'char/move', id: 'd1', room: 'living', x: 700, y: 540, seat: null });
@@ -55,7 +58,7 @@ s = reduce(s, { type: 'char/move', id: 'd1', room: 'kitchen', x: cake.x, y: 520,
 s = drift(s, 'sleepy', 8);
 s = reduce(s, { type: 'char/hold', id: 'd1', hand: 'right', room: 'kitchen', itemId: 'cake-3' });
 const c3 = s.characters[0];
-check('holding cake with hungry already full: sleepy wish still shows (she is not meeting a need)', wishToShow(s, c3) === 'sleepy', String(wishToShow(s, c3)));
+check('holding cake: leftover sleepy wish is hidden (she is eating)', wishToShow(s, c3) === null, String(wishToShow(s, c3)));
 
 s = house();
 s = reduce(s, { type: 'char/move', id: 'd1', room: 'kitchen', x: cake.x, y: 520, seat: null });
