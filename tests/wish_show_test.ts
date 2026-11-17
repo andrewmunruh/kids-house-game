@@ -80,4 +80,34 @@ s = drift(s, 'clean', 8);
 const c5 = s.characters[0];
 check('in the tub with clean + hungry low: apple is hidden', wishToShow(s, c5) === null, String(wishToShow(s, c5)) + ' wishOf=' + wishOf(c5));
 
+
+function needsOf(s: GameState) {
+  const c = s.characters[0];
+  return { sleepy: c.needs.sleepy, hungry: c.needs.hungry, playful: c.needs.playful, clean: c.needs.clean };
+}
+
+s = house();
+s = drift(s, 'hungry', 8);
+s = drift(s, 'sleepy', 2);
+s = reduce(s, { type: 'char/move', id: 'd1', room: 'bedroom', x: 1150, y: 480, seat: { item: 'bed-1', pose: 'lie', n: 0 } });
+const beforeLie = needsOf(s);
+const shownLie = wishToShow(s, s.characters[0]);
+const afterLie = needsOf(s);
+check('hiding a wish does not dispatch or change need levels (lie)',
+  shownLie === null && JSON.stringify(beforeLie) === JSON.stringify(afterLie) && afterLie.hungry < 3 && afterLie.sleepy < 3,
+  `before=${JSON.stringify(beforeLie)} after=${JSON.stringify(afterLie)} show=${shownLie}`);
+
+s = house();
+s = reduce(s, { type: 'char/move', id: 'd1', room: 'kitchen', x: cake.x, y: 520, seat: null });
+s = drift(s, 'hungry', 8);
+s = drift(s, 'sleepy', 2);
+const beforeHold = needsOf(s);
+s = reduce(s, { type: 'char/hold', id: 'd1', hand: 'right', room: 'kitchen', itemId: 'cake-3' });
+const midHold = needsOf(s);
+const shownHold = wishToShow(s, s.characters[0]);
+const afterHold = needsOf(s);
+check('holding food hides the wish but leaves every need at the same level',
+  shownHold === null && JSON.stringify(beforeHold) === JSON.stringify(midHold) && JSON.stringify(midHold) === JSON.stringify(afterHold),
+  `before=${JSON.stringify(beforeHold)} after=${JSON.stringify(afterHold)} show=${shownHold}`);
+
 console.log(`RESULT ${pass} pass ${fail} fail`);
