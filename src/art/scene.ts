@@ -156,9 +156,13 @@ function showTiles(host: HTMLElement, scene: string, mark: HTMLElement) {
       const img = document.createElement('img');
       img.className = 'sceneArt sceneTile'; img.alt = ''; img.setAttribute('aria-hidden', 'true'); img.draggable = false; img.decoding = 'async';
       img.dataset.tile = String(i); img.hidden = true;
-      // Each strip sits exactly where it is in the painting; a hair of overlap hides sub-pixel seams.
+      // Each strip sits exactly where it is in the painting (left and width are fractions of
+      // the same box the single painting fills). A CSS +1px on width used to hide sub-pixel
+      // seams, but it stretched every strip and put a ~1 px horizontal drift on the 7200 px
+      // ranch (0.566% vs the 0.5% bar). Keep the scale identical; seams are covered by
+      // rounding the same percentages the painting uses, not by stretching.
       img.style.left = (p.x / t.w * 100) + '%';
-      img.style.width = `calc(${p.w / t.w * 100}% + ${i < t.parts.length - 1 ? 1 : 0}px)`;
+      img.style.width = (p.w / t.w * 100) + '%';
       return img;
     });
     host.prepend(...imgs);
