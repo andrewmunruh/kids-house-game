@@ -2666,24 +2666,17 @@ function yieldNudges() {
     const n = $(id);
     if (!n || n.classList.contains('off') || n.offsetParent === null) { n?.classList.remove('yield'); continue; }
     const b = n.getBoundingClientRect();
-    const pts: [number, number][] = [
-      [b.left + b.width / 2, b.top + b.height / 2],
-      [b.left + 10, b.top + 10],
-      [b.right - 10, b.top + 10],
-      [b.left + 10, b.bottom - 10],
-      [b.right - 10, b.bottom - 10],
-    ];
     let hit = false;
-    for (const [x, y] of pts) {
-      const stack = document.elementsFromPoint(x, y);
-      if (stack.some(el => {
-        const node = el as HTMLElement;
-        return !!(node.closest && node.closest('.char, .need-bubble, .need-snooze'));
-      })) { hit = true; break; }
+    // A lying sprite overflows its .char box; use .inner (and any visible wish) for overlap.
+    for (const el of layer.querySelectorAll<HTMLElement>('.char .inner, .need-bubble.show')) {
+      const r = el.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) continue;
+      if (r.left < b.right - 2 && r.right > b.left + 2 && r.top < b.bottom - 2 && r.bottom > b.top + 2) { hit = true; break; }
     }
     n.classList.toggle('yield', hit);
   }
 }
+
 function showBubble(pid: string, b: Bubble) {
   const el0 = view === 'street' ? document.querySelector<HTMLElement>(`#mapFaces .mapFace[data-pid="${pid}"]`)
     : view === 'park' ? document.querySelector<HTMLElement>(`#pavatars .savatar[data-pid="${pid}"]`)
