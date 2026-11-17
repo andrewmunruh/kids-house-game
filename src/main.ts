@@ -289,6 +289,8 @@ function setCam(x: number) {
   $('nudgeR').classList.toggle('off', camX >= maxCam() - 1);
   const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%';
   if (selected) renderToolbar(store.get());
+  // Re-check the Backyard label after a pan so it appears on the painted door, not earlier.
+  placeYardHints();
 }
 function glideTo(target: number) {
   cancelAnimationFrame(inertia); target = clampCam(target); glideTarget = target;
@@ -504,9 +506,9 @@ function playZoomFloor(): number {
     }
   }
   if (piece < 40) return 0;
-  // Phone portrait has height to spare but little width. Letting the widest piece take
-  // most of the width makes the room fill the tall box instead of floating in blank space.
-  const share = document.body.classList.contains('phone-portrait') ? 0.7 : 0.55;
+  // Phone portrait: let the piece use the full view width so growPhonePlayStage can
+  // fill the wrap instead of letterboxing (P3 stage gap, y≈205). Landscape stays 0.55.
+  const share = document.body.classList.contains('phone-portrait') ? 1 : 0.55;
   return Math.min(W, Math.ceil(piece / share));
 }
 function withPlayZoomFloor(viewW: number): number {
@@ -1017,6 +1019,39 @@ function placeEl(el: HTMLElement, x: number, y: number, w: number, h: number) {
   el.style.width = w / W * 100 + '%';
   el.style.height = h / H * 100 + '%';
 }
+/** Inner stage box: 6px border plus a little for the 34px rounded frame. */
+const STAGE_INSET = 10;
+function spriteScreenBox(el: HTMLElement) {
+  const bits = [el, ...el.querySelectorAll<HTMLElement>('svg, img, canvas, .inner')];
+  const boxes = bits.map(n => n.getBoundingClientRect()).filter(b => b.width > 2 && b.height > 2);
+  if (!boxes.length) return el.getBoundingClientRect();
+  const l = Math.min(...boxes.map(b => b.left)), r = Math.max(...boxes.map(b => b.right));
+  const top = Math.min(...boxes.map(b => b.top)), btm = Math.max(...boxes.map(b => b.bottom));
+  return { left: l, right: r, top, bottom: btm };
+}
+/** Keep a sitting/lying sprite inside the room frame. Does not change saved x/y or seat. */
+function nudgeSeatedInRoom(el: HTMLElement, at: { x: number; y: number }, w: number, h: number) {
+  const st = stage.getBoundingClientRect();
+  if (st.width < 20) return;
+  const sc = stageScale() || 1;
+  const pad = STAGE_INSET;
+  // Clamp to the room's edges, not the current camera window — a bed at the far wall
+  // must not be pulled into whatever slice of the room is on screen.
+  const roomL = st.left + (0 - camX) * sc, roomR = st.left + (W - camX) * sc;
+  const roomT = st.top, roomB = st.bottom;
+  let x = at.x, y = at.y;
+  for (let i = 0; i < 3; i++) {
+    const box = spriteScreenBox(el);
+    let dx = 0, dy = 0;
+    if (box.left < roomL + pad) dx += roomL + pad - box.left;
+    if (box.right > roomR - pad) dx -= box.right - (roomR - pad);
+    if (box.top < roomT + pad) dy += roomT + pad - box.top;
+    if (box.bottom > roomB - pad) dy -= box.bottom - (roomB - pad);
+    if (!dx && !dy) return;
+    x += dx / sc; y += dy / sc;
+    placeEl(el, x, y, w, h);
+  }
+}
 
 /** Phone stage is CSS-scaled, so the kennel and tower grow until the tap box is 44px. iPad keeps the drawn size. */
 function placedBox(def: ItemDef, scale: number) {
@@ -1472,12 +1507,13 @@ function renderChars(s: GameState) {
     if (el.dataset.held !== heldKey) { el.querySelector('.hands')!.innerHTML = heldKey; el.dataset.held = heldKey; }
     const sc = charScale(c);
     const at = seatedAt(s.currentRoom, seat, c);
-    placeEl(el, at.x, at.y, CHAR_W * sc, CHAR_H * sc);
-    el.style.zIndex = seat ? String(1000 + (s.rooms[s.currentRoom].items.find(i => i.id === seat.item)?.z ?? 0) + 1 + seat.n) : String(5000 + Math.round(c.y));
     el.classList.toggle('flipped', c.flip);
     el.classList.toggle('pose-sit', pose === 'sit');
     el.classList.toggle('pose-lie', pose === 'lie');
     el.classList.toggle('pose-lie-r', pose === 'lie' && !!s.rooms[s.currentRoom].items.find(i => i.id === seat?.item)?.flip);
+    placeEl(el, at.x, at.y, CHAR_W * sc, CHAR_H * sc);
+    if (pose) nudgeSeatedInRoom(el, at, CHAR_W * sc, CHAR_H * sc);
+    el.style.zIndex = seat ? String(1000 + (s.rooms[s.currentRoom].items.find(i => i.id === seat.item)?.z ?? 0) + 1 + seat.n) : String(5000 + Math.round(c.y));
     el.classList.toggle('active', c.id === activeChar);
     stampAvatar(el, c, c.id === activeChar);
     el.classList.toggle('pose-swing', swingPose?.id === c.id);
@@ -2503,13 +2539,14 @@ function renderAvatars() {
       el.classList.toggle('holding', holding);
       const sc = SIZE_SCALE[look.size] ?? 1;
       const at = seatedAt(room, seat, p);
-      placeEl(el, at.x, at.y, CHAR_W * sc, CHAR_H * sc);
       const piece = seat && store.get().rooms[room].items.find(i => i.id === seat.item);
-      el.style.zIndex = piece ? String(1000 + piece.z + 1 + seat.n) : String(5000 + Math.round(p.y));
       el.classList.toggle('flipped', p.flip);
       el.classList.toggle('pose-sit', pose === 'sit');
       el.classList.toggle('pose-lie', pose === 'lie');
       el.classList.toggle('pose-lie-r', pose === 'lie' && !!piece?.flip);
+      placeEl(el, at.x, at.y, CHAR_W * sc, CHAR_H * sc);
+      if (pose) nudgeSeatedInRoom(el, at, CHAR_W * sc, CHAR_H * sc);
+      el.style.zIndex = piece ? String(1000 + piece.z + 1 + seat.n) : String(5000 + Math.round(p.y));
       stampAvatar(el, look, pid === hood.pid);
       if (holding) {
         const arm = cradleFrontSVG(look, pose);
@@ -5276,7 +5313,7 @@ function frameYardCam() {
   if (kid) setCam(kid.x - VIEW_W / 2);
   placeYardHints();
 }
-/** Slide the door, not the room, so the whole door and its label sit on the stage and clear of the pan arrows. The arrows stay where production puts them. */
+/** Keep the Backyard label on the door. Hide it when the painted door is off-stage; do not slide it onto empty wallpaper in Play. */
 function placeYardHints() {
   if (doorPress) return;
   const stageBox = stage.getBoundingClientRect();
@@ -5291,6 +5328,7 @@ function placeYardHints() {
     if (!hint) continue;
     hint.style.transform = '';
     hint.style.translate = '';
+    hint.style.visibility = '';
     const span = hint.querySelector<HTMLElement>('span');
     if (span) span.style.transform = '';
     const fontLocal = Math.max(13, 16 / sc);
@@ -5306,6 +5344,22 @@ function placeYardHints() {
   if (!door) return;
   const art = door.querySelector<HTMLElement>('.doorArt');
   const hint = door.querySelector<HTMLElement>('.yardHintLabel');
+  // Play's painting stays put. Do not slide the (hidden) door control onto empty wallpaper.
+  door.style.transform = '';
+  if (hint) { hint.style.translate = ''; hint.style.visibility = ''; }
+  const painted = (art && art.getBoundingClientRect().width > 2) ? art.getBoundingClientRect() : door.getBoundingClientRect();
+  const overlapW = Math.min(painted.right, stageBox.right) - Math.max(painted.left, stageBox.left);
+  const overlapH = Math.min(painted.bottom, stageBox.bottom) - Math.max(painted.top, stageBox.top);
+  const doorOnStage = overlapW > Math.max(16, painted.width * 0.3) && overlapH > 20;
+  const sceneOn = stage.classList.contains('sceneArtOn');
+  // Play: the painting stays put. Hide the label until the kid pans the door on-stage.
+  // Decorate: keep sliding the door control onto the stage (tests and the editor still need it).
+  if (!doorOnStage && sceneOn) {
+    if (hint) hint.style.visibility = 'hidden';
+    liftDoorOverFurniture(door);
+    return;
+  }
+  if (hint) hint.style.visibility = '';
   const pad = 6;
   const limits = () => {
     const box = stage.getBoundingClientRect();
@@ -5330,18 +5384,20 @@ function placeYardHints() {
     }
     return { leftLimit, rightLimit, doorR, artR, hintR };
   };
-  let guard = 0;
-  let dx = 0;
-  while (guard++ < 4) {
-    const { leftLimit, rightLimit, doorR, artR } = limits();
-    let step = 0;
-    const left = Math.min(doorR.left, artR && artR.width > 2 ? artR.left : doorR.left);
-    const right = Math.max(doorR.right, artR && artR.width > 2 ? artR.right : doorR.right);
-    if (left < leftLimit) step += leftLimit - left;
-    if (right + step > rightLimit) step -= right + step - rightLimit;
-    if (Math.abs(step) < 0.5) break;
-    dx += step;
-    door.style.transform = `translate(${(dx / sc).toFixed(1)}px, 0)`;
+  if (!sceneOn) {
+    let guard = 0;
+    let dx = 0;
+    while (guard++ < 4) {
+      const { leftLimit, rightLimit, doorR, artR } = limits();
+      let step = 0;
+      const left = Math.min(doorR.left, artR && artR.width > 2 ? artR.left : doorR.left);
+      const right = Math.max(doorR.right, artR && artR.width > 2 ? artR.right : doorR.right);
+      if (left < leftLimit) step += leftLimit - left;
+      if (right + step > rightLimit) step -= right + step - rightLimit;
+      if (Math.abs(step) < 0.5) break;
+      dx += step;
+      door.style.transform = `translate(${(dx / sc).toFixed(1)}px, 0)`;
+    }
   }
   if (!hint) { liftDoorOverFurniture(door); return; }
   const span = hint.querySelector('span');
@@ -5355,20 +5411,21 @@ function placeYardHints() {
     if (ink.height > 2 && Math.abs(dy) >= 0.1) el.style.transform = `translateY(${(dy / sc).toFixed(2)}px)`;
     else el.style.transform = '';
   }
-  const h2 = hint.getBoundingClientRect();
-  const stage2 = stage.getBoundingClientRect();
-  let hx = 0;
-  // The yard door grows into the house. Keep the label centered on the drawing, then on the stage.
-  if (store.get().currentRoom === 'backyard' && art) {
-    const artR = art.getBoundingClientRect();
-    if (artR.width > 2) hx += (artR.left + artR.right) / 2 - (h2.left + h2.right) / 2;
+  if (!sceneOn) {
+    const h2 = hint.getBoundingClientRect();
+    const stage2 = stage.getBoundingClientRect();
+    let hx = 0;
+    if (store.get().currentRoom === 'backyard' && art) {
+      const artR = art.getBoundingClientRect();
+      if (artR.width > 2) hx += (artR.left + artR.right) / 2 - (h2.left + h2.right) / 2;
+    }
+    if (h2.left + hx < stage2.left + pad) hx += stage2.left + pad - (h2.left + hx);
+    else if (h2.right + hx > stage2.right - pad) hx -= h2.right + hx - (stage2.right - pad);
+    if (Math.abs(hx) > 0.5) hint.style.translate = `calc(-50% + ${(hx / sc).toFixed(1)}px) 0`;
+    else hint.style.translate = '';
   }
-  if (h2.left + hx < stage2.left + pad) hx += stage2.left + pad - (h2.left + hx);
-  else if (h2.right + hx > stage2.right - pad) hx -= h2.right + hx - (stage2.right - pad);
-  if (Math.abs(hx) > 0.5) hint.style.translate = `calc(-50% + ${(hx / sc).toFixed(1)}px) 0`;
-  else hint.style.translate = '';
-  // Stack from the slide she can actually tap. Doing it last keeps the label's own nudge put.
   liftDoorOverFurniture(door);
+
 }void refreshArt(store.get().currentRoom);
 // ---------- hidden surprises ----------
 const renderSecrets = () => {
