@@ -18,6 +18,8 @@ WEB = opt('--web', 'BABY_WEB', 'http://127.0.0.1:5173/kids-house-game/')
 HOOD_PORT = int(opt('--hood-port', 'BABY_HOOD_PORT', '8807'))
 OLD_PORT = int(opt('--old-port', 'BABY_OLD_PORT', '4198'))
 OLD_DIST = opt('--old-dist', 'BABY_OLD_DIST', '/tmp/prod-dist')
+PREBABY_DIST = opt('--pre-baby-dist', 'BABY_PREBABY_DIST', '')
+PREBABY_PORT = int(opt('--pre-baby-port', 'BABY_PREBABY_PORT', '4199'))
 HOOD = f'http://127.0.0.1:{HOOD_PORT}'
 PROD_WORKER = 'cozy-hood.andrewmunruh.workers.dev'
 SIZES = [(820, 1180), (1180, 820), (1024, 768), (390, 844), (375, 667), (430, 932), (844, 390)]
@@ -69,17 +71,16 @@ def server():
     env = dict(os.environ, PORT=str(HOOD_PORT), HOOD_DATA=data)
     return subprocess.Popen(['npx', 'tsx', 'server/node.ts'], cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
-def old_web():
-    www = '/tmp/baby-old-www'
+def old_web(dist, port, www):
     shutil.rmtree(www, ignore_errors=True)
     os.makedirs(www)
-    os.symlink(OLD_DIST, www + '/kids-house-game')
+    os.symlink(dist, www + '/kids-house-game')
     code = (
         "import http.server, functools\n"
         "class H(http.server.SimpleHTTPRequestHandler):\n"
         "    def end_headers(self): self.send_header('Cache-Control', 'no-store'); super().end_headers()\n"
         "    def log_message(self, *a): pass\n"
-        f"http.server.ThreadingHTTPServer(('127.0.0.1', {OLD_PORT}), functools.partial(H, directory='{www}')).serve_forever()"
+        f"http.server.ThreadingHTTPServer(('127.0.0.1', {port}), functools.partial(H, directory='{www}')).serve_forever()"
     )
     return subprocess.Popen([sys.executable, '-c', code], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
@@ -756,6 +757,7 @@ async def main():
         return
     hood = server()
     old = None
+    pb = None
     if not wait_port(HOOD_PORT):
         check('local hood started', False)
         stop(hood)
@@ -976,7 +978,7 @@ async def main():
             await A.wait_for_function("() => { const b = __store.get().baby; return b && b.spot === 'mat' && !b.holder; }", timeout=8000)
             check('when the holder disconnects, A sees her on the mat', True)
 
-            old = old_web()
+            old = old_web(OLD_DIST, OLD_PORT, '/tmp/baby-old-www')
             check('old client server started', wait_port(OLD_PORT))
             old_ctx = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
             await old_ctx.add_init_script("localStorage.setItem('cozy-whatsnew','999');")
@@ -996,17 +998,73 @@ async def main():
             await A.wait_for_timeout(800)
             old_view = await O.evaluate("""() => {
               const s = __store.get();
-              return { baby: 'baby' in s, crib: s.rooms.nursery.items.some(i => i.kind === 'crib'), living: s.rooms.living.items.length, sprite: document.querySelectorAll('.baby').length, hood: document.body.classList.contains('mode-hood') };
+              const hood = (typeof __hood === 'function') ? __hood() : null;
+              return {
+                baby: 'baby' in s,
+                crib: s.rooms.nursery.items.some(i => i.kind === 'crib'),
+                living: s.rooms.living.items.length,
+                sprite: document.querySelectorAll('.baby').length,
+                hood: document.body.classList.contains('mode-hood'),
+                speaksBaby: !!(hood && hood.speaksBaby)
+              };
             }""")
             await O.evaluate("""() => { __store.dispatch({ type: 'item/add', room: 'living', item: { id: 'old-keep', kind: 'plant', x: 500, y: 540, flip: false, z: 3, scale: 1 } }); }""")
             await A.wait_for_timeout(600)
             kept = await A.evaluate("""() => { const s = __store.get(); return { baby: !!(s.baby && s.baby.name), edit: s.rooms.living.items.some(i => i.id === 'old-keep'), crib: s.rooms.nursery.items.some(i => i.kind === 'crib') }; }""")
-            check('old protocol-4 client keeps the house and never draws the baby', old_view and old_view['hood'] and old_view['crib'] and old_view['living'] > 0 and not old_view['baby'] and old_view['sprite'] == 0 and not o_err, str(old_view) + ' ' + '; '.join(o_err[:2]))
+            # Split: house must always stay intact. Skip the state-key-absence rule only when
+            # the client speaks baby (never when 'baby' is merely present in state — a pre-baby
+            # client that leaked the key must not skip the check meant to catch that).
+            check('old client keeps the house', old_view and old_view['hood'] and old_view['crib'] and old_view['living'] > 0 and not o_err, str(old_view) + ' ' + '; '.join(o_err[:2]))
+            speaks = bool(old_view and old_view.get('speaksBaby'))
+            if speaks:
+                check('old client that speaks baby never draws the baby', old_view['sprite'] == 0, str(old_view))
+                print('NOTE old client speaks baby; state-key absence is checked on the pre-baby fixture', flush=True)
+            else:
+                check('pre-baby client never draws the baby', (not old_view['baby']) and old_view['sprite'] == 0, str(old_view))
             check('old client edit does not wipe the baby on the new server', kept and kept['baby'] and kept['edit'] and kept['crib'], str(kept))
+
+            # True pre-baby fixture (a build from before 2ee5eef, speaksBaby is absent/false).
+            pb = None
+            if not PREBABY_DIST or not os.path.isdir(PREBABY_DIST):
+                check('pre-baby fixture is available', False, PREBABY_DIST or 'pass --pre-baby-dist')
+            else:
+                pb = old_web(PREBABY_DIST, PREBABY_PORT, '/tmp/baby-prebaby-www')
+                check('pre-baby client server started', wait_port(PREBABY_PORT))
+                pb_ctx = await b.new_context(viewport={'width': 1024, 'height': 768}, device_scale_factor=1, has_touch=True)
+                await pb_ctx.add_init_script("localStorage.setItem('cozy-whatsnew','999');")
+                P = await pb_ctx.new_page()
+                p_err = []
+                P.on('pageerror', lambda e: p_err.append(str(e)))
+                await P.goto(page_url(f'http://127.0.0.1:{PREBABY_PORT}/kids-house-game/'), wait_until='domcontentloaded')
+                await dismiss(P)
+                await join(P, code, 'Happy Hippo', False)
+                await P.click(f'.mapHouse[data-go="house:{hid}"]')
+                await P.wait_for_selector('body:not(.view-street) #stage')
+                await A.wait_for_timeout(800)
+                pb_view = await P.evaluate("""() => {
+                  const s = __store.get();
+                  const hood = (typeof __hood === 'function') ? __hood() : null;
+                  return {
+                    baby: 'baby' in s,
+                    crib: s.rooms.nursery.items.some(i => i.kind === 'crib'),
+                    living: s.rooms.living.items.length,
+                    sprite: document.querySelectorAll('.baby').length,
+                    hood: document.body.classList.contains('mode-hood'),
+                    speaksBaby: !!(hood && hood.speaksBaby)
+                  };
+                }""")
+                check('pre-baby fixture does not speak baby', pb_view and not pb_view.get('speaksBaby') and pb_view['hood'] and pb_view['crib'] and pb_view['living'] > 0 and not p_err, str(pb_view) + ' ' + '; '.join(p_err[:2]))
+                check('pre-baby client never draws the baby', pb_view and (not pb_view['baby']) and pb_view['sprite'] == 0, str(pb_view))
+                # Negative: the same predicate must fail if the key leaked. Mutate a copy only.
+                leaked = dict(pb_view); leaked['baby'] = True
+                leak_ok = (not leaked['baby']) and leaked['sprite'] == 0
+                check('pre-baby state-key absence would fail if the key leaked', not leak_ok, f'leaked={leaked}')
+                await pb_ctx.close()
             check('new clients have no script errors', not a_err and not b_err, '; '.join((a_err + b_err)[:2]))
             await b.close()
     finally:
         stop(old)
+        stop(pb)
         stop(hood)
     print(f"\n{sum(res.values())}/{len(res)} passed")
     if not all(res.values()):
