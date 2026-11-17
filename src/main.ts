@@ -2491,6 +2491,7 @@ installNeeds({ get: () => store.get(), dispatch: a => store.dispatch(a), subscri
 (window as any).__items = Object.fromEntries(ITEMS.filter(i => i.img).map(i => [i.kind, { w: i.w, h: hOf(i), cat: i.cat, holdable: i.holdable, svg: i.img!.includes('.svg') }]));
 (window as any).__cam = { get: () => camX, set: setCam };
 (window as any).__yieldNudges = yieldNudgesSoon;
+(window as any).__myPres = () => myPres();
 (window as any).__playDropPolish = playDropPolish;
 (window as any).__takenSeats = takenSeats;
 (window as any).__applyPlayDrop = (id: string, releaseX: number, releaseY: number, hitId?: string | null) => {
@@ -2552,6 +2553,33 @@ function useStore(next: AnyStore) {
 function avatarHTML(look: Look, name: string, pose?: 'sit' | 'lie' | null, holding?: boolean) {
   return `<div class="inner">${characterSVG(look, pose, holding)}</div><div class="nametag">${esc(name)}</div>`;
 }
+
+let yieldingSeat = false;
+/** Client-only: if two kids land in the same chair, the later pid takes the next empty one. */
+function yieldSharedAvatarSeat() {
+  if (yieldingSeat || !hood || view !== 'house') return;
+  const h = hood;
+  const me = myPres();
+  if (!me || me.where !== 'house' || me.houseId !== currentHouseId) return;
+  const mine = presSeat(h.pid, me);
+  if (!mine) return;
+  let lose = false;
+  h.presence.forEach((p, pid) => {
+    if (pid === h.pid || p.where !== 'house' || p.houseId !== currentHouseId || p.room !== me.room) return;
+    const s = presSeat(pid, p);
+    if (s && s.item === mine.item && s.n === mine.n && pid < h.pid) lose = true;
+  });
+  if (!lose) return;
+  const items = store.get().rooms[store.get().currentRoom]?.items ?? [];
+  const table = items.find(i => isTableKind(i.kind) && Math.hypot(i.x - me.x, i.y - me.y) < 420)
+    ?? items.find(i => isTableKind(i.kind))
+    ?? items.find(i => i.id === mine.item)
+    ?? null;
+  yieldingSeat = true;
+  try { finishAvatarPlayDrop(me.x, me.y, table); }
+  finally { yieldingSeat = false; }
+}
+
 function renderAvatars() {
   const keep = new Set<string>();
   if (hood && inner !== local && view === 'house') {
@@ -2600,6 +2628,7 @@ function renderAvatars() {
   updateNear();
   renderBaby();
   queueAmbient();
+  yieldSharedAvatarSeat();
   yieldNudgesSoon();
   clampStageLabels();
 }
