@@ -2490,6 +2490,19 @@ if (import.meta.env.PROD) void startSW({ base: import.meta.env.BASE_URL, safeNow
 installNeeds({ get: () => store.get(), dispatch: a => store.dispatch(a), subscribe: fn => store.subscribe(fn), canDrift: () => view === 'house' && ownsDolls(), speaks: () => !hood || inner === local || hood.speaksNeeds, layer, menuAfter: $('btnSound'), afterPaint: () => { yieldNudgesSoon(); clampStageLabels(); } });
 (window as any).__items = Object.fromEntries(ITEMS.filter(i => i.img).map(i => [i.kind, { w: i.w, h: hOf(i), cat: i.cat, holdable: i.holdable, svg: i.img!.includes('.svg') }]));
 (window as any).__cam = { get: () => camX, set: setCam };
+(window as any).__yieldNudges = yieldNudgesSoon;
+(window as any).__playDropPolish = playDropPolish;
+(window as any).__takenSeats = takenSeats;
+(window as any).__applyPlayDrop = (id: string, releaseX: number, releaseY: number, hitId?: string | null) => {
+  const s = store.get();
+  const hit = hitId ? s.rooms[s.currentRoom].items.find(it => it.id === hitId) ?? null : null;
+  finishDollPlayDrop(id, releaseX, releaseY, hit);
+};
+(window as any).__applyAvatarPlayDrop = (releaseX: number, releaseY: number, hitId?: string | null) => {
+  const s = store.get();
+  const hit = hitId ? s.rooms[s.currentRoom].items.find(it => it.id === hitId) ?? null : null;
+  finishAvatarPlayDrop(releaseX, releaseY, hit);
+};
 (window as any).__phoneShowKids = () => phoneShowKids();
 (window as any).__avatar = { richAvatars, randomLook2, look2FromLegacy, legacyFromLook2, sanitizeLook2, handsFor };
 (window as any).__frameHouseKid = () => frameHouseKid(true);
@@ -2656,22 +2669,33 @@ function clampStageLabels() {
 }
 const clampPhoneBubbles = clampStageLabels;
 
+/** Keep in step with style.css `.nudge` / `body:not(.phone) .nudge.yield` tops. */
+const NUDGE_TOP = 230;
+const NUDGE_YIELD_TOP = 88;
+
 function yieldNudges() {
   if (document.body.classList.contains('phone')) {
     $('nudgeL')?.classList.remove('yield');
     $('nudgeR')?.classList.remove('yield');
     return;
   }
+  const sc = stageScale() || 1;
+  const root = $('layer') || layer;
   for (const id of ['nudgeL', 'nudgeR'] as const) {
     const n = $(id);
     if (!n || n.classList.contains('off') || n.offsetParent === null) { n?.classList.remove('yield'); continue; }
     const b = n.getBoundingClientRect();
+    // Test overlap against the resting (un-yielded) box, or the class would
+    // toggle off on the next pass once the chevron has already moved up.
+    const shift = n.classList.contains('yield') ? (NUDGE_TOP - NUDGE_YIELD_TOP) * sc : 0;
+    const top = b.top + shift;
+    const bottom = b.bottom + shift;
     let hit = false;
     // A lying sprite overflows its .char box; use .inner (and any visible wish) for overlap.
-    for (const el of layer.querySelectorAll<HTMLElement>('.char .inner, .need-bubble.show')) {
+    for (const el of root.querySelectorAll<HTMLElement>('.char .inner, .need-bubble.show')) {
       const r = el.getBoundingClientRect();
       if (r.width < 2 || r.height < 2) continue;
-      if (r.left < b.right - 2 && r.right > b.left + 2 && r.top < b.bottom - 2 && r.bottom > b.top + 2) { hit = true; break; }
+      if (r.left < b.right - 2 && r.right > b.left + 2 && r.top < bottom - 2 && r.bottom > top + 2) { hit = true; break; }
     }
     n.classList.toggle('yield', hit);
   }
@@ -2679,6 +2703,7 @@ function yieldNudges() {
 function yieldNudgesSoon() {
   yieldNudges();
   requestAnimationFrame(() => { yieldNudges(); requestAnimationFrame(yieldNudges); });
+  window.setTimeout(yieldNudges, 50);
 }
 
 function showBubble(pid: string, b: Bubble) {

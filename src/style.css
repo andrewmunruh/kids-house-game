@@ -120,8 +120,12 @@ body.mode-play #toolbar { display: none !important; }
 .nudge.left { left: 12px; } .nudge.right { right: 12px; }
 .nudge:active { transform: scale(.88); }
 .nudge.off { opacity: 0; pointer-events: none; }
-/* B13: lift the arrow into the wall when it would cover a doll or a wish. Keep the 56×76 tap target. */
+/* B13: lift the arrow into the wall when it would cover a doll or a wish. Keep the 56×76 tap target.
+   No transition on `top` (instant). Reduced-motion keeps it that way if a transition is added later. */
 body:not(.phone) .nudge.yield { top: 88px; }
+@media (prefers-reduced-motion: reduce) {
+  body:not(.phone) .nudge.yield { transition: none; }
+}
 .minimap { position: relative; flex: 0 1 240px; width: 240px; height: 46px; cursor: pointer; border-radius: 14px; overflow: hidden;
   border: 4px solid var(--ink); z-index: 9500; box-shadow: 0 4px 0 rgba(90,61,92,.25); background: #fff; touch-action: none; }
 .mmWall { position: absolute; left: 0; right: 0; top: 0; height: 65%; }
