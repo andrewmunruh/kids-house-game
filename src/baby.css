@@ -109,3 +109,7 @@ body.phone.phone-portrait .item[data-kind="crib-mobile"]::after {
     transform: none;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  body:not(.phone) .stageWrap:has(#artFab:not(.hidden)) .babyCare { transition: none; }
+}

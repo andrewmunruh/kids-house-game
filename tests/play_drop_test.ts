@@ -1,6 +1,6 @@
 // B13: Play-drop sits at the table's chair, puts snacks down at the tub/bed, and stands in the tub.
 // Run: npx vite-node tests/play_drop_test.ts
-import { seatFractions, type SeatPiece } from '../src/shared/sit';
+import { seatFractions, STAND_Y, type SeatPiece } from '../src/shared/sit';
 import { playDropPolish, isTableKind, isChairKind, type DropItem } from '../src/play-drop';
 
 let pass = 0, fail = 0;
@@ -68,5 +68,40 @@ const floor = playDropPolish({
   releaseX: 400, releaseY: 540, hit: null, items: kitchen, occupied: [], held: [{ hand: 'right', kind: 'cake' }], seatPiece,
 });
 check('drop on the floor keeps the snack and stands where she landed', floor.releases.length === 0 && floor.seat == null && Math.abs(floor.x - 400) < 1);
+
+
+const chair2: DropItem = { id: 'chair-6', kind: 'chair', x: 1360, y: 500 };
+const kitchen2 = [table, chair, chair2, cake, fridge];
+const firstSeat = playDropPolish({
+  releaseX: table.x, releaseY: table.y, hit: table, items: kitchen2, occupied: [], held: [{ hand: 'right', kind: 'cake' }], seatPiece,
+});
+const secondSeat = playDropPolish({
+  releaseX: table.x, releaseY: table.y, hit: table, items: kitchen2,
+  occupied: firstSeat.seat ? [{ item: firstSeat.seat.item, n: firstSeat.seat.n }] : [],
+  held: [{ hand: 'right', kind: 'apple' }], seatPiece,
+});
+check('two dolls at the table never take the same chair',
+  !!firstSeat.seat && !!secondSeat.seat && (firstSeat.seat.item !== secondSeat.seat.item || firstSeat.seat.n !== secondSeat.seat.n),
+  JSON.stringify({ first: firstSeat.seat, second: secondSeat.seat }));
+check('second doll sits in the other empty chair',
+  !!secondSeat.seat && (secondSeat.seat.item === 'chair-5' || secondSeat.seat.item === 'chair-6') && secondSeat.seat.item !== firstSeat.seat?.item,
+  JSON.stringify(secondSeat.seat));
+const bothTaken = playDropPolish({
+  releaseX: table.x, releaseY: table.y, hit: table, items: kitchen2,
+  occupied: [
+    { item: 'chair-5', n: 0 },
+    { item: 'chair-6', n: 0 },
+  ],
+  held: [], seatPiece,
+});
+check('both chairs full: she stands beside the table, no seat',
+  !bothTaken.seat && Math.abs(bothTaken.x - table.x) > 40, JSON.stringify(bothTaken));
+
+check('tub snack is put on the floor near her, not floating',
+  inTub.releases.length === 1 && inTub.releases[0].y === STAND_Y && Math.abs(inTub.releases[0].x - tub.x) > 40,
+  JSON.stringify(inTub.releases));
+check('bed snack is put on the floor near the bed, not floating',
+  inBed.releases.length === 1 && inBed.releases[0].y === STAND_Y && Math.abs(inBed.releases[0].x - bed.x) > 40,
+  JSON.stringify(inBed.releases));
 
 console.log(`RESULT ${pass} pass ${fail} fail`);
