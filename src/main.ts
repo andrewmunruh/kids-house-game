@@ -14,6 +14,8 @@ import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } 
 import { mailboxArt, installMail } from './mail';
 import { installPlayMode, playGesture } from './playmode';
 import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, standBeside, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
+import { isFood } from './shared/needs';
+import { playDropPolish, isTableKind } from './play-drop';
 import { babyOccupant } from './shared/baby';
 import { installBaby } from './baby/view';
 import { poseNamed } from './avatar/sit';
@@ -290,6 +292,8 @@ function setCam(x: number) {
   $('nudgeR').classList.toggle('off', camX >= maxCam() - 1);
   const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%';
   if (selected) renderToolbar(store.get());
+  yieldNudges();
+  clampStageLabels();
 }
 function glideTo(target: number) {
   cancelAnimationFrame(inertia); target = clampCam(target); glideTarget = target;
@@ -894,6 +898,62 @@ function seatUnderPointer(cx: number, cy: number): PlacedItem | null {
   }
   return null;
 }
+/** Any room item under the pointer (table, snack, tub, or a seat). */
+function itemUnderPointer(cx: number, cy: number): PlacedItem | null {
+  const s = store.get();
+  const list = document.elementsFromPoint(cx, cy);
+  const seen = new Set<string>();
+  for (let i = 0; i < list.length; i++) {
+    const node = list[i];
+    if (!node || !node.closest) continue;
+    const itemEl = node.closest('.item') as HTMLElement | null;
+    if (!itemEl) continue;
+    const id = itemEl.dataset.id;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const it = s.rooms[s.currentRoom].items.find(it => it.id === id);
+    if (it) return it;
+  }
+  return null;
+}
+function heldFoodOf(c: Character): { hand: Hand; kind: string }[] {
+  const out: { hand: Hand; kind: string }[] = [];
+  for (const hand of ['left', 'right'] as Hand[]) {
+    const it = c.held[hand];
+    if (it && isFood(it.kind)) out.push({ hand, kind: it.kind });
+  }
+  return out;
+}
+function finishDollPlayDrop(id: string, releaseX: number, releaseY: number, hit: PlacedItem | null) {
+  const s = store.get();
+  const c = s.characters.find(x => x.id === id);
+  if (!c) return;
+  const result = playDropPolish({
+    releaseX, releaseY,
+    hit,
+    items: s.rooms[s.currentRoom].items,
+    occupied: takenSeats(id),
+    held: heldFoodOf(c),
+    seatPiece: it => seatPieceOf(it as PlacedItem),
+  });
+  for (const r of result.releases) store.dispatch({ type: 'char/release', id, hand: r.hand, x: r.x, y: r.y });
+  moveDoll(id, s.currentRoom, result.x, result.y, result.seat);
+}
+function finishAvatarPlayDrop(releaseX: number, releaseY: number, hit: PlacedItem | null) {
+  const cur = myPres();
+  if (!cur || !hood || cur.where !== 'house') return;
+  const s = store.get();
+  const result = playDropPolish({
+    releaseX, releaseY,
+    hit,
+    items: s.rooms[s.currentRoom].items,
+    occupied: takenSeats(undefined, hood.pid),
+    held: [],
+    seatPiece: it => seatPieceOf(it as PlacedItem),
+  });
+  const seat = result.seat ? { id: result.seat.item, pose: result.seat.pose, n: result.seat.n } : null;
+  placeMe(cur, result.x, result.y, cur.flip, seat);
+}
 function seatFrontClass(kind: string): string {
   const art = bedArt(kind);
   if (art) return 'k-bed k-bed-' + art.clip;
@@ -1495,6 +1555,8 @@ function renderChars(s: GameState) {
   queueAmbient();
   renderMinimap(s);
   renderBaby();
+  yieldNudges();
+  clampStageLabels();
 }
 
 /** Screen box of the toolbar's resting transform (the pop animation is not part of this). */
@@ -2091,9 +2153,8 @@ function attachCharDrag(el: HTMLElement) {
         const releaseX = p.x + off.x;
         const releaseY = Math.max(FLOOR_Y + 40, p.y + off.y);
         if (play.isPlay()) {
-          const hit = seatUnderPointer(ev.clientX, ev.clientY);
-          const drop = resolveDrop({ mode: 'play', via: 'drag', releaseX, releaseY, piece: hit ? seatPieceOf(hit) : null, occupied: takenSeats(id) });
-          moveDoll(id, s.currentRoom, drop.x, drop.y, drop.seat);
+          const hit = itemUnderPointer(ev.clientX, ev.clientY) ?? seatUnderPointer(ev.clientX, ev.clientY);
+          finishDollPlayDrop(id, releaseX, releaseY, hit);
         } else moveDoll(id, s.currentRoom, releaseX, releaseY, null);
         sfx.drop(); bounce(el);
         requestAnimationFrame(() => frameHouseKid(true));
@@ -2426,7 +2487,7 @@ for (const ev of ['pointerup', 'pointercancel'] as const) document.addEventListe
 if (import.meta.env.PROD) void startSW({ base: import.meta.env.BASE_URL, safeNow: () => swDown.size === 0 }); // never show the update note while a pointer is still down (no 15s hold escape)
 (window as any).__store = store; // handy for debugging / tests
 (window as any).__shelfCache = () => shelfDecoded.size;
-installNeeds({ get: () => store.get(), dispatch: a => store.dispatch(a), subscribe: fn => store.subscribe(fn), canDrift: () => view === 'house' && ownsDolls(), speaks: () => !hood || inner === local || hood.speaksNeeds, layer, menuAfter: $('btnSound') });
+installNeeds({ get: () => store.get(), dispatch: a => store.dispatch(a), subscribe: fn => store.subscribe(fn), canDrift: () => view === 'house' && ownsDolls(), speaks: () => !hood || inner === local || hood.speaksNeeds, layer, menuAfter: $('btnSound'), afterPaint: () => { yieldNudges(); clampStageLabels(); } });
 (window as any).__items = Object.fromEntries(ITEMS.filter(i => i.img).map(i => [i.kind, { w: i.w, h: hOf(i), cat: i.cat, holdable: i.holdable, svg: i.img!.includes('.svg') }]));
 (window as any).__cam = { get: () => camX, set: setCam };
 (window as any).__phoneShowKids = () => phoneShowKids();
@@ -2526,6 +2587,8 @@ function renderAvatars() {
   updateNear();
   renderBaby();
   queueAmbient();
+  yieldNudges();
+  clampStageLabels();
 }
 function attachMyAvatarDrag(el: HTMLElement) {
   el.addEventListener('pointerdown', e => {
@@ -2556,10 +2619,8 @@ function attachMyAvatarDrag(el: HTMLElement) {
         const releaseX = Math.max(40, Math.min(W - 40, q.x + off.x));
         const releaseY = Math.max(FLOOR_Y + 40, Math.min(H, q.y + off.y));
         if (play.isPlay()) {
-          const hit = seatUnderPointer(ev.clientX, ev.clientY);
-          const drop = resolveDrop({ mode: 'play', via: 'drag', releaseX, releaseY, piece: hit ? seatPieceOf(hit) : null, occupied: takenSeats(undefined, hood!.pid) });
-          const seat = drop.seat ? { id: drop.seat.item, pose: drop.seat.pose, n: drop.seat.n } : null;
-          placeMe(cur, drop.x, drop.y, cur.flip, seat);
+          const hit = itemUnderPointer(ev.clientX, ev.clientY) ?? seatUnderPointer(ev.clientX, ev.clientY);
+          finishAvatarPlayDrop(releaseX, releaseY, hit);
         } else placeMe(cur, releaseX, releaseY, cur.flip, null);
         renderAvatars(); renderMinimap(store.get());
         sfx.drop(); bounce(el); requestAnimationFrame(() => frameHouseKid(true));
@@ -2572,28 +2633,47 @@ function attachMyAvatarDrag(el: HTMLElement) {
 function bubbleText(b: Bubble): string { if (b.kind === 'text') return b.v; return (b.kind === 'phrase' ? PHRASES : EMOTES)[b.v] ?? ''; }
 // On a phone the stage is scaled down, so a bubble centered on someone near the edge
 // can draw past the screen. Nudge it back. iPad never has body.phone, so this is a no-op there.
-function clampPhoneBubbles() {
-  const nodes = document.querySelectorAll<HTMLElement>('.bubble');
-  if (!document.body.classList.contains('phone')) {
-    nodes.forEach(el => { if (el.style.marginLeft || el.style.marginTop) { el.style.marginLeft = ''; el.style.marginTop = ''; } });
-    return;
-  }
+function clampStageLabels() {
+  const nodes = document.querySelectorAll<HTMLElement>('.bubble, .nametag, .need-bubble.show');
   const view = stage.getBoundingClientRect();
+  if (!view.width) return;
   const sc = stageScale() || 1;
+  const pad = 4;
   nodes.forEach(el => {
     el.style.marginLeft = '0px';
     el.style.marginTop = '0px';
     const r = el.getBoundingClientRect();
-    let dx = 0;
-    if (r.width >= view.width - 8) dx = view.left + 4 - r.left;
-    else if (r.left < view.left + 4) dx = view.left + 4 - r.left;
-    else if (r.right > view.right - 4) dx = view.right - 4 - r.right;
-    let dy = 0;
-    if (r.top < view.top + 4) dy = view.top + 4 - r.top;
-    else if (r.bottom > view.bottom - 4) dy = view.bottom - 4 - r.bottom;
-    if (dx) el.style.marginLeft = dx / sc + 'px';
-    if (dy) el.style.marginTop = dy / sc + 'px';
+    if (!r.width || !r.height) return;
+    let dx = 0, dy = 0;
+    if (r.width >= view.width - pad * 2) dx = view.left + pad - r.left;
+    else if (r.left < view.left + pad) dx = view.left + pad - r.left;
+    else if (r.right > view.right - pad) dx = view.right - pad - r.right;
+    if (r.top < view.top + pad) dy = view.top + pad - r.top;
+    else if (r.bottom > view.bottom - pad) dy = view.bottom - pad - r.bottom;
+    if (dx) el.style.marginLeft = (dx / sc) + 'px';
+    if (dy) el.style.marginTop = (dy / sc) + 'px';
   });
+}
+const clampPhoneBubbles = clampStageLabels;
+
+function yieldNudges() {
+  if (document.body.classList.contains('phone')) {
+    $('nudgeL')?.classList.remove('yield');
+    $('nudgeR')?.classList.remove('yield');
+    return;
+  }
+  for (const id of ['nudgeL', 'nudgeR'] as const) {
+    const n = $(id);
+    if (!n || n.classList.contains('off') || n.offsetParent === null) { n?.classList.remove('yield'); continue; }
+    const b = n.getBoundingClientRect();
+    let hit = false;
+    for (const el of layer.querySelectorAll<HTMLElement>('.char, .need-bubble.show')) {
+      const r = el.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) continue;
+      if (r.left < b.right - 4 && r.right > b.left + 4 && r.top < b.bottom - 4 && r.bottom > b.top + 4) { hit = true; break; }
+    }
+    n.classList.toggle('yield', hit);
+  }
 }
 function showBubble(pid: string, b: Bubble) {
   const el0 = view === 'street' ? document.querySelector<HTMLElement>(`#mapFaces .mapFace[data-pid="${pid}"]`)
@@ -3865,6 +3945,18 @@ function onPlayTap(el: HTMLElement, id: string) {
   if (g === 'lamp') { el.classList.toggle('lamp-on'); return; }
   if (g === 'sit') sitAt(it);
   if (g === 'swing') swingAt(it);
+  if (g !== 'sit' && (isTableKind(it.kind) || isFood(it.kind) || isTub(it.kind))) {
+    const room = store.get().currentRoom;
+    if (hood && view === 'house') {
+      const me = myPres();
+      if (me && me.where === 'house') finishAvatarPlayDrop(it.x, it.y, it);
+    } else {
+      const st = store.get();
+      const c = st.characters.find(ch => ch.id === activeChar && ch.room === room) ?? st.characters.find(ch => ch.room === room);
+      if (c) finishDollPlayDrop(c.id, it.x, it.y, it);
+    }
+    frameHouseKid(false);
+  }
 }
 // ---------- ambient reactions (M1) ----------
 // Only an item's `on` flag is synced. Every iPad derives the same reactions from the same state.

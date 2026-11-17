@@ -81,3 +81,7 @@ In 820×1180 the visitor bar (“Sunny Bunny’s House · Sunny Bunny”) plus t
 - `TILES_DEFAULT` stays false.
 - Gate after the build: unit tests, migration, heartbeat multi-client, old-client smoke, `art_ingame_bounds`, `scene_hotspot`, ranch.
 - Whole-scene before/after of every scene touched, plus a side-by-side sheet, in the batch REPORT.
+
+## Status
+
+Step 2 builds items 1, 2, 3, 4, 5 and 7 (client-only). Item 6 (toilet as a potty) is deferred: it needs a Worker change. See `/workspace/t-batch13/ITEM6_server_plan.md`.
