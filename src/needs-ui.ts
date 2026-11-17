@@ -2,7 +2,8 @@
 // and the visible-play-time drift timer. main.ts only calls installNeeds() once; everything else lives here.
 import './needs.css';
 import type { Action, GameState, Character } from './shared/state';
-import { driftDelay, NEEDS, driftPick, levelOf, meetableHere, wishOf, isFood, isToy, type Need } from './shared/needs';
+import { driftDelay, NEEDS, driftPick, levelOf, meetableHere, isFood, isToy, type Need } from './shared/needs';
+import { wishToShow } from './wish-show';
 import { isFridge, isTub } from './shared/ambient';
 import { prefersReducedMotion } from './juice';
 import { storeKey } from './shared/storekey';
@@ -19,6 +20,8 @@ export interface NeedsDeps {
   speaks(): boolean;
   layer: HTMLElement;
   menuAfter: HTMLElement | null;
+  /** Client hook after a wish paint (nudge yield, label clamp). */
+  afterPaint?: () => void;
 }
 
 const KEY = storeKey('khg.showWishes'); // preview builds get 'preview:khg.showWishes'; prod key unchanged
@@ -114,7 +117,7 @@ export function installNeeds(d: NeedsDeps) {
       const was = prev.get(c.id);
       if (was && NEEDS.some(n => now[n] > was[n])) { burst(el); sfx.sparkle(); }
       prev.set(c.id, now);
-      const w = wishOf(c);
+      const w = wishToShow(s, c);
       const lying = !!(c as any).seat && (c as any).seat.pose === 'lie';
       el.classList.toggle('need-snooze', lying);
       if (lying) requestAnimationFrame(() => snoozeAt(el)); else { el.style.removeProperty('--zx'); el.style.removeProperty('--zy'); }
@@ -131,7 +134,7 @@ export function installNeeds(d: NeedsDeps) {
     for (const id of prev.keys()) if (!s.characters.some(c => c.id === id)) prev.delete(id);
     // A soft shimmer on the spot that would help (the fridge for a hungry doll, the bed for a sleepy one...).
     const want = new Set<string>();
-    if (on) for (const c of s.characters) { if (c.room !== s.currentRoom) continue; if (!wishOf(c)) continue;
+    if (on) for (const c of s.characters) { if (c.room !== s.currentRoom) continue; if (!wishToShow(s, c)) continue;
       for (const n of NEEDS) if (levelOf(c, n) <= 1) for (const it of s.rooms[s.currentRoom]?.items ?? []) if (hintFor(n, it.kind)) want.add(it.id); }
     for (const el of d.layer.querySelectorAll<HTMLElement>('.item[data-id]')) el.classList.toggle('need-hint', want.has(el.dataset.id!));
 
@@ -143,7 +146,7 @@ export function installNeeds(d: NeedsDeps) {
       if (on && play) {
         for (const c of s.characters) {
           if (c.room !== s.currentRoom) continue;
-          const w = wishOf(c); if (!w) continue;
+          const w = wishToShow(s, c); if (!w) continue;
           elseId = elsewhereRoom(s, w); if (elseId) break;
         }
       }
@@ -151,6 +154,7 @@ export function installNeeds(d: NeedsDeps) {
         el.classList.toggle('need-elsewhere', !!elseId && el.dataset.room === elseId);
       }
     }
+    d.afterPaint?.();
   }
 
   /** Care: a doll at the right spot with a need below full gets it met. Anyone may do this, visitors too. */

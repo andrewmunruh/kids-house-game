@@ -98,3 +98,14 @@ body.phone.phone-portrait .item[data-kind="crib-mobile"]::after {
   .baby.is-rock .babyRock { animation: none; }
   .baby.is-feed .babyInner { animation: none; }
 }
+
+/* B13: iPad portrait — keep the care tray clear of the Paint fab so "Cozy" and the blossoms stay visible. */
+@media (orientation: portrait) {
+  body:not(.phone) .stageWrap:has(#artFab:not(.hidden)) .babyCare {
+    left: 96px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    transform: none;
+  }
+}
