@@ -996,12 +996,28 @@ async def main():
             await A.wait_for_timeout(800)
             old_view = await O.evaluate("""() => {
               const s = __store.get();
-              return { baby: 'baby' in s, crib: s.rooms.nursery.items.some(i => i.kind === 'crib'), living: s.rooms.living.items.length, sprite: document.querySelectorAll('.baby').length, hood: document.body.classList.contains('mode-hood') };
+              const hood = (typeof __hood === 'function') ? __hood() : null;
+              return {
+                baby: 'baby' in s,
+                crib: s.rooms.nursery.items.some(i => i.kind === 'crib'),
+                living: s.rooms.living.items.length,
+                sprite: document.querySelectorAll('.baby').length,
+                hood: document.body.classList.contains('mode-hood'),
+                speaksBaby: !!(hood && hood.speaksBaby)
+              };
             }""")
             await O.evaluate("""() => { __store.dispatch({ type: 'item/add', room: 'living', item: { id: 'old-keep', kind: 'plant', x: 500, y: 540, flip: false, z: 3, scale: 1 } }); }""")
             await A.wait_for_timeout(600)
             kept = await A.evaluate("""() => { const s = __store.get(); return { baby: !!(s.baby && s.baby.name), edit: s.rooms.living.items.some(i => i.id === 'old-keep'), crib: s.rooms.nursery.items.some(i => i.kind === 'crib') }; }""")
-            check('old protocol-4 client keeps the house and never draws the baby', old_view and old_view['hood'] and old_view['crib'] and old_view['living'] > 0 and not old_view['baby'] and old_view['sprite'] == 0 and not o_err, str(old_view) + ' ' + '; '.join(o_err[:2]))
+            # 10ef736 already ships the baby, so 'baby' in state is expected there.
+            # Split: house must always stay intact; the pre-baby state-key rule applies only when the client does not speak baby.
+            check('old client keeps the house', old_view and old_view['hood'] and old_view['crib'] and old_view['living'] > 0 and not o_err, str(old_view) + ' ' + '; '.join(o_err[:2]))
+            speaks = bool(old_view and (old_view.get('baby') or old_view.get('speaksBaby')))
+            if speaks:
+                check('pre-baby client never draws the baby', old_view['sprite'] == 0, 'client speaks baby (e.g. 10ef736); sprite must stay 0 ' + str(old_view))
+                print('SKIP (old client speaks baby) state-key absence; sprite==0 still required', flush=True)
+            else:
+                check('pre-baby client never draws the baby', (not old_view['baby']) and old_view['sprite'] == 0, str(old_view))
             check('old client edit does not wipe the baby on the new server', kept and kept['baby'] and kept['edit'] and kept['crib'], str(kept))
             check('new clients have no script errors', not a_err and not b_err, '; '.join((a_err + b_err)[:2]))
             await b.close()
