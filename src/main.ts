@@ -2503,6 +2503,7 @@ installNeeds({ get: () => store.get(), dispatch: a => store.dispatch(a), subscri
   const s = store.get();
   const hit = hitId ? s.rooms[s.currentRoom].items.find(it => it.id === hitId) ?? null : null;
   finishAvatarPlayDrop(releaseX, releaseY, hit);
+  renderAvatars();
 };
 (window as any).__phoneShowKids = () => phoneShowKids();
 (window as any).__avatar = { richAvatars, randomLook2, look2FromLegacy, legacyFromLook2, sanitizeLook2, handsFor };
@@ -2555,7 +2556,14 @@ function avatarHTML(look: Look, name: string, pose?: 'sit' | 'lie' | null, holdi
 }
 
 let yieldingSeat = false;
-/** Client-only: if two kids land in the same chair, the later pid takes the next empty one. */
+/**
+ * Client-only seat-claim resolve. The Worker already drops a second `pres.seat` on a taken
+ * chair, but it never tells the sender — so lastPres can keep the seat while everyone else
+ * sees us standing. If we also won a pid tie-break we would stay put and the views would
+ * never meet. Rule: if any other kid's presence still has this chair, the Worker accepted
+ * them (first arrival). Vacate: next free chair at the table, or stand beside. The yield is
+ * a normal `pres` that old clients and the Worker already accept.
+ */
 function yieldSharedAvatarSeat() {
   if (yieldingSeat || !hood || view !== 'house') return;
   const h = hood;
@@ -2567,17 +2575,38 @@ function yieldSharedAvatarSeat() {
   h.presence.forEach((p, pid) => {
     if (pid === h.pid || p.where !== 'house' || p.houseId !== currentHouseId || p.room !== me.room) return;
     const s = presSeat(pid, p);
-    if (s && s.item === mine.item && s.n === mine.n && pid < h.pid) lose = true;
+    if (s && s.item === mine.item && s.n === mine.n) lose = true;
   });
   if (!lose) return;
-  const items = store.get().rooms[store.get().currentRoom]?.items ?? [];
+  const room = (me.room && store.get().rooms[me.room]) ? me.room : store.get().currentRoom;
+  const items = store.get().rooms[room]?.items ?? [];
   const table = items.find(i => isTableKind(i.kind) && Math.hypot(i.x - me.x, i.y - me.y) < 420)
     ?? items.find(i => isTableKind(i.kind))
     ?? items.find(i => i.id === mine.item)
     ?? null;
+  const occupied = [...takenSeats(undefined, h.pid), { item: mine.item, n: mine.n }];
   yieldingSeat = true;
-  try { finishAvatarPlayDrop(me.x, me.y, table); }
-  finally { yieldingSeat = false; }
+  try {
+    const result = playDropPolish({
+      releaseX: me.x, releaseY: me.y,
+      hit: table,
+      items,
+      occupied,
+      held: [],
+      seatPiece: it => seatPieceOf(it as PlacedItem),
+    });
+    let seat = result.seat && !(result.seat.item === mine.item && result.seat.n === mine.n)
+      ? { id: result.seat.item, pose: result.seat.pose, n: result.seat.n }
+      : null;
+    let x = result.x, y = result.y;
+    if (!seat) {
+      const piece = items.find(i => i.id === mine.item);
+      const stand = standBeside(piece?.x ?? me.x, pieceWidth(piece?.kind ?? 'chair') * (piece?.scale || 1), me.x);
+      x = stand.x; y = stand.y;
+    }
+    placeMe(me, x, y, me.flip, seat);
+    renderAvatars();
+  } finally { yieldingSeat = false; }
 }
 
 function renderAvatars() {
