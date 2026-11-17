@@ -1,5 +1,5 @@
 # Decorate shelf: a thumbnail uses the item's painting whenever one exists.
-# SVG only when there is no painting (yard bench, tulip bed). Both review sizes.
+# Painted kinds (including yard-bench and tulip-bed) show their webp. Both review sizes.
 # usage: python tests/shelf_painted_test.py <base url>
 import asyncio, os, sys
 from pathlib import Path
@@ -315,8 +315,8 @@ async def main():
     if fails_art:
         for line in fails_art[:40]:
             print(' -', line, flush=True)
-    # Yard pieces with no file stay SVG. They are part of the shelf walk above.
-    check('bench and tulip bed have no painting file', 'yard-bench' not in PAINTED and 'tulip-bed' not in PAINTED)
+    # Yard bench and tulip bed now have paintings; the shelf walk above already requires their webp.
+    check('bench and tulip bed have a painting file', 'yard-bench' in PAINTED and 'tulip-bed' in PAINTED)
     print(f"\n{sum(res.values())}/{len(res)} passed", flush=True)
     return 0 if all(res.values()) else 1
 
