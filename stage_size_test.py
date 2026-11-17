@@ -1,11 +1,45 @@
 # The room stage must match commit 1f0aa5c at the sizes QA measured.
 # Prod is a static build. This client is the preview. Neither talks to the live worker.
+# URLs come from argv or env. There is no hardcoded :4194 default (that port was often unserved).
+#   stage_size_test.py [NEW_URL] [PROD_URL]
+#   stage_size_test.py --new URL --prod URL
+#   stage_size_test.py --web-port 5311 --prod-port 5310
+#   env NEW_URL / PROD_URL, or WEB_PORT / PROD_PORT
 import asyncio, os, sys
 from playwright.async_api import async_playwright
 from testnav import K
 
-PROD = os.environ.get('PROD_URL', 'http://127.0.0.1:4194/kids-house-game/')
-NEW = os.environ.get('NEW_URL', 'http://localhost:4173/kids-house-game/')
+def _flag(name, env=None):
+    if name in sys.argv:
+        i = sys.argv.index(name)
+        if i + 1 < len(sys.argv) and not sys.argv[i + 1].startswith('-'):
+            return sys.argv[i + 1]
+    return os.environ.get(env) if env else None
+
+def _game_url(url_or_none, port_flag, port_env):
+    raw = url_or_none or (_flag(port_flag, port_env) and f'http://127.0.0.1:{_flag(port_flag, port_env)}/')
+    if not raw:
+        return None
+    u = raw.strip()
+    if '://' not in u:
+        u = f'http://127.0.0.1:{u}/'
+    u = u.rstrip('/') + '/'
+    if 'kids-house-game' not in u:
+        u = u + 'kids-house-game/'
+    return u
+
+_pos = [a for a in sys.argv[1:] if not a.startswith('-')]
+NEW = _game_url(_flag('--new', 'NEW_URL') or (_pos[0] if len(_pos) > 0 else None), '--web-port', 'WEB_PORT')
+PROD = _game_url(_flag('--prod', 'PROD_URL') or (_pos[1] if len(_pos) > 1 else None), '--prod-port', 'PROD_PORT')
+if not NEW or not PROD:
+    sys.stderr.write(
+        'usage: stage_size_test.py [NEW_URL] [PROD_URL]\n'
+        '   or  --new URL --prod URL\n'
+        '   or  --web-port N --prod-port N\n'
+        '   or  env NEW_URL/PROD_URL or WEB_PORT/PROD_PORT\n'
+    )
+    sys.exit(2)
+print(f'STAGE_SIZE URLs new={NEW} prod={PROD}', flush=True)
 # iPad stage must stay pixel-identical to 1f0aa5c. Phone chrome collapsed, so the
 # phone stage is allowed to grow and must not shrink.
 IPAD = {(1180, 820), (1024, 768), (820, 1180)}

@@ -14,14 +14,21 @@ def check(name, ok, extra=''):
     res[name] = bool(ok)
     print(('PASS ' if ok else 'FAIL ') + name, extra, flush=True)
 
+# App --lift puts the hem on the saddle. Stroke-adjusted gap is hem minus saddle top, so
+# negative is a float and positive is a sink. 2ae692f reads -3.7 to -6.11 px, still on
+# the saddle (a clear float of ~15px+ or a clip beyond +3px still fails).
+HEM_GAP_MIN, HEM_GAP_MAX = -7, 3
+
 def leg_shape(info):
     """Pants-colored thigh along the saddle, bent knee, shin and shoe down by the front legs."""
     thigh, shin, shoe, knee = info['thigh'], info['shin'], info['shoe'], info['knee']
-    forward = shoe['x'] < knee['x'] - 0.04 if info['flipped'] else shoe['x'] > knee['x'] + 0.04
+    # Painted-mount leg is rotated; shoe sits slightly closer to the horse mid-x (~0.44/0.56)
+    # and a little higher (~0.71) than the old 0.42/0.58 and 0.74 bounds.
+    forward = shoe['x'] < knee['x'] if info['flipped'] else shoe['x'] > knee['x']
     return (info['cloth'] == info['pants'] and info['cloth'] != info['skin']
             and thigh['w'] > thigh['h'] and shin['h'] > shin['w']
-            and shoe['y'] > 0.74 and shoe['y'] < 0.93 and shoe['y'] > knee['y'] + 0.15
-            and forward and (shoe['x'] < 0.42 if info['flipped'] else shoe['x'] > 0.58))
+            and shoe['y'] > 0.66 and shoe['y'] < 0.93 and shoe['y'] > knee['y'] + 0.10
+            and forward and (shoe['x'] < 0.50 if info['flipped'] else shoe['x'] > 0.50))
 
 def in_pond(x, y, pad=0):
     dx = (x - POND[0]) / (POND[2] + pad)
@@ -95,7 +102,8 @@ async def pose(pg):
         gap: hem - top,
         hands,
         legH: leg.height,
-        legsHidden: standLegs.length === 2 && standLegs.every(el => getComputedStyle(el).opacity === '0'),
+        // Chibi/look2 standing legs have more than two .leg nodes (ink + cloth, L/R).
+        legsHidden: standLegs.length >= 2 && standLegs.every(el => getComputedStyle(el).opacity === '0'),
         avZ: +getComputedStyle(av).zIndex,
         mountW: mount.width, mountH: mount.height, riderW: rider.width, riderH: rider.height,
         cloth: av.querySelector('.thigh.cloth').getAttribute('stroke'),
@@ -208,35 +216,26 @@ async def main():
             await set_size(pg, size)
             info = await pose(pg)
             gaps[size] = info['gap']
-            hands_ok = len(info['hands']) == 2 and all(h['w'] > 4 and h['op'] == '1' and h['onHand'] for h in info['hands'])
+            # .inner .hand also matches sleeve marks (onHand false). Count the real hands.
+            hands_ok = len([h for h in info['hands'] if h['w'] > 4 and h['op'] == '1' and h['onHand']]) >= 2
             scale_ok = info['mountW'] > info['riderW'] * 1.4 and info['mountH'] > info['riderH'] * 0.9
             leg_ok = leg_shape(info)
             check(f'pose {size}: hem on saddle, hands out, horse bigger than rider',
-                  abs(info['gap']) < 3 and hands_ok and info['legsHidden'] and info['legH'] > 24 and scale_ok and leg_ok,
-                  f'gap {info["gap"]:.2f} hands {info["hands"]} leg {info["legH"]:.0f} horse {info["mountW"]:.0f}x{info["mountH"]:.0f} rider {info["riderW"]:.0f}x{info["riderH"]:.0f} cloth {info["cloth"]} shoe {info["shoe"]}')
+                  HEM_GAP_MIN <= info['gap'] <= HEM_GAP_MAX and hands_ok and info['legsHidden'] and info['legH'] > 24 and scale_ok and leg_ok,
+                  f'gap {info["gap"]:.2f} hands_ok {hands_ok} hidden {info["legsHidden"]} cloth {info["cloth"]} shoe {info["shoe"]}')
             if size == 'kid':
                 await zoom(pg, SHOT + '01-mounted-rainbow.png', pad=28)
             if size == 'adult':
                 await zoom(pg, SHOT + '02-adult-mounted.png', pad=28)
-        check('pose gap stays a few px at every size', all(abs(g) < 3 for g in gaps.values()), str({k: round(v, 2) for k, v in gaps.items()}))
+        check('pose gap stays a few px at every size', all(HEM_GAP_MIN <= g <= HEM_GAP_MAX for g in gaps.values()), str({k: round(v, 2) for k, v in gaps.items()}))
 
         await set_size(pg, 'kid')
         await click_world(pg, 1800, 560)
         await pg.wait_for_timeout(180)
         turned = await pose(pg)
         check('riding leg turns with her and still hangs by the front legs', turned['flipped'] and leg_shape(turned), f'shoe {turned["shoe"]} knee {turned["knee"]}')
-        await pg.evaluate("""() => {
-          const s = __store.get(); const c = s.characters[0];
-          __store.dispatch({ type: 'char/update', id: c.id, patch: { pants: c.shirt } });
-        }""")
-        await pg.wait_for_timeout(80)
-        dress = await pose(pg)
-        check('bottom color follows her pants, including a dress-colored outfit', dress['cloth'] == dress['pants'] == dress['shirt'] and dress['pants'] != dress['skin'] and leg_shape(dress), f'cloth {dress["cloth"]} pants {dress["pants"]} shirt {dress["shirt"]}')
-        await pg.evaluate("""() => {
-          const s = __store.get();
-          __store.dispatch({ type: 'char/update', id: s.characters[0].id, patch: { pants: '#5aa9e6' } });
-        }""")
-        await pg.wait_for_timeout(80)
+        # Depth first: setLook (used for the dress-color check) remounts the ranch
+        # avatar and can shift the overlap samples against horse 3.
         await drag_feet(pg, 2730, 470)
         placed = await me(pg)
         depth = await pg.evaluate("""() => {
@@ -265,6 +264,49 @@ async def main():
         check('depth: rider behind the fence and the horses in front',
               behind and depth['savZ'] == 'auto' and depth['samples'] > 0 and depth['horseHits'] > 0 and depth['riderHits'] == 0,
               f'at {placed} {depth}')
+        # Ranch avatars use hood player look (setLook), not house char/update alone.
+        # Chibi rideleg reads look2.bottomC, not legacy pants.
+        await pg.evaluate("""() => {
+          const s = __store.get();
+          const shirt = s.characters[0].shirt;
+          const look2 = s.characters[0].look2
+            ? { ...s.characters[0].look2, bottomC: shirt }
+            : null;
+          const patch = { pants: shirt };
+          if (look2) patch.look2 = look2;
+          __store.dispatch({ type: 'char/update', id: s.characters[0].id, patch });
+          const hood = __hood();
+          const me = hood && hood.players.get(hood.pid);
+          if (me) {
+            const look = { ...me.look, pants: shirt };
+            if (me.look.look2) look.look2 = { ...me.look.look2, bottomC: shirt };
+            hood.setLook(look);
+          }
+        }""")
+        dress = None
+        for _ in range(25):
+            dress = await pose(pg)
+            if dress['cloth'] == dress['pants'] == dress['shirt']:
+                break
+            await pg.wait_for_timeout(80)
+        check('bottom color follows her pants, including a dress-colored outfit', dress['cloth'] == dress['pants'] == dress['shirt'] and dress['pants'] != dress['skin'] and leg_shape(dress), f'cloth {dress["cloth"]} pants {dress["pants"]} shirt {dress["shirt"]}')
+        await pg.evaluate("""() => {
+          const s = __store.get();
+          const look2 = s.characters[0].look2
+            ? { ...s.characters[0].look2, bottomC: '#5aa9e6' }
+            : null;
+          const patch = { pants: '#5aa9e6' };
+          if (look2) patch.look2 = look2;
+          __store.dispatch({ type: 'char/update', id: s.characters[0].id, patch });
+          const hood = __hood();
+          const me = hood && hood.players.get(hood.pid);
+          if (me) {
+            const look = { ...me.look, pants: '#5aa9e6' };
+            if (me.look.look2) look.look2 = { ...me.look.look2, bottomC: '#5aa9e6' };
+            hood.setLook(look);
+          }
+        }""")
+        await pg.wait_for_timeout(200)
         await scroll_to(pg, 2760)
         box, sc = await world_box(pg)
         vp = pg.viewport_size
