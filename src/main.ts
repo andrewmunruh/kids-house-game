@@ -291,7 +291,7 @@ function setCam(x: number) {
   $('nudgeR').classList.toggle('off', camX >= maxCam() - 1);
   const v = $('mmView'); v.style.left = camX / W * 100 + '%'; v.style.width = VIEW_W / W * 100 + '%';
   if (selected) renderToolbar(store.get());
-  yieldNudges();
+  yieldNudgesSoon();
   clampStageLabels();
 }
 function glideTo(target: number) {
@@ -1554,7 +1554,7 @@ function renderChars(s: GameState) {
   queueAmbient();
   renderMinimap(s);
   renderBaby();
-  yieldNudges();
+  yieldNudgesSoon();
   clampStageLabels();
 }
 
@@ -2486,7 +2486,7 @@ for (const ev of ['pointerup', 'pointercancel'] as const) document.addEventListe
 if (import.meta.env.PROD) void startSW({ base: import.meta.env.BASE_URL, safeNow: () => swDown.size === 0 }); // never show the update note while a pointer is still down (no 15s hold escape)
 (window as any).__store = store; // handy for debugging / tests
 (window as any).__shelfCache = () => shelfDecoded.size;
-installNeeds({ get: () => store.get(), dispatch: a => store.dispatch(a), subscribe: fn => store.subscribe(fn), canDrift: () => view === 'house' && ownsDolls(), speaks: () => !hood || inner === local || hood.speaksNeeds, layer, menuAfter: $('btnSound'), afterPaint: () => { yieldNudges(); clampStageLabels(); } });
+installNeeds({ get: () => store.get(), dispatch: a => store.dispatch(a), subscribe: fn => store.subscribe(fn), canDrift: () => view === 'house' && ownsDolls(), speaks: () => !hood || inner === local || hood.speaksNeeds, layer, menuAfter: $('btnSound'), afterPaint: () => { yieldNudgesSoon(); clampStageLabels(); } });
 (window as any).__items = Object.fromEntries(ITEMS.filter(i => i.img).map(i => [i.kind, { w: i.w, h: hOf(i), cat: i.cat, holdable: i.holdable, svg: i.img!.includes('.svg') }]));
 (window as any).__cam = { get: () => camX, set: setCam };
 (window as any).__phoneShowKids = () => phoneShowKids();
@@ -2586,7 +2586,7 @@ function renderAvatars() {
   updateNear();
   renderBaby();
   queueAmbient();
-  yieldNudges();
+  yieldNudgesSoon();
   clampStageLabels();
 }
 function attachMyAvatarDrag(el: HTMLElement) {
@@ -2674,6 +2674,10 @@ function yieldNudges() {
     }
     n.classList.toggle('yield', hit);
   }
+}
+function yieldNudgesSoon() {
+  yieldNudges();
+  requestAnimationFrame(() => { yieldNudges(); requestAnimationFrame(yieldNudges); });
 }
 
 function showBubble(pid: string, b: Bubble) {
