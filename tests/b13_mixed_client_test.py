@@ -78,6 +78,13 @@ SETUP_KITCHEN = """() => {
   const table = items.find(i => /(^|-)table$/.test(String(i.kind||'').replace(/^pack:/,'').toLowerCase()));
   const chairs = items.filter(i => /chair|stool/.test(String(i.kind||'').replace(/^pack:/,'').toLowerCase()));
   const cake = items.find(i => i.kind === 'cake') || items.find(i => /cake|apple|pizza|donut|juice/.test(i.kind));
+  if (!s.get().characters[0]) {
+    s.dispatch({type:'char/add', char:{
+      id:'b13-d1', skin:'#f2c9a0', hair:'#5a3d2b', hairStyle:2,
+      shirt:'#ff7aa8', pants:'#219ebc', size:'kid', acc:0, flip:false,
+      held:{left:null,right:null}, room:'kitchen', x:(table&&table.x)||900, y:540
+    }});
+  }
   const doll = s.get().characters[0];
   return { table, chairs: chairs.map(c => ({id:c.id,x:c.x,y:c.y,kind:c.kind})), cake, dollId: doll && doll.id, doll };
 }"""
@@ -99,7 +106,7 @@ async def wait_char(pg, doll_id, pred, timeout=8000):
           const c = window.__store && __store.get().characters.find(x => x.id === id);
           return !!c && fn(c, __store.get());
         }""",
-        [doll_id, pred],
+        arg=[doll_id, pred],
         timeout=timeout,
     )
 
@@ -154,7 +161,7 @@ async def run_old_guest(p, old_name, old_url):
                   const c = st.characters.find(x => x.id === id);
                   return !!(c && c.seat && c.seat.pose === 'sit');
                 }""",
-                doll_id, timeout=8000,
+                arg=doll_id, timeout=8000,
             )
             guest_c = await B.evaluate("id => window.__store.get().characters.find(c => c.id === id)", doll_id)
         except Exception as e:
@@ -232,6 +239,13 @@ async def run_item5_and_race(p):
             s.dispatch({type:'item/add', room:'bedroom', item:{id:'b13-cake', kind:'cake', x:400, y:540, flip:false, z:21, scale:1}});
             cake = s.get().rooms.bedroom.items.find(i => i.id==='b13-cake');
           }
+          if (!s.get().characters[0]) {
+            s.dispatch({type:'char/add', char:{
+              id:'b13-d1', skin:'#f2c9a0', hair:'#5a3d2b', hairStyle:2,
+              shirt:'#ff7aa8', pants:'#219ebc', size:'kid', acc:0, flip:false,
+              held:{left:null,right:null}, room:'bedroom', x:(tub&&tub.x-80)||400, y:540
+            }});
+          }
           const doll = s.get().characters[0];
           s.dispatch({type:'char/move', id:doll.id, room:'bedroom', x:tub.x-80, y:540, seat:null});
           s.dispatch({type:'char/hold', id:doll.id, hand:'right', room:'bedroom', itemId:cake.id});
@@ -257,7 +271,7 @@ async def run_item5_and_race(p):
                   const cake = s.rooms.bedroom && s.rooms.bedroom.items.find(i => i.id === cakeId);
                   return !!(cake && cake.y === y);
                 }""",
-                [info['cakeId'], STAND_Y], timeout=8000,
+                arg=[info['cakeId'], STAND_Y], timeout=8000,
             )
             guest = await B.evaluate("""(cakeId) => {
               const s = __store.get();
@@ -305,38 +319,36 @@ async def run_item5_and_race(p):
             B.evaluate("(t) => { __applyAvatarPlayDrop(t.x, t.y, t.id); }", table),
         )
         await A.wait_for_timeout(1200)
-        seats = await A.evaluate("""() => {
+        await A.wait_for_timeout(400)
+        READ = """() => {
           const h = __hood();
           const out = [];
+          const norm = (seat) => seat ? {item: seat.item || seat.id, pose: seat.pose, n: seat.n} : null;
           const add = (pid, p) => {
             if (!p || p.where !== 'house') return;
-            const seat = p.seat || p.sit || null;
-            out.push({pid, room:p.room, x:p.x, y:p.y, seat});
+            out.push({pid, room:p.room, x:p.x, y:p.y, seat: norm(p.seat)});
           };
           if (h.presence && h.presence.forEach) h.presence.forEach((p,pid) => add(pid,p));
           if (h.pid && !out.some(o => o.pid===h.pid)) {
-            const me = (h.me && h.me()) || null;
+            const me = (window.__myPres && __myPres()) || null;
             if (me) add(h.pid, me);
           }
           return out;
-        }""")
-        guest_seats = await B.evaluate("""() => {
-          const h = __hood();
-          const out = [];
-          const add = (pid, p) => { if (p && p.where==='house') out.push({pid, room:p.room, x:p.x, y:p.y, seat:p.seat||null}); };
-          if (h.presence && h.presence.forEach) h.presence.forEach((p,pid) => add(pid,p));
-          return out;
-        }""")
-        # Unique chairs among seated avatars. If both stood, that's also "not the same chair".
+        }"""
+        seats = await A.evaluate(READ)
+        guest_seats = await B.evaluate(READ)
         def key(s):
             seat = s.get('seat') or {}
-            if not seat or not seat.get('item'): return None
-            return f"{seat.get('item')}:{seat.get('n')}"
-        keys = [key(s) for s in (seats or [])]
-        seated_keys = [k for k in keys if k]
+            ident = seat.get('item') or seat.get('id')
+            if not ident: return None
+            return f"{ident}:{seat.get('n', 0)}"
+        by = {}
+        for row in (seats or []) + (guest_seats or []):
+            by[row['pid']] = row
+        seated_keys = [key(s) for s in by.values() if key(s)]
         rec('item 4 two-client avatar race: two dolls/kids never take the same chair',
             len(seated_keys) < 2 or len(set(seated_keys)) == len(seated_keys),
-            json.dumps({'hostView': seats, 'guestView': guest_seats}))
+            json.dumps({'merged': by, 'hostView': seats, 'guestView': guest_seats}))
         await A.screenshot(path=str(OUT / 'item4_race_host.png'))
         await B.screenshot(path=str(OUT / 'item4_race_guest.png'))
         await cA.close(); await cB.close()
