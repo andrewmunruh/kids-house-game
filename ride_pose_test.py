@@ -14,8 +14,9 @@ def check(name, ok, extra=''):
     res[name] = bool(ok)
     print(('PASS ' if ok else 'FAIL ') + name, extra, flush=True)
 
-# App --lift puts the hem on the saddle. Stroke-adjusted getBoundingClientRect still
-# reads a small sink (-3.7 to -6.1 px on 2ae692f). That is "on the saddle", not a float.
+# App --lift puts the hem on the saddle. Stroke-adjusted gap is hem minus saddle top, so
+# negative is a float and positive is a sink. 2ae692f reads -3.7 to -6.11 px, still on
+# the saddle (a clear float of ~15px+ or a clip beyond +3px still fails).
 HEM_GAP_MIN, HEM_GAP_MAX = -7, 3
 
 def leg_shape(info):
