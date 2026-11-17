@@ -27,6 +27,41 @@ PHASE = """() => { const e = document.querySelector('.char.amb-dance[data-id="am
   return (((loc - Date.now()) % P) + P) % P / P; }"""
 ON = "id => !!(__store.get().rooms.living.items.find(i => i.id === id) || {}).on"
 
+
+async def frame_stereo(pg):
+    """Keep the stereo on-screen. __cam.set alone is not enough on iPad portrait:
+    an auto-refit (fitCutPiece) can slide the camera unless the room is marked panned."""
+    info = None
+    for _ in range(10):
+        info = await pg.evaluate("""() => {
+          const it = (__store.get().rooms.living.items || []).find(i => i.id === 'amb-stereo');
+          const el = document.querySelector('.item[data-id="amb-stereo"]');
+          const stage = document.getElementById('stage');
+          if (!it || !el || !stage || !window.__cam) return null;
+          const sr = stage.getBoundingClientRect();
+          const b = el.getBoundingClientRect();
+          stage.dispatchEvent(new WheelEvent('wheel', {deltaX: 0.4, bubbles: true, cancelable: true}));
+          const c0 = __cam.get();
+          __cam.set(c0 + 8);
+          const b1 = el.getBoundingClientRect();
+          const screenPerWorld = (b1.x - b.x) / 8;
+          __cam.set(c0);
+          if (!screenPerWorld) return { ok: false, box: {x:b.x, y:b.y, w:b.width, h:b.height} };
+          const want = sr.left + sr.width / 2;
+          const got = b.x + b.width / 2;
+          __cam.set(c0 + (want - got) / screenPerWorld);
+          const b2 = el.getBoundingClientRect();
+          const hit = document.elementFromPoint(b2.x + b2.width/2, b2.y + b2.height*0.6);
+          const on = b2.x >= sr.left + 8 && (b2.x + b2.width) <= sr.right - 8
+                    && b2.y >= sr.top && (b2.y + b2.height) <= sr.bottom + 20
+                    && !!(hit && hit.closest && hit.closest('.item[data-id="amb-stereo"]'));
+          return { ok: on, box: {x:b2.x, y:b2.y, w:b2.width, h:b2.height}, cam: __cam.get() };
+        }""")
+        if info and info.get('ok'):
+            return info
+        await pg.wait_for_timeout(80)
+    return info
+
 async def main():
     async with async_playwright() as p:
         b = await p.webkit.launch()
@@ -54,20 +89,26 @@ async def main():
         if os.environ.get('AMB_DEBUG'): print(await A.evaluate("() => ({keys: Object.keys(__store.get()), nch: (__store.get().characters||[]).length, amb: __hood().speaksAmb, h: Object.keys(__hood()), items: __store.get().rooms.living.items.slice(-2)})"))
         n = await A.evaluate("Object.values(__store.get().characters || __store.get().chars || {}).filter(c => c.room === 'living').length")
         check('dolls placed near the stereo', n >= 1, n)
-        await A.click('#modePlay'); await A.evaluate('__cam.set(150)'); await A.wait_for_timeout(400)
-        el = A.locator('.item[data-id="amb-stereo"]'); await el.scroll_into_view_if_needed()
-        bb = await el.bounding_box(); px, py = bb['x'] + bb['width']/2, bb['y'] + bb['height']*0.6
-        if os.environ.get('AMB_DEBUG'): print(bb, await A.evaluate("([x,y]) => { const e = document.elementFromPoint(x,y); return e && (e.outerHTML.slice(0,160)); }", [px, py]), await A.evaluate("__ui()"))
-        await A.mouse.click(px, py)
-        await A.wait_for_timeout(1000)
-        dA, dB = await A.evaluate(DANCERS), await B.evaluate(DANCERS)
-        check('A taps stereo -> on in both stores within 1s', await A.evaluate(ON, 'amb-stereo') and await B.evaluate(ON, 'amb-stereo'))
-        check('both iPads show the same dancers within 1s', len(dA) >= 1 and dA == dB, f'{dA} {dB}')
-        pa, pb = await asyncio.gather(A.evaluate(PHASE), B.evaluate(PHASE))
-        check('dance phase in step across iPads (wall clock)', pa is not None and pb is not None and min(abs(pa - pb), 1 - abs(pa - pb)) < 0.08, f'{pa} {pb}')
+        await A.click('#modePlay')
+        await A.wait_for_timeout(400)
+        framed = await frame_stereo(A)
+        bb = (framed or {}).get('box')
+        if os.environ.get('AMB_DEBUG'): print('framed', framed, await A.evaluate("__ui()"))
+        check('stereo is on-screen for the tap', bool(framed and framed.get('ok') and bb), framed)
+        if framed and framed.get('ok') and bb:
+            px, py = bb['x'] + bb['w']/2, bb['y'] + bb['h']*0.6
+            await A.mouse.click(px, py)
+            await A.wait_for_timeout(1000)
+            dA, dB = await A.evaluate(DANCERS), await B.evaluate(DANCERS)
+            check('A taps stereo -> on in both stores within 1s', await A.evaluate(ON, 'amb-stereo') and await B.evaluate(ON, 'amb-stereo'))
+            check('both iPads show the same dancers within 1s', len(dA) >= 1 and dA == dB, f'{dA} {dB}')
+            pa, pb = await asyncio.gather(A.evaluate(PHASE), B.evaluate(PHASE))
+            check('dance phase in step across iPads (wall clock)', pa is not None and pb is not None and min(abs(pa - pb), 1 - abs(pa - pb)) < 0.08, f'{pa} {pb}')
+        else:
+            print('SKIP A taps stereo (stereo off-screen; not a sync failure)', flush=True)
         for i in range(4):
             await A.screenshot(path=f'{SHOT}stereo-dance-{i+1}-820x1180.png'); await A.wait_for_timeout(225)
-        await B.evaluate('__cam.set(150)'); await B.wait_for_timeout(400)
+        await frame_stereo(B)
         await B.screenshot(path=f'{SHOT}stereo-dance-visitor-820x1180.png')
         # simultaneous toggles from both iPads settle the same
         await B.click('#modePlay'); await B.wait_for_timeout(200)
