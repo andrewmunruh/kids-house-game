@@ -2676,7 +2676,12 @@ function bubbleText(b: Bubble): string { if (b.kind === 'text') return b.v; retu
 // On a phone the stage is scaled down, so a bubble centered on someone near the edge
 // can draw past the screen. Nudge it back. iPad never has body.phone, so this is a no-op there.
 function clampStageLabels() {
-  const nodes = document.querySelectorAll<HTMLElement>('.bubble, .nametag, .need-bubble.show');
+  // Phone already frames the kid and her name tag via phoneShowKids.
+  // Only speech bubbles are nudged there, as before. iPad (no body.phone)
+  // also clamps nametags and need-bubbles so visiting chrome cannot clip them.
+  const sel = document.body.classList.contains('phone')
+    ? '.bubble' : '.bubble, .nametag, .need-bubble.show';
+  const nodes = document.querySelectorAll<HTMLElement>(sel);
   const view = stage.getBoundingClientRect();
   if (!view.width) return;
   const sc = stageScale() || 1;
