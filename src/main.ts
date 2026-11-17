@@ -2665,11 +2665,20 @@ function yieldNudges() {
     const n = $(id);
     if (!n || n.classList.contains('off') || n.offsetParent === null) { n?.classList.remove('yield'); continue; }
     const b = n.getBoundingClientRect();
+    const pts: [number, number][] = [
+      [b.left + b.width / 2, b.top + b.height / 2],
+      [b.left + 10, b.top + 10],
+      [b.right - 10, b.top + 10],
+      [b.left + 10, b.bottom - 10],
+      [b.right - 10, b.bottom - 10],
+    ];
     let hit = false;
-    for (const el of layer.querySelectorAll<HTMLElement>('.char, .need-bubble.show')) {
-      const r = el.getBoundingClientRect();
-      if (r.width < 2 || r.height < 2) continue;
-      if (r.left < b.right - 4 && r.right > b.left + 4 && r.top < b.bottom - 4 && r.bottom > b.top + 4) { hit = true; break; }
+    for (const [x, y] of pts) {
+      const stack = document.elementsFromPoint(x, y);
+      if (stack.some(el => {
+        const node = el as HTMLElement;
+        return !!(node.closest && node.closest('.char, .need-bubble, .need-snooze'));
+      })) { hit = true; break; }
     }
     n.classList.toggle('yield', hit);
   }
