@@ -17,6 +17,24 @@ results = []
 def ok(name, cond, extra=''):
     results.append(bool(cond)); print(('PASS ' if cond else 'FAIL ') + name + (f'  [{extra}]' if extra else ''), flush=True)
 
+def retry_attempts(hits, min_gap=0.5):
+    """Count application retries, not raw Playwright route hits.
+
+    Chromium issues one request per try (the <img>, then healPainting's 0.6 / 1.8 / 4.5 s
+    probes): 4 hits. WebKit also refetches a 503 image once or twice in the first few
+    hundred milliseconds, before our backoff, so a raw hit count can be 5 or 6. Those
+    close-together hits are the same attempt, not an extra load from the JS-chunk retry
+    or from B6 scene tiles.
+    """
+    if not hits:
+        return 0
+    n, last = 1, hits[0]
+    for t in hits[1:]:
+        if t - last >= min_gap:
+            n += 1
+            last = t
+    return n
+
 def visit(p, bn, pattern, mode, fn):
     b = getattr(p, bn).launch()
     ctx = b.new_context(viewport={'width': 1366, 'height': 1024}, device_scale_factor=1, has_touch=True, service_workers='block')
@@ -86,7 +104,7 @@ def webp_always(bn, pg, hits, errs):
     bathroom(pg); pg.wait_for_timeout(1500)
     ok(f'{bn} webp 503 always: the SVG shows at once', tub_state(pg) == 'svg', tub_state(pg))
     pg.wait_for_timeout(10000)
-    ok(f'{bn} webp 503 always: retries are bounded (2..5 requests)', 2 <= len(hits) <= 5, f'{len(hits)}')
+    ok(f'{bn} webp 503 always: retries are bounded (2..4 attempts)', 2 <= retry_attempts(hits) <= 4, f'attempts={retry_attempts(hits)} raw={len(hits)}')
     ok(f'{bn} webp 503 always: the tub keeps its SVG, no broken image', tub_state(pg) == 'svg' and not broken_imgs(pg), f'{tub_state(pg)} {broken_imgs(pg)}')
 
 # 3. The painted room scene
@@ -104,7 +122,7 @@ def scene_always(bn, pg, hits, errs):
     bathroom(pg); pg.wait_for_timeout(11000)
     st = scene_on(pg)
     ok(f'{bn} scene 503 always: the drawn (vector) room stays, no painting marked on', st[0] == '' and not st[1], str(st))
-    ok(f'{bn} scene 503 always: retries are bounded (2..5 requests)', 2 <= len(hits) <= 5, f'{len(hits)}')
+    ok(f'{bn} scene 503 always: retries are bounded (2..4 attempts)', 2 <= retry_attempts(hits) <= 4, f'attempts={retry_attempts(hits)} raw={len(hits)}')
     ok(f'{bn} scene 503 always: no broken image left in the stage', not broken_imgs(pg), str(broken_imgs(pg)))
 
 # 4. A pack picture <img class="packimg"> (no SVG behind it)
