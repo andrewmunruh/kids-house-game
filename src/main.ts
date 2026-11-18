@@ -965,6 +965,7 @@ function seatFrontClass(kind: string): string {
   if (art) return 'k-bed k-bed-' + art.clip;
   const k = kind.toLowerCase();
   if (/sofa|couch|loveseat/.test(k)) return 'k-sofa';
+  if (/picnic-table/.test(k)) return 'k-picnic';
   if (/bench/.test(k)) return 'k-bench';
   if (/chair|stool|rocker/.test(k)) return 'k-chair';
   return '';

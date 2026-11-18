@@ -103,6 +103,11 @@ async function main() {
   check('a bunk lies on one anchor', seatFractions('bunk-bed')?.pose === 'lie' && seatFractions('bunk-bed')?.spots.length === 1);
   check('a daybed lies down', seatFractions('pack:cc-canopy-daybed')?.pose === 'lie');
   check('the winter bed lies down and the window seat and ottoman sit', seatFractions('pack:wc-plaid-bed')?.pose === 'lie' && seatFractions('pack:wc-window-seat')?.spots.length === 2 && seatFractions('pack:wc-mitten-ottoman')?.spots.length === 1 && seatFractions('pack:wc-plaid-sofa')?.spots.length === 2 && seatFractions('pack:wc-knit-armchair')?.spots.length === 1 && seatFractions('pack:wc-penguin-chair')?.pose === 'sit' && seatFractions('pack:wc-log-bench')?.spots.length === 2);
+  check('a picnic table has two sit spots', seatFractions('picnic-table')?.pose === 'sit' && seatFractions('picnic-table')?.spots.length === 2);
+  const picnic = { id: 'pt-1', kind: 'picnic-table', x: 1200, footY: 540, flip: false, scale: 1, w: 360, h: 220 } as SeatPiece;
+  const picnicAnchors = anchorsOf(picnic);
+  check('picnic anchors track the painted benches at the 2× box', picnicAnchors.length === 2 && picnicAnchors[0].pose === 'sit' && Math.abs(picnicAnchors[0].x - (1200 - 0.33 * 360)) < 0.01 && Math.abs(picnicAnchors[1].x - (1200 + 0.33 * 360)) < 0.01 && Math.abs(picnicAnchors[0].y - (540 - 0.22 * 220)) < 0.01);
+  check('pieceWidth knows the picnic table', pieceWidth('picnic-table') === 360);
   for (const kind of lieBedKinds()) {
     const def = ITEM_MAP[kind];
     const art = bedArt(kind)!;

@@ -182,10 +182,21 @@ export function inLieRect(p: { x: number; y: number }, r: LieRect): boolean {
  * A bunk uses the bottom bunk only (one lie anchor). Bed spots are filled in
  * by anchorsOf from the painted pillow, because the head offset is in pixels.
  */
+/**
+ * Per-kind spots, keyed by the slug without `pack:`. These win over the category rules below.
+ * Render only: the saved seat is still { item, pose, n } with n 0 or 1.
+ * The picnic table seats one kid on each bench (the painted benches sit at 8-48 and 112-152 of 160).
+ */
+const SEAT_KIND: Record<string, SeatFractions> = {
+  'picnic-table': { pose: 'sit', spots: [{ dx: -0.33, dy: -0.22 }, { dx: 0.33, dy: -0.22 }] },
+};
+
 export function seatFractions(kind: string): SeatFractions | null {
   const k = String(kind || '').toLowerCase();
   if (!k || NOT_SEAT.test(k)) return null;
   if (isLieBed(k)) return { pose: 'lie', spots: [{ dx: 0, dy: 0 }] };
+  const own = SEAT_KIND[k.replace(/^pack:/, '')];
+  if (own) return { pose: own.pose, spots: own.spots.map(pt => ({ ...pt })) };
   if (/sofa|couch|loveseat/.test(k)) return { pose: 'sit', spots: [{ dx: -0.18, dy: -0.33 }, { dx: 0.18, dy: -0.33 }] };
   if (/armchair/.test(k)) return { pose: 'sit', spots: [{ dx: 0, dy: -0.32 }] };
   if (/bench|window-seat/.test(k)) return { pose: 'sit', spots: [{ dx: -0.22, dy: -0.30 }, { dx: 0.22, dy: -0.30 }] };
@@ -279,7 +290,7 @@ export function resolveDrop(opts: {
 
 /** Drawn width of a seat, without scale. Unknown kinds use a wide default so she clears the piece. */
 const PIECE_W: Record<string, number> = {
-  sofa: 260, armchair: 150, bed: 300, chair: 100, stool: 90, rocker: 190, 'yard-bench': 140,
+  sofa: 260, armchair: 150, bed: 300, chair: 100, stool: 90, rocker: 190, 'yard-bench': 140, 'picnic-table': 360,
   'bar-stool': 52.8, 'bunk-bed': 294, 'canopy-bed': 294, 'cc-bubble-chair': 142, 'cc-canopy-daybed': 276,
   'cc-dryer-chair': 164, 'cc-heart-bed': 236, 'cc-mani-chair': 188, 'cc-mushroom-stool': 112,
   'cc-scallop-loveseat': 248, 'checker-bed': 196, 'cloud-sofa': 212, 'comfy-armchair': 161.7,

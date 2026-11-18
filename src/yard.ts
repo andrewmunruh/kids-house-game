@@ -483,8 +483,9 @@ const cup = piece({
     ${hi('M24 38 v14')}`,
 });
 
+/** B17 prototype: uniform 2× catalog box (was 180×110). View-box unchanged so the painting is not stretched. */
 const picnicTable = piece({
-  kind: 'picnic-table', name: 'Picnic Table', cat: 'furniture', w: 180, h: 110, vb: '0 0 160 100',
+  kind: 'picnic-table', name: 'Picnic Table', cat: 'furniture', w: 360, h: 220, vb: '0 0 160 100',
   svg: `${shadow(80, 68, 96)}
     <rect x="18" y="62" width="124" height="10" rx="2" fill="#e7c49a" ${ink()}/>
     <rect x="118" y="64" width="20" height="7" fill="#c99366"/>
