@@ -183,7 +183,7 @@ Full `refit_gate.sh` on 5909d53 + this tip, ports 5300–5349, locks acquired 23
 
 ## Push
 
-Earlier normal-push of **`cursor/bench-refit-r2`** was `4d6051e` (report on top of `7a7250d`). This follow-up adds `concurrent_refit.py` and the official 5/5 + 5/5 concurrency results. Tip SHA is filled in at commit time as `3268f114549778be254678e703b8f249434a1299`.
+Earlier normal-push of **`cursor/bench-refit-r2`** was `4d6051e` (report on top of `7a7250d`). This follow-up adds `concurrent_refit.py` and the official 5/5 + 5/5 concurrency results (`673d160b732bfd000d2f27a494db3f8f8121b86c` is that test+report commit).
 
 - Remote: `https://github.com/andrewmunruh/kids-house-game/tree/cursor/bench-refit-r2`
 - PR link: `https://github.com/andrewmunruh/kids-house-game/pull/new/cursor/bench-refit-r2`
