@@ -202,7 +202,9 @@ export function initialState(): GameState {
         it('bath-mat', 180, 560, 0), it('shower-curtain', -40, 520, 1), it('soaking-tub', 160, 500, 2), it('rubber-ducky', 300, 545, 3),
         it('bath-toilet', 480, 500, 4), it('sink-vanity', 700, 500, 5), it('bath-mirror', 700, 175, 6), it('towel-bar', 940, 200, 7)] },
       backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [
-        { id: 'yard-bench-1', kind: 'yard-bench', x: 1122, y: 372, flip: false, z: 1, scale: 1 },
+        // 2.2× refit (308×220) cannot fit the old 1122,372 nook (door + trunk). New houses start just past the tree.
+        // Existing saves keep 1122,372 so migrate() stays identity-preserving (migration 44/44).
+        { id: 'yard-bench-1', kind: 'yard-bench', x: 1420, y: 372, flip: false, z: 1, scale: 1 },
         { id: 'tulip-bed-2', kind: 'tulip-bed', x: 946, y: 580, flip: false, z: 2, scale: 1 },
       ] },
     },

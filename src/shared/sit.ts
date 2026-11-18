@@ -326,7 +326,7 @@ export function resolveDrop(opts: {
 
 /** Drawn width of a seat, without scale. Unknown kinds use a wide default so she clears the piece. */
 const PIECE_W: Record<string, number> = {
-  sofa: 260, armchair: 150, bed: 300, chair: 100, stool: 90, rocker: 190, 'yard-bench': 140,
+  sofa: 260, armchair: 150, bed: 300, chair: 100, stool: 90, rocker: 190, 'yard-bench': 308,
   'bar-stool': 52.8, 'bunk-bed': 294, 'canopy-bed': 294, 'cc-bubble-chair': 142, 'cc-canopy-daybed': 276,
   'cc-dryer-chair': 164, 'cc-heart-bed': 236, 'cc-mani-chair': 188, 'cc-mushroom-stool': 112,
   'cc-scallop-loveseat': 248, 'checker-bed': 196, 'cloud-sofa': 212, 'comfy-armchair': 161.7,
