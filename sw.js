@@ -7,7 +7,7 @@
 // - On activate, old app caches of this scope are deleted. The legacy 'cozy-v1' cache is deleted
 //   only when this worker's scope is /kids-house-game/ (production); preview never touches it.
 // - Kill switch: see sw/kill.js and src/sw-client.ts (sw-switch.json).
-const BUILD = '2e4c878364b5';
+const BUILD = '42b8fd4d93cd';
 const SCOPE = new URL(self.registration.scope).pathname;
 const PFX = 'cozy:' + SCOPE + ':';
 const APP = PFX + 'app:' + BUILD;
