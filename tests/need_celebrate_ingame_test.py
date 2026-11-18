@@ -329,26 +329,39 @@ async def run_two_client(browser):
     await A.wait_for_timeout(400)
     # Wear hungry down away from the fridge so auto-care does not meet it early,
     # then walk up and meet. The worker caps need/drift, so use __needs.tick.
+    HUNGRY = """(id) => { const c = (__store.get().characters||[]).find(x => x.id === id); return (c && typeof (c.needs||{}).hungry === 'number') ? c.needs.hungry : 3; }"""
     cid = await A.evaluate("""() => {
       const c = (__store.get().characters || [])[0]; if (!c) throw new Error('no characters after join');
       const fr = __store.get().rooms.kitchen.items.find(i => /fridge/.test(i.kind));
+      // Stand far from the fridge so auto-care cannot meet hungry while we drift it down.
       __store.dispatch({ type: 'char/move', id: c.id, room: 'kitchen', x: fr.x + 500, y: 540, seat: null });
       return c.id;
     }""")
-    await A.evaluate("""async (id) => {
-      for (let i = 0; i < 24; i++) {
+    lv = await A.evaluate("""async (id) => {
+      for (let i = 0; i < 30; i++) {
         const c = __store.get().characters.find(x => x.id === id);
-        const lv = (c && typeof (c.needs || {}).hungry === 'number') ? c.needs.hungry : 3;
-        if (lv <= 0) return lv;
+        const n = (c && typeof (c.needs || {}).hungry === 'number') ? c.needs.hungry : 3;
+        if (n <= 0) return n;
         if (window.__needs) __needs.tick(4 * 60000);
-        await new Promise(r => setTimeout(r, 80));
+        await new Promise(r => setTimeout(r, 100));
       }
+      const c = __store.get().characters.find(x => x.id === id);
+      return (c && typeof (c.needs || {}).hungry === 'number') ? c.needs.hungry : 3;
     }""", cid)
+    # Visitor must observe the low level before the meet, or its first paint will miss the rise.
+    try:
+        await B.wait_for_function("""(id) => {
+          const c = (__store.get().characters||[]).find(x => x.id === id);
+          const n = (c && typeof (c.needs||{}).hungry === 'number') ? c.needs.hungry : 3;
+          return n <= 1;
+        }""", arg=cid, timeout=3000)
+    except Exception:
+        pass
     await A.evaluate("""(id) => {
       const fr = __store.get().rooms.kitchen.items.find(i => /fridge/.test(i.kind));
       __store.dispatch({ type: 'char/move', id, room: 'kitchen', x: fr.x + 50, y: fr.y + 20, seat: null });
     }""", cid)
-    await A.wait_for_timeout(200)
+    await A.wait_for_timeout(150)
     await A.evaluate(MEET, {'need': 'hungry', 'id': cid})
     # Both iPads should show the celebration within 1s, on this doll.
     seenA = seenB = False
@@ -362,7 +375,8 @@ async def run_two_client(browser):
             check('two iPads: celebration visible on both within 1s', True, f'{(i+1)*100}ms A={sa} B={sb}')
             break
     else:
-        check('two iPads: celebration visible on both within 1s', False, f'A={sa} B={sb}')
+        lvA = await A.evaluate(HUNGRY, cid); lvB = await B.evaluate(HUNGRY, cid)
+        check('two iPads: celebration visible on both within 1s', False, f'hungry A={lvA} B={lvB} pre={lv} A={sa} B={sb}')
     await cA.close(); await cB.close()
 
 async def main():
