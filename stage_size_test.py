@@ -31,7 +31,8 @@ def _game_url(url_or_none, port_flag, port_env):
 _pos = [a for a in sys.argv[1:] if not a.startswith('-')]
 NEW = _game_url(_flag('--new', 'NEW_URL') or (_pos[0] if len(_pos) > 0 else None), '--web-port', 'WEB_PORT')
 PROD = _game_url(_flag('--prod', 'PROD_URL') or (_pos[1] if len(_pos) > 1 else None), '--prod-port', 'PROD_PORT')
-REF = _game_url(_flag('--ref', 'REF_URL'), '--ref-port', 'REF_PORT')
+# An explicit --ref / --ref-port wins over a leftover REF_URL from an earlier gate step.
+REF = _game_url(_flag('--ref') or (None if '--ref-port' in sys.argv else os.environ.get('REF_URL')), '--ref-port', 'REF_PORT')
 if not NEW or not PROD:
     sys.stderr.write(
         'usage: stage_size_test.py [NEW_URL] [PROD_URL]\n'
