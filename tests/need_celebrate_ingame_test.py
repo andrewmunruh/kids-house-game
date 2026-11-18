@@ -20,7 +20,7 @@ def check(name, ok, extra=''):
     ok_all &= bool(ok)
     print(('PASS ' if ok else 'FAIL ') + name + ((' ' + str(extra)) if extra else ''), flush=True)
 
-READY = """() => !!(window.__store && document.getElementById('btnMenu') && (document.querySelector('.char[data-cid]') || document.body.classList.contains('view-house')))"""
+READY = """() => !!(window.__store && document.getElementById('btnMenu') && (document.querySelector('.char[data-cid]') || !document.body.classList.contains('view-street')))"""
 
 SETUP = """() => {
   const S = __store;
@@ -71,7 +71,7 @@ async def wait_ready(pg, timeout=20000):
     await pg.wait_for_function(READY, timeout=timeout)
     # If we landed on the map after a reload, go back into the house.
     try:
-        gone = await pg.evaluate("() => document.body.classList.contains('view-map') && !document.body.classList.contains('view-house')")
+        gone = await pg.evaluate("() => document.body.classList.contains('view-map')")
         if gone:
             await pg.evaluate("""() => {
               const mine = document.querySelector('#mapWorld .mapHouse.mine, #mapWorld .mapHouse');
@@ -144,7 +144,7 @@ async def enter_own(pg):
     for _ in range(3):
         await pg.evaluate("document.querySelector('#mapWorld .mapHouse.mine')?.click()")
         try:
-            await pg.wait_for_function("() => document.body.classList.contains('view-house') && (__store.get().characters||[]).length > 0", timeout=8000)
+            await pg.wait_for_function("() => !document.body.classList.contains('view-street') && (__store.get().characters||[]).length > 0", timeout=8000)
             await close_sheet(pg)
             return
         except Exception as e:
@@ -162,7 +162,7 @@ async def visit(pg, hid):
           (el || other)?.click();
         }""", hid)
         try:
-            await pg.wait_for_function("() => document.body.classList.contains('view-house') && (__store.get().characters||[]).length > 0", timeout=8000)
+            await pg.wait_for_function("() => !document.body.classList.contains('view-street') && (__store.get().characters||[]).length > 0", timeout=8000)
             await close_sheet(pg)
             return
         except Exception as e:

@@ -125,7 +125,7 @@ async def enter_own(pg):
     for _ in range(3):
         await pg.evaluate("document.querySelector('#mapWorld .mapHouse.mine')?.click()")
         try:
-            await pg.wait_for_function("() => document.body.classList.contains('view-house') && (__store.get().characters||[]).length > 0", timeout=8000)
+            await pg.wait_for_function("() => !document.body.classList.contains('view-street') && (__store.get().characters||[]).length > 0", timeout=8000)
             await close_sheet(pg)
             return
         except Exception as e:
@@ -143,7 +143,7 @@ async def visit(pg, hid):
           (el || other)?.click();
         }""", hid)
         try:
-            await pg.wait_for_function("() => document.body.classList.contains('view-house') && (__store.get().characters||[]).length > 0", timeout=8000)
+            await pg.wait_for_function("() => !document.body.classList.contains('view-street') && (__store.get().characters||[]).length > 0", timeout=8000)
             await close_sheet(pg)
             return
         except Exception as e:
