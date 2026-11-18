@@ -796,7 +796,9 @@ export function cleanHouseState(raw: any): GameState {
   const mailbox = filterMailbox((s as any).mailbox);
   const cleaned = cleanBaby((s as any).baby, rooms);
   const baby = cleaned ? packBaby({ ...cleaned, name: cleanPetName(cleaned.name) || 'Bean' }) : null;
-  const house: GameState = { ...base, rooms, characters, currentRoom: 'living', soundOn: true, cat, dog: null, dogKennel, ...(baby ? { baby } : {}) };
+  // yardBenchRefit must be copied through: this rebuild drops unknown keys, and an omitted
+  // marker would let a later load treat a bench at 1122,372 as the seed again.
+  const house: GameState = { ...base, rooms, characters, currentRoom: 'living', soundOn: true, cat, dog: null, dogKennel, ...(baby ? { baby } : {}), ...(s.yardBenchRefit === 1 ? { yardBenchRefit: 1 as const } : {}) };
   return mailbox ? { ...house, mailbox } : house;
 }
 

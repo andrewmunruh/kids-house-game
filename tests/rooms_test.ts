@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { Neighborhood, type KV, type Conn } from '../server/core';
 import { NICKNAMES, PROTOCOL, cleanAction, cleanFx, cleanHouseState, cleanLook, cleanLookPatch, cleanPresence } from '../src/shared/hood';
-import { ensureRooms, initialState, migrate, reduce, type GameState } from '../src/shared/state';
+import { ensureRooms, initialState, migrate, reduce, applyYardBenchRefit, patchSavedYardBenchRefit, YARD_BENCH_SEED_X, YARD_BENCH_SEED_Y, YARD_BENCH_REFIT_X, YARD_BENCH_REFIT_Y, type GameState, type PlacedItem } from '../src/shared/state';
 import { patchFromLook2, sanitizeLook2 } from '../src/shared/avatar';
 
 const store = new Map<string, any>();
@@ -313,6 +313,82 @@ async function main() {
   check('the server nacks an id the room already has', cd.last('nack')?.reason === 'noop' && hoodDup.houses.get(dhid)!.state.rooms.living.items.length === before && hoodDup.houses.get(dhid)!.state.rooms.living.items.filter(i => i.id === dsofa.id).length === 1);
   await dmsg({ t: 'act', houseId: dhid, cid: 2, action: { type: 'item/add', room: 'living', item: { id: 'server-chair', kind: 'chair', x: 640, y: 500, flip: false, z: 1, scale: 1 } } });
   check('the server still accepts a new id', hoodDup.houses.get(dhid)!.state.rooms.living.items.some(i => i.id === 'server-chair') && dtoken.length > 0);
+
+  // B16 option (1): one-time seed-spot yard-bench nudge + yardBenchRefit marker.
+  const seedBench = (over: Partial<PlacedItem> = {}): PlacedItem => ({ id: 'yard-bench-1', kind: 'yard-bench', x: YARD_BENCH_SEED_X, y: YARD_BENCH_SEED_Y, flip: false, z: 1, scale: 1, ...over });
+  const withBench = (bench: PlacedItem, flag?: 1): GameState => {
+    const base = initialState();
+    const rooms = { ...base.rooms, backyard: { ...base.rooms.backyard, items: [bench, ...base.rooms.backyard.items.filter(i => i.kind !== 'yard-bench')] } };
+    const { yardBenchRefit: _drop, ...rest } = { ...base, rooms };
+    return flag === 1 ? { ...rest, rooms, yardBenchRefit: 1 } : rest;
+  };
+  const unmarked = withBench(seedBench());
+  const nudged = migrate(unmarked);
+  const seed = nudged.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!;
+  check('migrate moves a seed-spot starter bench to 1420,372 and sets the marker', seed.x === YARD_BENCH_REFIT_X && seed.y === YARD_BENCH_REFIT_Y && nudged.yardBenchRefit === 1 && nudged.version === 3);
+  const nudgedAgain = migrate(nudged);
+  check('a second migrate is a no-op once the marker is set', nudgedAgain.yardBenchRefit === 1 && nudgedAgain.rooms.backyard.items.find(i => i.id === 'yard-bench-1') === seed);
+  const putBack = { ...nudged, rooms: { ...nudged.rooms, backyard: { ...nudged.rooms.backyard, items: nudged.rooms.backyard.items.map(i => i.id === 'yard-bench-1' ? { ...i, x: YARD_BENCH_SEED_X, y: YARD_BENCH_SEED_Y } : i) } } };
+  const afterPutBack = migrate(putBack);
+  check('once marked, a bench put back at 1122,372 is left there', afterPutBack.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.x === YARD_BENCH_SEED_X && afterPutBack.yardBenchRefit === 1);
+  const moved = withBench(seedBench({ x: 1500, y: 372 }));
+  const movedAfter = migrate(moved);
+  check('a bench a kid moved stays where she put it, and the marker is still set', movedAfter.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.x === 1500 && movedAfter.yardBenchRefit === 1);
+  const flipped = migrate(withBench(seedBench({ flip: true })));
+  check('a flipped seed-spot bench is left in place', flipped.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.x === YARD_BENCH_SEED_X && flipped.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.flip === true && flipped.yardBenchRefit === 1);
+  const sized = migrate(withBench(seedBench({ size: 1.25 })));
+  check('a resized seed-spot bench is left in place', sized.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.x === YARD_BENCH_SEED_X && sized.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.size === 1.25 && sized.yardBenchRefit === 1);
+  check('a new house is born already marked, and migrate leaves it alone', initialState().yardBenchRefit === 1 && initialState().rooms.backyard.items.find(i => i.kind === 'yard-bench')!.x === YARD_BENCH_REFIT_X && migrate(initialState()).yardBenchRefit === 1);
+  const cleanedNudge = cleanHouseState(JSON.parse(JSON.stringify(unmarked)));
+  check('cleanHouseState keeps the marker (Worker save sanitizing does not strip it)', cleanedNudge.yardBenchRefit === 1 && cleanedNudge.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.x === YARD_BENCH_REFIT_X);
+  const cleanedMarked = cleanHouseState({ ...putBack, yardBenchRefit: 1, extraUnknown: 'drop-me' } as any);
+  check('cleanHouseState drops unknown fields but keeps a marked bench at 1122', cleanedMarked.yardBenchRefit === 1 && !('extraUnknown' in cleanedMarked) && cleanedMarked.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.x === YARD_BENCH_SEED_X);
+  const patched = patchSavedYardBenchRefit(JSON.parse(JSON.stringify(unmarked)));
+  check('patchSavedYardBenchRefit writes the nudge and marker without a second pass', !!patched && patched.yardBenchRefit === 1 && patched.rooms.backyard.items.find((i: PlacedItem) => i.id === 'yard-bench-1').x === YARD_BENCH_REFIT_X && patchSavedYardBenchRefit(patched) === null);
+  const already = applyYardBenchRefit(unmarked, 1);
+  check('applyYardBenchRefit respects the raw flag even when initialState spread the marker', already.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.x === YARD_BENCH_SEED_X && already.yardBenchRefit === 1);
+
+  // Worker load: persist the nudge for a stored backyard; do not write a fill-in-only house.
+  const kvR = new Map<string, any>();
+  const putsR: string[] = [];
+  const kvRefit: KV = {
+    get: async k => kvR.has(k) ? JSON.parse(JSON.stringify(kvR.get(k))) : undefined,
+    put: async (k, v) => { putsR.push(k); kvR.set(k, JSON.parse(JSON.stringify(v))); },
+    delete: async k => { kvR.delete(k); },
+  };
+  const hoodR = new Neighborhood(kvRefit, { flushMs: 5 });
+  await hoodR.init('REFITTEST');
+  const cR = mk();
+  await hoodR.onConnect(cR);
+  await hoodR.onMessage(cR, JSON.stringify({ t: 'join', nickname: NICKNAMES[0], look, v: 4 }));
+  const hidR = [...hoodR.houses.keys()][0];
+  await hoodR.flush();
+  const storedR = kvR.get('house:' + hidR);
+  storedR.state = JSON.parse(JSON.stringify(unmarked));
+  storedR.state.houseId = hidR;
+  kvR.set('house:' + hidR, JSON.parse(JSON.stringify(storedR)));
+  const putsBeforeR = putsR.length;
+  const hoodR2 = new Neighborhood(kvRefit, { flushMs: 5 });
+  await hoodR2.load();
+  await hoodR2.flush();
+  const memR = hoodR2.houses.get(hidR)!.state;
+  const diskR = kvR.get('house:' + hidR).state;
+  check('Worker load moves a stored seed-spot bench and writes the marker once', memR.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.x === YARD_BENCH_REFIT_X && memR.yardBenchRefit === 1 && diskR.rooms.backyard.items.find((i: PlacedItem) => i.id === 'yard-bench-1').x === YARD_BENCH_REFIT_X && diskR.yardBenchRefit === 1 && putsR.slice(putsBeforeR).filter(k => k === hidR || k === 'house:' + hidR).length === 1);
+  const hoodR3 = new Neighborhood(kvRefit, { flushMs: 5 });
+  await hoodR3.load();
+  await hoodR3.flush();
+  const diskR2 = kvR.get('house:' + hidR).state;
+  check('a second Worker load does not move the bench again or fight the save', diskR2.rooms.backyard.items.find((i: PlacedItem) => i.id === 'yard-bench-1').x === YARD_BENCH_REFIT_X && diskR2.yardBenchRefit === 1);
+
+  const storedMoved = kvR.get('house:' + hidR);
+  storedMoved.state = JSON.parse(JSON.stringify(withBench(seedBench({ x: 1500, y: 372 }))));
+  storedMoved.state.houseId = hidR;
+  kvR.set('house:' + hidR, JSON.parse(JSON.stringify(storedMoved)));
+  const hoodMoved = new Neighborhood(kvRefit, { flushMs: 5 });
+  await hoodMoved.load();
+  await hoodMoved.flush();
+  const diskMoved = kvR.get('house:' + hidR).state;
+  check('Worker load leaves a kid-moved bench where she put it and still writes the marker', diskMoved.rooms.backyard.items.find((i: PlacedItem) => i.id === 'yard-bench-1').x === 1500 && diskMoved.yardBenchRefit === 1);
 
   console.log(`${pass} passed`);
 }

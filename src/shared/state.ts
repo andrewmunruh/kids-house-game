@@ -120,6 +120,9 @@ function kennelHere(s: GameState, id: string) { return validKennel({ dogKennel: 
 
 export interface GameState {
   version: 3;
+  /** B16 one-time yard-bench refit. 1 means this house already ran the seed-bench nudge.
+   *  New houses are born with it. Omitted on older saves until the first B16 load. */
+  yardBenchRefit?: 1;
   cat?: Cat | null;          // optional: older saves simply have no pets
   dog?: Dog | null;
   dogKennel?: DogKennel | null;
@@ -203,7 +206,7 @@ export function initialState(): GameState {
         it('bath-toilet', 480, 500, 4), it('sink-vanity', 700, 500, 5), it('bath-mirror', 700, 175, 6), it('towel-bar', 940, 200, 7)] },
       backyard: { wallpaper: '#c5ecff', floor: '#b6e3a8', pattern: 0, items: [
         // 2.2× refit (308×220) cannot fit the old 1122,372 nook (door + trunk). New houses start just past the tree.
-        // Existing saves keep 1122,372 so migrate() stays identity-preserving (migration 44/44).
+        // A stored bench still at the 1122,372 seed, at default rotation and size, is moved once (see applyYardBenchRefit).
         { id: 'yard-bench-1', kind: 'yard-bench', x: 1420, y: 372, flip: false, z: 1, scale: 1 },
         { id: 'tulip-bed-2', kind: 'tulip-bed', x: 946, y: 580, flip: false, z: 2, scale: 1 },
       ] },
@@ -213,6 +216,7 @@ export function initialState(): GameState {
     ],
     soundOn: true,
     dogKennel: null,
+    yardBenchRefit: 1,
   };
 }
 
@@ -505,6 +509,60 @@ export function reduce(s: GameState, a: Action): GameState {
 // ---- Store with auto-save. Later: swap `dispatch` to also send to a server. ----
 const KEY = storeKey('cozy-house'), V1_KEY = storeKey('cozy-house-v1');
 
+
+/** Old production starter (pre-B16). Only a bench still here, unflipped and at default size, is moved. */
+export const YARD_BENCH_SEED_X = 1122, YARD_BENCH_SEED_Y = 372;
+/** Past the tree canopy, clear of the door, trunk and tulips. */
+export const YARD_BENCH_REFIT_X = 1420, YARD_BENCH_REFIT_Y = 372;
+
+/** True only for a yard bench at the exact seed pose: 1122,372, flip false, scale 1, no custom size.
+ *  Limitation: a bench a kid moved and then put back here looks like the seed if the flag is still missing. */
+export function isSeedYardBench(it: { kind?: string; x?: number; y?: number; flip?: boolean; scale?: number; size?: number } | null | undefined): boolean {
+  return !!it && it.kind === 'yard-bench' && it.x === YARD_BENCH_SEED_X && it.y === YARD_BENCH_SEED_Y
+    && it.flip === false && (it.scale == null || it.scale === 1) && (it.size == null || it.size === 1);
+}
+
+/**
+ * B16 option (1): one-time, idempotent move of a seed-spot yard bench to 1420,372, and set yardBenchRefit=1
+ * so it never re-runs. A bench a kid placed (anywhere else, or flipped, or resized) stays put.
+ * `already` is the flag on the raw save, not the merged state.
+ */
+export function applyYardBenchRefit(s: GameState, already?: unknown): GameState {
+  if (already === 1) return s.yardBenchRefit === 1 ? s : { ...s, yardBenchRefit: 1 as const };
+  const room = s.rooms?.backyard;
+  let itemsChanged = false;
+  let items = room?.items;
+  if (items) {
+    const next = items.map(it => {
+      if (!isSeedYardBench(it)) return it;
+      itemsChanged = true;
+      return { ...it, x: YARD_BENCH_REFIT_X, y: YARD_BENCH_REFIT_Y };
+    });
+    if (itemsChanged) items = next;
+  }
+  if (!itemsChanged && s.yardBenchRefit === 1) return s;
+  const rooms = itemsChanged && room ? { ...s.rooms, backyard: { ...room, items: items! } } : s.rooms;
+  return { ...s, rooms, yardBenchRefit: 1 };
+}
+
+/** Patch a raw save in place: set the marker, and move a seed-spot bench if it is still there.
+ *  Returns null when the save is already marked, so callers do not rewrite unrelated migrate fill-ins. */
+export function patchSavedYardBenchRefit(raw: any): any | null {
+  if (!raw || typeof raw !== 'object' || raw.yardBenchRefit === 1) return null;
+  const room = raw.rooms?.backyard;
+  let rooms = raw.rooms;
+  if (room && Array.isArray(room.items)) {
+    let changed = false;
+    const items = room.items.map((it: any) => {
+      if (!isSeedYardBench(it)) return it;
+      changed = true;
+      return { ...it, x: YARD_BENCH_REFIT_X, y: YARD_BENCH_REFIT_Y };
+    });
+    if (changed) rooms = { ...raw.rooms, backyard: { ...room, items } };
+  }
+  return { ...raw, rooms, yardBenchRefit: 1 };
+}
+
 /** Upgrade any older save to the current schema. Pure; safe to run on a server too. */
 export function migrate(raw: any): GameState {
   if (!raw || typeof raw !== 'object' || !raw.rooms) return initialState();
@@ -553,7 +611,9 @@ export function migrate(raw: any): GameState {
     const { baby: _drop, ...rest } = kept;
     kept = rest;
   }
-  return keepSeats(showKnownRoom(kept));
+  // `already` is the flag on the raw save. migrate() spreads initialState() (born with the flag)
+  // onto every house, which would otherwise skip the nudge on an unmarked save.
+  return applyYardBenchRefit(keepSeats(showKnownRoom(kept)), raw?.yardBenchRefit);
 }
 
 /** A seat stays only while its item is still in that doll's room. */
@@ -629,6 +689,12 @@ export function createStore() {
   if (raw !== null && loaded) {
     state = loaded; good = true;
     try { if (localStorage.getItem(BAK_KEY) !== raw) localStorage.setItem(BAK_KEY, raw); } catch { /* no room for a backup: the save itself is untouched */ }
+    // Write the one-time yard-bench marker (and the seed-bench nudge) into the save without
+    // flushing other in-memory migrate fill-ins. The backup stays the pre-refit copy.
+    try {
+      const patched = patchSavedYardBenchRefit(JSON.parse(raw));
+      if (patched) localStorage.setItem(KEY, JSON.stringify(patched));
+    } catch { /* next edit will write; the in-memory house is already migrated */ }
   } else if (raw !== null) { // present but unreadable (also an empty or truncated write)
     keepRaw = raw.trim() !== ''; corruptKept();
     let bak: string | null = null;
