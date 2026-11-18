@@ -187,6 +187,22 @@ run_concurrent() {
 
 
 # ---- portrait 820x1180 WebKit: reach, tap-sit two kids, Decorate drag ----
+
+# ---- yard camera visits: frame her on entry/switch, keep pan only this visit ----
+run_cam_visit() {
+  bash /workspace/tools/port_preflight.sh 5312 || return 2
+  local S P lf=$L/yard_cam_visit.log
+  S=$(mktemp -d); ln -s "$DT" "$S/kids-house-game"
+  python3 -m http.server 5312 --bind 127.0.0.1 --directory "$S" >/dev/null 2>&1 8>&- 9>&- & P=$!
+  sleep 1.0
+  curl -sf -o /dev/null http://127.0.0.1:5312/kids-house-game/ || { echo cam-visit web failed; stop_ours $P; return 3; }
+  ( cd "$W" && URL=http://127.0.0.1:5312/kids-house-game/ BROWSERS=webkit,chromium \
+      timeout -k 20 900 "$PY" tests/yard_cam_visit_test.py ) | tee "$lf"
+  echo rc=${PIPESTATUS[0]} >> "$lf"
+  stop_ours $P
+  rep "yard_cam_visit 820x1180: $(grep -E 'YARD_CAM_VISIT ' "$lf" | tail -1) $(grep -E '^rc=' "$lf" | tail -1)"
+}
+
 run_reach() {
   bash /workspace/tools/port_preflight.sh 5310 || return 2
   local S P lf=$L/yard_bench_reach.log
@@ -225,6 +241,7 @@ run_bounds
 run_hotspot
 run_migrated_shots
 run_reach
+run_cam_visit
 run_shots
 # seed x is still 1420; official 5/5+5/5 concurrent stands
 # run_concurrent

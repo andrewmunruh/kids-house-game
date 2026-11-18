@@ -281,6 +281,11 @@ let camX = V1_OFFSET, inertia = 0;
 const panned = new Set<string>();
 const camAuto = () => !panned.has(store.get().currentRoom);
 const markPanned = () => { panned.add(store.get().currentRoom); };
+/** A fresh visit: first entry or a room switch. The last visit's pan must not strand her off-camera. */
+function beginRoomVisit(room: string) {
+  panned.delete(room);
+  delete cams[room];
+}
 modeFit = true;
 let glideTarget: number | null = null;
 const stopGlide = () => { cancelAnimationFrame(inertia); glideTarget = null; };
@@ -573,11 +578,9 @@ function playPairBounds(): { minX: number; maxX: number } | null {
 /** Pan so the kid and her name tag sit inside the stage. On a drop, step her inward if the camera is already at the end of the room. */
 function frameHouseKid(nudgeX: boolean) {
   if (view !== 'house' || doorPress) return;
-  // The yard camera is staged. Centring her here pans the starter bench off a phone.
-  if (store.get().currentRoom === 'backyard') {
-    // Stay on the staged play-set camera until she pans. Forcing YARD_CAM after a
-    // › tap would hide a bench just past the tree (1420) in portrait and snap back on sit.
-    if (camAuto() && Math.abs(camX - YARD_CAM) > 0.5) setCam(YARD_CAM);
+  // Yard: on a new visit, fall through and frame her avatar so she is never
+  // stranded off-camera. After a pan or sit in this same visit, keep that camera.
+  if (store.get().currentRoom === 'backyard' && !camAuto()) {
     placeYardHints();
     return;
   }
@@ -864,6 +867,7 @@ function remembered(key: string, seat: DollSeat | null) {
 }
 /** A seat object goes on the wire only after welcome said sit:1. Solo play always saves it. */
 function moveDoll(id: string, room: RoomId, x: number, y: number, seat: DollSeat | null) {
+  if (seat) markPanned();
   const offline = !hood || inner === local;
   const sendSeat = offline || !!hood?.speaksSit;
   if (!sendSeat) remembered('c:' + id, seat);
@@ -872,6 +876,7 @@ function moveDoll(id: string, room: RoomId, x: number, y: number, seat: DollSeat
   else store.dispatch({ type: 'char/move', id, room, x, y });
 }
 function placeMe(cur: Presence, x: number, y: number, flip: boolean, seat: PresSeat | null) {
+  if (seat) markPanned();
   const { seat: _prev, ...rest } = cur;
   if (hood && !hood.speaksSit) {
     remembered('p:' + hood.pid, seat ? { item: seat.id, pose: seat.pose, n: seat.n } : null);
@@ -2062,6 +2067,7 @@ store.subscribe((s, a) => {
   switch (a.type) {
     case 'room/switch': {
       const wasYard = stage.classList.contains('room-yard');
+      beginRoomVisit(a.room);
       if (hood && inner !== local) moveMeToRoom(a.room);
       renderAll(); renderDrawer();
       // Phone Play refits so a smaller room can use the height the previous room gave up.
@@ -5616,8 +5622,8 @@ function fitLivingGroup(s: GameState, kidX: number, cam: number, keep: number) {
 }
 function frameYardCam() {
   if (store.get().currentRoom === 'backyard') {
-    if (camAuto()) setCam(YARD_CAM);
-    placeYardHints();
+    if (camAuto()) frameHouseKid(false);
+    else placeYardHints();
     return;
   }
   if (!yardOn || yardShot() === 'sheet' || yardShot() === 'compare') return;
