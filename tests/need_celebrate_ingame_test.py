@@ -367,24 +367,34 @@ async def run_two_client(browser):
         }""", arg=cid, timeout=3000)
     except Exception:
         pass
+    # Prime prev at hungry 2 while she is still away, so auto-care at the fridge
+    # cannot meet (and paint prev=3) before the test sees a rise.
+    await A.evaluate("""(id) => {
+      const c = __store.get().characters.find(x => x.id === id);
+      if (window.__cam && c) __cam.set(Math.max(0, c.x - 340));
+    }""", cid)
+    await B.evaluate("""(id) => {
+      const c = __store.get().characters.find(x => x.id === id);
+      if (window.__cam && c) __cam.set(Math.max(0, c.x - 340));
+    }""", cid)
+    await A.wait_for_function("""(id) => !!document.querySelector('.char[data-cid="'+id+'"]')""", arg=cid, timeout=5000)
+    await B.wait_for_function("""(id) => !!document.querySelector('.char[data-cid="'+id+'"]')""", arg=cid, timeout=5000)
+    await A.evaluate("() => { if (window.__needs) __needs.paint(); }")
+    await B.evaluate("() => { if (window.__needs) __needs.paint(); }")
+    await A.wait_for_timeout(50)
+    # Move and meet in one turn so the host paints 2→3 together with the visitor.
     await A.evaluate("""(id) => {
       const fr = __store.get().rooms.kitchen.items.find(i => /fridge/.test(i.kind));
       __store.dispatch({ type: 'char/move', id, room: 'kitchen', x: fr.x + 50, y: fr.y + 20, seat: null });
+      __store.dispatch({ type: 'need/meet', id, need: 'hungry' });
       if (window.__cam) __cam.set(Math.max(0, fr.x - 340));
     }""", cid)
     await B.evaluate("""() => {
       const fr = __store.get().rooms.kitchen.items.find(i => /fridge/.test(i.kind));
       if (window.__cam && fr) __cam.set(Math.max(0, fr.x - 340));
+      if (window.__needs) __needs.paint();
     }""")
-    await A.wait_for_function("""(id) => !!document.querySelector('.char[data-cid="'+id+'"]')""", arg=cid, timeout=5000)
-    await B.wait_for_function("""(id) => !!document.querySelector('.char[data-cid="'+id+'"]')""", arg=cid, timeout=5000)
-    # Prime prev at the pre-meet level while the doll is on screen, then meet.
     await A.evaluate("() => { if (window.__needs) __needs.paint(); }")
-    await B.evaluate("() => { if (window.__needs) __needs.paint(); }")
-    await A.wait_for_timeout(50)
-    await A.evaluate(MEET, {'need': 'hungry', 'id': cid})
-    await A.evaluate("() => { if (window.__needs) __needs.paint(); }")
-    await B.evaluate("() => { if (window.__needs) __needs.paint(); }")
     # Both iPads should show the celebration within 1s, on this doll.
     seenA = seenB = False
     for i in range(12):
