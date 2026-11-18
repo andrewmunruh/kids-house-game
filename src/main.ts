@@ -4363,8 +4363,9 @@ function syncAmbient() {
       chars.push({ id: 'p:' + pid, x: p.x, y: p.y, seated: pose === 'sit', lying: pose === 'lie' }); els.set('p:' + pid, el);
     }
   }
-  // Derived each frame from synced doll positions. Never item.on, never a leftover local .opened.
-  const fridgesOpen = openFridges(items, chars);
+  // Derived each frame from synced house-doll positions. Player avatars on the street
+  // do not keep the fridge open; "she left" means the house doll left.
+  const fridgesOpen = openFridges(items, chars.filter(c => !c.id.startsWith('p:')));
   layer.querySelectorAll<HTMLElement>('.item').forEach(el => {
     if (isFridge(el.dataset.kind || '') && el.dataset.id) el.classList.toggle('opened', fridgesOpen.has(el.dataset.id));
   });
