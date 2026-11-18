@@ -64,10 +64,12 @@ async def go_kitchen(pg):
     await pg.wait_for_timeout(200)
 
 async def move_to_fridge(pg, near=True):
+    await pg.wait_for_function("() => (__store.get().characters||[]).length > 0 && ((__store.get().rooms.kitchen||{}).items||[]).some(i => /fridge/.test(i.kind))", timeout=15000)
     return await pg.evaluate("""near => {
       const s = __store.get();
       const c = s.characters[0];
       const fr = s.rooms.kitchen.items.find(i => /fridge/.test(i.kind));
+      if (!c || !fr) throw new Error('missing char or fridge');
       const x = near ? fr.x + 50 : fr.x + 400;
       __store.dispatch({ type: 'char/move', id: c.id, room: 'kitchen', x, y: Math.max(fr.y, 520), seat: null });
       return { id: c.id, x, fridge: fr.id };
@@ -192,10 +194,11 @@ async def run_two_and_mixed(browser):
     code = (await A.evaluate("fetch((__hood_url ? __hood_url() : '') + '/api/create', {method:'POST'}).then(r => r.json())"))['code']
     await join(A, code, 0, True)
     await join(B, code, 1, False)
-    await A.evaluate("document.querySelector('#mapWorld .mapHouse.mine').click()")
-    await A.wait_for_timeout(800)
-    hid = await A.evaluate("__hood().myHouseId()")
+    await A.evaluate("document.querySelector('#mapWorld .mapHouse.mine')?.click()")
+    hid = await A.evaluate("async () => { for (let i=0;i<50 && !(__hood() && __hood().myHouseId && __hood().myHouseId()); i++) await new Promise(r=>setTimeout(r,100)); return __hood().myHouseId(); }")
+    await A.wait_for_function("() => document.body.classList.contains('view-house') && (__store.get().characters||[]).length > 0", timeout=15000)
     await visit(B, hid)
+    await B.wait_for_function("() => document.body.classList.contains('view-house') && (__store.get().characters||[]).length > 0", timeout=15000)
     for pg in (A, B):
         await pg.evaluate("() => __store.dispatch({type:'room/switch', room:'kitchen'})")
     await A.wait_for_timeout(300)
@@ -217,6 +220,10 @@ async def run_two_and_mixed(browser):
     try:
         # may land on the map
         await visit(B, hid)
+    except Exception:
+        pass
+    try:
+        await B.wait_for_function("() => document.body.classList.contains('view-house') && (__store.get().characters||[]).length > 0", timeout=10000)
     except Exception:
         pass
     await B.evaluate("() => { if (window.__store) __store.dispatch({type:'room/switch', room:'kitchen'}); }")

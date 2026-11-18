@@ -192,22 +192,24 @@ async def run_two_client(browser):
     code = (await A.evaluate("fetch((__hood_url ? __hood_url() : '') + '/api/create', {method:'POST'}).then(r => r.json())"))['code']
     await join(A, code, 0, True)
     await join(B, code, 1, False)
-    await A.evaluate("document.querySelector('#mapWorld .mapHouse.mine').click()")
-    await A.wait_for_timeout(800)
-    hid = await A.evaluate("__hood().myHouseId()")
-    await B.evaluate("h => document.querySelector(`#mapWorld .mapHouse[data-go=\\\"house:${h}\\\"]`)?.click()", hid)
-    await B.wait_for_timeout(1000)
+    await A.evaluate("document.querySelector('#mapWorld .mapHouse.mine')?.click()")
+    hid = await A.evaluate("async () => { for (let i=0;i<50 && !(__hood() && __hood().myHouseId && __hood().myHouseId()); i++) await new Promise(r=>setTimeout(r,100)); return __hood().myHouseId(); }")
+    await A.wait_for_function("() => document.body.classList.contains('view-house') && (__store.get().characters||[]).length > 0", timeout=15000)
+    await B.evaluate("h => { const el = document.querySelector('#mapWorld .mapHouse[data-go=\'house:' + h + '\']'); if (el) el.click(); }", hid)
+    await B.wait_for_function("() => document.body.classList.contains('view-house') && (__store.get().characters||[]).length > 0", timeout=15000)
     for pg in (A, B):
         await pg.evaluate("() => __store.dispatch({type:'room/switch', room:'kitchen'})")
     await A.wait_for_timeout(400)
     # Make sure she is hungry again (join may have kept or reset).
     await A.evaluate("""() => {
-      const c = __store.get().characters[0];
+      const chars = __store.get().characters || [];
+      const c = chars[0]; if (!c) throw new Error('no characters after join');
       const fr = __store.get().rooms.kitchen.items.find(i => /fridge/.test(i.kind));
       const lv = ((c.needs || {}).hungry ?? 3);
       for (let i = lv; i > 0; i--) __store.dispatch({ type: 'need/drift', id: c.id, need: 'hungry' });
       __store.dispatch({ type: 'char/move', id: c.id, room: 'kitchen', x: fr.x + 70, y: Math.max(fr.y, 520) });
     }""")
+    await A.wait_for_timeout(400)
     await A.wait_for_timeout(400)
     await A.evaluate(MEET, 'hungry')
     # Both iPads should show the celebration within 1s.

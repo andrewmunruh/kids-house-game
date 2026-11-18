@@ -107,10 +107,11 @@ async def main():
         code = (await A.evaluate("fetch((__hood_url ? __hood_url() : '') + '/api/create', {method:'POST'}).then(r => r.json())"))['code']
         await join(A, code, 0, True)
         await join(B, code, 1, False)
-        await A.evaluate("document.querySelector('#mapWorld .mapHouse.mine').click()")
-        await A.wait_for_timeout(800)
-        hid = await A.evaluate("__hood().myHouseId()")
+        await A.evaluate("document.querySelector('#mapWorld .mapHouse.mine')?.click()")
+        hid = await A.evaluate("async () => { for (let i=0;i<50 && !(__hood() && __hood().myHouseId && __hood().myHouseId()); i++) await new Promise(r=>setTimeout(r,100)); return __hood().myHouseId(); }")
+        await A.wait_for_function("() => document.body.classList.contains('view-house') && (__store.get().characters||[]).length > 0", timeout=15000)
         await visit(B, hid)
+        await B.wait_for_function("() => document.body.classList.contains('view-house') && (__store.get().characters||[]).length > 0", timeout=15000)
         for pg in (A, B):
             await pg.evaluate("() => __store.dispatch({type:'room/switch', room:'kitchen'})")
         await A.wait_for_timeout(400)
