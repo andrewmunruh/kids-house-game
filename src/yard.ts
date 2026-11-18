@@ -6,6 +6,7 @@
 // only the sky, glass, and a lamp glow. Nothing here is in the default catalog.
 
 import { svgOf, type ItemDef } from './items';
+import { picnicBox } from './shared/picnic_opt';
 import { patchFromLook2, type Look2 } from './shared/avatar';
 
 const O = '#5a3d5c';
@@ -483,9 +484,9 @@ const cup = piece({
     ${hi('M24 38 v14')}`,
 });
 
-/** B17 prototype: uniform 2× catalog box (was 180×110). View-box unchanged so the painting is not stretched. */
+/** B17-r2: uniform catalog scale, switchable via picnicBox() / ?picnic=. View-box unchanged (no stretch). */
 const picnicTable = piece({
-  kind: 'picnic-table', name: 'Picnic Table', cat: 'furniture', w: 360, h: 220, vb: '0 0 160 100',
+  kind: 'picnic-table', name: 'Picnic Table', cat: 'furniture', w: picnicBox().w, h: picnicBox().h, vb: '0 0 160 100',
   svg: `${shadow(80, 68, 96)}
     <rect x="18" y="62" width="124" height="10" rx="2" fill="#e7c49a" ${ink()}/>
     <rect x="118" y="64" width="20" height="7" fill="#c99366"/>

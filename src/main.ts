@@ -56,6 +56,7 @@ import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
 import { emptyRoomStarters, setRoomScenery, syncScenery, roomSceneArt } from './scenery';
 import { showSceneArt, releaseSceneArt } from './art/scene';
 import { DOOR_CAT_X, DOOR_KID, LIVE_DOOR, YARD_CAM, YARD_CAT, YARD_DOG, YARD_DOOR, YARD_KID, YARD_STAGE, registerYardItems, yardBackyardScenery, yardCompareHTML, yardDoorMarkup, yardLookPatch, yardPreviewOn, yardSheetHTML, yardShot } from './yard';
+import { applyPicnicOpt, picnicOptFromSearch, picnicOpt, picnicBox, setPicnicInDx } from './shared/picnic_opt';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { isLightKind } from './sky';
 import { dockSkyChrome, mountSkyToggle } from './sky-toggle';
@@ -113,6 +114,21 @@ const roomColor = (r: string) => ROOMS.find(x => x.id === r)?.color ?? '#ccc';
 // ?yard=1 stages the approval shots. The catalog itself is always registered.
 const yardOn = yardPreviewOn();
 registerYardItems(ITEMS, ITEM_MAP);
+// B17-r2: ?picnic=1.5x|2x|2x-in switches the catalog box and seat fractions for real in-game frames.
+{
+  const flag = picnicOptFromSearch(typeof location !== 'undefined' ? location.search : '');
+  if (flag) applyPicnicOpt(flag, ITEM_MAP);
+  (window as any).__applyPicnicOpt = (opt: string) => {
+    if (opt === '1.5x' || opt === '2x' || opt === '2x-in') {
+      applyPicnicOpt(opt, ITEM_MAP);
+      store.dispatch({ type: 'room/switch', room: store.get().currentRoom });
+    }
+    return { opt: picnicOpt(), box: picnicBox() };
+  };
+  (window as any).__picnicOpt = () => ({ opt: picnicOpt(), box: picnicBox() });
+  (window as any).__setPicnicInDx = (dx: number) => ({ dx: setPicnicInDx(dx), box: picnicBox() });
+}
+
 
 // ---------- drawer tabs: people, categories, then packs ----------
 type Tab = { id: string; name: string; icon: string; kind: 'people' | 'cat' | 'pack' };
@@ -575,7 +591,8 @@ function frameHouseKid(nudgeX: boolean) {
   if (view !== 'house' || doorPress) return;
   // The yard camera is staged. Centring her here pans the starter bench off a phone.
   if (store.get().currentRoom === 'backyard') {
-    if (Math.abs(camX - YARD_CAM) > 0.5) setCam(YARD_CAM);
+    // __qaFreeCam lets the B17 shot harness pan to the picnic table on the lawn.
+    if (!(window as any).__qaFreeCam && Math.abs(camX - YARD_CAM) > 0.5) setCam(YARD_CAM);
     placeYardHints();
     return;
   }
@@ -5615,7 +5632,7 @@ function fitLivingGroup(s: GameState, kidX: number, cam: number, keep: number) {
 }
 function frameYardCam() {
   if (store.get().currentRoom === 'backyard') {
-    setCam(YARD_CAM);
+    if (!(window as any).__qaFreeCam) setCam(YARD_CAM);
     placeYardHints();
     return;
   }

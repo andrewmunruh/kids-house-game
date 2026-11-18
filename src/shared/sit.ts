@@ -2,6 +2,7 @@
 // Anchors are fractions of the piece. The caller passes the drawn foot
 // (the same drawn y sit, the kennel, and the bubble already use).
 
+import { picnicBox } from './picnic_opt';
 export type SeatPose = 'sit' | 'lie';
 export type SeatN = 0 | 1;
 
@@ -187,15 +188,18 @@ export function inLieRect(p: { x: number; y: number }, r: LieRect): boolean {
  * Render only: the saved seat is still { item, pose, n } with n 0 or 1.
  * The picnic table seats one kid on each bench (the painted benches sit at 8-48 and 112-152 of 160).
  */
-const SEAT_KIND: Record<string, SeatFractions> = {
-  'picnic-table': { pose: 'sit', spots: [{ dx: -0.33, dy: -0.22 }, { dx: 0.33, dy: -0.22 }] },
-};
+const SEAT_KIND: Record<string, SeatFractions> = {};
 
 export function seatFractions(kind: string): SeatFractions | null {
   const k = String(kind || '').toLowerCase();
   if (!k || NOT_SEAT.test(k)) return null;
   if (isLieBed(k)) return { pose: 'lie', spots: [{ dx: 0, dy: 0 }] };
-  const own = SEAT_KIND[k.replace(/^pack:/, '')];
+  const slug = k.replace(/^pack:/, '');
+  if (slug === 'picnic-table') {
+    const { dx, dy } = picnicBox();
+    return { pose: 'sit', spots: [{ dx: -dx, dy: -dy }, { dx, dy: -dy }] };
+  }
+  const own = SEAT_KIND[slug];
   if (own) return { pose: own.pose, spots: own.spots.map(pt => ({ ...pt })) };
   if (/sofa|couch|loveseat/.test(k)) return { pose: 'sit', spots: [{ dx: -0.18, dy: -0.33 }, { dx: 0.18, dy: -0.33 }] };
   if (/armchair/.test(k)) return { pose: 'sit', spots: [{ dx: 0, dy: -0.32 }] };
@@ -301,6 +305,7 @@ const PIECE_W: Record<string, number> = {
 
 export function pieceWidth(kind: string): number {
   const k = String(kind || '').toLowerCase().replace(/^pack:/, '');
+  if (k === 'picnic-table') return picnicBox().w;
   return PIECE_W[k] ?? 320;
 }
 

@@ -7,6 +7,7 @@ import { fillLook2 } from '../src/shared/avatar';
 import { NICKNAMES, PROTOCOL, cleanAction, cleanHouseState, cleanPresence } from '../src/shared/hood';
 import { ensureRooms, initialState, migrate, newCharacter, reduce, type Character, type GameState } from '../src/shared/state';
 import { anchorsOf, bedArt, dollAnchorOffset, furnitureClearsSeat, inLieRect, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, standBeside, STAND_Y, type SeatPiece } from '../src/shared/sit';
+import { applyPicnicOpt, picnicBox, PICNIC_OPTS, type PicnicOpt } from '../src/shared/picnic_opt';
 import { hOf, ITEM_MAP } from '../src/items';
 
 let pass = 0;
@@ -104,10 +105,16 @@ async function main() {
   check('a daybed lies down', seatFractions('pack:cc-canopy-daybed')?.pose === 'lie');
   check('the winter bed lies down and the window seat and ottoman sit', seatFractions('pack:wc-plaid-bed')?.pose === 'lie' && seatFractions('pack:wc-window-seat')?.spots.length === 2 && seatFractions('pack:wc-mitten-ottoman')?.spots.length === 1 && seatFractions('pack:wc-plaid-sofa')?.spots.length === 2 && seatFractions('pack:wc-knit-armchair')?.spots.length === 1 && seatFractions('pack:wc-penguin-chair')?.pose === 'sit' && seatFractions('pack:wc-log-bench')?.spots.length === 2);
   check('a picnic table has two sit spots', seatFractions('picnic-table')?.pose === 'sit' && seatFractions('picnic-table')?.spots.length === 2);
-  const picnic = { id: 'pt-1', kind: 'picnic-table', x: 1200, footY: 540, flip: false, scale: 1, w: 360, h: 220 } as SeatPiece;
-  const picnicAnchors = anchorsOf(picnic);
-  check('picnic anchors track the painted benches at the 2× box', picnicAnchors.length === 2 && picnicAnchors[0].pose === 'sit' && Math.abs(picnicAnchors[0].x - (1200 - 0.33 * 360)) < 0.01 && Math.abs(picnicAnchors[1].x - (1200 + 0.33 * 360)) < 0.01 && Math.abs(picnicAnchors[0].y - (540 - 0.22 * 220)) < 0.01);
-  check('pieceWidth knows the picnic table', pieceWidth('picnic-table') === 360);
+  const savedOpt = (['1.5x', '2x', '2x-in'] as PicnicOpt[]).find(o => PICNIC_OPTS[o].w === picnicBox().w && PICNIC_OPTS[o].dx === picnicBox().dx) || '2x-in';
+  for (const opt of ['1.5x', '2x', '2x-in'] as PicnicOpt[]) {
+    applyPicnicOpt(opt);
+    const box = picnicBox();
+    const picnic = { id: 'pt-1', kind: 'picnic-table', x: 1200, footY: 540, flip: false, scale: 1, w: box.w, h: box.h } as SeatPiece;
+    const picnicAnchors = anchorsOf(picnic);
+    check(`picnic ${opt} anchors follow the box and dx`, picnicAnchors.length === 2 && picnicAnchors[0].pose === 'sit' && Math.abs(picnicAnchors[0].x - (1200 - box.dx * box.w)) < 0.01 && Math.abs(picnicAnchors[1].x - (1200 + box.dx * box.w)) < 0.01 && Math.abs(picnicAnchors[0].y - (540 - box.dy * box.h)) < 0.01);
+    check(`pieceWidth follows picnic ${opt}`, pieceWidth('picnic-table') === box.w);
+  }
+  applyPicnicOpt(savedOpt);
   for (const kind of lieBedKinds()) {
     const def = ITEM_MAP[kind];
     const art = bedArt(kind)!;
