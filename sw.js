@@ -8,7 +8,7 @@
 //   only when this worker's scope is /kids-house-game/ (production); preview never touches it.
 // - Kill switch: see sw/kill.js and src/sw-client.ts (sw-switch.json).
 // B15: mayCache + post-claim re-sweep. BUILD is the version string a new sw.js ships so iOS fetches it.
-const BUILD = '5909d539f77b';
+const BUILD = '4e5dc080ffe3';
 const SW_REV = 'b15';
 const SCOPE = new URL(self.registration.scope).pathname;
 const PFX = 'cozy:' + SCOPE + ':';
