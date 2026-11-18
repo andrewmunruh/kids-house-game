@@ -269,6 +269,8 @@ Full `refit_gate.sh` on ports 5300–5349, locks acquired 02:00:45 CST, done 02:
 
 Earlier normal-push of **`cursor/bench-refit-r2`** was `4d6051e` (report on top of `7a7250d`). This follow-up adds `concurrent_refit.py` and the official 5/5 + 5/5 concurrency results (`673d160b732bfd000d2f27a494db3f8f8121b86c` is that test+report commit).
 
+The portrait-reach and write-back follow-up is `3694e2002db638ecfe896ea1e1539acc53b5c01f`.
+
 - Remote: `https://github.com/andrewmunruh/kids-house-game/tree/cursor/bench-refit-r2`
 - PR link: `https://github.com/andrewmunruh/kids-house-game/pull/new/cursor/bench-refit-r2`
 - `origin/cursor/bench-refit` was left at old `ffb61ad`. No force-push. No deploys, no preview/gh-pages, no ports 9800–9899.
