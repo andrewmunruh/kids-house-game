@@ -129,6 +129,30 @@ async def close_sheet(pg):
     }""")
     await pg.wait_for_timeout(200)
 
+
+async def wait_client_ready(pg, timeout=25000):
+    """Land far enough to click chrome.
+
+    Do not wait for #stage to be visible: body.view-map (and view-street on
+    the map) keeps #stage { visibility: hidden }. After a reload the owner
+    often reconnects to the map; waiting for a visible #stage then times
+    out even though the house is ready (#btnMenu is up, hood is online).
+    Same fix as the B16 concurrency harness: wait for #btnMenu or a
+    house-ready store.
+    """
+    await pg.wait_for_function(
+        """() => {
+          const menu = document.getElementById('btnMenu');
+          const menuOn = !!(menu && menu.getClientRects().length);
+          const hoodBtn = document.getElementById('btnHood');
+          const onMap = document.body.classList.contains('view-map')
+            && document.querySelectorAll('#mapWorld .mapHouse, #mapWorld .mapSpot').length > 0;
+          const ready = !!(window.__store || window.__hood);
+          return (menuOn && hoodBtn) || onMap || ready;
+        }""",
+        timeout=timeout,
+    )
+
 async def boot(browser, w, h, storage=None):
     kw = {"viewport": {"width": w, "height": h}}
     if storage:
@@ -137,7 +161,7 @@ async def boot(browser, w, h, storage=None):
     await ctx.add_init_script(SKIP)
     pg = await ctx.new_page()
     await pg.goto(f"{WEB}/?hood={HOOD}", wait_until="domcontentloaded")
-    await pg.wait_for_selector("#stage", timeout=20000)
+    await wait_client_ready(pg)
     await pg.wait_for_timeout(1100)
     await close_sheet(pg)
     return ctx, pg
@@ -317,7 +341,7 @@ async def load_host(browser, w, h, nick_i=0):
     await pg.wait_for_timeout(800)
     # Reload the saved house.
     await pg.reload(wait_until="domcontentloaded")
-    await pg.wait_for_selector("#stage", timeout=20000)
+    await wait_client_ready(pg)
     await pg.wait_for_timeout(1500)
     await close_sheet(pg)
     has = await pg.evaluate("() => !!(window.__store && __store.get().rooms.backyard.items.some(i=>i.id==='qa-pt'))")

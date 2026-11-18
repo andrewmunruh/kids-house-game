@@ -327,3 +327,79 @@ Full gate 02:36:01–02:55:02 CST under soak.lock then gate.lock, ports 5300–5
 
 No wrangler, no deploy, no touch of ports 9800–9899. Ports 5300–5349 were clear after the gate.
 
+## B16-r3: rebase onto B7-r9 (2026-11-18, America/Chicago)
+
+- **Tip (rebase):** `3285b5943931e060589cca317f6b1f0faffee568` on `cursor/bench-refit-r3` (normal-pushed; not force-pushed). Worktree `/workspace/t-bench-refit-r3`.
+- **Recipe:** `cursor/bench-refit-r2` @ `b8ea0d7cf80003f817350c3a007c2ef10ad8d398` rebased onto `cursor/batch7-r9` @ `ea83ae5935e486e0f628a7bcd1d491ae26812d1a`. All 10 commits replayed cleanly (no conflicts).
+- `cursor/bench-refit-r2` was left at `b8ea0d7`. Did not touch `origin/cursor/bench-refit`, `/workspace/r17a`, cozy-hood-preview, cozy-preview gh-pages, or ports 9800–9899. No wrangler, deploy, or force-push.
+
+### Conflicts and interplay
+
+No conflict hunks. After the rebase:
+
+- `BENCH_DX` stays **0.22** (B7-r9 / production). `PIECE_W['yard-bench']` is **308**, and the catalog box is **308×220** (B16 refit, viewBox unchanged).
+- B16 camera policy is intact: `beginRoomVisit` on every `room/switch`; `frameHouseKid` frames her avatar on a new yard visit and keeps a pan or sit for the rest of that visit; `frameYardCam` delegates to `frameHouseKid` when `camAuto()`.
+- B17a's picnic-only `drawY` / `snapY` / Decorate offset and `PICNIC_FOOT_MAX` are intact. Sofa and the yard bench still use the ordinary floor `drawY`. `seatPieceOf` feeds `drawY` as `footY`, so a picnic clamp cannot move a bench sitter.
+- B7's `clientSeatFractions()` still returns null for `picnic-table`, so picnic seats stay off. Yard-bench sitting goes through `seatFractions` as usual at ±0.22 of the 308-wide box.
+
+### Worker/shared proof
+
+`git diff ea83ae5 3285b59 -- src/shared server worker wrangler.toml` is the B16 Worker delta and nothing else. The same four paths, same +83/−7, as `git diff 5909d53 b8ea0d7 -- <same paths>`:
+
+| Path | Change |
+|---|---|
+| `src/shared/state.ts` | `applyYardBenchRefit` / seed 1420 + `yardBenchRefit?: 1` (raw patches identical to r2) |
+| `src/shared/hood.ts` | `cleanHouseState` whitelist copies `yardBenchRefit: 1` (raw patches identical to r2) |
+| `server/core.ts` | apply on load, persist only when a backyard was already stored (raw patches identical to r2) |
+| `src/shared/sit.ts` | `PIECE_W['yard-bench']` 140 → 308. Same one-line change as r2; hunk line numbers differ because B7 rewrote the file above `PIECE_W`. |
+
+`wrangler.toml` and `worker/` are unchanged. sha256 list (30 files, 4 changed, 0 path diffs): `/workspace/t-b16-r3/worker_shared_sha256.txt`.
+
+| File | sha256 @ ea83ae5 (r9) | sha256 @ 3285b59 (r3) |
+|---|---|---|
+| `src/shared/state.ts` | `214a35e7c5e71b8fc641bac76d89890030777f440d0f05ec4d49aefcea355031` | `2cd0e13217d5f8438f16b3f0faab04e87309b1bd292c44beb0b1b06d34529b04` |
+| `src/shared/hood.ts` | `c7bd46ca212d86d7878389a04d2db1cd1d6c8c6d160a778ebc8f185d41c2a5a8` | `ed5aced224765a1f6994a1a957cf4cb74dba740eacb3db7113ed6c26a581ee4f` |
+| `src/shared/sit.ts` | `dfd1e28ec7b3634c5ae87f96cd5b55f9d25650d257f8e41d385380b5f7f0a7e8` | `4201b5ca297ae3ff19e21d8431923f172e26f493da40d7eea447beb4d5d9d6f5` |
+| `server/core.ts` | `546f54ea56b4eaee3cd3fa71b8187d3a66357c1715c1a0af2b77d30a82320662` | `757e311c016afdc50b339518318a17333f031b2d4187743bf22679ff26655e7f` |
+
+### Bundles
+
+- r3 trial `/workspace/t-b16-r3/dist-trial-r3` `index-ZFUhDBTg.js` (COZY_BUILD=b16r3)
+- r3 preview-mig `/workspace/t-b16-r3/dist-trial-mig-r3` `index-_-ilFp68.js`
+- r2 pixel-before `/workspace/t-b16-r3/dist-trial-r2` (built from `b8ea0d7`)
+
+### Gate
+
+The full gate (`/workspace/t-b16-r3/r3gate.sh`) waited for soak.lock then gate.lock. A B17b1 run on 5350–5399 held them first (06:59:53–07:12:51 CST); this job did not touch those processes. Locks acquired 07:12:51 CST, main gate done 07:33:08 CST. Ports 5300–5349 only. Logs: `/workspace/t-b16-r3/logs/SUMMARY.txt`.
+
+`picnic_foot_clamp` first run (07:15:04 CST) was WebKit 18/0, then Chromium `load_host` timed out waiting for a visible `#stage` after reload (the owner had reconnected to the map; `#stage` stayed hidden). That is the known harness flake, not a picnic regression. The same `wait_client_ready()` wait as `7bf35b3` on `cursor/b17b1-picnic-flag` was applied test-only (`#btnMenu` / map / house-ready store; do not wait for a visible `#stage`). Retry under soak.lock then gate.lock at 07:56:17–07:59:26 CST (waited for a later `/workspace/r7/r9gate.sh` on the 9900s; did not touch those processes): **RESULT 35 pass 0 fail, rc=0**.
+
+| Check | Result | Notes |
+|---|---|---|
+| tsc | rc=0 | 07:12:54 CST |
+| unit (sit, rooms, write-back, firstrun, social, baby, ambient, avatar, bathroom_size) | 506 pass / 0 fail | 07:13:01 CST |
+| picnic_foot_clamp | 35/0 after retry | First run WebKit 18/0 then Chromium `#stage`-hidden flake (rc=1). Retry with `wait_client_ready()`: 35/0, rc=0, 07:59:26 CST |
+| backyard art bounds | 30/30 pass, 0 warn, 0 fail (±2.0%) | 07:15:36 CST |
+| scene_hotspot | 549 pass / 0 fail | 07:19:54 CST |
+| REACH (820×1180 WebKit) | REACH PASS | 07:20:04 CST |
+| YARD_CAM_VISIT (820×1180 WebKit + Chromium) | YARD_CAM_VISIT PASS | First entry, pan-then-sit kept, leave-and-return not stale, room switch frames her. Both browsers. 07:20:21 CST |
+| migration 45/45 | 45/45 passed | Named exception: seed yard-bench 1122,372 → 1420,372 + `yardBenchRefit`. Moved bench stays at (1500, 372); other seed benches at 1420 with the marker. 07:21:21 CST |
+| oldsmoke Chromium | OLDSMOKE chromium PASS | 07:24:50 CST |
+| oldsmoke WebKit | OLDSMOKE webkit PASS | 07:28:22 CST |
+| 2-client concurrency | 10/10 (5/5 WebKit + 5/5 Chromium) | flag=1, benches at 1420,372. 07:29:54 CST |
+| Worker-first mixed, Chromium | 17/0 | r3 Worker; OLDS = B7-r9 and 5909d53. P1 picnic + P2 sofa/yard-bench. 07:31:13 CST |
+| Worker-first mixed, WebKit | 17/0 | Same matrix. 07:32:45 CST |
+| r2 vs r3 backyard pixel, WebKit both sizes | max=0, changed=0 both | Bench in view after one pan, two kids seated, `animations='disabled'`. 07:33:08 CST |
+
+### Pixel compare (r2 vs r3)
+
+WebKit, 820×1180 and 1180×820, bench in view after one pan, two kids seated. Identical frames (max=0 / mean=0 / 0 pixels changed of 3,870,400). No full in-game reshoots were needed.
+
+- `/workspace/t-b16-r3/shots/webkit_820x1180_r2_yard-bench-sit.png`
+- `/workspace/t-b16-r3/shots/webkit_820x1180_r3_yard-bench-sit.png`
+- `/workspace/t-b16-r3/shots/webkit_1180x820_r2_yard-bench-sit.png`
+- `/workspace/t-b16-r3/shots/webkit_1180x820_r3_yard-bench-sit.png`
+
+Log: `/workspace/t-b16-r3/logs/pixel_yard_r2r3.log`.
+
+This follow-up commits only `REPORT_B16.md` and the test-only `wait_client_ready()` change in `tests/picnic_foot_clamp_test.py`. Worker/shared is unchanged from `3285b59`, so `git diff ea83ae5 <this tip> -- src/shared server worker wrangler.toml` is still the B16 Worker delta and nothing else. `cursor/bench-refit-r2` remains at `b8ea0d7`.
