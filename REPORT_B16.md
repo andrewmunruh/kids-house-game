@@ -10,6 +10,7 @@ Times are America/Chicago (CST, UTC-6). Written as the remaining steps finish so
 | Refit (rebased onto B15) | `ab1c518a27adbc91324bdc9620d91fc8fa19ce78` — Refit the yard bench wider so two kids fit (no repaint) |
 | Base (production / old client) | `5909d539f77b44ac1893ed7a17de03fc2db869ff` — B15 |
 | Local branch | `cursor/bench-refit-r2` in `/workspace/t-bench-refit` |
+| Camera visits (this follow-up) | `4ac2edcb14bb42af8020aafc2d6689d65f349a4b` — Frame her avatar on each yard visit and keep a pan only for that visit |
 | Push target | **`cursor/bench-refit-r2`** (new branch). `origin/cursor/bench-refit` is still the old `ffb61ad` off `42b8fd4`; do not force-push it. |
 
 No deploys. B7-r7 was not rebased. Ports used: 5300–5349 only. Did not touch cozy-hood-preview, cozy-preview gh-pages, or ports 9800–9899.
@@ -301,7 +302,7 @@ Visit-scope applies to every room, not only the backyard.
 3. Leave for the house and come back through the door: cam returns to 843, she is framed at 1084, not the stale 1132.2 pan.
 4. A `room/switch` to living (824) and to kitchen (900) frames her avatar.
 
-Hooked into `refit_gate.sh` as `run_cam_visit` on port 5312, after `run_reach`. Concurrent load was not re-run: the seed is still 1420.
+Hooked into `refit_gate.sh` as `run_cam_visit` on port 5312, after `run_reach`. Concurrent load was not re-run: the seed is still 1420. Work SHA: `4ac2edcb14bb42af8020aafc2d6689d65f349a4b`.
 
 Pre-gate run of that test (dist-trial, port 5312, 02:35 CST): **YARD_CAM_VISIT PASS** on WebKit and Chromium.
 
