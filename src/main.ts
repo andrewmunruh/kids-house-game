@@ -17,6 +17,7 @@ import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolve
 import { isFood } from './shared/needs';
 import { playDropPolish, isTableKind } from './play-drop';
 import { addTableNibbles, openFridges } from './eat-look';
+import { planShare, shareActions, recoverShare, locateSnack } from './share-snack';
 import { babyOccupant } from './shared/baby';
 import { installBaby } from './baby/view';
 import { poseNamed } from './avatar/sit';
@@ -2258,6 +2259,43 @@ function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
   });
 }
 
+/** Play-mode share: lift a snack toward a friend. The snack stays in her hand until the pass is known-good. */
+function beginShareDrag(charEl: HTMLElement, heldEl: HTMLElement, e: PointerEvent) {
+  const cid = charEl.dataset.cid!;
+  const hand = heldEl.dataset.hand as Hand;
+  const c0 = store.get().characters.find(c => c.id === cid);
+  const it = c0?.held[hand];
+  if (!c0 || !it || !isFood(it.kind)) return;
+  heldEl.classList.add('lifted');
+  startDrag(e, {
+    edgeScroll: false,
+    onMove(ev) {
+      const hit = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest<HTMLElement>('.char[data-cid], .avatar');
+      const toId = hit && ((hit.dataset.cid && hit.dataset.cid !== cid) ? hit.dataset.cid : hit.dataset.pid);
+      layer.querySelectorAll('.char, .avatar').forEach(el => el.classList.toggle('hold-target', !!(toId && (el.getAttribute('data-cid') === toId || el.getAttribute('data-pid') === toId))));
+    },
+    onUp(ev) {
+      heldEl.classList.remove('lifted');
+      layer.querySelectorAll('.char, .avatar').forEach(el => el.classList.remove('hold-target'));
+      const hit = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest<HTMLElement>('.char[data-cid], .avatar');
+      const toId = hit?.dataset.cid || hit?.dataset.pid || '';
+      if (!toId || toId === cid) return;
+      const playerIds: string[] = [];
+      if (hood) {
+        playerIds.push(hood.pid);
+        for (const pid of hood.presence.keys()) playerIds.push(pid);
+      }
+      const plan = planShare({ state: store.get(), fromId: cid, toId, playerIds });
+      if (!plan.ok) { bounce(charEl); return; } // refused: snack stays, nothing dispatched
+      for (const a of shareActions(plan)) store.dispatch(a);
+      const rec = recoverShare(store.get(), plan);
+      if (rec) store.dispatch(rec);
+      const toEl = charEls.get(plan.toId);
+      bounce(toEl); sparkleAt(toEl); sfx.sparkle();
+    },
+  });
+}
+
 /** Drag a held item off a hand: it is released into the room and becomes a normal dragged item. */
 function beginHeldDrag(charEl: HTMLElement, heldEl: HTMLElement, e: PointerEvent) {
   e.preventDefault(); e.stopPropagation();
@@ -2275,7 +2313,7 @@ function attachCharDrag(el: HTMLElement) {
     const heldEl = (e.target as HTMLElement).closest<HTMLElement>('.held');
     const heldImg = heldEl?.querySelector('img.artimg') as HTMLImageElement | null;
     const heldClear = !!heldImg && !artSolid(heldImg, e.clientX, e.clientY);
-    if (heldEl && !heldClear) { if (play.isPlay()) { e.preventDefault(); e.stopPropagation(); return; } if (!canEdit()) { e.stopPropagation(); lockedNudge(el); return; } return beginHeldDrag(el, heldEl, e); }
+    if (heldEl && !heldClear) { if (play.isPlay()) { e.preventDefault(); e.stopPropagation(); return beginShareDrag(el, heldEl, e); } if (!canEdit()) { e.stopPropagation(); lockedNudge(el); return; } return beginHeldDrag(el, heldEl, e); }
     e.preventDefault(); e.stopPropagation();
     if (twoFinger) return;
     // A visitor in Play does not drag the host's dolls. Another girl's avatar is not a doll.
@@ -5939,6 +5977,24 @@ store.subscribe((_s, a) => { if (a.type === 'room/switch' || a.type === 'game/re
 renderSecrets();
 (window as any).__eggs = () => ({ found: [...foundSet()] });
 initHood();
+// Test hook for sharing a snack (?shareqa=1). A normal session never needs it.
+if (new URLSearchParams(location.search).has('shareqa')) {
+  (window as any).__share = {
+    planShare, shareActions, recoverShare, locateSnack,
+    tryPass(fromId: string, toId: string) {
+      const playerIds: string[] = [];
+      if (hood) { playerIds.push(hood.pid); for (const pid of hood.presence.keys()) playerIds.push(pid); }
+      const from = store.get().characters.find(c => c.id === fromId);
+      const snackId = from?.held.left?.id || from?.held.right?.id || '';
+      const plan = planShare({ state: store.get(), fromId, toId, playerIds });
+      if (!plan.ok) return { ...plan, loc: locateSnack(store.get(), snackId) };
+      for (const a of shareActions(plan)) store.dispatch(a);
+      const rec = recoverShare(store.get(), plan);
+      if (rec) store.dispatch(rec);
+      return { ok: true as const, loc: locateSnack(store.get(), plan.itemId), plan };
+    },
+  };
+}
 // Grown-ups hear (gently) when the saved house could not be opened or the iPad is too full to save.
 const SAVE_NOTES = {
   restored: 'The saved house had a hiccup, so we opened the last good copy.',
