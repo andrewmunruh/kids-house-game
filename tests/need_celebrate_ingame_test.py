@@ -370,7 +370,18 @@ async def run_two_client(browser):
     await A.evaluate("""(id) => {
       const fr = __store.get().rooms.kitchen.items.find(i => /fridge/.test(i.kind));
       __store.dispatch({ type: 'char/move', id, room: 'kitchen', x: fr.x + 50, y: fr.y + 20, seat: null });
+      if (window.__cam) __cam.set(Math.max(0, fr.x - 340));
     }""", cid)
+    await B.evaluate("""() => {
+      const fr = __store.get().rooms.kitchen.items.find(i => /fridge/.test(i.kind));
+      if (window.__cam && fr) __cam.set(Math.max(0, fr.x - 340));
+    }""")
+    await A.wait_for_function("""(id) => !!document.querySelector('.char[data-cid="'+id+'"]')""", arg=cid, timeout=5000)
+    await B.wait_for_function("""(id) => !!document.querySelector('.char[data-cid="'+id+'"]')""", arg=cid, timeout=5000)
+    # Prime prev at the pre-meet level while the doll is on screen, then meet.
+    await A.evaluate("() => { if (window.__needs) __needs.paint(); }")
+    await B.evaluate("() => { if (window.__needs) __needs.paint(); }")
+    await A.wait_for_timeout(50)
     await A.evaluate(MEET, {'need': 'hungry', 'id': cid})
     await A.evaluate("() => { if (window.__needs) __needs.paint(); }")
     await B.evaluate("() => { if (window.__needs) __needs.paint(); }")
