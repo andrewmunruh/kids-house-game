@@ -47,7 +47,7 @@ const BED_ART: Record<string, BedArt> = {
     clip: 'wooden',
   },
   'checker-bed': {
-    head: { x: 0.21, y: 0.34 },
+    head: { x: 0.23, y: 0.34 },
     pillow: { x: 0.09, y: 0.16, w: 0.25, h: 0.22 },
     mattress: { x: 0.38, y: 0.28, w: 0.32, h: 0.18 },
     clip: 'checker',
@@ -196,7 +196,14 @@ const SEAT_KIND: Record<string, SeatFractions> = {
 
 /** Category spots. Two-seaters are spread so the kids overlap less and the piece shows between them. */
 const SOFA_DX = 0.24;
-const BENCH_DX = 0.28;
+/**
+ * Keep the production bench spread (0.22). Widening to 0.28 pulled kids off the
+ * short yard-bench ends. Mixed old/new clients do not share a computed x: each
+ * client paints both avatars from {item, pose, n} with its own seatFractions,
+ * so a wider new-client dx never reaches an old client. Leaving the slots at
+ * 0.22 keeps old and new views identical during the Worker-first window.
+ */
+const BENCH_DX = 0.22;
 /** A stool is short; at -0.38 the kid hid it. Lower hips let its legs show under hers. */
 const STOOL_DY = -0.30;
 
