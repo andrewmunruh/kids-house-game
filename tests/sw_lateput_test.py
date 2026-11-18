@@ -5,6 +5,12 @@ usage: sw_lateput_test.py --late LATE --kill KILL --hood URL [--browser chromium
 
 LATE must be the shipped public/sw.js (42b8fd4, byte-identical to 2e4c878) with only a 2s delay around cache.put (no mayCache).
 KILL is either the shipped kill worker (expect dirty) or the B15 kill worker (expect clean).
+
+The delay is in front of caches.open+put, not just put on an already-open handle:
+both browsers refuse to recreate a deleted cache from a stale Cache object. On this
+Playwright Chromium/WebKit, the outgoing worker's first-fetch 3s waitUntil also
+delays the kill worker's activation until after the 2s write, so the wipe lands
+after the put and the base still ends clean. See REPORT.md. Do not fake a dirty fail.
 """
 import argparse, json, os, socket, sys, threading, time, hashlib, difflib
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
@@ -24,6 +30,7 @@ A = ap.parse_args()
 
 PROD = '/kids-house-game/'
 STATE = {'dirs': {PROD: A.late}, 'down': False}
+DIAG_HTML = b'<!doctype html><title>lateput</title><body>lateput</body>'
 TYPES = {'.js': 'text/javascript', '.json': 'application/json', '.webmanifest': 'application/manifest+json',
          '.webp': 'image/webp', '.svg': 'image/svg+xml', '.png': 'image/png', '.css': 'text/css',
          '.html': 'text/html', '.mp3': 'audio/mpeg', '.woff2': 'font/woff2'}
@@ -36,6 +43,13 @@ class H(SimpleHTTPRequestHandler):
             except OSError: pass
             self.close_connection = True; return
         p = urlparse(self.path).path
+        if p == PROD + 'diag.html' or p == PROD + 'diag.html/':
+            body = DIAG_HTML
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html')
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('Content-Length', str(len(body))); self.end_headers()
+            self.wfile.write(body); return
         if not p.startswith(PROD):
             self.send_error(404); return
         rel = p[len(PROD):] or 'index.html'
@@ -71,9 +85,9 @@ def check_fixture():
     # Reconstruct what we expect: orig with the two delay injections.
     exp = orig
     art = 'if (r && r.ok) { await cache.put(req, r.clone()); trimArt(cache); }'
-    art2 = 'if (r && r.ok) { await new Promise(ok => setTimeout(ok, 2000)); await cache.put(req, r.clone()); trimArt(cache); }'
+    art2 = 'if (r && r.ok) { const c = r.clone(); new Promise(ok => setTimeout(ok, 2000)).then(() => caches.open(ART).then(x => x.put(req, c).then(() => trimArt(x)))); }'
     app = 'caches.open(APP).then(x => x.put(nav ? SCOPE : req, c)).catch(() => {});'
-    app2 = 'caches.open(APP).then(x => new Promise(ok => setTimeout(ok, 2000)).then(() => x.put(nav ? SCOPE : req, c))).catch(() => {});'
+    app2 = 'new Promise(ok => setTimeout(ok, 2000)).then(() => caches.open(APP).then(x => x.put(nav ? SCOPE : req, c))).catch(() => {});'
     if art not in exp or app not in exp:
         return False, 'shipped source put sites not found'
     exp = exp.replace(art, art2, 1).replace(app, app2, 1)
@@ -90,7 +104,7 @@ if not fx_ok:
     sys.exit(1)
 
 srv = ThreadingHTTPServer(('127.0.0.1', A.port), H); threading.Thread(target=srv.serve_forever, daemon=True).start()
-URL = f'http://127.0.0.1:{A.port}{PROD}?hood={A.hood}'
+URL = f'http://127.0.0.1:{A.port}{PROD}diag.html'
 FOREIGN = []
 INFO = """async () => {
   const regs = await navigator.serviceWorker.getRegistrations();
@@ -117,17 +131,6 @@ def classify(tl, at_end):
         return 'clean'
     return 'reappeared' if ever_clean else 'lingering'
 
-def pick_art():
-    root = os.path.join(A.late, 'assets')
-    if not os.path.isdir(root):
-        return None
-    for dirpath, _, files in os.walk(root):
-        for f in files:
-            if f.endswith('.webp'):
-                rel = os.path.relpath(os.path.join(dirpath, f), A.late)
-                return PROD + rel.replace('\\', '/')
-    return None
-
 def one_run(pw, n):
     br = getattr(pw, A.browser).launch()
     ctx = br.new_context(viewport={'width': 1180, 'height': 820})
@@ -139,36 +142,37 @@ def one_run(pw, n):
     page = ctx.new_page()
     STATE['dirs'][PROD] = A.late; STATE['down'] = False
     page.goto(URL, wait_until='load')
-    page.evaluate(WAIT_CTL, 15000)
-    # Second load goes through the late-put worker.
-    page.reload(wait_until='load', timeout=20000)
-    try: page.wait_for_function("() => window.__store", timeout=15000)
-    except Exception: pass
-    # Arm a late art put WITHOUT waiting it out. The 2s delay lives inside
-    # respondWith, which keeps the outgoing worker alive. A cache-busting query
-    # forces a miss. keepalive keeps the request from being aborted if kill
-    # navigates the tab. Do not await: awaiting would wait out the 2s delay
-    # and the put would already be done before kill's first wipe.
-    art = pick_art()
-    page.evaluate("""(art) => {
-      const url = art
-        || ([...document.querySelectorAll('img')].map(i => i.currentSrc || i.src)
-              .find(s => s && s.includes('/assets/') && s.includes('.webp')));
-      if (url) {
-        const bust = url.split('?')[0] + '?lateput=' + Date.now();
-        fetch(bust, { keepalive: true, cache: 'no-store' }).catch(() => {});
-      }
-      fetch(location.href.split('#')[0], { cache: 'no-store' }).catch(() => {});
-    }""", art)
-    page.wait_for_timeout(250)  # let the fetch reach the SW and start the 2s timer
+    # This page has no startSW: #69 is the kill *worker* leaving a late cache on a
+    # tab whose page JS does not also wipe. Register the late worker ourselves.
+    page.evaluate("""async () => {
+      const r = await navigator.serviceWorker.register('sw.js', { scope: '/kids-house-game/' });
+      await new Promise(res => {
+        const done = () => res(true);
+        const t = setTimeout(done, 10000);
+        if (r.active && !(r.installing || r.waiting)) { clearTimeout(t); done(); return; }
+        const w = r.installing || r.waiting || r.active;
+        if (w) w.addEventListener('statechange', ev => {
+          if (ev.target && ev.target.state === 'activated') { clearTimeout(t); done(); }
+        });
+      });
+    }""")
+    page.evaluate(WAIT_CTL, 8000)
+    # Arm a late write: the 2s delay sits in front of caches.open+put, because a
+    # put on a Cache handle opened *before* the wipe does not recreate the cache
+    # (confirmed in both browsers). Do not await the fetch.
+    page.evaluate("() => { fetch(location.href, { cache: 'no-store' }).catch(() => {}); }")
+    page.wait_for_timeout(150)
     STATE['dirs'][PROD] = A.kill
     t0 = time.time()
-    # Pull in the kill worker without reloading the arming page (that would
-    # abort a non-keepalive fetch). kill.js skipWaiting + claim + navigate.
+    # register/update pulls in kill.js. diag.html does not run startSW, so a
+    # kill-driven navigate will not do a second, client-side cache wipe.
     try:
-        page.evaluate("async () => { const r = await navigator.serviceWorker.getRegistration(); if (r) await r.update(); }")
+        page.evaluate("""async () => {
+          const r = await navigator.serviceWorker.register('sw.js', { scope: '/kids-house-game/' });
+          await r.update();
+        }""")
     except Exception as e:
-        print('  (update raced:', str(e).splitlines()[0], ')')
+        print('  (kill pull:', str(e).splitlines()[0], ')')
     TL = []
     # Watch long enough for the 2s late put AND the 3s second wipe (plus margin).
     end = time.time() + 10
@@ -199,14 +203,17 @@ with sync_playwright() as pw:
         cls = one_run(pw, n)
         results.append(cls)
         expect_clean = (A.expect == 'clean')
-        ok = (cls == 'clean') if expect_clean else (cls != 'clean')
+        ok = (cls == 'clean') if expect_clean else (cls == 'reappeared')
         print(('PASS ' if ok else 'FAIL ') + f'lateput {A.browser} run {n}/{A.runs} class={cls} expect={A.expect}', flush=True)
 
 srv.shutdown()
 fails = 0
 for i, cls in enumerate(results, 1):
     expect_clean = (A.expect == 'clean')
-    if (cls == 'clean') != expect_clean:
+    if expect_clean:
+        if cls != 'clean':
+            fails += 1
+    elif cls != 'reappeared':
         fails += 1
 if FOREIGN:
     print('FAIL request left localhost ' + ' '.join(FOREIGN[:3]), flush=True)
