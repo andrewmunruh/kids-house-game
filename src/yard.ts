@@ -160,7 +160,11 @@ const slide = piece({
 });
 
 const bench = piece({
-  kind: 'yard-bench', name: 'Garden Bench', cat: 'furniture', w: 140, h: 100, vb: '0 0 140 100',
+  // Refit, not a repaint: uniform 2.2× of the catalog box (140×100 → 308×220) so
+  // two 120-wide kids at BENCH_DX ±0.22 have a gap and stay on the slats.
+  // The viewBox and the shipped backyard/yard-bench.webp pixels are unchanged;
+  // the same art is drawn larger, aspect 1.4. A stretch was rejected before.
+  kind: 'yard-bench', name: 'Garden Bench', cat: 'furniture', w: 308, h: 220, vb: '0 0 140 100',
   svg: `${shadow(70, 58, 96)}
     <rect x="10" y="8" width="12" height="86" rx="2" fill="#f3d2aa" ${ink()}/>
     <rect x="118" y="8" width="12" height="86" rx="2" fill="#e7c49a" ${ink()}/>
