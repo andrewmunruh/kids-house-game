@@ -6,6 +6,10 @@ import { driftDelay, NEEDS, driftPick, levelOf, meetableHere, isFood, isToy, typ
 import { wishToShow } from './wish-show';
 import { isFridge, isTub } from './shared/ambient';
 import { prefersReducedMotion } from './juice';
+import {
+  CELEBRATE_MS, burstMarkup, celebrationNeed, emptyCelebrateQueue,
+  enqueueCelebrate, raisedNeeds, tickCelebrate, type CelebrateQueue,
+} from './need-celebrate';
 import { storeKey } from './shared/storekey';
 import { sfx } from './sound';
 import { toast } from './hood-ui';
@@ -65,6 +69,7 @@ function elsewhereRoom(s: GameState, n: Need): string | null {
 
 export function installNeeds(d: NeedsDeps) {
   const prev = new Map<string, Record<Need, number>>();
+  const queues = new Map<string, CelebrateQueue>();
   const asked = new Map<string, number>(); // id|need -> time a meet was sent (stops a resend storm)
   let visibleMs = 0, last = performance.now(), turn = 0, steps = 0;
 
@@ -76,16 +81,34 @@ export function installNeeds(d: NeedsDeps) {
   btn.addEventListener('click', () => { try { localStorage.setItem(KEY, showWishes() ? '0' : '1'); } catch { /* private mode */ } paintBtn(); sfx.click(); paint(); toast(showWishes() ? 'Wishes on' : 'Wishes off', 1400); });
   d.menuAfter?.insertAdjacentElement('afterend', btn); paintBtn();
 
-  function burst(el: HTMLElement) {
-    if (prefersReducedMotion()) { el.classList.add('need-glow'); setTimeout(() => el.classList.remove('need-glow'), 900); return; }
-    const b = document.createElement('div'); b.className = 'need-burst'; b.setAttribute('aria-hidden', 'true');
-    for (let i = 0; i < 7; i++) {
-      const p = document.createElement('i'); p.className = i % 2 ? 'nb-heart' : 'nb-spark';
-      p.style.setProperty('--a', (i / 7 * 360 + 15) + 'deg'); p.style.setProperty('--dl', i * 40 + 'ms');
-      b.appendChild(p);
+  function burst(el: HTMLElement, need: Need) {
+    // One burst on this doll at a time. The queue in paint() starts the next one only after this ends.
+    el.querySelector(':scope > .need-burst')?.remove();
+    el.classList.add('need-glow');
+    el.dataset.needCele = need;
+    // Reduced motion: still gold glow only — no hop, no flying crumbs. Required, and tested.
+    if (prefersReducedMotion()) {
+      setTimeout(() => { el.classList.remove('need-glow'); if (el.dataset.needCele === need) delete el.dataset.needCele; }, CELEBRATE_MS);
+      return;
     }
-    el.appendChild(b); setTimeout(() => b.remove(), 1400);
-    const inner = el.querySelector(':scope > .inner'); inner?.classList.remove('need-hop'); void (inner as HTMLElement | null)?.offsetWidth; inner?.classList.add('need-hop');
+    el.insertAdjacentHTML('beforeend', burstMarkup(need));
+    const inner = el.querySelector(':scope > .inner');
+    inner?.classList.remove('need-hop');
+    void (inner as HTMLElement | null)?.offsetWidth;
+    inner?.classList.add('need-hop');
+    setTimeout(() => {
+      el.querySelector(':scope > .need-burst')?.remove();
+      inner?.classList.remove('need-hop');
+      el.classList.remove('need-glow');
+      if (el.dataset.needCele === need) delete el.dataset.needCele;
+    }, CELEBRATE_MS);
+  }
+
+  function friendHeart(el: HTMLElement) {
+    if (el.querySelector(':scope > .need-friend-heart')) return;
+    if (prefersReducedMotion()) return;
+    el.insertAdjacentHTML('beforeend', '<div class="need-friend-heart" aria-hidden="true"></div>');
+    setTimeout(() => el.querySelector(':scope > .need-friend-heart')?.remove(), CELEBRATE_MS);
   }
 
   /** Lying dolls are drawn sideways, so the bubble goes over her head on the pillow instead of where a standing head would be. */
@@ -115,7 +138,30 @@ export function installNeeds(d: NeedsDeps) {
       const now: Record<Need, number> = { sleepy: 3, hungry: 3, playful: 3, clean: 3 };
       for (const n of NEEDS) now[n] = levelOf(c, n);
       const was = prev.get(c.id);
-      if (was && NEEDS.some(n => now[n] > was[n])) { burst(el); sfx.sparkle(); }
+      const clock = Date.now();
+      let q = queues.get(c.id) ?? emptyCelebrateQueue();
+      const ticked = tickCelebrate(q, clock);
+      q = ticked.q;
+      let start = ticked.start;
+      const raised = raisedNeeds(was, now);
+      if (raised.length) {
+        const pick = celebrationNeed(raised, wishToShow(s, c));
+        if (pick) {
+          const enq = enqueueCelebrate(q, pick, clock);
+          q = enq.q;
+          if (enq.start) start = enq.start;
+        }
+      }
+      queues.set(c.id, q);
+      if (start) {
+        burst(el, start);
+        sfx.sparkle();
+        const friends = s.characters.filter(o => o.id !== c.id && o.room === c.room && Math.hypot(o.x - c.x, o.y - c.y) < 260);
+        for (const f of friends) {
+          const fe = d.layer.querySelector(`.char[data-cid="${CSS.escape(f.id)}"]`) as HTMLElement | null;
+          if (fe) friendHeart(fe);
+        }
+      }
       prev.set(c.id, now);
       const w = wishToShow(s, c);
       const lying = !!(c as any).seat && (c as any).seat.pose === 'lie';
@@ -131,7 +177,7 @@ export function installNeeds(d: NeedsDeps) {
       const b2 = bub;
       requestAnimationFrame(() => { anchor(el, b2, lying); b2.classList.add('show'); });
     }
-    for (const id of prev.keys()) if (!s.characters.some(c => c.id === id)) prev.delete(id);
+    for (const id of prev.keys()) if (!s.characters.some(c => c.id === id)) { prev.delete(id); queues.delete(id); }
     // A soft shimmer on the spot that would help (the fridge for a hungry doll, the bed for a sleepy one...).
     const want = new Set<string>();
     if (on) for (const c of s.characters) { if (c.room !== s.currentRoom) continue; if (!wishToShow(s, c)) continue;
@@ -191,5 +237,5 @@ export function installNeeds(d: NeedsDeps) {
   document.addEventListener('visibilitychange', () => { last = performance.now(); });
   paint();
   // Test hook only with ?needsqa=1, so a normal session never sees it.
-  if (new URLSearchParams(location.search).has('needsqa')) (window as any).__needs = { tick: (ms: number) => tick(ms), visible: () => visibleMs, paint, care };
+  if (new URLSearchParams(location.search).has('needsqa')) (window as any).__needs = { tick: (ms: number) => tick(ms), visible: () => visibleMs, paint, care, CELEBRATE_MS };
 }
