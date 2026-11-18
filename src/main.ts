@@ -103,7 +103,14 @@ const snapY = (def: ItemDef, y: number) => {
 // The stage is a 600px border-box with a 6px border, so the bottom 12px of the world is clipped.
 // Floor pieces draw 12px higher. The stored y is left alone, so old saves stay valid.
 const FLOOR_DRAW = 12;
-const drawY = (def: ItemDef, y: number) => def.wall ? y : Math.min(y, H - FLOOR_DRAW);
+// Picnic table: paint at min(saved y, PICNIC_FOOT_MAX) so a loaded y=580 house clears the
+// care bar. The saved y is not rewritten until a Decorate move, which goes through snapY.
+const drawY = (def: ItemDef, y: number) => {
+  if (def.wall) return y;
+  let foot = Math.min(y, H - FLOOR_DRAW);
+  if (def.kind === 'picnic-table') foot = Math.min(foot, PICNIC_FOOT_MAX);
+  return foot;
+};
 const CHAR_W = 120, CHAR_H = 192;
 const ROOMS: { id: RoomId; name: string; color: string }[] = [
   { id: 'living', name: 'Living Room', color: '#ff8fab' },
@@ -2198,7 +2205,7 @@ function beginItemDrag(el: HTMLElement, e: PointerEvent, forceMoved = false) {
   const s = store.get(); const room = s.currentRoom;
   const id = el.dataset.id!; const it = s.rooms[room].items.find(i => i.id === id); if (!it) return;
   const def = ITEM_MAP[it.kind];
-  const p0 = toRoom(e.clientX, e.clientY); const off = { x: it.x - p0.x, y: it.y - p0.y };
+  const p0 = toRoom(e.clientX, e.clientY); const off = { x: it.x - p0.x, y: drawY(def, it.y) - p0.y };
   let moved = forceMoved, target: ReturnType<typeof holdTarget> = null;
   selected = id; store.dispatch({ type: 'item/front', room, id });
   el.classList.add('lifted'); sfx.pick();

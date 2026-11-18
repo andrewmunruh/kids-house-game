@@ -483,10 +483,11 @@ const cup = piece({
     ${hi('M24 38 v14')}`,
 });
 
-/** B17a: max stored foot y so the painted front bench clears the care bar by ≥8px
- * at 820×1180 and 1180×820 without the tabletop crossing the fence. Client-only.
+/** B17a: max painted (and newly saved) foot y so the front bench clears the care bar
+ * by ≥8px at 820×1180 and 1180×820 without the tabletop crossing the fence. Client-only.
  * The picnic table is not a starter-house seed, so this is not a B16-style migrate:
- * only new drops and moves are clamped; already-saved feet stay as stored. */
+ * drawY paints at min(saved y, this cap) and leaves the stored y alone until a move,
+ * which then saves the capped y through snapY. */
 export const PICNIC_FOOT_MAX = 520;
 
 /** B17a: uniform 2× catalog box (was 180×110). View-box unchanged so the painting is not stretched. Client-only; no picnic seats. */
