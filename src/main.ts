@@ -1096,23 +1096,65 @@ function spriteScreenBox(el: HTMLElement) {
 }
 /** Keep a sitting/lying sprite inside the room frame. Does not change saved x/y or seat. */
 let nudgeSeatedTok = 0;
-/** Pose CSS/SVG can finish a frame later (WebKit lie-right). Re-clamp until the box settles. */
+let nudgeLock = false;
+let seatedRO: ResizeObserver | null = null;
+function seatedSpriteSig() {
+  return [...document.querySelectorAll('#layer .char.pose-sit, #layer .char.pose-lie, #layer .avatar.pose-sit, #layer .avatar.pose-lie')]
+    .map(el => { const b = el.getBoundingClientRect(); return `${b.left.toFixed(1)},${b.right.toFixed(1)}`; }).join('|');
+}
+function seatedImagesReady(): Promise<void> {
+  const imgs = [...document.querySelectorAll<HTMLImageElement>('#layer .char img, #layer .avatar img')]
+    .filter(img => !img.complete);
+  if (!imgs.length) return Promise.resolve();
+  return Promise.all(imgs.map(img => new Promise<void>(res => {
+    img.addEventListener('load', () => res(), { once: true });
+    img.addEventListener('error', () => res(), { once: true });
+  }))).then(() => undefined);
+}
+function watchSeatedImages(el: HTMLElement) {
+  el.querySelectorAll('img').forEach(img => {
+    if (!img.complete) img.addEventListener('load', () => queueNudgeSeated(), { once: true });
+  });
+}
+/** Re-clamp after fonts, images, and later layout (ResizeObserver / resize) have settled. */
 function queueNudgeSeated() {
   const tok = ++nudgeSeatedTok;
-  let last = '', frames = 0;
-  const step = () => {
+  const settle = () => {
     if (tok !== nudgeSeatedTok) return;
-    nudgeSeatedSprites();
-    const sig = [...document.querySelectorAll('#layer .char.pose-sit, #layer .char.pose-lie, #layer .avatar.pose-sit, #layer .avatar.pose-lie')]
-      .map(el => { const b = el.getBoundingClientRect(); return `${b.left.toFixed(1)},${b.right.toFixed(1)}`; }).join('|');
-    frames++;
-    if (sig === last || frames > 16) return;
-    last = sig;
+    let last = '', frames = 0, stable = 0;
+    const step = () => {
+      if (tok !== nudgeSeatedTok) return;
+      nudgeSeatedSprites();
+      const sig = seatedSpriteSig();
+      frames++;
+      if (sig === last) stable++;
+      else { stable = 0; last = sig; }
+      if (stable >= 2) return;
+      if (frames > 40) return;
+      requestAnimationFrame(step);
+    };
     requestAnimationFrame(step);
   };
-  requestAnimationFrame(step);
+  const fonts = document.fonts?.ready ?? Promise.resolve();
+  fonts.then(() => seatedImagesReady()).then(() => {
+    if (tok !== nudgeSeatedTok) return;
+    requestAnimationFrame(() => requestAnimationFrame(settle));
+  });
+}
+function bindSeatedClampWatchers() {
+  if (seatedRO) return;
+  const kick = () => { if (!nudgeLock) queueNudgeSeated(); };
+  document.fonts?.ready?.then(kick);
+  window.addEventListener('resize', kick);
+  window.addEventListener('load', kick);
+  seatedRO = new ResizeObserver(() => kick());
+  try { seatedRO.observe(stage); if (layer) seatedRO.observe(layer); } catch { /* stage may not be ready */ }
 }
 function nudgeSeatedSprites() {
+  nudgeLock = true;
+  try { nudgeSeatedSpritesOpen(); } finally { nudgeLock = false; }
+}
+function nudgeSeatedSpritesOpen() {
   const s = store.get();
   const room = s.currentRoom;
   for (const c of s.characters) {
@@ -1622,7 +1664,7 @@ function renderChars(s: GameState) {
     el.classList.toggle('pose-lie', pose === 'lie');
     el.classList.toggle('pose-lie-r', pose === 'lie' && !!s.rooms[s.currentRoom].items.find(i => i.id === seat?.item)?.flip);
     placeEl(el, at.x, at.y, CHAR_W * sc, CHAR_H * sc);
-    if (pose) nudgeSeatedInRoom(el, at, CHAR_W * sc, CHAR_H * sc);
+    if (pose) { nudgeSeatedInRoom(el, at, CHAR_W * sc, CHAR_H * sc); watchSeatedImages(el); }
     el.style.zIndex = seat ? String(1000 + (s.rooms[s.currentRoom].items.find(i => i.id === seat.item)?.z ?? 0) + 1 + seat.n) : String(5000 + Math.round(c.y));
     el.classList.toggle('active', c.id === activeChar);
     stampAvatar(el, c, c.id === activeChar);
@@ -2390,6 +2432,35 @@ function updateChipCue() {
 }
 document.querySelector('.drawerTop')!.addEventListener('scroll', updateChipCue, { passive: true });
 window.addEventListener('resize', updateChipCue);
+bindSeatedClampWatchers();
+
+/** Native momentum scroll on the pack row. A tap still selects a chip and must not leave the row scrolled. */
+function bindPackRowPan() {
+  const row = document.querySelector<HTMLElement>('.drawerTop');
+  if (!row || row.dataset.packPan) return;
+  row.dataset.packPan = '1';
+  let x0 = 0, sl0 = 0, panned = false, pid = -1;
+  row.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    pid = e.pointerId; x0 = e.clientX; sl0 = row.scrollLeft; panned = false;
+  });
+  row.addEventListener('pointermove', e => {
+    if (e.pointerId !== pid) return;
+    if (Math.abs(e.clientX - x0) > 8 || Math.abs(row.scrollLeft - sl0) > 2) panned = true;
+  });
+  const end = (e: PointerEvent) => {
+    if (e.pointerId !== pid) return;
+    pid = -1;
+    if (!panned) row.scrollLeft = sl0;
+  };
+  row.addEventListener('pointerup', end);
+  row.addEventListener('pointercancel', end);
+  row.addEventListener('click', e => {
+    if (panned) { e.preventDefault(); e.stopPropagation(); }
+    panned = false;
+  }, true);
+}
+bindPackRowPan();
 
 // ---------- panels ----------
 function swatches(list: string[], cur: string, act: string) {
@@ -2727,7 +2798,7 @@ function renderAvatars() {
       el.classList.toggle('pose-lie', pose === 'lie');
       el.classList.toggle('pose-lie-r', pose === 'lie' && !!piece?.flip);
       placeEl(el, at.x, at.y, CHAR_W * sc, CHAR_H * sc);
-      if (pose) nudgeSeatedInRoom(el, at, CHAR_W * sc, CHAR_H * sc);
+      if (pose) { nudgeSeatedInRoom(el, at, CHAR_W * sc, CHAR_H * sc); watchSeatedImages(el); }
       el.style.zIndex = piece ? String(1000 + piece.z + 1 + seat.n) : String(5000 + Math.round(p.y));
       stampAvatar(el, look, pid === hood.pid);
       if (holding) {

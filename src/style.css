@@ -134,12 +134,35 @@ body:not(.phone) .nudge.yield { top: 88px; }
 #mmDots b { width: 10px; height: 10px; margin: -5px; background: #ff7aa8; border: 2px solid #fff; }
 .mmView { position: absolute; top: 0; bottom: 0; border: 3px solid #fff; border-radius: 9px; background: rgba(255,255,255,.25); box-shadow: 0 0 0 2px var(--ink); }
 .rooms { display: contents; }
-/* Wide iPad: wrap the pack chips (same as 820 portrait) so Cozy Cottage and Winter Cheer
-   stay on screen. Play/Decorate stay pinned in #modeDock, not in this row. Phones keep their scroller. */
+/* 1024-wide iPad has about 80px left on the tab row. Pack tabs scroll inside the
+   row (one line, original stage size) instead of wrapping and shrinking the room.
+   Portrait 820 still wraps, the way it already did. Phones keep their own scroller.
+   Momentum + a soft right-edge fade so kids can tell there's more; a tap must not start a scroll. */
 @media (min-width: 900px) {
-  .drawerTop { flex-wrap: wrap; overflow-x: visible; max-width: 100%; min-width: 0; }
+  .drawerTop {
+    flex-wrap: nowrap; overflow-x: auto; max-width: 100%; min-width: 0;
+    touch-action: pan-x; scrollbar-width: none;
+    -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
+  }
+  .drawerTop::-webkit-scrollbar { display: none; }
   .rooms { display: flex; flex: 0 0 auto; }
-  .cats { display: flex; flex: 1 1 auto; flex-wrap: wrap; gap: 6px; }
+  .cats { display: flex; flex: 0 0 auto; flex-wrap: nowrap; gap: 6px; }
+  .drawerBar.more .drawerTop {
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 40px), rgba(0,0,0,.35) calc(100% - 18px), transparent);
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 40px), rgba(0,0,0,.35) calc(100% - 18px), transparent);
+  }
+  .drawerBar.back .drawerTop {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 100%);
+    mask-image: linear-gradient(to right, transparent, #000 36px, #000 100%);
+  }
+  .drawerBar.more.back .drawerTop {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 40px), rgba(0,0,0,.35) calc(100% - 18px), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 40px), rgba(0,0,0,.35) calc(100% - 18px), transparent);
+  }
+  .drawerBar.more .chipCue {
+    display: grid; place-items: center; position: absolute; right: 0; top: 0; bottom: 0; width: 22px;
+    font-size: 22px; font-weight: 900; color: var(--ink); pointer-events: none;
+  }
 }
 .rf { border-radius: 16px; background: #fff; font-weight: 800; font-size: 15px; box-shadow: 0 3px 0 #e6c9d8; border: 3px solid transparent; min-height: 52px; min-width: 52px; padding: 0 14px; }
 .rf.on { background: #fff3b0; border-color: var(--ink); }

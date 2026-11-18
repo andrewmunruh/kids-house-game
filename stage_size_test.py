@@ -31,6 +31,7 @@ def _game_url(url_or_none, port_flag, port_env):
 _pos = [a for a in sys.argv[1:] if not a.startswith('-')]
 NEW = _game_url(_flag('--new', 'NEW_URL') or (_pos[0] if len(_pos) > 0 else None), '--web-port', 'WEB_PORT')
 PROD = _game_url(_flag('--prod', 'PROD_URL') or (_pos[1] if len(_pos) > 1 else None), '--prod-port', 'PROD_PORT')
+REF = _game_url(_flag('--ref', 'REF_URL'), '--ref-port', 'REF_PORT')
 if not NEW or not PROD:
     sys.stderr.write(
         'usage: stage_size_test.py [NEW_URL] [PROD_URL]\n'
@@ -39,11 +40,13 @@ if not NEW or not PROD:
         '   or  env NEW_URL/PROD_URL or WEB_PORT/PROD_PORT\n'
     )
     sys.exit(2)
-print(f'STAGE_SIZE URLs new={NEW} prod={PROD}', flush=True)
+print(f'STAGE_SIZE URLs new={NEW} prod={PROD} ref={REF}', flush=True)
 # iPad stage must stay pixel-identical to 1f0aa5c. Phone chrome collapsed, so the
 # phone stage is allowed to grow and must not shrink.
 IPAD = {(1180, 820), (1024, 768), (820, 1180)}
-SIZES = [(1180, 820), (1024, 768), (820, 1180), (844, 390), (375, 667)]
+SIZES = [(1180, 820), (1024, 768), (820, 1180), (1366, 1024), (844, 390), (375, 667)]
+# B14 item 4: these four must stay pixel-identical to c2327fe (passed as --ref).
+REF_MATCH = {(1180, 820), (1024, 768), (820, 1180), (1366, 1024)}
 
 def check(name, ok, extra=''):
     print(('PASS ' if ok else 'FAIL ') + name, extra, flush=True)
@@ -83,6 +86,11 @@ async def main():
                 name = f'stage {w}x{h} did not shrink'
             if not check(name, ok, f"prod {prod['w']}x{prod['h']} now {cur['w']}x{cur['h']}"):
                 failed += 1
+            if REF and (w, h) in REF_MATCH:
+                ref = await measure(browser, REF, w, h)
+                rok = abs(ref['w'] - cur['w']) <= 2 and abs(ref['h'] - cur['h']) <= 2
+                if not check(f'stage {w}x{h} matches c2327fe', rok, f"ref {ref['w']}x{ref['h']} now {cur['w']}x{cur['h']}"):
+                    failed += 1
         await browser.close()
     if failed:
         sys.exit(1)

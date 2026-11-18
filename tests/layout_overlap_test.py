@@ -5,7 +5,9 @@ import asyncio, sys
 from playwright.async_api import async_playwright
 
 URL = sys.argv[1]
-SIZES = [(390, 844), (844, 390), (820, 1180), (1180, 820), (768, 1024), (1024, 768)]
+REF_URL = __import__("os").environ.get("REF_URL")
+REF_SIZES = {(1024, 768), (1180, 820), (820, 1180), (1366, 1024)}
+SIZES = [(390, 844), (844, 390), (820, 1180), (1180, 820), (768, 1024), (1024, 768), (1366, 1024)]
 TOL = 1.0
 MEASURE = """() => {
   const r = (el) => { if (!el) return null; const s = getComputedStyle(el); if (s.display === 'none' || s.visibility === 'hidden') return null;
@@ -13,7 +15,7 @@ MEASURE = """() => {
   return { stage: r(document.getElementById('stage')), wrap: r(document.getElementById('stageWrap')),
     tabs: r(document.getElementById('tabs')), top: r(document.querySelector('.top')), drawer: r(document.querySelector('.drawer')),
     scale: (document.getElementById('stage').style.transform.match(/scale\\(([0-9.]+)/) || [])[1] || '',
-    viewW: document.getElementById('stage').style.width };
+    viewW: document.getElementById('stage').style.width, sw: Math.round(document.getElementById('stage').getBoundingClientRect().width), sh: Math.round(document.getElementById('stage').getBoundingClientRect().height) };
 }"""
 
 def inter(a, b):
@@ -56,6 +58,23 @@ async def main():
                 tag = f'{w}x{h} {name} (VIEW_W {m["viewW"]} scale {m["scale"]})'
                 if bad: fails += 1; print('FAIL', tag, '; '.join(bad), flush=True)
                 else: passes += 1; print('PASS', tag, flush=True)
+            if REF_URL and (w, h) in REF_SIZES:
+                rctx = await b.new_context(viewport={'width': w, 'height': h}, has_touch=True, service_workers='block')
+                await rctx.add_init_script("localStorage.setItem('cozy-whatsnew','999');localStorage.setItem('preview:cozy-whatsnew','999')")
+                rpg = await rctx.new_page()
+                await rpg.goto(REF_URL); await rpg.wait_for_selector('#stage')
+                for sel in ('#phoneOk', '#wnGo', '.whatsNew .wnGo'):
+                    loc = rpg.locator(sel)
+                    if await loc.count() and await loc.first.is_visible(): await loc.first.click(force=True)
+                await rpg.wait_for_timeout(800)
+                rm = await rpg.evaluate(MEASURE)
+                cm = await pg.evaluate(MEASURE)
+                ok = abs((rm or {}).get('sw', 0) - (cm or {}).get('sw', -1)) <= 2 and abs((rm or {}).get('sh', 0) - (cm or {}).get('sh', -1)) <= 2
+                tag = f'{w}x{h} stage matches c2327fe'
+                extra = f"ref {rm.get('sw')}x{rm.get('sh')} now {cm.get('sw')}x{cm.get('sh')}"
+                if ok: passes += 1; print('PASS', tag, extra, flush=True)
+                else: fails += 1; print('FAIL', tag, extra, flush=True)
+                await rctx.close()
             await ctx.close()
         await b.close()
     print(f'RESULT {passes} pass {fails} fail', flush=True)
