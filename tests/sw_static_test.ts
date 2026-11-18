@@ -60,5 +60,53 @@ check('main: safeNow requires no pointer down (no 15s hold escape)', /safeNow:\s
 let man: any = {}; try { man = JSON.parse(read('public/manifest.webmanifest')); } catch { /* */ }
 check('manifest display is standalone (what iOS uses)', man.display === 'standalone');
 
+// Direct proof: when mayCache() is false, the fetch handler does not caches.open or cache.put.
+{
+  const { createContext, runInContext } = await import('node:vm');
+  const opens: string[] = [];
+  const puts: string[] = [];
+  const listeners: Record<string, Array<(ev: any) => void>> = {};
+  const swSelf: any = {
+    serviceWorker: { state: 'redundant' },
+    registration: { scope: 'http://127.0.0.1/kids-house-game/' },
+    addEventListener: (type: string, fn: (ev: any) => void) => { (listeners[type] ??= []).push(fn); },
+    skipWaiting: async () => {},
+    clients: { claim: async () => {}, matchAll: async () => [] },
+    location: { origin: 'http://127.0.0.1', href: 'http://127.0.0.1/kids-house-game/sw.js' },
+  };
+  swSelf.registration.active = { _id: 'other-worker' };
+  const cacheObj = {
+    put: async (req: any) => { puts.push(String(req?.url ?? req)); },
+    match: async () => null,
+    keys: async () => [],
+    delete: async () => true,
+  };
+  const cachesApi = {
+    open: async (name: string) => { opens.push(name); return cacheObj; },
+    keys: async () => [],
+    delete: async () => true,
+    match: async () => null,
+  };
+  const fetchOk = async () => ({ ok: true, type: 'basic', status: 200, clone() { return this; } });
+  const ctx = createContext({
+    self: swSelf, caches: cachesApi, fetch: fetchOk, URL, Promise, setTimeout, clearTimeout, console,
+  });
+  runInContext(sw, ctx, { filename: 'public/sw.js' });
+  const fire = async (url: string) => {
+    let done: Promise<any> = Promise.resolve();
+    const ev = {
+      request: { method: 'GET', url, mode: 'cors' },
+      waitUntil: (_p: Promise<any>) => {},
+      respondWith: (p: Promise<any>) => { done = Promise.resolve(p); },
+    };
+    for (const fn of listeners['fetch'] ?? []) fn(ev);
+    await done;
+    await new Promise(r => setTimeout(r, 20)); // let a detached open/put land if it was scheduled
+  };
+  await fire('http://127.0.0.1/kids-house-game/slow.js');
+  await fire('http://127.0.0.1/kids-house-game/assets/art/x.webp');
+  check('mayCache()=false: fetch handler does no caches.open or cache.put (app + art)', opens.length === 0 && puts.length === 0);
+}
+
 console.log(`sw_static: ${pass} pass, ${fail} fail`);
 if (fail) process.exit(1);
