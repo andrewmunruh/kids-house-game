@@ -828,9 +828,18 @@ function ownsDolls(): boolean {
   if (!hood || inner === local) return true;
   return hood.houses.get(currentHouseId)?.meta.ownerId === hood.pid;
 }
+/** B17a has no picnic seats. r8's sit.ts still lists picnic-table fractions
+ *  (for the old 180×110 box). Those must not be used on the 2× table, and
+ *  sit.ts cannot change because the Worker must stay byte-identical to r8.
+ *  Client-only: a doll cannot sit at the picnic table in this build. */
+function clientSeatFractions(kind: string) {
+  const k = String(kind || '').toLowerCase().replace(/^pack:/, '');
+  if (k === 'picnic-table') return null;
+  return seatFractions(kind);
+}
 function seatPieceOf(it: PlacedItem): SeatPiece | null {
   const def = ITEM_MAP[it.kind];
-  if (!def || !seatFractions(it.kind)) return null;
+  if (!def || !clientSeatFractions(it.kind)) return null;
   return { id: it.id, kind: it.kind, x: it.x, footY: drawY(def, it.y), flip: !!it.flip, scale: drawnScale(it), w: def.w, h: hOf(def) };
 }
 /** Where a saved seat draws. The anchor is a fraction of the piece, so a resize moves her with it. */
@@ -911,7 +920,7 @@ function seatUnderPointer(cx: number, cy: number): PlacedItem | null {
     if (!id || seen.has(id)) continue;
     seen.add(id);
     const it = s.rooms[s.currentRoom].items.find(it => it.id === id);
-    if (it && seatFractions(it.kind)) return it;
+    if (it && clientSeatFractions(it.kind)) return it;
   }
   return null;
 }
@@ -4374,7 +4383,7 @@ function tvSeat(tv: PlacedItem) {
     if (!c || c.seat) return;
   }
   const seat = s.rooms[s.currentRoom].items
-    .filter(i => seatFractions(i.kind)?.pose === 'sit' && Math.abs(i.x - tv.x) < 520)
+    .filter(i => clientSeatFractions(i.kind)?.pose === 'sit' && Math.abs(i.x - tv.x) < 520)
     .sort((a, b) => Math.abs(a.x - tv.x) - Math.abs(b.x - tv.x))[0];
   if (seat) sitAt(seat);
 }
@@ -4416,7 +4425,7 @@ function sitAt(it: PlacedItem) {
       const on = localPose.get(key)?.item === it.id;
       const y = Math.max(FLOOR_Y + 40, piece.footY - 8);
       if (on) localPose.delete(key);
-      else localPose.set(key, { item: it.id, pose: piece && seatFractions(it.kind)!.pose, n: 0 });
+      else localPose.set(key, { item: it.id, pose: piece && clientSeatFractions(it.kind)!.pose, n: 0 });
       const { seat: _prev, ...rest } = me;
       setMyPres({ ...rest, x: it.x, y, flip: false });
       renderAvatars();
