@@ -55,7 +55,7 @@ import { plural, nackText, movedNote, noteGate, ALL_SIGNED_IN, dupName } from '.
 import { installJuice, prefersReducedMotion, wiggleItem } from './juice';
 import { emptyRoomStarters, setRoomScenery, syncScenery, roomSceneArt } from './scenery';
 import { showSceneArt, releaseSceneArt } from './art/scene';
-import { DOOR_CAT_X, DOOR_KID, LIVE_DOOR, YARD_CAM, YARD_CAT, YARD_DOG, YARD_DOOR, YARD_KID, YARD_STAGE, registerYardItems, yardBackyardScenery, yardCompareHTML, yardDoorMarkup, yardLookPatch, yardPreviewOn, yardSheetHTML, yardShot } from './yard';
+import { DOOR_CAT_X, DOOR_KID, LIVE_DOOR, YARD_CAM, YARD_CAT, YARD_DOG, YARD_DOOR, YARD_KID, YARD_STAGE, PICNIC_FOOT_MAX, registerYardItems, yardBackyardScenery, yardCompareHTML, yardDoorMarkup, yardLookPatch, yardPreviewOn, yardSheetHTML, yardShot } from './yard';
 import { whatsNewCheck, whatsNewHTML, markSeen } from './whatsnew';
 import { isLightKind } from './sky';
 import { dockSkyChrome, mountSkyToggle } from './sky-toggle';
@@ -95,7 +95,11 @@ const W = ROOM_W, H = ROOM_H, FLOOR_Y = 390;
 let VIEW_W = 1000; // visible window; narrower in portrait so the room can fill the height
 const maxCam = () => Math.max(0, W - VIEW_W);
 const WALL_BOTTOM = 375; // wall items (manifest `wall: true`) snap so they sit on the wall
-const snapY = (def: ItemDef, y: number) => def.wall ? Math.min(y, WALL_BOTTOM) : y;
+const snapY = (def: ItemDef, y: number) => {
+  if (def.wall) return Math.min(y, WALL_BOTTOM);
+  if (def.kind === 'picnic-table') return Math.min(y, PICNIC_FOOT_MAX);
+  return y;
+};
 // The stage is a 600px border-box with a 6px border, so the bottom 12px of the world is clipped.
 // Floor pieces draw 12px higher. The stored y is left alone, so old saves stay valid.
 const FLOOR_DRAW = 12;
@@ -2316,7 +2320,7 @@ function attachShelfDrag(btn: HTMLElement, def: ItemDef) {
         const room = store.get().currentRoom;
         const tapped = Math.hypot(ev.clientX - sx, ev.clientY - sy) < 8;
         let x: number, y: number;
-        if (tapped) { x = camX + 380 + Math.random() * 240; y = def.wall ? Math.min(WALL_BOTTOM, 200 + hOf(def) / 2) : 500 + Math.random() * 40; }
+        if (tapped) { x = camX + 380 + Math.random() * 240; y = def.wall ? Math.min(WALL_BOTTOM, 200 + hOf(def) / 2) : snapY(def, 500 + Math.random() * 40); }
         else if (inStage(ev.clientX, ev.clientY)) { const p = toRoom(ev.clientX, ev.clientY); x = p.x; y = snapY(def, p.y + hOf(def) * .2); }
         else return;
         const item: PlacedItem = { id: newId(def.kind.replace(/[^a-z0-9-]/gi, '')), kind: def.kind, x, y, flip: false, z: 0, scale: 1 };
