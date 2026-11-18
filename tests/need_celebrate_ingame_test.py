@@ -337,16 +337,20 @@ async def run_two_client(browser):
       __store.dispatch({ type: 'char/move', id: c.id, room: 'kitchen', x: fr.x + 500, y: 540, seat: null });
       return c.id;
     }""")
+    # One explicit hungry drift is enough for meet (level 2 < 3). The worker
+    # caps further steps; __needs.tick may spend that one step on another need.
     lv = await A.evaluate("""async (id) => {
-      for (let i = 0; i < 30; i++) {
+      const read = () => {
         const c = __store.get().characters.find(x => x.id === id);
-        const n = (c && typeof (c.needs || {}).hungry === 'number') ? c.needs.hungry : 3;
-        if (n <= 0) return n;
-        if (window.__needs) __needs.tick(4 * 60000);
-        await new Promise(r => setTimeout(r, 100));
+        return (c && typeof (c.needs || {}).hungry === 'number') ? c.needs.hungry : 3;
+      };
+      if (read() <= 2) return read();
+      __store.dispatch({ type: 'need/drift', id, need: 'hungry' });
+      for (let i = 0; i < 20; i++) {
+        if (read() <= 2) return read();
+        await new Promise(r => setTimeout(r, 50));
       }
-      const c = __store.get().characters.find(x => x.id === id);
-      return (c && typeof (c.needs || {}).hungry === 'number') ? c.needs.hungry : 3;
+      return read();
     }""", cid)
     # Visitor must observe the low level before the meet, or its first paint will miss the rise.
     try:
