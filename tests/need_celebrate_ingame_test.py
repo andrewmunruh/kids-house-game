@@ -38,14 +38,16 @@ SETUP = """() => {
   return { id: c.id, fridge: { id: fr.id, x: fr.x, y: fr.y }, tub: tub && { id: tub.id, x: tub.x, y: tub.y } };
 }"""
 
-MEET = """(need) => {
-  const c = __store.get().characters[0];
-  __store.dispatch({ type: 'need/meet', id: c.id, need });
+MEET = """(arg) => {
+  const need = typeof arg === 'string' ? arg : arg.need;
+  const id = (typeof arg === 'object' && arg && arg.id) || (__store.get().characters[0] || {}).id;
+  __store.dispatch({ type: 'need/meet', id, need });
+  return id;
 }"""
 
-CELE_STATE = """() => {
-  const el = document.querySelector('.char[data-cid]');
-  if (!el) return { n: 0 };
+CELE_STATE = """(id) => {
+  const el = (id && document.querySelector('.char[data-cid="'+id+'"]')) || document.querySelector('.char[data-cid]');
+  if (!el) return { n: 0, missing: true };
   const bursts = [...el.querySelectorAll(':scope > .need-burst')];
   const vis = bursts.filter(b => {
     const s = getComputedStyle(b);
@@ -325,24 +327,35 @@ async def run_two_client(browser):
     for pg in (A, B):
         await pg.evaluate("() => __store.dispatch({type:'room/switch', room:'kitchen'})")
     await A.wait_for_timeout(400)
-    # Make sure she is hungry again (join may have kept or reset).
-    await A.evaluate("""() => {
-      const chars = __store.get().characters || [];
-      const c = chars[0]; if (!c) throw new Error('no characters after join');
+    # Wear hungry down away from the fridge so auto-care does not meet it early,
+    # then walk up and meet. The worker caps need/drift, so use __needs.tick.
+    cid = await A.evaluate("""() => {
+      const c = (__store.get().characters || [])[0]; if (!c) throw new Error('no characters after join');
       const fr = __store.get().rooms.kitchen.items.find(i => /fridge/.test(i.kind));
-      const lv = ((c.needs || {}).hungry ?? 3);
-      for (let i = lv; i > 0; i--) __store.dispatch({ type: 'need/drift', id: c.id, need: 'hungry' });
-      __store.dispatch({ type: 'char/move', id: c.id, room: 'kitchen', x: fr.x + 70, y: Math.max(fr.y, 520) });
+      __store.dispatch({ type: 'char/move', id: c.id, room: 'kitchen', x: fr.x + 500, y: 540, seat: null });
+      return c.id;
     }""")
-    await A.wait_for_timeout(400)
-    await A.wait_for_timeout(400)
-    await A.evaluate(MEET, 'hungry')
-    # Both iPads should show the celebration within 1s.
+    await A.evaluate("""async (id) => {
+      for (let i = 0; i < 24; i++) {
+        const c = __store.get().characters.find(x => x.id === id);
+        const lv = (c && typeof (c.needs || {}).hungry === 'number') ? c.needs.hungry : 3;
+        if (lv <= 0) return lv;
+        if (window.__needs) __needs.tick(4 * 60000);
+        await new Promise(r => setTimeout(r, 80));
+      }
+    }""", cid)
+    await A.evaluate("""(id) => {
+      const fr = __store.get().rooms.kitchen.items.find(i => /fridge/.test(i.kind));
+      __store.dispatch({ type: 'char/move', id, room: 'kitchen', x: fr.x + 50, y: fr.y + 20, seat: null });
+    }""", cid)
+    await A.wait_for_timeout(200)
+    await A.evaluate(MEET, {'need': 'hungry', 'id': cid})
+    # Both iPads should show the celebration within 1s, on this doll.
     seenA = seenB = False
-    for i in range(10):
-        await asyncio.sleep(0.1)
-        sa = await A.evaluate(CELE_STATE)
-        sb = await B.evaluate(CELE_STATE)
+    for i in range(12):
+        await asyncio.sleep(0.08)
+        sa = await A.evaluate(CELE_STATE, cid)
+        sb = await B.evaluate(CELE_STATE, cid)
         if sa['glow'] or sa['vis'] >= 1: seenA = True
         if sb['glow'] or sb['vis'] >= 1: seenB = True
         if seenA and seenB:

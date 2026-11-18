@@ -67,12 +67,18 @@ async def move_to_fridge(pg, near=True):
     await pg.wait_for_function("() => (__store.get().characters||[]).length > 0 && ((__store.get().rooms.kitchen||{}).items||[]).some(i => /fridge/.test(i.kind))", timeout=15000)
     return await pg.evaluate("""near => {
       const s = __store.get();
-      const c = s.characters[0];
       const fr = s.rooms.kitchen.items.find(i => /fridge/.test(i.kind));
-      if (!c || !fr) throw new Error('missing char or fridge');
-      const x = near ? fr.x + 50 : fr.x + 400;
-      __store.dispatch({ type: 'char/move', id: c.id, room: 'kitchen', x, y: Math.max(fr.y, 520), seat: null });
-      return { id: c.id, x, fridge: fr.id };
+      const chars = s.characters || [];
+      if (!chars.length || !fr) throw new Error('missing char or fridge');
+      let moved = [];
+      for (const c of chars) {
+        const x = near ? fr.x + 50 : fr.x + 400;
+        // Only one doll needs to walk up; the rest stay well away so they do not keep it open.
+        const xx = near && c === chars[0] ? x : fr.x + 400;
+        __store.dispatch({ type: 'char/move', id: c.id, room: 'kitchen', x: xx, y: near && c === chars[0] ? Math.max(fr.y, 520) : 540, seat: null });
+        moved.push({ id: c.id, x: xx });
+      }
+      return { id: chars[0].id, x: moved[0].x, fridge: fr.id, n: chars.length };
     }""", near)
 
 async def sit_at_table(pg):
