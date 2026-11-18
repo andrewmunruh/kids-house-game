@@ -13,7 +13,7 @@ import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROS
 import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } from './pets';
 import { mailboxArt, installMail } from './mail';
 import { installPlayMode, playGesture } from './playmode';
-import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, standBeside, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
+import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, seatFrontKind, standBeside, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
 import { isFood } from './shared/needs';
 import { playDropPolish, isTableKind } from './play-drop';
 import { babyOccupant } from './shared/baby';
@@ -29,7 +29,7 @@ import { importWithRetry, installChunkRetry } from './art/retry';
 import { catSprite, dogSprite, animalSprite, horseSprite, ranchPropSprite } from './art/sprites';
 import { artSolid, topHit } from './art/hit';
 import { PATTERNS_FROM_PACKS, PATTERN_MAP, packLabel } from './packs';
-import { characterSVG, cradleFrontSVG, handsFor, SIZE_SCALE } from './character';
+import { characterSVG, cradleFrontSVG, handsFor, LEGACY_SIT_RIG, SIZE_SCALE } from './character';
 import { lookStamp, look2FromLegacy, legacyFromLook2, randomLook2, patchFromLook2, sanitizeLook2, type Look2 } from './shared/avatar';
 import { stampAvatar, richAvatars } from './avatar/motion';
 import { avatarSheetHTML, avatarAct, avatarIntroPending, markAvatarIntro } from './avatar/sheet';
@@ -971,27 +971,23 @@ function finishAvatarPlayDrop(releaseX: number, releaseY: number, hit: PlacedIte
   const seat = result.seat ? { id: result.seat.item, pose: result.seat.pose, n: result.seat.n } : null;
   placeMe(cur, result.x, result.y, cur.flip, seat);
 }
-function seatFrontClass(kind: string): string {
-  const art = bedArt(kind);
-  if (art) return 'k-bed k-bed-' + art.clip;
-  const k = kind.toLowerCase();
-  if (/sofa|couch|loveseat/.test(k)) return 'k-sofa';
-  if (/bench/.test(k)) return 'k-bench';
-  if (/chair|stool|rocker/.test(k)) return 'k-chair';
-  return '';
-}
+function seatFrontClass(kind: string): string { return seatFrontKind(kind); }
+/** Seats with a kid drawn in the classic (legacy, no look2) sit pose; filled by seatedHere. */
+const seatClassic = new Set<string>();
+const drawsClassic = (l: { look2?: unknown } | null | undefined) => !LEGACY_SIT_RIG && !(l && l.look2);
 function seatedHere(): Map<string, number> {
   const s = store.get();
   const ids = new Map<string, number>();
+  seatClassic.clear();
   const note = (item: string, n: number) => { const prev = ids.get(item); ids.set(item, prev === undefined ? n : Math.max(prev, n)); };
   for (const c of s.characters) {
     const seat = c.room === s.currentRoom ? dollSeat(c) : null;
-    if (seat) note(seat.item, seat.n);
+    if (seat) { note(seat.item, seat.n); if (drawsClassic(c)) seatClassic.add(seat.item); }
   }
   if (hood && view === 'house') {
     const add = (pid: string, p: Presence) => {
       const seat = p.where === 'house' && p.houseId === currentHouseId && p.room === s.currentRoom ? presSeat(pid, p) : null;
-      if (seat) note(seat.item, seat.n);
+      if (seat) { note(seat.item, seat.n); if (drawsClassic(hood?.players.get(pid)?.look)) seatClassic.add(seat.item); }
     };
     hood.presence.forEach((p, pid) => add(pid, p));
     const me = myPres();
@@ -1422,6 +1418,8 @@ function syncSeatFronts() {
     const def = it && ITEM_MAP[it.kind];
     const cls = it && seatFrontClass(it.kind);
     if (!it || !def || !cls) return;
+    // The classic pose has no bent legs, so the picnic plank would cut across her shirt: no front for her (App Builder, B7 review).
+    if (cls === 'k-picnic' && seatClassic.has(id)) return;
     seen.add(id);
     let el = layer.querySelector<HTMLElement>(`.seatFront[data-id="${id}"]`);
     if (!el) {
@@ -1439,6 +1437,17 @@ function syncSeatFronts() {
     el.style.zIndex = String(1000 + it.z + 3);
   });
   layer.querySelectorAll<HTMLElement>('.seatFront').forEach(el => { if (!seen.has(el.dataset.id || '')) el.remove(); });
+  // Classic-pose kid at a picnic table: no plank in front of her, so her stand-alone feet would float under the bench. Hide them (render only).
+  const room = s.rooms[s.currentRoom];
+  const onPicnic = (item?: string) => !!item && !!room && room.items.some(i => i.id === item && seatFrontClass(i.kind) === 'k-picnic');
+  for (const c of s.characters) {
+    const el = layer.querySelector<HTMLElement>(`.char[data-cid="${c.id}"]`);
+    if (el) el.classList.toggle('classic-picnic', c.room === s.currentRoom && drawsClassic(c) && onPicnic(dollSeat(c)?.item));
+  }
+  if (hood && view === 'house') hood.presence.forEach((p, pid) => {
+    const el = layer.querySelector<HTMLElement>(`.char.avatar[data-pid="${pid}"]`);
+    if (el) el.classList.toggle('classic-picnic', drawsClassic(hood?.players.get(pid)?.look) && onPicnic(presSeat(pid, p)?.item));
+  });
 }
 
 /** True from pointerdown on the back door until pointerup. Framing must not move the door mid-tap. */
