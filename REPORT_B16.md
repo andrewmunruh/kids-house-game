@@ -274,3 +274,55 @@ The portrait-reach and write-back follow-up is `3694e2002db638ecfe896ea1e1539acc
 - Remote: `https://github.com/andrewmunruh/kids-house-game/tree/cursor/bench-refit-r2`
 - PR link: `https://github.com/andrewmunruh/kids-house-game/pull/new/cursor/bench-refit-r2`
 - `origin/cursor/bench-refit` was left at old `ffb61ad`. No force-push. No deploys, no preview/gh-pages, no ports 9800–9899.
+
+## Camera visits (after 1c1d9db preview clearance)
+
+App Builder accepted seed 1420 and the write-back proof at 1c1d9db, and asked for one more check: the camera must frame the kid's own avatar on first entry to the yard and on every room switch. A pan is kept only for the rest of that same visit, so no kid is stranded off-camera.
+
+### What the code did, and the fix
+
+Before this change, `panned` and `cams[room]` were never cleared on `room/switch`. A backyard pan (for example cam ≈ 1132 after a › tap to reach the bench at 1420) was restored on the next visit. `goThroughYardDoor` still places her at YARD_KID 1084, so in portrait (VIEW_W = 482) a stale cam of ~1132 left her off the left edge.
+
+`src/main.ts` now:
+
+- Adds `beginRoomVisit(room)`, which deletes `panned` and `cams[room]` for that room.
+- Calls it at the start of the `room/switch` handler, before `moveMeToRoom` / `renderAll` / `fit()`.
+- On a new backyard visit (`camAuto()`), `frameHouseKid` falls through to the existing avatar-framing path (body and name tag inside the stage, clear of the ‹ › arrows). `frameYardCam` delegates to `frameHouseKid` instead of snapping to `YARD_CAM`, so a tab-switch while she is already at the bench still frames her there.
+- After a pan or a sit in the same visit (`!camAuto()`), `frameHouseKid` and `frameYardCam` keep that camera. `moveDoll` and `placeMe` call `markPanned()` when a seat is set, so a sit does not snap the view back.
+
+Visit-scope applies to every room, not only the backyard.
+
+### Gate test
+
+`tests/yard_cam_visit_test.py` runs at 820×1180 on WebKit and Chromium (Playwright, has_touch, fixture `save_v3_old10.json`). It covers:
+
+1. First yard entry through the living-room back door (lands at YARD_KID 1084) frames her avatar.
+2. One › pan (cam 843 → 1132.2) then a tap-sit on `yard-bench-1`; the pan is kept at 1132.2.
+3. Leave for the house and come back through the door: cam returns to 843, she is framed at 1084, not the stale 1132.2 pan.
+4. A `room/switch` to living (824) and to kitchen (900) frames her avatar.
+
+Hooked into `refit_gate.sh` as `run_cam_visit` on port 5312, after `run_reach`. Concurrent load was not re-run: the seed is still 1420.
+
+Pre-gate run of that test (dist-trial, port 5312, 02:35 CST): **YARD_CAM_VISIT PASS** on WebKit and Chromium.
+
+### Full gate
+
+Full gate 02:36:01–02:55:02 CST under soak.lock then gate.lock, ports 5300–5349 only. Concurrent skipped (seed still 1420). All green:
+
+| Step | Result | When (CST) |
+|---|---|---|
+| tsc | rc=0 | 02:36:03 |
+| unit | 506 pass / 0 fail | 02:36:09 |
+| art_ingame_bounds backyard | 30/30 pass, 0 warn | 02:36:42 |
+| scene_hotspot | 549 pass / 0 fail | 02:40:35 |
+| migrated shots | sheets written | 02:41:09 |
+| yard_bench_reach 820×1180 WebKit | REACH PASS | 02:41:18 |
+| yard_cam_visit 820×1180 WebKit + Chromium | YARD_CAM_VISIT PASS | 02:41:34 |
+| refit shots | 50 pngs + sheets | 02:42:53 |
+| migration | 45/45 passed | 02:43:52 |
+| oldsmoke chromium | PASS | 02:47:16 |
+| oldsmoke webkit | PASS | 02:50:45 |
+| heartbeat pr/pr | 18/0/0 | 02:55:02 |
+
+No wrangler, no deploy, no touch of ports 9800–9899. Ports 5300–5349 were clear after the gate.
+
