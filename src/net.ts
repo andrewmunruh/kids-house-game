@@ -4,6 +4,7 @@ import { storeKey } from './shared/storekey';
 import type { Plot, RanchOp } from './shared/ranch';
 import { reduce, migrate, type Action, type GameState, type RoomId } from './shared/state';
 import { PROTOCOL, type ClientMsg, type ServerMsg, type PlayerPub, type HouseMeta, type Presence, type Bubble, type Look, type RosterEntry, type Fx, type StreetSettings } from './shared/hood';
+import { hoodHelloCaps } from './picnic_seats';
 import type { Dog } from './shared/state';
 import type { TableOp, TablePub } from './shared/games/index';
 
@@ -68,6 +69,7 @@ export const HB_EVERY_MS = 10_000, HB_WAIT_MS = 5_000, WAKE_WAIT_MS = 3_000;
 const coalesceKey = (a: Action) => a.type === 'item/move' ? 'im:' + a.id : a.type === 'char/move' ? 'cm:' + a.id : a.type === 'item/size' ? 'is:' + ('id' in a ? a.id : '') : null;
 
 export class HoodClient {
+
   ws: WebSocket | null = null;
   pid = ''; settings: StreetSettings = { freeChat: true };
   players = new Map<string, PlayerPub>();
@@ -200,8 +202,8 @@ export class HoodClient {
       this.ws = ws;
       if (prev && prev !== ws) { try { prev.close(); } catch { /* already closed */ } }
       ws.onopen = () => {
-        if (join && !this.cfg.token) this.send({ t: 'join', ...join, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, halloween: 1, cos: 1, needs: 1, art: 1, hb: 1 });
-        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, halloween: 1, cos: 1, needs: 1, art: 1, hb: 1 });
+        if (join && !this.cfg.token) this.send({ t: 'join', ...join, ...hoodHelloCaps() } as ClientMsg);
+        else if (this.cfg.token) this.send({ t: 'hello', token: this.cfg.token, ...hoodHelloCaps() } as ClientMsg);
         else done('notoken');
       };
       ws.onmessage = e => { this.lastRx = Date.now(); this.hbMissed = 0; const m: ServerMsg = JSON.parse(e.data); this.handle(m); if (m.t === 'welcome') { this.armStable(); done('ok'); } if (m.t === 'error') done(m.code + (m.msg ? ':' + m.msg : '')); if (m.t === 'removed') done('removed'); };
