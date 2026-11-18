@@ -48,6 +48,15 @@
 
 .layer .char.amb-nibble:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: ambNibble var(--amb-period, .9s) ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
 @keyframes ambNibble { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(2px) scale(1.01, .99); } 60% { transform: translateY(0); } }
+/* Seated at the table: keep the sit pose (translateY 26%) and still look like she is eating. */
+.layer .char.amb-nibble.pose-sit:not(.lifted) > .inner {
+  animation: ambSitNibble var(--amb-period, .9s) ease-in-out infinite; animation-delay: var(--amb-delay, 0s);
+}
+@keyframes ambSitNibble {
+  0%, 100% { transform: translateY(26%); }
+  30% { transform: translateY(calc(26% + 2px)) scale(1.01, .99); }
+  60% { transform: translateY(26%); }
+}
 
 .layer .char.amb-bathe:not(.lifted):not(.pose-sit):not(.pose-lie) > .inner { animation: ambSway var(--amb-period, 2.7s) ease-in-out infinite; animation-delay: var(--amb-delay, 0s); }
 
@@ -123,4 +132,17 @@
   /* Keep a quiet, still sign that it is on. */
   .ambFx > span { animation: none !important; opacity: .9; }
   .ambFx > .ember, .char.amb-sparkle::before { display: none; }
+}
+
+/* Open fridge (derived): a soft inside glow. The art is untouched; no faces. */
+.item.opened[data-kind$="fridge"] > .inner,
+.item.opened[data-kind$="fridge"] > img {
+  filter: brightness(1.07);
+}
+.item.opened[data-kind$="fridge"]::after {
+  content: '';
+  position: absolute; right: 8%; top: 18%; width: 18%; height: 58%;
+  pointer-events: none; border-radius: 6px 10px 10px 6px;
+  background: linear-gradient(90deg, rgba(255, 252, 235, 0), rgba(255, 252, 235, .55));
+  box-shadow: inset -2px 0 0 rgba(91, 61, 92, .18);
 }

@@ -16,6 +16,7 @@ import { installPlayMode, playGesture } from './playmode';
 import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, seatFrontKind, standBeside, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
 import { isFood } from './shared/needs';
 import { playDropPolish, isTableKind } from './play-drop';
+import { addTableNibbles, openFridges } from './eat-look';
 import { babyOccupant } from './shared/baby';
 import { installBaby } from './baby/view';
 import { poseNamed } from './avatar/sit';
@@ -4302,8 +4303,6 @@ function syncAmbient() {
     const t0 = musicBoxSince.get(it.id) ?? (musicBoxSince.set(it.id, now), setTimeout(queueAmbient, MUSIC_BOX_MS + 60), now);
     if (now - t0 >= MUSIC_BOX_MS) done.add(it.id);
   }
-  const fridgesOpen = new Set<string>();
-  layer.querySelectorAll<HTMLElement>('.item.opened').forEach(el => { if (el.dataset.id) fridgesOpen.add(el.dataset.id); });
   const items: AmbItem[] = room.items.map(it => {
     const def = ITEM_MAP[it.kind];
     return { id: it.id, kind: it.kind, x: it.x, y: it.y, on: !!it.on, w: def ? placedBox(def, drawnScale(it)).w : 200 };
@@ -4326,8 +4325,13 @@ function syncAmbient() {
       chars.push({ id: 'p:' + pid, x: p.x, y: p.y, seated: pose === 'sit', lying: pose === 'lie' }); els.set('p:' + pid, el);
     }
   }
+  // Derived each frame from synced doll positions. Never item.on, never a leftover local .opened.
+  const fridgesOpen = openFridges(items, chars);
+  layer.querySelectorAll<HTMLElement>('.item').forEach(el => {
+    if (isFridge(el.dataset.kind || '') && el.dataset.id) el.classList.toggle('opened', fridgesOpen.has(el.dataset.id));
+  });
   const playing = keysPlaying(now);
-  const rx = reactionsFor(items, chars, { fridgesOpen, musicBoxDone: done, keysPlaying: playing });
+  const rx = addTableNibbles(s, chars, reactionsFor(items, chars, { fridgesOpen, musicBoxDone: done, keysPlaying: playing }));
   // Dance Party: 2+ dolls dancing to one stereo. Dancers share one phase so they move in sync.
   const party = partyFor(items, rx);
   if (party) for (const id of party.dancers) { const r = rx.get(id); if (r) rx.set(id, { ...r, phase: 0, face: r.face }); }
