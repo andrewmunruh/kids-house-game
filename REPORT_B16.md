@@ -159,4 +159,8 @@ Full `refit_gate.sh` on 5909d53 + this tip, ports 5300–5349, locks acquired 23
 
 ## Push
 
-Will be appended after `git push -u origin cursor/bench-refit-r2`. No force-push of `cursor/bench-refit`, no deploys, no preview/gh-pages, no ports 9800–9899.
+Normal-push (no force) of **`cursor/bench-refit-r2`** at `f35ebc70a2b8591760f4d8df691403fdcf3dabf7` (this report on top of `7a7250d`).
+
+- Remote: `https://github.com/andrewmunruh/kids-house-game/tree/cursor/bench-refit-r2`
+- PR link: `https://github.com/andrewmunruh/kids-house-game/pull/new/cursor/bench-refit-r2`
+- `origin/cursor/bench-refit` was left at old `ffb61ad`. No deploys, no preview/gh-pages, no ports 9800–9899.
