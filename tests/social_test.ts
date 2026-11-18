@@ -90,7 +90,12 @@ if (existsSync(OLD + '/src/shared/state.ts')) {
   x = old.reduce(x, { type: 'room/wallpaper', room: 'living', color: '#ffffff' });
   check('10ef736 reducer keeps the new items and the stereo on', x.rooms.living.items.some((i: any) => i.id === 'aq') && x.rooms.living.items.find((i: any) => i.id === 'spk').on === true);
   const oldHood = await import(OLD + '/src/shared/hood.ts');
-  check('10ef736 cleanHouseState matches this build', JSON.stringify(oldHood.cleanHouseState(JSON.parse(json))) === JSON.stringify(cleanHouseState(JSON.parse(json))));
+  // An old Worker rebuilds the house from a known-field whitelist, so it drops yardBenchRefit.
+  // Items and every other field still match. The B16 Worker keeps the marker (see cleanHouseState).
+  const oldClean = oldHood.cleanHouseState(JSON.parse(json));
+  const newClean = cleanHouseState(JSON.parse(json));
+  const dropFlag = (st: any) => { const { yardBenchRefit: _drop, ...rest } = st; return rest; };
+  check('10ef736 cleanHouseState matches this build (old Worker drops yardBenchRefit; items match)', JSON.stringify(dropFlag(oldClean)) === JSON.stringify(dropFlag(newClean)) && newClean.yardBenchRefit === 1 && oldClean.yardBenchRefit == null);
 } else check('old tree present at ' + OLD, false);
 
 console.log(`\n${pass} passed${process.exitCode ? ', some FAILED' : ''}`);

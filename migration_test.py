@@ -165,6 +165,73 @@ def strict_house(a, b):
         rooms.append('missing-original')
     towers = cat_towers(a) != cat_towers(b)
     return fields, rooms, towers, shared
+
+# Named exception for B16 option (1) only: a yard bench still at the seed 1122,372
+# (default rotation and size) may move to 1420,372, and yardBenchRefit may become 1.
+# A bench a kid moved, flipped, or resized must still match. Limitation: a bench
+# moved and then put back exactly at 1122,372 before the flag exists looks like the seed.
+SEED_YARD_BENCH = (1122, 372)
+REFIT_YARD_BENCH = (1420, 372)
+KID_MOVED_YARD_BENCH = (1500, 372)
+
+def yard_bench_refit_exception(before_view, after_view):
+    """Named exception for this seed-bench nudge only. Other field or room diffs still fail."""
+    ba, bb = house_body(before_view), house_body(after_view)
+    fields = []
+    for k in sorted(set(ba) | set(bb)):
+        av = ba.get('dogKennel') if k == 'dogKennel' else ba.get(k, None)
+        bv = bb.get('dogKennel') if k == 'dogKennel' else bb.get(k, None)
+        if k == 'dogKennel':
+            av, bv = av or None, bv or None
+        if k == 'yardBenchRefit':
+            if bv == 1 and av in (None, 1):
+                continue
+            fields.append(k)
+            continue
+        if k not in ba or k not in bb or av != bv:
+            fields.append(k)
+    ar, br = before_view.get('rooms') or {}, after_view.get('rooms') or {}
+    shared = [r for r in BOTH_ROOMS if r in ar and r in br]
+    rooms = []
+    for r in shared:
+        if ar[r] == br[r]:
+            continue
+        if r != 'backyard':
+            rooms.append(r)
+            continue
+        ia, ib = list((ar[r] or {}).get('items') or []), list((br[r] or {}).get('items') or [])
+        paint_a = {k: (ar[r] or {}).get(k) for k in (ar[r] or {}) if k != 'items'}
+        paint_b = {k: (br[r] or {}).get(k) for k in (br[r] or {}) if k != 'items'}
+        if paint_a != paint_b or len(ia) != len(ib):
+            rooms.append(r)
+            continue
+        ok = True
+        for ia_, ib_ in zip(ia, ib):
+            if ia_ == ib_:
+                continue
+            if ia_.get('id') != ib_.get('id') or ia_.get('kind') != 'yard-bench' or ib_.get('kind') != 'yard-bench':
+                ok = False
+                break
+            ac = {k: v for k, v in ia_.items() if k not in ('x', 'y')}
+            bc = {k: v for k, v in ib_.items() if k not in ('x', 'y')}
+            src = (round(ia_.get('x') or 0), round(ia_.get('y') or 0))
+            dst = (round(ib_.get('x') or 0), round(ib_.get('y') or 0))
+            seed_pose = ia_.get('flip') is not True and ia_.get('scale') in (None, 1) and ia_.get('size') in (None, 1)
+            if ac != bc or src != SEED_YARD_BENCH or dst != REFIT_YARD_BENCH or not seed_pose:
+                ok = False
+                break
+        if not ok:
+            rooms.append(r)
+    towers = cat_towers(before_view) != cat_towers(after_view)
+    return fields, rooms, towers, shared
+
+def bench_xy(view, item_id='yard-bench-1'):
+    items = ((view.get('rooms') or {}).get('backyard') or {}).get('items') or []
+    b = next((i for i in items if i.get('id') == item_id or (not item_id and i.get('kind') == 'yard-bench')), None)
+    if not b:
+        return None
+    return (round(b.get('x') or 0), round(b.get('y') or 0))
+
 def disk_room_names(folder):
     out = {}
     for fn in os.listdir(folder):
@@ -235,6 +302,7 @@ async def main():
               h.dispatch(id, {type:'item/add', room:'bedroom', item:{id:'k2-b', kind:kinds[6], x:800, y:560, flip:true}});
               h.dispatch(id, {type:'room/wallpaper', room:'living', color:'#80ed99'});
               h.dispatch(id, {type:'cat/set', cat:{name:'Pickles', coat:4, room:'bedroom', x:700}});
+              h.dispatch(id, {type:'item/move', room:'backyard', id:'yard-bench-1', x:1500, y:372});
               h.setLook({ ...h.players.get(h.pid).look, shirt:'#ffd166', hairStyle: 1 }); return true; })()""")
             await K3.evaluate("""(() => { const h = __hood(); h.setDog({name:'Biscuit', breed:2}); h.lock(h.myHouseId(), true); return true; })()""")
             await K3.wait_for_timeout(300)
@@ -282,7 +350,7 @@ async def main():
             room_notes = []
             rooms_ok = True
             for hid, ha in snap_a['houses'].items():
-                fields, rooms, towers, shared = strict_house(ha['view'], snap_b['houses'][hid]['view'])
+                fields, rooms, towers, shared = yard_bench_refit_exception(ha['view'], snap_b['houses'][hid]['view'])
                 if fields or rooms or towers or set(OLD_ROOMS) - set(shared):
                     rooms_ok = False
                     room_notes.append(f'{hid}: fields={fields} rooms={rooms} towers={towers}')
@@ -298,8 +366,25 @@ async def main():
             gained = already or (
                 all(filled_new_rooms(hid, h) for hid, h in snap_b['houses'].items())
                 and all('nursery' not in h['view']['rooms'] and 'backyard' not in h['view']['rooms'] for h in snap_a['houses'].values()))
-            check('every room is identical (items, positions, flips, paint, characters, cats, pets, kennel, cat tower)',
+            check('every room is identical (items, positions, flips, paint, characters, cats, pets, kennel, cat tower) [B16 named exception: seed yard-bench 1122,372 -> 1420,372 + yardBenchRefit]',
                   rooms_ok and gained, ('; '.join(room_notes) + f' {n_items_a} items').strip())
+            k2hid = ids_a[1][1]
+            k2_before, k2_after = bench_xy(snap_a['houses'][k2hid]['view']), bench_xy(snap_b['houses'][k2hid]['view'])
+            other = []
+            for hid, ha in snap_a['houses'].items():
+                if hid == k2hid:
+                    continue
+                ba, bb = bench_xy(ha['view']), bench_xy(snap_b['houses'][hid]['view'])
+                flag = snap_b['houses'][hid]['view'].get('yardBenchRefit')
+                if ba == SEED_YARD_BENCH:
+                    if bb != REFIT_YARD_BENCH or flag != 1:
+                        other.append(f'{hid}: {ba} -> {bb} flag={flag}')
+                elif ba and ba != bb:
+                    other.append(f'{hid}: non-seed {ba} -> {bb}')
+            check("a yard bench a kid moved stays where she put it",
+                  k2_before == KID_MOVED_YARD_BENCH and k2_after == KID_MOVED_YARD_BENCH
+                  and snap_b['houses'][k2hid]['view'].get('yardBenchRefit') == 1 and not other,
+                  f'k2 {k2_before} -> {k2_after}; others {other or "seed benches at 1420 with marker"}')
             check('every kid identical (name, look, dog, basket, house)', snap_a['players'] == snap_b['players'])
             check('shared garden identical', snap_a['plots'] == snap_b['plots'])
             check('settings identical', snap_a['settings'] == snap_b['settings'])
@@ -307,7 +392,16 @@ async def main():
             def same_ls(a, b):
                 ka = {k: v for k, v in a.items() if k != 'cozy-whatsnew'}; kb = {k: v for k, v in b.items() if k not in ('cozy-whatsnew', 'cozy-house-bak')}  # bak: additive (Batch 3), checked below
                 if ka.keys() != kb.keys(): return False
-                return all((json.loads(ka[k]) == json.loads(kb[k])) if k == 'cozy-house' else ka[k] == kb[k] for k in ka)
+                def same_val(k):
+                    if k != 'cozy-house':
+                        return ka[k] == kb[k]
+                    ja, jb = json.loads(ka[k]), json.loads(kb[k])
+                    if ja == jb:
+                        return True
+                    # Same named exception as the street houses: seed bench nudge + marker only.
+                    fields, rooms, towers, shared = yard_bench_refit_exception(ja, jb)
+                    return not fields and not rooms and not towers
+                return all(same_val(k) for k in ka)
             check('every iPad\'s saved data unchanged (solo house, sign-in, secrets)', all(same_ls(a, b) for a, b in zip(ls_a, ls_b)), json.dumps([sorted(x.keys()) for x in ls_b]))
             check('the backup key is an exact copy of the old solo save (additive key only)', all(b.get('cozy-house-bak') in (None, a.get('cozy-house')) for a, b in zip(ls_a, ls_b)) and any('cozy-house-bak' in b for b in ls_b))
             check('the new build announces the update once (What\'s new, latest version)', all(x.get('cozy-whatsnew') == WN_LATEST for x in ls_b))

@@ -3,7 +3,7 @@
 // Privacy: no emails, last names, or IP addresses are stored. Chat bubbles are relayed to nearby players only and never logged.
 // Letters are kept on the server for up to 30 days: filtered more strictly than chat, first names only.
 // A kid can leave three unread letters in one mailbox. A grown-up can clear them, or limit new letters to preset phrases.
-import { reduce, initialState, ensureRooms, drawnScale, type GameState, type Dog, type Action } from '../src/shared/state';
+import { reduce, initialState, ensureRooms, applyYardBenchRefit, drawnScale, type GameState, type Dog, type Action } from '../src/shared/state';
 import { pieceWidth, standBeside } from '../src/shared/sit';
 import { babyOccupant } from '../src/shared/baby';
 import { withRandomStarter } from '../src/shared/avatar';
@@ -83,12 +83,18 @@ export class Neighborhood {
     for (const tb of this.tables) if (tb.phase === 'play') for (const pid of tb.seats) if (pid && !this.awaySince.has(pid)) { this.awaySince.set(pid, now); seeded = true; }
     if (seeded) this.save('away');
     for (const pid of this.awaySince.keys()) this.armAwayPing(pid);
-    // Missing rooms (nursery, backyard) are filled in memory only. Disk stays as stored until the next edit.
+    // Missing rooms (nursery, backyard) are filled in memory only. Disk stays as stored until the next edit,
+    // except the one-time B16 yard-bench refit: a stored backyard already on disk is nudged and marked, then saved,
+    // so two clients opening the house agree and the marker survives a restart. A fill-in is still not written.
     if (this.meta) for (const id of this.meta.houseOrder) {
       const h = await this.kv.get<HouseFull>('house:' + id);
       if (h) {
-        const state = h.state ? ensureRooms(h.state) : h.state;
+        const rawState = h.state;
+        const filled = rawState ? ensureRooms(rawState) : rawState;
+        const state = filled ? applyYardBenchRefit(filled, (rawState as GameState | undefined)?.yardBenchRefit) : filled;
         this.houses.set(id, state ? { ...h, state: this.storedMailbox(state) } : h);
+        const hadYard = !!(rawState as GameState | undefined)?.rooms?.backyard && Array.isArray((rawState as GameState).rooms.backyard.items);
+        if (hadYard && state && state !== filled) this.save(id);
       }
     }
   })()); }
