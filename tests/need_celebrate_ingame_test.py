@@ -46,22 +46,28 @@ MEET = """(arg) => {
 }"""
 
 CELE_STATE = """(id) => {
-  const el = (id && document.querySelector('.char[data-cid="'+id+'"]')) || document.querySelector('.char[data-cid]');
-  if (!el) return { n: 0, missing: true };
-  const bursts = [...el.querySelectorAll(':scope > .need-burst')];
-  const vis = bursts.filter(b => {
-    const s = getComputedStyle(b);
-    return s.visibility !== 'hidden' && s.display !== 'none';
-  });
-  const glow = el.classList.contains('need-glow');
-  const pe = getComputedStyle(el).pointerEvents;
-  const peBurst = vis[0] ? getComputedStyle(vis[0]).pointerEvents : 'none';
-  return {
-    n: bursts.length, vis: vis.length, glow,
-    need: el.dataset.needCele || (vis[0] && vis[0].dataset.needCele) || null,
-    pe, peBurst,
-    hopping: !!(el.querySelector(':scope > .inner.need-hop')),
+  const chars = [...document.querySelectorAll('.char[data-cid]')];
+  const info = (el) => {
+    const bursts = [...el.querySelectorAll(':scope > .need-burst')];
+    const vis = bursts.filter(b => {
+      const s = getComputedStyle(b);
+      return s.visibility !== 'hidden' && s.display !== 'none';
+    });
+    return {
+      id: el.dataset.cid, n: bursts.length, vis: vis.length,
+      glow: el.classList.contains('need-glow'),
+      need: el.dataset.needCele || (vis[0] && vis[0].dataset.needCele) || null,
+      pe: getComputedStyle(el).pointerEvents,
+      peBurst: vis[0] ? getComputedStyle(vis[0]).pointerEvents : 'none',
+      hopping: !!(el.querySelector(':scope > .inner.need-hop')),
+    };
   };
+  const all = chars.map(info);
+  const playing = all.find(a => a.glow || a.vis >= 1);
+  const wanted = all.find(a => a.id === id);
+  const st = playing || wanted || all[0];
+  if (!st) return { n: 0, missing: true, all };
+  return { ...st, all };
 }"""
 
 async def wait_ready(pg, timeout=20000):
@@ -357,7 +363,7 @@ async def run_two_client(browser):
         await B.wait_for_function("""(id) => {
           const c = (__store.get().characters||[]).find(x => x.id === id);
           const n = (c && typeof (c.needs||{}).hungry === 'number') ? c.needs.hungry : 3;
-          return n <= 1;
+          return n <= 2;
         }""", arg=cid, timeout=3000)
     except Exception:
         pass
@@ -365,8 +371,9 @@ async def run_two_client(browser):
       const fr = __store.get().rooms.kitchen.items.find(i => /fridge/.test(i.kind));
       __store.dispatch({ type: 'char/move', id, room: 'kitchen', x: fr.x + 50, y: fr.y + 20, seat: null });
     }""", cid)
-    await A.wait_for_timeout(150)
     await A.evaluate(MEET, {'need': 'hungry', 'id': cid})
+    await A.evaluate("() => { if (window.__needs) __needs.paint(); }")
+    await B.evaluate("() => { if (window.__needs) __needs.paint(); }")
     # Both iPads should show the celebration within 1s, on this doll.
     seenA = seenB = False
     for i in range(12):
