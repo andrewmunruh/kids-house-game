@@ -7,7 +7,10 @@ import { PROTOCOL, type ClientMsg, type ServerMsg, type PlayerPub, type HouseMet
 import type { Dog } from './shared/state';
 import type { TableOp, TablePub } from './shared/games/index';
 
-/** Server houses are migrated like a local save: missing rooms gain the starter layout, existing rooms stay. */
+/** Server houses are migrated like a local save: missing rooms gain the starter layout, existing rooms stay.
+ *  Adopt-only: this never dispatches an act, item/move, or whole-house write-back. The Worker
+ *  is the street source of truth. If an older Worker stripped yardBenchRefit but left the
+ *  bench at 1420, migrate() only sets the in-memory flag and does not move or send anything. */
 function adoptHouse(state: GameState): GameState {
   try { return migrate(state); } catch { return state; }
 }

@@ -575,7 +575,9 @@ function frameHouseKid(nudgeX: boolean) {
   if (view !== 'house' || doorPress) return;
   // The yard camera is staged. Centring her here pans the starter bench off a phone.
   if (store.get().currentRoom === 'backyard') {
-    if (Math.abs(camX - YARD_CAM) > 0.5) setCam(YARD_CAM);
+    // Stay on the staged play-set camera until she pans. Forcing YARD_CAM after a
+    // › tap would hide a bench just past the tree (1420) in portrait and snap back on sit.
+    if (camAuto() && Math.abs(camX - YARD_CAM) > 0.5) setCam(YARD_CAM);
     placeYardHints();
     return;
   }
@@ -5614,7 +5616,7 @@ function fitLivingGroup(s: GameState, kidX: number, cam: number, keep: number) {
 }
 function frameYardCam() {
   if (store.get().currentRoom === 'backyard') {
-    setCam(YARD_CAM);
+    if (camAuto()) setCam(YARD_CAM);
     placeYardHints();
     return;
   }
