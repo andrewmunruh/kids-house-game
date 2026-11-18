@@ -139,18 +139,53 @@ with sync_playwright() as pw:
     # A. Old worker (cozy-v1) -> kill-switch build: unregistered, caches gone, game loads from network, save kept.
     if want('kill'):
         br, ctx, page, errs = fresh(pw, A.browser)
+        stacks = []
+        page.on('pageerror', lambda e: stacks.append({'name': getattr(e, 'name', ''), 'message': getattr(e, 'message', str(e)), 'stack': getattr(e, 'stack', '')}))
         i0 = load_controlled(page, A.old); save0 = put_house(page)
         ok('kill: old build is controlled by its worker', i0['ctl'] and i0['regs'] >= 1, str(i0['caches']))
-        set_dir(PROD, A.kill)
+        set_dir(PROD, A.kill); t_kill = time.time()
         rl(page)
-        i1, gone = poll(page, INFO, lambda v: v['regs'] == 0 and not any(k == 'cozy-v1' or k.startswith('cozy:') for k in v['caches']), 25)
+        # Timeline poll: record every distinct cache set so a disappear->reappear is visible.
+        TL = []; end = time.time() + 25; i1 = None; gone = False
+        while time.time() < end:
+            try: v = page.evaluate(INFO)
+            except Exception as e: v = {'err': str(e)}
+            if isinstance(v, dict) and 'err' not in v:
+                key = (v['regs'], tuple(v['caches']))
+                if not TL or TL[-1][1] != key: TL.append((round(time.time() - t_kill, 2), key))
+                i1 = v
+                if v['regs'] == 0 and not any(k == 'cozy-v1' or k.startswith('cozy:') for k in v['caches']):
+                    gone = True; break
+            time.sleep(0.4)
+        i1 = i1 or {}
         ok('kill: old worker unregistered and its caches deleted', gone, str({k: i1.get(k) for k in ('regs', 'caches', 'ctl')}))
-        rl(page); page.wait_for_timeout(2500)
-        i2 = page.evaluate(INFO)
+        print('  TIMELINE ' + json.dumps(TL), flush=True)
+        NAV = "() => { const n = performance.getEntriesByType('navigation')[0]; return n ? {transferSize: n.transferSize, workerStart: n.workerStart, type: n.type} : null; }"
+        def safety(tag):
+            rl(page); page.wait_for_timeout(2500)
+            i = page.evaluate(INFO); nav = page.evaluate(NAV)
+            net = bool(nav) and nav['workerStart'] == 0 and not i['ctl']
+            s = (not i['ctl']) and i['regs'] == 0 and i['scopes'] == [] and i['stage'] and net and items(i['save']) == items(save0) and items(save0) is not None
+            print('  SAFETY[' + tag + '] ' + json.dumps({'ctl': i['ctl'], 'regs': i['regs'], 'scopes': i['scopes'], 'stage': i['stage'], 'nav': nav, 'save_ok': items(i['save']) == items(save0), 'caches': i['caches']}), flush=True)
+            return i, s
+        i2, s2 = safety('followup')
         ok('kill: page is no longer controlled after the next load', not i2['ctl'] and i2['regs'] == 0, str(i2['regs']))
         ok('kill: game renders straight from the network', i2['stage'])
         ok('kill: saved house unchanged', items(i2['save']) == items(save0)  and items(save0) is not None)
-        ok('kill: no page errors', not errs, '; '.join(errs[:3])); br.close()
+        ok('kill: FOLLOWUP SAFETY (uncontrolled, no scopes, network nav, save intact)', s2)
+        # Second sweep: 15 s later, without and then with a reload, must stay clean.
+        page.wait_for_timeout(15000); sa = page.evaluate(INFO)
+        i3, s3 = safety('sweep2')
+        ok('kill: SWEEP2 SAFETY still clean after 15 s + reload', s3)
+        cz = lambda c: sorted(k for k in c if k == 'cozy-v1' or k.startswith('cozy:'))
+        at1, at2, atA, at3 = cz(i1.get('caches', [])), cz(i2['caches']), cz(sa['caches']), cz(i3['caches'])
+        ever_clean = any(not [k for k in key[1] if k == 'cozy-v1' or k.startswith('cozy:')] for _, key in TL)
+        cls = 'clean' if not (at2 or atA or at3) and gone else ('reappeared' if ever_clean and (at2 or atA or at3) else ('lingering' if (at1 or at2 or atA or at3) else 'clean'))
+        print('  SWEEP ' + json.dumps({'class': cls, 'at_poll_end': at1, 'at_followup': at2, 'at_15s': atA, 'at_sweep2_reload': at3}), flush=True)
+        ok('kill: post-kill caches stay gone (no lingering/reappeared)', cls == 'clean', cls)
+        ok('kill: no page errors', not errs, '; '.join(errs[:3]))
+        for st in stacks: print('  PAGEERROR_STACK ' + json.dumps(st), flush=True)
+        br.close()
 
     # B. Old worker -> new build: normal update path, legacy cache removed, save kept.
     if want('upgrade'):
@@ -201,6 +236,11 @@ with sync_playwright() as pw:
         page.wait_for_timeout(3000); i1 = page.evaluate(INFO)
         ok('off: worker unregistered, caches deleted, page uncontrolled', gone and i1['regs'] == 0, str({k: i1.get(k) for k in ('regs', 'ctl', 'caches')}))
         ok('off: at most one automatic reload (no loop)', len(navs) - n0 <= 2, str(len(navs) - n0))
+        n1 = len(navs)
+        page.wait_for_timeout(5000)
+        ok('off: no further automatic reload in the next 5 s', len(navs) == n1, str(len(navs) - n1))
+        i1b = page.evaluate(INFO)
+        ok('off: still uncontrolled and rendered after the settle', (not i1b['ctl']) and i1b['regs'] == 0 and i1b['stage'])
         ok('off: game renders and save unchanged', i1['stage'] and items(i1['save']) == items(save0)  and items(save0) is not None)
         ok('off: no page errors', not errs, '; '.join(errs[:3])); br.close()
 
@@ -300,6 +340,82 @@ with sync_playwright() as pw:
             ok('scopes/prod: production scoped app cache present', any(k.startswith('cozy:' + PROD + ':app:') for k in i4.get('caches', [])), str(i4.get('caches')))
             ok('scopes: no page errors (prod reverse)', not errs2, '; '.join(errs2[:3]))
             br2.close()
+
+
+
+    # G. Mid-session update: a finger is down, so the note waits, the tab does not reload, and play state is kept.
+    if want('midsession'):
+        br, ctx, page, errs = fresh(pw, A.browser)
+        navs = []; page.on('framenavigated', lambda f: navs.append(time.time()) if f == page.main_frame else None)
+        i0 = load_controlled(page, A.new); save0 = put_house(page)
+        play = page.evaluate("""() => {
+          const s = window.__store;
+          s.dispatch({ type: 'room/switch', room: 'bedroom' });
+          const id = 'ms-pillow';
+          s.dispatch({ type: 'item/add', room: 'bedroom', item: { id, kind: 'story-pillow', x: 900, y: 520, flip: false, z: 40, scale: 1 } });
+          return { room: s.get().currentRoom, ids: s.get().rooms.bedroom.items.map(i => i.id) };
+        }""")
+        ok('midsession: started on the first build', i0['ctl'] and play.get('room') == 'bedroom' and 'ms-pillow' in play.get('ids', []), str(play))
+        page.evaluate("""() => {
+          document.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 99, bubbles: true, cancelable: true, pointerType: 'touch' }));
+        }""")
+        n0 = len(navs)
+        set_dir(PROD, A.new2)
+        page.evaluate("async () => { const r = await navigator.serviceWorker.getRegistration(); await r.update(); }")
+        page.wait_for_timeout(4000)
+        note_while = page.locator('.updateNote').count()
+        play1 = page.evaluate("""() => {
+          const s = window.__store.get();
+          return { room: s.currentRoom, ids: (s.rooms.bedroom.items || []).map(i => i.id), stage: !!document.getElementById('stage') };
+        }""")
+        i1 = page.evaluate(INFO)
+        ok('midsession: no refresh note while a finger is down', note_while == 0, 'notes=' + str(note_while))
+        ok('midsession: no reload while a finger is down', len(navs) == n0, str(len(navs) - n0))
+        ok('midsession: play state kept (bedroom + pillow)', play1.get('room') == 'bedroom' and 'ms-pillow' in play1.get('ids', []) and play1.get('stage'), str(play1))
+        ok('midsession: saved house unchanged while waiting', items(i1['save']) == items(save0) and items(save0) is not None)
+        page.evaluate("""() => {
+          document.dispatchEvent(new PointerEvent('pointerup', { pointerId: 99, bubbles: true, cancelable: true, pointerType: 'touch' }));
+        }""")
+        try:
+            page.wait_for_selector('.updateNote', timeout=8000); shown = True
+        except Exception:
+            shown = False
+        ok('midsession: note appears after the finger is released', shown and 'New stuff! Tap to refresh' in (page.locator('.updateNote').inner_text() if shown else ''), 'shown=' + str(shown))
+        ok('midsession: still no automatic reload after the note appears', len(navs) == n0, str(len(navs) - n0))
+        ok('midsession: no page errors', not errs, '; '.join(errs[:3])); br.close()
+
+    # H. Kill on, then off again within 15 s: the delayed second wipe must not eat the new worker or its caches.
+    if want('killtoggle'):
+        br, ctx, page, errs = fresh(pw, A.browser)
+        i0 = load_controlled(page, A.new); save0 = put_house(page)
+        apps0 = [k for k in i0['caches'] if ':app:' in k]
+        ok('killtoggle: good worker is in control before kill', i0['ctl'] and len(apps0) == 1, str(i0['caches']))
+        set_dir(PROD, A.kill); t0 = time.time()
+        rl(page)
+        i1, gone = poll(page, INFO, lambda v: v['regs'] == 0 and not v['ctl'], 15)
+        ok('killtoggle: kill unregistered the outgoing worker', gone, str({k: (i1 or {}).get(k) for k in ('regs', 'ctl', 'caches')}))
+        # Flip back to the good build (switch ON) quickly, so a new worker re-registers inside the 3 s second wipe.
+        set_dir(PROD, A.new)
+        rl(page)
+        i2, back = poll(page, INFO, lambda v: v['ctl'] and any(k.startswith('cozy:/kids-house-game/:app:') for k in v.get('caches', [])), 15)
+        ok('killtoggle: good worker re-registered while the delayed wipe is still pending', back and (time.time() - t0) < 15, str({k: (i2 or {}).get(k) for k in ('regs', 'ctl', 'caches')}) + f' at={time.time()-t0:.2f}s')
+        # Arm a fresh art/app write, then wait out the rest of the delayed wipe (3 s from kill activate, plus margin).
+        try:
+            page.evaluate("""async () => {
+              const img = document.querySelector('img, image, .item img');
+              if (img && img.src) await fetch(img.src).catch(() => {});
+              await fetch(location.href.split('#')[0]).catch(() => {});
+            }""")
+        except Exception:
+            pass
+        wait_more = max(0, 8 - (time.time() - t0))
+        page.wait_for_timeout(int(wait_more * 1000) + 2000)
+        i3 = page.evaluate(INFO)
+        apps3 = [k for k in i3.get('caches', []) if k.startswith('cozy:/kids-house-game/:app:')]
+        ok('killtoggle: good worker still registered and in control', i3['ctl'] and i3['regs'] >= 1 and 'kids-house-game' in ''.join(i3.get('scopes', [])), str({k: i3.get(k) for k in ('regs', 'ctl', 'scopes', 'caches')}))
+        ok('killtoggle: new app cache was not deleted by the delayed wipe', len(apps3) >= 1, str(i3.get('caches')))
+        ok('killtoggle: game still rendered and save intact', i3['stage'] and items(i3['save']) == items(save0) and items(save0) is not None)
+        ok('killtoggle: no page errors', not errs, '; '.join(errs[:3])); br.close()
 
 
 ok('no request left localhost', not FOREIGN, ' '.join(FOREIGN[:3]))

@@ -17,6 +17,13 @@ check('sw-switch.json is never served from a cache', sw.includes("endsWith('/sw-
 check('art cache is capped', /ART_MAX\s*=\s*\d+/.test(sw) && sw.includes('trimArt'));
 check('worker tells open tabs its build', sw.includes("type: 'cozy-sw'"));
 check('worker never calls cache.add', !/\bcache\.add\s*\(/.test(sw));
+check('worker skips cache writes when it is no longer active',
+  sw.includes('function mayCache') && sw.includes("state === 'redundant'") && sw.includes('active !== self.serviceWorker'));
+check('cache.put and caches.open for writes are guarded by mayCache',
+  /if \(!mayCache\(\)\) return fetch/.test(sw) && /ok && mayCache\(\)/.test(sw) && /open\(APP\)\.then\(x => \{ if \(mayCache\(\)\)/.test(sw));
+check('activate re-sweeps after claim settles',
+  /activate[\s\S]*clients\.claim\(\)[\s\S]*setTimeout[\s\S]*sweep\(\)/.test(sw));
+
 
 const sws = read('public/sw-switch.json');
 let on = false; try { on = JSON.parse(sws).sw === 'on'; } catch { /* missing */ }
@@ -27,6 +34,16 @@ check('kill worker deletes caches, unregisters, reloads tabs, has no fetch handl
 check('kill worker scopes cozy-v1 to production only', kill.includes('OWN_LEGACY') && kill.includes("/kids-house-game/"));
 check('kill worker notes Client.navigate iPad standalone soak check', /iPad|standalone/i.test(kill));
 check('kill worker leaves saved houses alone', !/localStorage|indexedDB/.test(kill.replace(/\/\/.*$/gm, '')));
+check('kill worker wipes again after activate settles',
+  kill.includes('async function wipe') && /setTimeout[\s\S]*wipe\(doomed\)/.test(kill));
+check('kill second wipe re-checks sw-switch.json and skips if kill is off',
+  kill.includes('sw-switch.json') && kill.includes("sw === 'off'") && kill.includes('killStillOn'));
+check('kill second wipe only deletes doomed names that predate a re-register',
+  kill.includes('doomed') && /someoneElseRegistered/.test(kill) && /wipe\(doomed\)/.test(kill));
+check('kill second wipe does not unregister or navigate again',
+  (kill.split('unregister(').length - 1) === 1 && (kill.split('navigate(').length - 1) === 1);
+check('worker version string SW_REV is present for iOS update detection', sw.includes("const SW_REV = 'b15'"));
+
 const vite = read('vite.config.ts');
 check('build stamps sw.js and COZY_SW_KILL swaps in the kill worker', vite.includes('__COZY_BUILD__') && vite.includes("COZY_SW_KILL === '1'") && vite.includes('{"sw":"off"}'));
 check('build id is reproducible: no clock fallback in vite.config.ts', !/Date\.now\(\)/.test(vite));

@@ -34,6 +34,12 @@ def fail(msg):
     problems.append(msg)
     print('FAIL', msg, flush=True)
 
+def has_sleep_z(z):
+    # House dolls in bed get need-snooze, which paints a drifting "z" by the pillow
+    # (computed ::after content is "z"). Hood avatars still use the pose-lie "z z".
+    # Either one is a visible sleep zzz; content "none" or empty is not.
+    return 'z' in (z or '').lower()
+
 def pillow_ok(kind, c):
     r, g, b, a = c
     if a < 80: return False
@@ -200,8 +206,8 @@ async def run_sizes(pg):
                             fail(tag + f' flipped pose did not mirror {det:.2f}')
                     if bool(m['poseR']) != flip:
                         fail(tag + ' pose-lie-r ' + str(m['poseR']))
-                    if 'z z' not in (m['z'] or ''):
-                        fail(tag + ' missing z z ' + str(m['z']))
+                    if not has_sleep_z(m.get('z')):
+                        fail(tag + ' missing zzz ' + str(m.get('z')))
                     if not (m['itemZ'] < m['charZ'] < m['frontZ']):
                         fail(tag + f' layer {m["itemZ"]} {m["charZ"]} {m["frontZ"]}')
                     if not m['footFront']:
@@ -303,8 +309,8 @@ async def own_avatar(browser):
         fail('own avatar is not lying ' + str(got))
     elif not got.get('matrix') or abs(got['matrix'][0]) > 0.2 or abs(got['matrix'][1]) < 0.9:
         fail('own avatar is upright ' + str(got.get('matrix')))
-    elif 'z z' not in (got.get('z') or ''):
-        fail('own avatar missing z z')
+    elif not has_sleep_z(got.get('z')):
+        fail('own avatar missing zzz ' + str(got.get('z')))
     elif got.get('svgTurn'):
         fail('own avatar svg rotates as well')
     elif not got.get('tagLow'):
@@ -339,6 +345,24 @@ async def own_avatar(browser):
     await pg.locator('.stage').screenshot(path=f'{OUT}/avatar-lie-390x844.png')
     await ctx.close()
 
+async def negative_zzz_control(pg):
+    # Hide both the pose-lie "z z" and the need-snooze drifting "z", then prove the
+    # checker reports them missing (so accepting either string is not a free pass).
+    await pg.evaluate("""() => {
+      const s = document.createElement('style');
+      s.id = 'zzz-hide';
+      s.textContent = '.char.pose-lie::after, .avatar.pose-lie::after, .char.need-snooze::after { content: none !important; }';
+      document.head.appendChild(s);
+    }""")
+    await pg.wait_for_timeout(50)
+    m = await pg.evaluate(MEASURE)
+    z = '' if m.get('missing') else (m.get('z') or '')
+    if has_sleep_z(z):
+        fail('negative control: hidden zzz still counted as present ' + str(z))
+    else:
+        print('PASS negative control: checker reports missing zzz when both are hidden ' + str(z), flush=True)
+    await pg.evaluate("() => document.getElementById('zzz-hide')?.remove()")
+
 async def main():
     async with async_playwright() as p:
         browser = await p.chromium.launch()
@@ -350,6 +374,7 @@ async def main():
             await pg.goto(WEB, wait_until='domcontentloaded')
             await dismiss(pg)
             await run_sizes(pg)
+            await negative_zzz_control(pg)
             await ctx.close()
         try:
             await own_avatar(browser)
