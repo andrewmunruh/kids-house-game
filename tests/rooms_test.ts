@@ -390,6 +390,63 @@ async function main() {
   const diskMoved = kvR.get('house:' + hidR).state;
   check('Worker load leaves a kid-moved bench where she put it and still writes the marker', diskMoved.rooms.backyard.items.find((i: PlacedItem) => i.id === 'yard-bench-1').x === 1500 && diskMoved.yardBenchRefit === 1);
 
+  // --- B16 write-back safety (old 5909d53 client / old Worker) ---
+  // 5909d53 cleanHouseState: migrate, then rebuild from a known-field list with no yardBenchRefit copy.
+  // Recreate that whitelist here so this test does not import a newer sanitizer by mistake.
+  const ROOMS_OLD = ['living', 'bedroom', 'kitchen', 'salon', 'nursery', 'bathroom', 'backyard'] as const;
+  function cleanHouseState5909d53(raw: any): any {
+    const base = initialState();
+    const rooms: any = {};
+    const srcRooms = raw?.rooms ?? {};
+    for (const r of ROOMS_OLD) {
+      const src: any = srcRooms[r] ?? base.rooms[r as keyof typeof base.rooms];
+      rooms[r] = {
+        wallpaper: src.wallpaper, floor: src.floor, pattern: src.pattern ?? 0,
+        wallTile: src.wallTile ?? null, floorTile: src.floorTile ?? null,
+        items: Array.isArray(src.items) ? src.items.map((it: any) => ({ ...it })) : [],
+      };
+    }
+    const { yardBenchRefit: _drop, extraUnknown: _u, ...kept } = { ...base, ...raw, rooms };
+    return kept;
+  }
+  const marked1420 = { ...withBench(seedBench({ x: YARD_BENCH_REFIT_X, y: YARD_BENCH_REFIT_Y }), 1), extraUnknown: 'nope' };
+  const stripped = cleanHouseState5909d53(marked1420);
+  check('old 5909d53 cleanHouseState strips the marker but keeps the bench at 1420', stripped.yardBenchRefit === undefined && !('extraUnknown' in stripped) && stripped.rooms.backyard.items.find((i: PlacedItem) => i.id === 'yard-bench-1').x === YARD_BENCH_REFIT_X);
+  const adoptedStripped = migrate(stripped);
+  check('new client adopt of that stripped house only sets the in-memory flag; it does not move the bench', adoptedStripped.yardBenchRefit === 1 && adoptedStripped.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.x === YARD_BENCH_REFIT_X);
+  let loopX = [adoptedStripped.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.x];
+  let loopState: any = adoptedStripped;
+  for (let i = 0; i < 5; i++) {
+    loopState = migrate(cleanHouseState5909d53(loopState));
+    loopX.push(loopState.rooms.backyard.items.find((it: PlacedItem) => it.id === 'yard-bench-1').x);
+  }
+  check('old Worker strip + new client migrate does not loop or walk the bench off 1420', loopX.every(x => x === YARD_BENCH_REFIT_X) && loopState.yardBenchRefit === 1);
+
+  const adoptedSeed = migrate(unmarked);
+  check('new client adopt of a 1122 house (old Worker never nudged) moves only in memory, to 1420 once', adoptedSeed.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.x === YARD_BENCH_REFIT_X && adoptedSeed.yardBenchRefit === 1);
+  const afterOldClean = cleanHouseState5909d53(adoptedSeed);
+  const secondAdopt = migrate(afterOldClean);
+  check('if that adopted house were later re-sanitized by an old Worker, a second adopt does not send a new move (x stays 1420)', afterOldClean.yardBenchRefit === undefined && afterOldClean.rooms.backyard.items.find((i: PlacedItem) => i.id === 'yard-bench-1').x === YARD_BENCH_REFIT_X && secondAdopt.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.x === YARD_BENCH_REFIT_X && secondAdopt.yardBenchRefit === 1);
+
+  const kidPlaced = withBench(seedBench({ x: 1500, y: 372 }));
+  const afterKid = migrate(cleanHouseState5909d53(migrate(kidPlaced)));
+  check('an old Worker strip + new adopt leaves a kid-placed bench at 1500', afterKid.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.x === 1500 && afterKid.yardBenchRefit === 1);
+
+  check('cleanAction never accepts a whole-house or room put, reset, or reseed',
+    cleanAction({ type: 'game/reset' }) === null
+    && cleanAction({ type: 'room/switch', room: 'backyard' }) === null
+    && cleanAction({ type: 'state/put', state: marked1420 }) === null
+    && cleanAction({ type: 'house/put', rooms: marked1420.rooms }) === null
+    && cleanAction({ type: 'room/put', room: 'backyard', items: [] }) === null
+    && cleanAction({ type: 'game/reseed' }) === null);
+  const moveAct = cleanAction({ type: 'item/move', room: 'backyard', id: 'yard-bench-1', x: 1500, y: 372 });
+  check('the only furniture write an old or new client can send is a per-item act such as item/move',
+    !!moveAct && moveAct.type === 'item/move' && (moveAct as any).id === 'yard-bench-1' && (moveAct as any).x === 1500 && !('state' in moveAct) && !('rooms' in moveAct));
+  const from1122 = reduce(unmarked, moveAct as any);
+  check('an item/move does not drop the rest of the room or write the bench back to 1122 by itself',
+    from1122.rooms.backyard.items.find(i => i.id === 'yard-bench-1')!.x === 1500
+    && from1122.rooms.backyard.items.some(i => i.kind === 'tulip-bed'));
+
   console.log(`${pass} passed`);
 }
 main();

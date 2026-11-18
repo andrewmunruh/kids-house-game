@@ -181,7 +181,91 @@ Full `refit_gate.sh` on 5909d53 + this tip, ports 5300–5349, locks acquired 23
 
 ---
 
+## App Builder review follow-up (portrait reach + write-back)
+
+Times are America/Chicago (CST, UTC-6). Landscape was already approved: door, trunk and tulips are clear, and the old client shows the small bench at 1420. This pass answers the two open items. Seed **x stays 1420**. Art was not repainted.
+
+### 1. Portrait 820×1180 — what a kid actually sees
+
+The backyard camera is staged at `YARD_CAM = 864` (`src/yard.ts` line 67) so the play set (door, tree, tulips) shares one frame at every size. `fit()` narrows the window in portrait. On an 820×1180 WebKit iPad, measured:
+
+| | Landscape 1180×820 | Portrait 820×1180 |
+|---|---|---|
+| `VIEW_W` | 1000 | **482** |
+| Default camera | 864 | 864 |
+| Visible world | 864–1864 | **864–1346** |
+| Bench at 1420 (308 wide, 1266–1574) | Fully on screen, not behind the arrow | Only **26.5%** on screen; the rest is off the right edge, **behind the › arrow** |
+| Old-client small bench at 1420 (140 wide, 1350–1490) | Fully on screen | Almost entirely off the right edge (that is why it looked missing) |
+
+A kid can pan. The › arrow is on because there is more yard to the right. One tap glides the camera to 1153, and the bench is then fully on screen. A second measurement after a slightly longer pan used for the new frames (cam ≈ 1170) puts the bench fully left of the arrow as well.
+
+**Why the seed stays 1420:** a 308-wide bench that stays past the tree canopy needs `x ≥ 1407`. To sit fully in the default portrait window and left of the › arrow, its right edge would have to be ≤ 1266, so `x ≤ 1112`. Those two ranges do not overlap. There is no other x that is both clear of the door and trunk and fully in the default 482-wide portrait frame. Zooming the yard out far enough to keep the door and a 1420 bench in one portrait frame would letterbox the stage and no longer match the living room. So 1420 stays, and in portrait a kid uses › once to reach it — the same way she pans any other part of a wide room.
+
+A real bug was that `frameYardCam()` and `frameHouseKid()` always snapped the backyard back to 864, including after a › tap and after a sit. A later `fit()` (resize, or switching Play/Decorate) would hide the bench again. Both now honor `camAuto()` / `markPanned()`, so once she pans, the camera stays put. Default entry is still the staged play-set camera.
+
+Play and Decorate proof, **WebKit 820×1180**, real pointers, `tests/yard_bench_reach_test.py`: **REACH PASS**. After one › pan, two kids were dragged onto the bench and both sat (`pose-sit` on `yard-bench-1`, seats n=0 and n=1). In Decorate the bench was dragged (1420,372 → 1357.9, 392.7). Frames: `/workspace/t-bench-refit/shots/reach_play_before_sit.png`, `reach_play_two_sit.png`, `reach_decorate_dragged.png` (JPG copies under `send/`).
+
+### New migrated frames (bench in view)
+
+Shots now read the real `VIEW_W` from the stage and pan only when the bench would otherwise be off-screen or under the arrow — the same move a kid makes with ›. Landscape stays at the default 864 camera.
+
+Full-size PNGs:
+
+| What | WebKit | Chromium |
+|---|---|---|
+| Portrait 820×1180 after (new client, bench at 1420, cam ≈ 1170, fully in view, door/trunk/tulips clear) | `/workspace/t-bench-refit/shots/webkit_820x1180_migrated_after.png` | `/workspace/t-bench-refit/shots/chromium_820x1180_migrated_after.png` |
+| Portrait 820×1180 old 5909d53 client (small bench at 1420, same cam, fully in view, clear) | `/workspace/t-bench-refit/shots/webkit_820x1180_migrated_oldclient.png` | `/workspace/t-bench-refit/shots/chromium_820x1180_migrated_oldclient.png` |
+| Landscape 1180×820 after (default cam 864, fully in view, clear) | `/workspace/t-bench-refit/shots/webkit_1180x820_migrated_after.png` | `/workspace/t-bench-refit/shots/chromium_1180x820_migrated_after.png` |
+| Landscape 1180×820 old 5909d53 client (small bench at 1420, default cam, fully in view, clear) | `/workspace/t-bench-refit/shots/webkit_1180x820_migrated_oldclient.png` | `/workspace/t-bench-refit/shots/chromium_1180x820_migrated_oldclient.png` |
+| Before, still at 1122 (overlaps the trunk; why option 1 exists) | `/workspace/t-bench-refit/shots/webkit_820x1180_migrated_before.png`, `webkit_1180x820_migrated_before.png` | same names with `chromium_` |
+
+Sheets (WebKit row + Chromium row): `/workspace/t-bench-refit/shots/migrated_820x1180.png` and `migrated_1180x820.png`.
+
+Smaller JPGs for App Builder, on the box: `/workspace/t-bench-refit/send/` — including `migrated_820x1180.jpg`, `migrated_1180x820.jpg`, the after and old-client frames, the before frames, and the three reach shots.
+
+### 2. Write-back safety
+
+**An old 5909d53 client never sends a whole house or room that would drop `yardBenchRefit` or put the bench back at 1122.**
+
+Outbound message types are the `ClientMsg` union in `src/shared/hood.ts` (same shape on 5909d53, lines 907–931 in that tree): `hello`, `join`, `ping`, `knock`, `dog`, `fx`, `ranch`, `act`, `pres`, `look`, `lock`, `say`, `mail`, `art`, `tbl`, `parent`. There is no house put, room put, state put, reset, or reseed message.
+
+- **`hello`** is token-only. Reconnect does not attach a house (`server/core.ts` on 5909d53, the `hello` and `join` switch around lines 487–557).
+- **`join`** may include `house` once, when a kid first brings her local save onto a new street. After that the Worker owns the house. That one-time bring runs `cleanHouseState`. An old Worker would strip an unknown `yardBenchRefit` flag but would keep item positions, so a bench already at 1420 stays at 1420.
+- **`act`** is the only furniture write. `cleanAction` in `src/shared/hood.ts` (starts line 711) accepts per-item edits such as `item/move` (line 716: id + x + y only). It returns null for `game/reset`, `room/switch`, and any invented `state/put`, `house/put`, `room/put`, or `game/reseed`.
+- On the old client, `houseStore.dispatch` in `src/net.ts` lines 399–409 **returns without sending** for `game/reset`, and treats `room/switch` as a local room choice. An item/move is sent only if the kid actually moves that piece.
+
+So an old client viewing a migrated house at 1420 with the flag set will not write the flag away or move the bench, unless the kid herself drags it.
+
+**Old Worker + new client, no migrate/strip loop.** 5909d53 `cleanHouseState` (`src/shared/hood.ts` lines 773–801 in that tree) rebuilds the house from a known-field list and drops `yardBenchRefit`. The new Worker copies the flag through (current `src/shared/hood.ts` lines 799–801).
+
+The new client's `adoptHouse` in `src/net.ts` lines 10–16 is **adopt-only**: it calls `migrate()` in memory and never dispatches an `act`, `item/move`, or whole-house write-back. If the Worker returns a house with the bench already at 1420 and no marker, `applyYardBenchRefit` (`src/shared/state.ts` lines 530–546) only sets the in-memory flag; it does not move the bench, because 1420 is not the seed pose. If the Worker still has a seed bench at 1122 (an old Worker never nudged), adopt moves it to 1420 **in memory only**. That does not go back over the wire, so it cannot fight a kid's later placement or send a move on every load.
+
+Tests in `tests/rooms_test.ts` (the new write-back block): old sanitizer strips the flag and keeps 1420; five strip+migrate rounds stay at 1420; a second adopt after an old sanitizer does not move again; a kid-placed bench at 1500 stays at 1500; `cleanAction` rejects whole-house/reset/reseed; `item/move` only changes that item. All added checks passed; rooms_test is included in the unit battery.
+
+The 2-client concurrent test was not re-run because the seed x did not change. The official result remains WebKit 5/5 and Chromium 5/5 at 1420.
+
+### Gate (this follow-up)
+
+Full `refit_gate.sh` on ports 5300–5349, locks acquired 02:00:45 CST, done 02:26:00 CST. Concurrent was skipped because the seed is still 1420 (official WebKit 5/5 and Chromium 5/5 still stand).
+
+| Step | Result |
+|---|---|
+| tsc | **pass**, rc=0 |
+| unit (rooms, firstrun, social, sit, baby, ambient, avatar, bathroom_size) | **506 pass / 0 fail**, rc=0. Includes sit **119/119**. rooms_test **94 passed** (the earlier B16 checks plus the new write-back block). |
+| art_ingame_bounds (backyard) | **30/30 pass**, warn 0, fail 0, rc=0 |
+| scene_hotspot | **549 pass / 0 fail**, rc=0 |
+| migrated saved-house shots + sheets | Sheets rewritten with the bench in view in both orientations. After and old-client: door/trunk/tulips clear. Before at 1122 overlaps the trunk (expected). |
+| yard_bench_reach (WebKit 820×1180) | **REACH PASS**, rc=0 — two kids sit, Decorate drag works |
+| refit before/after + mixed shots | Sheets written. New view clear; old-client mixed view is the known production pile-up. |
+| migration | **45/45 passed**, rc=0, including the named exception and the kid-moved-bench test |
+| oldsmoke chromium | **OLDSMOKE chromium PASS**, rc=0 |
+| oldsmoke webkit | **OLDSMOKE webkit PASS**, rc=0 |
+| heartbeat pr/pr | **PASS=18 FAIL=0 ERR=0**, rc=0 |
+
+---
+
 ## Push
+
 
 Earlier normal-push of **`cursor/bench-refit-r2`** was `4d6051e` (report on top of `7a7250d`). This follow-up adds `concurrent_refit.py` and the official 5/5 + 5/5 concurrency results (`673d160b732bfd000d2f27a494db3f8f8121b86c` is that test+report commit).
 
