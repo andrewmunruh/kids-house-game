@@ -36,12 +36,13 @@ let api: TableApi | null = null;
 let walkTarget: { x: number; y: number } | null = null;
 let bound = false;
 
-/** Portrait iPad shows a wide slice of the room (door, sign and the first table) instead of a zoomed-in corner. */
-export const GR_PORTRAIT_VIEW = 1020; // 0..1020: the whole corner plant (x 2..78) on the left, the same right edge as before (60..1020)
+/** Opening view must fit the corner plant (x 2..78), first Slay table (x 720, rx 250), chairs, and the poster at x 980. */
+export const GR_PORTRAIT_VIEW = 1200;
 const grPortraitFit = (el: HTMLElement | null) => !!el && !document.body.classList.contains('phone') && el.clientHeight > el.clientWidth + 40;
 export const grScale = () => {
-  const el = document.getElementById('gameroom'), h = el?.clientHeight || 600;
-  return grPortraitFit(el) ? Math.min(h / GR_H, el!.clientWidth / GR_PORTRAIT_VIEW) : h / GR_H;
+  const el = document.getElementById('gameroom'), h = el?.clientHeight || 600, w = el?.clientWidth || 1000;
+  // Every orientation: never zoom so far that the first bay is clipped on the right at 1024-wide.
+  return Math.min(h / GR_H, w / GR_PORTRAIT_VIEW);
 };
 export const tableApi = () => api;
 export function mySeat(): { tb: number; seat: number; x: number; y: number } | null {
