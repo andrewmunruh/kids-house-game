@@ -7,7 +7,9 @@
 // - On activate, old app caches of this scope are deleted. The legacy 'cozy-v1' cache is deleted
 //   only when this worker's scope is /kids-house-game/ (production); preview never touches it.
 // - Kill switch: see sw/kill.js and src/sw-client.ts (sw-switch.json).
-const BUILD = '42b8fd4d93cd';
+// B15: mayCache + post-claim re-sweep. BUILD is the version string a new sw.js ships so iOS fetches it.
+const BUILD = '5909d539f77b';
+const SW_REV = 'b15';
 const SCOPE = new URL(self.registration.scope).pathname;
 const PFX = 'cozy:' + SCOPE + ':';
 const APP = PFX + 'app:' + BUILD;
@@ -36,6 +38,9 @@ self.addEventListener('activate', e => e.waitUntil((async () => {
   await self.clients.claim();
   const cs = await self.clients.matchAll({ type: 'window' });
   cs.forEach(c => c.postMessage({ type: 'cozy-sw', build: BUILD }));
+  // A write the old worker had in flight can re-create its app cache after the first sweep.
+  await new Promise(r => setTimeout(r, 3000));
+  await sweep();
 })()));
 self.addEventListener('message', e => {
   if (e.data && e.data.type === 'cozy-build?' && e.source) e.source.postMessage({ type: 'cozy-sw', build: BUILD });
@@ -57,6 +62,17 @@ async function trimArt(cache) {
   catch (err) { /* ignore */ } finally { trimming = false; }
 }
 
+// Once this worker is no longer in control, do not open or put into Cache Storage.
+// caches.open re-creates a cache the kill worker (or a newer build) just deleted.
+function mayCache() {
+  try {
+    if (self.serviceWorker && self.serviceWorker.state === 'redundant') return false;
+    const active = self.registration.active;
+    if (active && self.serviceWorker && active !== self.serviceWorker) return false;
+  } catch (err) { /* if we cannot tell, refuse the write */ return false; }
+  return true;
+}
+
 // Item paintings are cache-first: one network fetch on a miss, then the cache.
 // A missing file is a normal 404. Nothing here calls cache.add, which logs
 // "Failed to execute 'add' on 'Cache'" when the response is not ok.
@@ -71,11 +87,12 @@ self.addEventListener('fetch', e => {
   if (artRequest(url)) {
     e.respondWith((async () => {
       try {
+        if (!mayCache()) return fetch(req);
         const cache = await caches.open(ART);
         const hit = await cache.match(req);
         if (hit) return hit;
         const r = await fetch(req);
-        if (r && r.ok) { await cache.put(req, r.clone()); trimArt(cache); }
+        if (r && r.ok && mayCache()) { await cache.put(req, r.clone()); trimArt(cache); }
         return r;
       } catch (err) {
         return new Response('', { status: 404, statusText: 'Not Found' });
@@ -86,10 +103,10 @@ self.addEventListener('fetch', e => {
   // Everything else in scope: network first, so a new deploy shows up right away; cache for offline.
   const nav = req.mode === 'navigate';
   e.respondWith(fetch(req).then(r => {
-    if (r.ok && r.type === 'basic') {
+    if (r.ok && r.type === 'basic' && mayCache()) {
       const c = r.clone();
       // Pages are stored once under the scope URL so ?hood=... links still open offline.
-      caches.open(APP).then(x => x.put(nav ? SCOPE : req, c)).catch(() => {});
+      caches.open(APP).then(x => { if (mayCache()) return x.put(nav ? SCOPE : req, c); }).catch(() => {});
     }
     return r;
   }).catch(async () => {
