@@ -25,11 +25,14 @@ SETUP = """() => {
   const s = S.get();
   const cake = s.rooms.kitchen.items.find(i => i.kind === 'cake');
   const table = s.rooms.kitchen.items.find(i => i.kind === 'table');
-  const c1 = s.characters[0];
-  if (!s.characters.some(c => c.id === 'd2')) {
-    const base = { skin: '#f2c9a0', hair: '#5a3d2b', hairStyle: 1, shirt: '#7bd389', pants: '#6b8cff', size: 'kid', acc: 0, flip: false, held: { left: null, right: null } };
+  const base = { skin: '#f2c9a0', hair: '#5a3d2b', hairStyle: 1, shirt: '#7bd389', pants: '#6b8cff', size: 'kid', acc: 0, flip: false, held: { left: null, right: null } };
+  if (!s.characters.some(c => c.id !== 'd2')) {
+    S.dispatch({ type: 'char/add', char: { ...base, id: 'c1', name: 'Rosie', shirt: '#ff7eb3', room: 'kitchen', x: table.x, y: 540 } });
+  }
+  if (!S.get().characters.some(c => c.id === 'd2')) {
     S.dispatch({ type: 'char/add', char: { ...base, id: 'd2', name: 'Lulu', room: 'kitchen', x: table.x + 80, y: 540 } });
   }
+  const c1 = S.get().characters.find(c => c.id !== 'd2');
   S.dispatch({ type: 'char/move', id: c1.id, room: 'kitchen', x: table.x, y: 540, seat: null });
   S.dispatch({ type: 'char/move', id: 'd2', room: 'kitchen', x: table.x + 80, y: 540, seat: null });
   // Make sure Rosie holds the cake (release anyone else first).
@@ -122,6 +125,26 @@ async def join(pg, code, nick_i, bring):
 
 IN_HOUSE = "() => !!(window.__ui && __ui().view === 'house')"
 
+SEED_STARTER = """() => {
+  const S = __store;
+  S.dispatch({ type: 'room/switch', room: 'kitchen' });
+  const s = S.get();
+  const chars = s.characters || [];
+  if (chars.length) return { seeded: false, n: chars.length, ids: chars.map(c => c.id) };
+  const items = (s.rooms.kitchen && s.rooms.kitchen.items) || [];
+  const fr = items.find(i => /fridge/.test(i.kind));
+  const table = items.find(i => i.kind === 'table');
+  const x = fr ? fr.x + 70 : (table ? table.x : 1000);
+  S.dispatch({ type: 'char/add', char: {
+    id: 'c1', name: 'Rosie', skin: '#f2c9a0', hair: '#5a3d2b', hairStyle: 1,
+    shirt: '#ff7eb3', pants: '#6b8cff', size: 'kid', acc: 0, flip: false,
+    held: { left: null, right: null }, room: 'kitchen', x, y: 540
+  }});
+  const after = S.get().characters || [];
+  return { seeded: true, n: after.length, ids: after.map(c => c.id) };
+}"""
+
+
 async def enter_own(pg):
     """This base never toggles body.view-house; __ui().view === 'house' is the real signal.
     Characters may hydrate a moment later (or after SETUP), so we do not require them here."""
@@ -139,6 +162,13 @@ async def enter_own(pg):
         try:
             await pg.wait_for_function(IN_HOUSE, timeout=8000)
             await close_sheet(pg)
+            # A just-entered hood house can arrive with no dolls (bring snapshot).
+            # Seed a starter as the owner so later assertions have someone to move.
+            try:
+                await pg.wait_for_function("() => (__store.get().characters||[]).length > 0", timeout=3000)
+            except Exception:
+                await pg.evaluate(SEED_STARTER)
+                await pg.wait_for_function("() => (__store.get().characters||[]).length > 0", timeout=8000)
             return
         except Exception as e:
             last = e
@@ -166,6 +196,11 @@ async def visit(pg, hid):
         try:
             await pg.wait_for_function(IN_HOUSE, timeout=8000)
             await close_sheet(pg)
+            # Host may have just seeded a doll; wait for it to appear here too.
+            try:
+                await pg.wait_for_function("() => (__store.get().characters||[]).length > 0", timeout=8000)
+            except Exception:
+                pass
             return
         except Exception as e:
             last = e
