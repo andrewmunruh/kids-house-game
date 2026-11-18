@@ -75,18 +75,83 @@ async def goto_game(pg, web=None):
     await pg.wait_for_timeout(600)
     await wait_ready(pg)
 
+
+async def close_sheet(pg):
+    await pg.evaluate("""() => {
+      const s = document.getElementById('sheet');
+      if (s && !s.classList.contains('hidden')) s.querySelector('[data-act=close]')?.click();
+      document.querySelectorAll('button').forEach(b => /^OK/.test((b.textContent||'').trim()) && b.offsetParent && b.click());
+      document.querySelectorAll('[class*=welcome], [class*=toast], .hello').forEach(e => { e.style.display='none'; });
+    }""")
+    await pg.wait_for_timeout(200)
+
 async def join(pg, code, nick_i, bring):
-    await pg.evaluate("document.querySelector('#btnHood').click()")
-    await pg.click('[data-m="join"]')
-    await pg.fill('#codeInput', code.lower())
-    await pg.click('#codeForm button')
-    await pg.click(f'.nicks button[data-nick="{nick_i}"]')
-    await pg.click('[data-m="bring"]' if bring else '[data-m="fresh"]')
-    await pg.wait_for_selector('body.view-map .mapHouse', timeout=15000)
+    # Picnic-style: #btnHood lives in a hidden menu row, so Playwright visibility clicks miss it.
+    await close_sheet(pg)
+    await pg.evaluate("document.querySelector('#btnHood')?.click()")
+    await pg.wait_for_timeout(200)
+    await pg.evaluate("document.querySelector('[data-m=join]')?.click()")
+    await pg.wait_for_selector("#codeInput", timeout=10000)
+    await pg.fill("#codeInput", code.lower())
+    await pg.evaluate("document.querySelector('#codeForm button')?.click()")
+    await pg.wait_for_selector(".nicks button:not([disabled])", timeout=15000)
+    await pg.evaluate("""(nick) => {
+      const exact = document.querySelector('.nicks button[data-nick="'+nick+'"]:not([disabled])');
+      const btns = [...document.querySelectorAll('.nicks button:not([disabled])')];
+      (exact || btns[nick] || btns[0])?.click();
+    }""", str(nick_i))
+    await pg.wait_for_timeout(300)
+    taken = await pg.evaluate("() => /already signed in/i.test(document.body.innerText)")
+    if taken:
+        await pg.evaluate("""(nick) => {
+          const btns = [...document.querySelectorAll('.nicks button:not([disabled])')];
+          const next = btns.find(b => b.dataset.nick !== String(nick)) || btns[1] || btns[0];
+          next?.click();
+        }""", str(nick_i))
+        await pg.wait_for_timeout(300)
+    await pg.wait_for_function("""(bring) => {
+      const b = document.querySelector(bring ? '[data-m=bring]' : '[data-m=fresh]') || document.querySelector('[data-m=bring], [data-m=fresh]');
+      return !!(b && b.offsetParent);
+    }""", arg=bring, timeout=10000)
+    await pg.evaluate("""(bring) => {
+      const b = document.querySelector(bring ? '[data-m=bring]' : '[data-m=fresh]') || document.querySelector('[data-m=bring], [data-m=fresh]');
+      if (b) b.click();
+    }""", bring)
+    await pg.wait_for_selector("body.view-map .mapHouse", timeout=20000)
+
+async def enter_own(pg):
+    await pg.wait_for_function("() => !!document.querySelector('#mapWorld .mapHouse.mine')", timeout=15000)
+    last = None
+    for _ in range(3):
+        await pg.evaluate("document.querySelector('#mapWorld .mapHouse.mine')?.click()")
+        try:
+            await pg.wait_for_function("() => document.body.classList.contains('view-house') && (__store.get().characters||[]).length > 0", timeout=8000)
+            await close_sheet(pg)
+            return
+        except Exception as e:
+            last = e
+            await pg.wait_for_timeout(400)
+    raise last
 
 async def visit(pg, hid):
-    await pg.evaluate("h => document.querySelector(`#mapWorld .mapHouse[data-go=\\\"house:${h}\\\"]`)?.click()", hid)
-    await pg.wait_for_timeout(1000)
+    last = None
+    for _ in range(3):
+        await pg.evaluate("""(h) => {
+          const el = h && document.querySelector('#mapWorld .mapHouse[data-go="house:'+h+'"]');
+          const mine = document.querySelector('#mapWorld .mapHouse.mine');
+          const other = [...document.querySelectorAll('#mapWorld .mapHouse')].find(e => e !== mine);
+          (el || other)?.click();
+        }""", hid)
+        try:
+            await pg.wait_for_function("() => document.body.classList.contains('view-house') && (__store.get().characters||[]).length > 0", timeout=8000)
+            await close_sheet(pg)
+            return
+        except Exception as e:
+            last = e
+            await pg.wait_for_timeout(400)
+    raise last
+
+
 
 async def main():
     if not HOOD:
@@ -107,11 +172,9 @@ async def main():
         code = (await A.evaluate("fetch((__hood_url ? __hood_url() : '') + '/api/create', {method:'POST'}).then(r => r.json())"))['code']
         await join(A, code, 0, True)
         await join(B, code, 1, False)
-        await A.evaluate("document.querySelector('#mapWorld .mapHouse.mine')?.click()")
+        await enter_own(A)
         hid = await A.evaluate("async () => { for (let i=0;i<50 && !(__hood() && __hood().myHouseId && __hood().myHouseId()); i++) await new Promise(r=>setTimeout(r,100)); return __hood().myHouseId(); }")
-        await A.wait_for_function("() => document.body.classList.contains('view-house') && (__store.get().characters||[]).length > 0", timeout=15000)
         await visit(B, hid)
-        await B.wait_for_function("() => document.body.classList.contains('view-house') && (__store.get().characters||[]).length > 0", timeout=15000)
         for pg in (A, B):
             await pg.evaluate("() => __store.dispatch({type:'room/switch', room:'kitchen'})")
         await A.wait_for_timeout(400)
