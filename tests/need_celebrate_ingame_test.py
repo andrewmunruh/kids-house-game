@@ -138,19 +138,40 @@ async def join(pg, code, nick_i, bring):
     }""", bring)
     await pg.wait_for_selector("body.view-map .mapHouse", timeout=20000)
 
+
+IN_HOUSE = "() => !!(window.__ui && __ui().view === 'house')"
+
 async def enter_own(pg):
-    await pg.wait_for_function("() => !!document.querySelector('#mapWorld .mapHouse.mine')", timeout=15000)
+    """This base never toggles body.view-house; __ui().view === 'house' is the real signal.
+    Characters may hydrate a moment later (or after SETUP), so we do not require them here."""
+    await close_sheet(pg)
     last = None
     for _ in range(3):
-        await pg.evaluate("document.querySelector('#mapWorld .mapHouse.mine')?.click()")
+        await pg.evaluate("""() => {
+          const id = (window.__hood && __hood() && __hood().myHouseId && __hood().myHouseId()) || '';
+          const mine = document.querySelector('#mapWorld .mapHouse.mine[data-go^="house:"]')
+                    || document.querySelector('#mapWorld .mapHouse[data-go="house:'+id+'"]')
+                    || document.querySelector('#mapWorld .mapHouse.mine');
+          if (mine) mine.click();
+          document.getElementById('btnHome')?.click();
+        }""")
         try:
-            await pg.wait_for_function("() => !document.body.classList.contains('view-street') && (__store.get().characters||[]).length > 0", timeout=8000)
+            await pg.wait_for_function(IN_HOUSE, timeout=8000)
             await close_sheet(pg)
             return
         except Exception as e:
             last = e
             await pg.wait_for_timeout(400)
-    raise last
+    info = await pg.evaluate("""() => ({
+      ui: window.__ui && __ui(),
+      body: [...document.body.classList],
+      mines: [...document.querySelectorAll('#mapWorld .mapHouse.mine')].map(e => e.getAttribute('data-go')),
+      houses: [...document.querySelectorAll('#mapWorld .mapHouse')].map(e => e.getAttribute('data-go')),
+      hid: window.__hood && __hood() && __hood().myHouseId && __hood().myHouseId(),
+      nChars: window.__store && (__store.get().characters||[]).length,
+      rooms: window.__store && Object.keys((__store.get().rooms)||{}),
+    })""")
+    raise RuntimeError('enter_own failed ' + str(info)) from last
 
 async def visit(pg, hid):
     last = None
@@ -162,13 +183,19 @@ async def visit(pg, hid):
           (el || other)?.click();
         }""", hid)
         try:
-            await pg.wait_for_function("() => !document.body.classList.contains('view-street') && (__store.get().characters||[]).length > 0", timeout=8000)
+            await pg.wait_for_function(IN_HOUSE, timeout=8000)
             await close_sheet(pg)
             return
         except Exception as e:
             last = e
             await pg.wait_for_timeout(400)
-    raise last
+    info = await pg.evaluate("""() => ({
+      ui: window.__ui && __ui(),
+      body: [...document.body.classList],
+      houses: [...document.querySelectorAll('#mapWorld .mapHouse')].map(e => e.getAttribute('data-go')),
+      nChars: window.__store && (__store.get().characters||[]).length,
+    })""")
+    raise RuntimeError('visit failed ' + str(info)) from last
 
 
 async def run_solo(browser, reduced=False):
