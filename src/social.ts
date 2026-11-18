@@ -4,6 +4,7 @@ import { BEAT_MS, syncDelayMs, type Reaction, type ReactionKind } from './shared
 import { trackAudio } from './visibility';
 import { KEYS_MS, isDucky, moreRoleOf, type MoreKind } from './shared/ambientMore';
 import { socialFor, type SocDoll, type SocPet } from './shared/social';
+import { petFootTranslates, type BedFootItem } from './pet-foot';
 import './social.css';
 
 export const MORE_PERIOD: Record<MoreKind, number> = { play: BEAT_MS, listen: BEAT_MS * 4, stir: BEAT_MS * 2, swing: BEAT_MS * 3, slide: BEAT_MS * 4, look: BEAT_MS * 5, kneel: BEAT_MS * 3 };
@@ -68,6 +69,8 @@ export interface SocialCtx {
   /** id -> element and synced doll facts, for dolls in this room (lifted ones already left out). */
   dolls: Map<string, { el: HTMLElement; d: SocDoll }>;
   baby: { x: number; y: number } | null;
+  /** Sleep beds in this room. Used to sit pets at the foot; stored cat.x is never written. */
+  beds?: BedFootItem[];
 }
 const SOC = ['soc-wave', 'soc-hop', 'soc-heart', 'soc-l', 'soc-r', 'soc-duet', 'soc-baby'];
 let prevNear = new Map<string, Set<string>>();
@@ -127,11 +130,34 @@ export function syncSocial(ctx: SocialCtx, ambient: Map<string, Reaction>) {
     if (![...ctx.dolls.values()].some(v => v.el === el)) { el.classList.remove(...SOC); delete el.dataset.soc; void id; }
   }
 
+  const lying = [...ctx.dolls.values()].filter(v => v.d.lying).map(v => v.d);
+  const footMove = petFootTranslates(
+    [...petEls.entries()].map(([key, el]) => ({ key, ...footOf(el, k) })),
+    ctx.beds ?? [],
+    lying,
+  );
+
   for (const [key, el] of petEls) {
+    const foot = footMove?.get(key);
+    if (foot) {
+      const dx = foot.dx * k, dy = foot.dy * k;
+      const prevX = parseFloat(el.dataset.socDx || '0');
+      const prevY = parseFloat(el.dataset.socDy || '0');
+      if (Math.abs(dx - prevX) < 1 && Math.abs(dy - prevY) < 1) continue;
+      el.dataset.socDx = String(dx);
+      el.dataset.socDy = String(dy);
+      el.classList.toggle('soc-trot', (Math.abs(dx - prevX) > 12 || Math.abs(dy - prevY) > 12) && !ctx.reduced);
+      el.classList.add('soc-snug', 'soc-foot');
+      el.style.translate = `${dx.toFixed(1)}px ${dy.toFixed(1)}px`;
+      if (Math.abs(dx - prevX) > 12 || Math.abs(dy - prevY) > 12) setTimeout(() => el.classList.remove('soc-trot'), 1300);
+      continue;
+    }
     const r = out.pets.get(key);
-    const dx = r && !ctx.reduced ? r.dx * k : r ? r.dx * k : 0;
+    const dx = r ? r.dx * k : 0;
+    const leavingFoot = el.classList.contains('soc-foot') || el.dataset.socDy;
+    if (leavingFoot) { delete el.dataset.socDy; el.classList.remove('soc-foot'); }
     const prev = parseFloat(el.dataset.socDx || '0');
-    if (Math.abs(dx - prev) < 1) continue;
+    if (!leavingFoot && Math.abs(dx - prev) < 1) continue;
     el.dataset.socDx = String(dx);
     el.classList.toggle('soc-trot', Math.abs(dx - prev) > 12 && !ctx.reduced);
     el.classList.toggle('soc-snug', !!r);

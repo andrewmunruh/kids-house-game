@@ -47,6 +47,7 @@ import './photobooth.css';
 import { catalogShows, seasonHidden } from './roomfilter';
 import { candyCount, knockTreat, trickOrTreatOn, knockNote } from './candy';
 import { MORE_CHAR_FX, MORE_ITEM_FX, MORE_PERIOD, keysPlaying, moreItemFx, syncSocial, tapMore } from './social';
+import { isSleepBed, type BedFootItem } from './pet-foot';
 import { installNeeds } from './needs-ui';
 import { resolveFrame } from './framekid';
 import { layoutNameTags } from './nametags';
@@ -4354,7 +4355,14 @@ function syncAmbient() {
   const dolls = new Map<string, { el: HTMLElement; d: AmbChar }>();
   for (const c of chars) dolls.set(c.id, { el: els.get(c.id)!, d: c });
   const b = s.baby && s.baby.room === s.currentRoom && !s.baby.holder ? { x: s.baby.x, y: s.baby.y } : null;
-  syncSocial({ layer, roomW: ROOM_W, seed: currentHouseId || 'local', now, reduced: prefersReducedMotion(), dolls, baby: b }, rx);
+  const beds: BedFootItem[] = (s.rooms[s.currentRoom]?.items ?? [])
+    .filter(it => isSleepBed(it.kind))
+    .map(it => {
+      const def = ITEM_MAP[it.kind];
+      const sc = drawnScale(it);
+      return { kind: it.kind, x: it.x, y: it.y, flip: !!it.flip, scale: sc, h: def ? hOf(def) * sc : 200 };
+    });
+  syncSocial({ layer, roomW: ROOM_W, seed: currentHouseId || 'local', now, reduced: prefersReducedMotion(), dolls, baby: b, beds }, rx);
 }
 let partyKey = '';
 /** Lights, sparkles, toy bounce and pet hops. Local visuals only; fades out over 1s. */
