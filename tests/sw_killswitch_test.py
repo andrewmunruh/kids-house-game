@@ -356,8 +356,13 @@ with sync_playwright() as pw:
           return { room: s.get().currentRoom, ids: s.get().rooms.bedroom.items.map(i => i.id) };
         }""")
         ok('midsession: started on the first build', i0['ctl'] and play.get('room') == 'bedroom' and 'ms-pillow' in play.get('ids', []), str(play))
+        # Snapshot after the pillow is in the store so a persisted add is not a false "save changed".
+        page.wait_for_timeout(400)
+        save0 = page.evaluate("() => localStorage.getItem('cozy-house')")
+        # Dispatch on an Element (not document): game code calls event.target.closest().
         page.evaluate("""() => {
-          document.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 99, bubbles: true, cancelable: true, pointerType: 'touch' }));
+          const el = document.getElementById('stage') || document.body;
+          el.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 99, bubbles: true, cancelable: true, pointerType: 'touch', clientX: 120, clientY: 160 }));
         }""")
         n0 = len(navs)
         set_dir(PROD, A.new2)
@@ -374,7 +379,8 @@ with sync_playwright() as pw:
         ok('midsession: play state kept (bedroom + pillow)', play1.get('room') == 'bedroom' and 'ms-pillow' in play1.get('ids', []) and play1.get('stage'), str(play1))
         ok('midsession: saved house unchanged while waiting', items(i1['save']) == items(save0) and items(save0) is not None)
         page.evaluate("""() => {
-          document.dispatchEvent(new PointerEvent('pointerup', { pointerId: 99, bubbles: true, cancelable: true, pointerType: 'touch' }));
+          const el = document.getElementById('stage') || document.body;
+          el.dispatchEvent(new PointerEvent('pointerup', { pointerId: 99, bubbles: true, cancelable: true, pointerType: 'touch', clientX: 120, clientY: 160 }));
         }""")
         try:
             page.wait_for_selector('.updateNote', timeout=8000); shown = True

@@ -1,10 +1,10 @@
-"""Force a late cache.put from the real 2e4c878 worker (only a 2s delay added around put).
+"""Force a late cache.put from the real shipped worker (only a 2s delay added around put).
 
 usage: sw_lateput_test.py --late LATE --kill KILL --hood URL [--browser chromium|webkit]
          [--port 5353] [--runs 5] [--expect clean|dirty]
 
-LATE must be 2e4c878's public/sw.js with only a 2s delay around cache.put (no mayCache).
-KILL is either the 2e4c878 kill worker (expect dirty) or the B15 kill worker (expect clean).
+LATE must be the shipped public/sw.js (42b8fd4, byte-identical to 2e4c878) with only a 2s delay around cache.put (no mayCache).
+KILL is either the shipped kill worker (expect dirty) or the B15 kill worker (expect clean).
 """
 import argparse, json, os, socket, sys, threading, time, hashlib, difflib
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
@@ -19,7 +19,7 @@ ap.add_argument('--browser', default='chromium')
 ap.add_argument('--port', type=int, default=5353)
 ap.add_argument('--runs', type=int, default=5)
 ap.add_argument('--expect', choices=('clean', 'dirty'), required=True)
-ap.add_argument('--orig-sw', default='', help='unstamped 2e4c878 public/sw.js for the fixture-diff check')
+ap.add_argument('--orig-sw', default='', help='unstamped shipped public/sw.js for the fixture-diff check')
 A = ap.parse_args()
 
 PROD = '/kids-house-game/'
@@ -49,7 +49,7 @@ class H(SimpleHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-cache'); self.send_header('Content-Length', str(len(body))); self.end_headers()
         self.wfile.write(body)
 
-# --- fixture must be 2e4c878 sw.js plus only a 2s delay around put ---
+# --- fixture must be the shipped sw.js plus only a 2s delay around put ---
 def strip_build(s):
     import re
     return re.sub(r"const BUILD = '[^']+';", "const BUILD = '__COZY_BUILD__';", s, count=1)
@@ -57,16 +57,16 @@ def strip_build(s):
 def check_fixture():
     late = open(os.path.join(A.late, 'sw.js'), encoding='utf-8').read()
     if 'mayCache' in late:
-        return False, 'fixture contains mayCache (must be unmodified 2e4c878 plus delay only)'
+        return False, 'fixture contains mayCache (must be unmodified shipped sw.js plus delay only)'
     if 'SW_REV' in late:
-        return False, 'fixture contains SW_REV (must be unmodified 2e4c878 plus delay only)'
+        return False, 'fixture contains SW_REV (must be unmodified shipped sw.js plus delay only)'
     if late.count('setTimeout(ok, 2000)') < 1:
         return False, 'fixture is missing the 2s put delay'
     orig_path = A.orig_sw or '/workspace/t-batch15/wt-base/public/sw.js'
     if not os.path.isfile(orig_path):
-        orig_path = '/tmp/sw-2e4c878.js'
+        orig_path = '/workspace/t-batch15/sw-2e4c878.js'
     orig = open(orig_path, encoding='utf-8').read()
-    # Compare the late worker to 2e4c878 source, allowing only the delay and a possible BUILD stamp.
+    # Compare the late worker to the shipped source, allowing only the delay and a possible BUILD stamp.
     got = strip_build(late)
     # Reconstruct what we expect: orig with the two delay injections.
     exp = orig
@@ -75,16 +75,16 @@ def check_fixture():
     app = 'caches.open(APP).then(x => x.put(nav ? SCOPE : req, c)).catch(() => {});'
     app2 = 'caches.open(APP).then(x => new Promise(ok => setTimeout(ok, 2000)).then(() => x.put(nav ? SCOPE : req, c))).catch(() => {});'
     if art not in exp or app not in exp:
-        return False, '2e4c878 source put sites not found'
+        return False, 'shipped source put sites not found'
     exp = exp.replace(art, art2, 1).replace(app, app2, 1)
     if got != exp:
         # show a short diff
-        d = ''.join(difflib.unified_diff(exp.splitlines(True), got.splitlines(True), '2e4c878+delay', 'fixture', n=2))
-        return False, 'fixture is not 2e4c878 sw.js with only a 2s put delay:\n' + d[:2000]
-    return True, '2e4c878 public/sw.js + 2s delay around put only'
+        d = ''.join(difflib.unified_diff(exp.splitlines(True), got.splitlines(True), 'shipped+delay', 'fixture', n=2))
+        return False, 'fixture is not shipped sw.js with only a 2s put delay:\n' + d[:2000]
+    return True, 'shipped public/sw.js + 2s delay around put only'
 
 fx_ok, fx_msg = check_fixture()
-print(('PASS ' if fx_ok else 'FAIL ') + 'late-put fixture is 2e4c878 sw.js with only a 2s put delay  [' + fx_msg.split('\n')[0] + ']', flush=True)
+print(('PASS ' if fx_ok else 'FAIL ') + 'late-put fixture is shipped sw.js with only a 2s put delay  [' + fx_msg.split('\n')[0] + ']', flush=True)
 if not fx_ok:
     print(fx_msg, flush=True)
     sys.exit(1)
@@ -117,6 +117,17 @@ def classify(tl, at_end):
         return 'clean'
     return 'reappeared' if ever_clean else 'lingering'
 
+def pick_art():
+    root = os.path.join(A.late, 'assets')
+    if not os.path.isdir(root):
+        return None
+    for dirpath, _, files in os.walk(root):
+        for f in files:
+            if f.endswith('.webp'):
+                rel = os.path.relpath(os.path.join(dirpath, f), A.late)
+                return PROD + rel.replace('\\', '/')
+    return None
+
 def one_run(pw, n):
     br = getattr(pw, A.browser).launch()
     ctx = br.new_context(viewport={'width': 1180, 'height': 820})
@@ -129,26 +140,35 @@ def one_run(pw, n):
     STATE['dirs'][PROD] = A.late; STATE['down'] = False
     page.goto(URL, wait_until='load')
     page.evaluate(WAIT_CTL, 15000)
-    # Second load goes through the late-put worker so a 2s put is armed, then we
-    # switch to kill immediately — before that timer fires.
+    # Second load goes through the late-put worker.
     page.reload(wait_until='load', timeout=20000)
     try: page.wait_for_function("() => window.__store", timeout=15000)
     except Exception: pass
-    # Arm one more in-flight put (an art or document fetch) just before the kill takeover.
-    try:
-        page.evaluate("""async () => {
-          const im = document.querySelector('img');
-          const jobs = [fetch(location.href.split('#')[0])];
-          if (im && im.src) jobs.push(fetch(im.src));
-          await Promise.all(jobs.map(p => p.catch(() => {})));
-        }""")
-    except Exception:
-        pass
-    page.wait_for_timeout(200)  # let the fetch reach the SW and start the 2s timer; do not wait the full 2s
+    # Arm a late art put WITHOUT waiting it out. The 2s delay lives inside
+    # respondWith, which keeps the outgoing worker alive. A cache-busting query
+    # forces a miss. keepalive keeps the request from being aborted if kill
+    # navigates the tab. Do not await: awaiting would wait out the 2s delay
+    # and the put would already be done before kill's first wipe.
+    art = pick_art()
+    page.evaluate("""(art) => {
+      const url = art
+        || ([...document.querySelectorAll('img')].map(i => i.currentSrc || i.src)
+              .find(s => s && s.includes('/assets/') && s.includes('.webp')));
+      if (url) {
+        const bust = url.split('?')[0] + '?lateput=' + Date.now();
+        fetch(bust, { keepalive: true, cache: 'no-store' }).catch(() => {});
+      }
+      fetch(location.href.split('#')[0], { cache: 'no-store' }).catch(() => {});
+    }""", art)
+    page.wait_for_timeout(250)  # let the fetch reach the SW and start the 2s timer
     STATE['dirs'][PROD] = A.kill
     t0 = time.time()
-    try: page.reload(wait_until='load', timeout=20000)
-    except Exception as e: print('  (reload raced:', str(e).splitlines()[0], ')')
+    # Pull in the kill worker without reloading the arming page (that would
+    # abort a non-keepalive fetch). kill.js skipWaiting + claim + navigate.
+    try:
+        page.evaluate("async () => { const r = await navigator.serviceWorker.getRegistration(); if (r) await r.update(); }")
+    except Exception as e:
+        print('  (update raced:', str(e).splitlines()[0], ')')
     TL = []
     # Watch long enough for the 2s late put AND the 3s second wipe (plus margin).
     end = time.time() + 10
