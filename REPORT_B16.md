@@ -9,7 +9,7 @@ Times are America/Chicago (CST, UTC-6). Written as the remaining steps finish so
 | Tip (implement option 1) | `7a7250dedfbae990e2d1ea8a4c081bc0a4d3339e` — Move a seed-spot saved yard bench once and mark the save |
 | Refit (rebased onto B15) | `ab1c518a27adbc91324bdc9620d91fc8fa19ce78` — Refit the yard bench wider so two kids fit (no repaint) |
 | Base (production / old client) | `5909d539f77b44ac1893ed7a17de03fc2db869ff` — B15 |
-| Local branch | `cursor/bench-refit` in `/workspace/t-bench-refit` |
+| Local branch | `cursor/bench-refit-r2` in `/workspace/t-bench-refit` |
 | Push target | **`cursor/bench-refit-r2`** (new branch). `origin/cursor/bench-refit` is still the old `ffb61ad` off `42b8fd4`; do not force-push it. |
 
 No deploys. B7-r7 was not rebased. Ports used: 5300–5349 only. Did not touch cozy-hood-preview, cozy-preview gh-pages, or ports 9800–9899.
@@ -73,11 +73,13 @@ Solo `cozy-house` identity uses the same named exception (the client may persist
 
 ---
 
-## Concurrency (in progress)
+## Concurrency
 
 **Where the write happens:** Worker `load()`, not the two clients. Clients only adopt the already-migrated house.
 
-**Harness:** rewind a stored street house to the pre-B16 seed (`1122,372`, no flag), restart the new Worker, connect two new clients at once (owner reconnects with her token, a visitor joins), both open the same house, then read the Worker save.
+**Harness (`concurrent_refit.py`):** rewind a stored street house to the pre-B16 seed (`1122,372`, no flag), restart the new Worker, connect two new clients at once (owner reconnects with her token, a visitor joins the same street), both enter that house via `testnav.go('house:<id>')` and switch to the backyard with `room/switch` only (not an `item/move`), then read both views and the Worker save. WebSocket spy records any `item/move`. A real assertion failure stops the run; a navigation timeout is retried once.
+
+Boot does **not** wait for `#stage` or `#btnMap` to be visible: `body.view-street` hides `#stage`, and `body.view-map` sets `#btnMap { display: none }`. `#btnHood` lives in the closed menu. The client is ready when `#btnMenu` is up or the map already shows houses.
 
 ### Gate run (00:05–00:09 CST) — 0/10
 
@@ -102,15 +104,36 @@ No trial that loaded the house double-wrote or left the bench at 1122. Chromium:
 
 This retry was left running and was not restarted. All ten launches timed out waiting for `#stage` to become visible (Playwright: attached but hidden). None reached the house, so this run adds no save-level data. Likely a harness issue: `#stage` is `visibility: hidden` on `body.view-street` (the map), and a visible-stage wait is the wrong gate once a client has landed on or flashed the map. It is not a Worker double-write.
 
+### Official 5/5 + 5/5 (locks 01:40:57 CST, done 01:42:22 CST) — 10/10, no real failures, no harness retries
+
+Leftover retry pid 1311023 and the old 5306/5307 servers were already gone when this pass started. App Builder `r7gate.sh` held soak.lock/gate.lock on ports 9800–9801 until 01:34:51 CST; we waited and did not touch those processes. Ports used: 5306–5307 only.
+
+`concurrent_refit.py` was fixed so both clients enter the house (or backyard) before asserting: they join/reconnect on the map, then `testnav.go('house:<id>')` and `room/switch` to the backyard. A first full 5+5 attempt still timed out on Chromium during boot because it waited for `#btnHood, #btnMap` visible — `#btnMap` is `display: none` on the map, which is where a reconnect lands. That run was stopped (WebKit had already gone 5/5; Chromium had 1 pass and several harness timeouts). Boot was changed to wait for `#btnMenu` or map houses instead, then the official run was started clean.
+
+Log: `/workspace/t-bench-refit/logs/concurrent_5x5_run.log`. JSON: `/workspace/t-bench-refit/logs/concurrent_refit_5x5.json`.
+
+| Browser | Result |
+|---|---|
+| WebKit | **5/5 PASS** — trials 1–5, first attempt each |
+| Chromium | **5/5 PASS** — trials 1–5, first attempt each |
+
+Every trial:
+
+- two new clients loaded the same saved seed-spot house at the same time
+- both views: backyard, in the house, bench at **1420,372**, **`yardBenchRefit=1`**, views agreed
+- Worker disk: `yard-bench-1` at **1420,372** exactly once, flag set
+- no `item/move` on the wire (`itemMoves: []` on both clients)
+- no extra item/move ops
+
+No trial failed for a real (non-harness) reason.
+
 ### Concurrency conclusion
 
-Across every trial that actually opened the house (retry 1: WebKit ×1, Chromium ×4):
+The official proof is **WebKit 5/5 and Chromium 5/5**. Earlier 0/10 and 5/15-style runs were harness timeouts (`#stage` hidden on the map, then `#btnMap` hidden on the map) and did not reach the house. Every trial that opened the house — including this 10/10 and the earlier retry-1 five that did reach it — agreed:
 
 - both clients saw the bench at **1420,372** with **`yardBenchRefit=1`**
 - the Worker save had the bench at **1420 once** and the marker set
-- no double-write or fight (the Worker persists on `load()`; clients only adopt)
-
-That is several successful concurrent loads on Chromium and one on WebKit. Gate 0/10 and retry 2 0/10 are the same class of harness timeout and do not contradict the save results.
+- no double-write or fight (the Worker persists on `load()`; clients only adopt; no `item/move` on the wire)
 
 ---
 
@@ -147,7 +170,8 @@ Full `refit_gate.sh` on 5909d53 + this tip, ports 5300–5349, locks acquired 23
 | scene_hotspot | **549 pass / 0 fail**, rc=0 |
 | migrated saved-house shots + sheets | Sheets written (see above). After and old-client: door/trunk/tulips clear. Before at 1122 overlaps the trunk (expected). |
 | refit before/after + mixed shots | Sheets written. New view clear; old-client mixed view is the known production pile-up. |
-| concurrent 2-client (inside the gate) | **0/10** — harness bug (nick 0 already claimed). Not a save fight. See Concurrency. |
+| concurrent 2-client (inside the gate) | **0/10** — harness bug (nick 0 already claimed). Not a save fight. |
+| concurrent 2-client (official, after harness fix) | **WebKit 5/5, Chromium 5/5**, 10/10, rc=0, 01:40:57–01:42:22 CST. See Concurrency. |
 | migration | **45/45 passed**, rc=0, including the named exception and the kid-moved-bench test |
 | oldsmoke chromium | **OLDSMOKE chromium PASS**, rc=0 |
 | oldsmoke webkit | **OLDSMOKE webkit PASS**, rc=0 |
@@ -159,8 +183,8 @@ Full `refit_gate.sh` on 5909d53 + this tip, ports 5300–5349, locks acquired 23
 
 ## Push
 
-Normal-push (no force) of **`cursor/bench-refit-r2`** at `f35ebc70a2b8591760f4d8df691403fdcf3dabf7` (this report on top of `7a7250d`).
+Earlier normal-push of **`cursor/bench-refit-r2`** was `4d6051e` (report on top of `7a7250d`). This follow-up adds `concurrent_refit.py` and the official 5/5 + 5/5 concurrency results. Tip SHA is filled in at commit time as `3268f114549778be254678e703b8f249434a1299`.
 
 - Remote: `https://github.com/andrewmunruh/kids-house-game/tree/cursor/bench-refit-r2`
 - PR link: `https://github.com/andrewmunruh/kids-house-game/pull/new/cursor/bench-refit-r2`
-- `origin/cursor/bench-refit` was left at old `ffb61ad`. No deploys, no preview/gh-pages, no ports 9800–9899.
+- `origin/cursor/bench-refit` was left at old `ffb61ad`. No force-push. No deploys, no preview/gh-pages, no ports 9800–9899.
