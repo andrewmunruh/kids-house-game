@@ -48,7 +48,7 @@ export function mattressBox(item: BedFootItem): { l: number; t: number; r: numbe
  * the doll's torso and made pets land on her body.
  */
 export const FOOT_MAT_FRAC: { x: number; y: number; w: number; h: number } = {
-  x: 0.52, y: 0.54, w: 0.34, h: 0.22,
+  x: 0.48, y: 0.50, w: 0.40, h: 0.28,
 };
 
 /** Foot-end mattress in room units. Flip mirrors x around the bed's centre. */
@@ -91,8 +91,8 @@ export function bedFoot(item: BedFootItem): { x: number; y: number; away: 1 | -1
  * Both stay on the foot of the mattress, side by side, off the doll.
  */
 export const FOOT_SLOTS: { x: number; y: number }[] = [
-  { x: 22, y: -34 },   // cat: wall side of the foot, by the footboard (right of the doll)
-  { x: -44, y: 24 },   // dog: front side of the foot, on the bedspread, clear of her body
+  { x: 30, y: 20 },    // cat: footboard side, on the spread, right of the doll
+  { x: -71, y: 16 },   // dog: left side of the foot, below her body, on the spread
 ];
 
 /** Painted body of a pet curled at the foot, at the same scale as the 150×128 / 92×71 boxes. */

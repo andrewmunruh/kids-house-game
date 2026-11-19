@@ -93,7 +93,7 @@ MEASURE = """() => {
   let foot = null;
   if (bedBox) {
     const flip = !!(bedEl && (bedEl.classList.contains('flipped') || bedEl.dataset.flip === '1'));
-    const fx = 0.52, fy = 0.54, fw = 0.34, fh = 0.22;
+    const fx = 0.48, fy = 0.50, fw = 0.40, fh = 0.28;
     let l = bedBox.l + fx * bedBox.w;
     let rr = bedBox.l + (fx + fw) * bedBox.w;
     const t = bedBox.t + fy * bedBox.h;

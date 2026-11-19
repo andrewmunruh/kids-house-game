@@ -264,8 +264,14 @@ async def run_solo(browser, reduced=False):
         check(f'{tag}: a celebration is on screen', st['glow'] or st['vis'] >= 1, st)
         check(f'{tag}: at most one burst (no stack)', st['n'] <= 1, st)
         check(f'{tag}: burst never captures pointer', st['peBurst'] == 'none', st)
-        # Peak is ~36% of the 1.4s aura (~500ms from meet; 80ms already elapsed).
-        await pg.wait_for_timeout(420)
+        # Past the 36% ramp, then confirm the 36–70% hold is still fully opaque.
+        await pg.wait_for_timeout(400)
+        await pg.wait_for_function("""() => {
+          const aura = document.querySelector('.char[data-cid] > .need-burst .nb-aura');
+          if (!aura) return false;
+          const o = parseFloat(getComputedStyle(aura).opacity);
+          return Number.isFinite(o) && o >= 0.75;
+        }""", timeout=500)
         loc = await pg.evaluate("""() => {
           const el = document.querySelector('.char[data-cid]');
           const burst = el && el.querySelector(':scope > .need-burst');
