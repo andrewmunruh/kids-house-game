@@ -1,44 +1,32 @@
 import { PROTOCOL } from './shared/hood';
+import { seatFractions } from './shared/sit';
 
-// B17b step 1: client-only picnic seatFractions (2×-in, dx ±0.24, dy 0.22).
-// Seats stay DISABLED — this module is not wired into shared seatFractions,
-// anchorsOf, or resolveDrop, so a kid cannot sit at the picnic table yet and
-// nothing new is sent as a seat. The fractions live here so this build can
-// honestly send picnic:1. A later Worker round (step 2) will count that flag
-// and enable seats when App Builder says the share is high enough.
+// B17b1-r2: B16's shared seatFractions('picnic-table') entry is the single source
+// of truth for where picnic sitters go. This module adds no fractions of its own.
+// It does two client-only things:
+//   1. advertise picnic:1 on hello/join when that shared entry exists, and
+//   2. keep the client from seating anyone there (PICNIC_SEATS_ENABLED stays false
+//      until a later step turns picnic seats on).
 // Do not put this file under src/shared.
 
 export const PICNIC_SEATS_ENABLED = false;
-export const PICNIC_IN_DX = 0.24;
-export const PICNIC_IN_DY = 0.22;
 
-export type PicnicSeatFractions = {
-  pose: 'sit';
-  spots: [{ dx: number; dy: number }, { dx: number; dy: number }];
-};
+/** True when the shared sit.ts carries picnic-table seat fractions. */
+export const HAS_PICNIC_SEAT_FRACTIONS = seatFractions('picnic-table') !== null;
 
-/** Picnic seatFractions for a 2× table with sitters pulled in (the B17-r2 pick). */
-export function picnicSeatFractions(kind: string): PicnicSeatFractions | null {
+/** The client's seat fractions: shared ones, except the picnic table stays unsittable while seats are off. */
+export function clientSeatFractions(kind: string) {
   const k = String(kind || '').toLowerCase().replace(/^pack:/, '');
-  if (k !== 'picnic-table') return null;
-  return {
-    pose: 'sit',
-    spots: [
-      { dx: -PICNIC_IN_DX, dy: PICNIC_IN_DY },
-      { dx: PICNIC_IN_DX, dy: PICNIC_IN_DY },
-    ],
-  };
+  if (k === 'picnic-table' && !PICNIC_SEATS_ENABLED) return null;
+  return seatFractions(kind);
 }
 
-/** True only when this build actually carries picnic seatFractions. */
-export const HAS_PICNIC_SEAT_FRACTIONS = picnicSeatFractions('picnic-table') !== null;
-
-/** Hello/join fields to advertise that capability. Empty when the fractions are absent. */
+/** Hello/join field that advertises picnic seats. Empty when the shared fractions are absent. */
 export function picnicHelloFields(): { picnic: 1 } | Record<string, never> {
   return HAS_PICNIC_SEAT_FRACTIONS ? { picnic: 1 } : {};
 }
 
-/** Capability flags sent on hello and join, next to sit:1 and baby:1. picnic:1 only when this build carries picnic seatFractions. */
+/** Capability flags sent on hello and join, next to sit:1 and baby:1. */
 export function hoodHelloCaps() {
   return { v: PROTOCOL, pet: 1, mail: 1, sit: 1, fit: 1, baby: 1, amb: 1, halloween: 1, cos: 1, needs: 1, art: 1, hb: 1, ...picnicHelloFields() };
 }

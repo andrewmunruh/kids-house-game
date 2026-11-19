@@ -1,6 +1,6 @@
 # B17b step 1 light in-game checks (no soak/gate locks).
 # A new client sends picnic:1 on hello and join; picnic seats are not offered;
-# an old 5909d53 Worker ignores the flag; mixed old/new stays up.
+# an old prod-equivalent Worker ignores the flag; mixed old/new stays up.
 # Run: WEB_NEW=... WEB_OLD=... HOOD=... python tests/picnic_flag_ingame_test.py
 import asyncio, json, os, sys
 from pathlib import Path
@@ -187,6 +187,39 @@ async def wait_art(pg, timeout=15000):
     except Exception:
         return False
 
+async def drag_onto_table(pg):
+    """Play drag of the first doll onto the picnic table: real mouse, then the same pointer path via events."""
+    pts = await pg.evaluate("""() => {
+      const c = document.querySelector('.char');
+      const t = document.querySelector('.item[data-id="qa-pt"]');
+      if (!c || !t) return null;
+      const a = c.getBoundingClientRect(), b = t.getBoundingClientRect();
+      return {cx: a.left+a.width/2, cy: a.top+a.height*0.7, tx: (b.left+b.right)/2, ty: b.top+b.height*0.55};
+    }""")
+    if pts:
+        await pg.mouse.move(pts["cx"], pts["cy"])
+        await pg.mouse.down()
+        await pg.mouse.move(pts["tx"], pts["ty"], steps=10)
+        await pg.mouse.up()
+        await pg.wait_for_timeout(500)
+    await pg.evaluate("""() => {
+      const c = document.querySelector('.char');
+      const t = document.querySelector('.item[data-id="qa-pt"]');
+      if (!c || !t) return;
+      const a = c.getBoundingClientRect(), b = t.getBoundingClientRect();
+      const base = {bubbles:true, cancelable:true, pointerId:7, pointerType:'mouse', isPrimary:true, button:0, buttons:1};
+      c.dispatchEvent(new PointerEvent('pointerdown', {...base, clientX:a.left+a.width/2, clientY:a.top+a.height*0.7}));
+      window.dispatchEvent(new PointerEvent('pointermove', {...base, clientX:(b.left+b.right)/2, clientY:b.top+b.height*0.55}));
+      window.dispatchEvent(new PointerEvent('pointerup', {...base, buttons:0, clientX:(b.left+b.right)/2, clientY:b.top+b.height*0.55}));
+    }""")
+    await pg.wait_for_timeout(500)
+
+DOLL_STATE = """() => {
+  const c = (__store.get().characters||[]).find(x => x.room === 'backyard');
+  const el = document.querySelector('.char');
+  return {seat: c ? (c.seat||null) : 'none', room: c && c.room, x: c && c.x, y: c && c.y, onScreen: !!el};
+}"""
+
 def to_jpg(src, dest, limit=1_000_000):
     from PIL import Image
     im = Image.open(src).convert("RGB")
@@ -215,7 +248,7 @@ async def main():
               json.dumps({k: joins[0].get(k) for k in ("t","picnic","sit","baby","v")} if joins else {}))
         welcomes = wire.of("welcome", "recv")
         errors = wire.of("error", "recv")
-        check("5909d53 Worker welcomed the join (no error, no disconnect)",
+        check("prod-equivalent Worker welcomed the join (no error, no disconnect)",
               bool(welcomes) and not errors and await pg.evaluate("() => !!(window.__hood && __hood() && (__hood().status === 'online' || __hood().pid))"),
               f"welcome={len(welcomes)} errors={errors} status errs={errs[:2]}")
 
@@ -228,7 +261,7 @@ async def main():
         check("client sent hello with picnic:1 after reload",
               bool(hellos) and any(h.get("picnic") == 1 and h.get("sit") == 1 for h in hellos),
               json.dumps([{k: h.get(k) for k in ("t","picnic","sit","baby")} for h in hellos[:3]]))
-        check("5909d53 Worker still online after hello with picnic:1",
+        check("prod-equivalent Worker still online after hello with picnic:1",
               not wire.of("error", "recv") and await pg.evaluate("() => { const h = window.__hood && __hood(); return !!(h && (h.status === 'online' || h.pid)); }"),
               f"errors={wire.of('error','recv')} recv_types={[m.get('t') for m in wire.recv if m][-8:]}")
 
@@ -266,36 +299,12 @@ async def main():
               json.dumps(seats))
 
         # Drag the kid onto the table (Play).
-        pts = await pg.evaluate("""() => {
-          const c = document.querySelector('.char');
-          const t = document.querySelector('.item[data-id="qa-pt"]');
-          if (!c || !t) return null;
-          const a = c.getBoundingClientRect(), b = t.getBoundingClientRect();
-          return {cx: a.left+a.width/2, cy: a.top+a.height*0.7, tx: (b.left+b.right)/2, ty: b.top+b.height*0.55};
-        }""")
-        if pts:
-            await pg.mouse.move(pts["cx"], pts["cy"])
-            await pg.mouse.down()
-            await pg.mouse.move(pts["tx"], pts["ty"], steps=10)
-            await pg.mouse.up()
-            await pg.wait_for_timeout(500)
-        # Also drive the same pointer path via events on the character, in case WebKit mouse misses.
-        await pg.evaluate("""() => {
-          const c = document.querySelector('.char');
-          const t = document.querySelector('.item[data-id="qa-pt"]');
-          if (!c || !t) return;
-          const a = c.getBoundingClientRect(), b = t.getBoundingClientRect();
-          const base = {bubbles:true, cancelable:true, pointerId:7, pointerType:'mouse', isPrimary:true, button:0, buttons:1};
-          c.dispatchEvent(new PointerEvent('pointerdown', {...base, clientX:a.left+a.width/2, clientY:a.top+a.height*0.7}));
-          window.dispatchEvent(new PointerEvent('pointermove', {...base, clientX:(b.left+b.right)/2, clientY:b.top+b.height*0.55}));
-          window.dispatchEvent(new PointerEvent('pointerup', {...base, buttons:0, clientX:(b.left+b.right)/2, clientY:b.top+b.height*0.55}));
-        }""")
-        await pg.wait_for_timeout(400)
-        seats2 = await pg.evaluate("""() => (__store.get().characters||[]).map(c => c.seat||null)""")
+        await drag_onto_table(pg)
+        seats2 = await pg.evaluate("""() => (__store.get().characters||[]).map(c => ({seat: c.seat||null, room: c.room, x: c.x, y: c.y}))""")
         check("dragging the kid onto the picnic table does not sit her",
-              not any(s and s.get("item") == "qa-pt" for s in seats2), json.dumps(seats2))
+              not any(c["seat"] and c["seat"].get("item") == "qa-pt" for c in seats2), json.dumps(seats2))
 
-        # Mixed old/new: old 5909d53 client joins the same 5909d53 Worker street.
+        # Mixed old/new: old 5909d53 client joins the same prod-equivalent Worker street.
         old_wire = Wire()
         octx, opg, oerr = await boot(wk, WEB_OLD, 820, 1180, old_wire)
         await join(opg, info["code"], False, 1)
@@ -332,6 +341,22 @@ async def main():
             path = SHOTS / f"webkit_{w}x{h}_play.png"
             await pg.screenshot(path=str(path), full_page=False)
             to_jpg(path, SEND / f"webkit_{w}x{h}_play.jpg")
+            print("FRAME", path, flush=True)
+
+            # Doll dropped on the table: stand her at her start spot, then Play-drag her onto the table. She must stand, not sit.
+            await pg.evaluate("""({st}) => {
+              const s = __store; const c = (s.get().characters||[]).find(x => x.room === 'backyard') || s.get().characters[0];
+              s.dispatch({type:'char/move', id:c.id, room:'backyard', x:st.kidX, y:st.kidY, seat:null});
+              document.getElementById('modePlay')?.click();
+            }""", {"st": STANDING})
+            await pg.wait_for_timeout(500)
+            await drag_onto_table(pg)
+            d = await pg.evaluate(DOLL_STATE)
+            check(f"webkit {w}x{h} doll dropped on the table stands (not seated)",
+                  d.get("seat") is None and d.get("room") == "backyard" and d.get("onScreen") and d.get("x") is not None, json.dumps(d))
+            path = SHOTS / f"webkit_{w}x{h}_play_doll_on_table.png"
+            await pg.screenshot(path=str(path), full_page=False)
+            to_jpg(path, SEND / f"webkit_{w}x{h}_play_doll_on_table.jpg")
             print("FRAME", path, flush=True)
 
         await octx.close()
