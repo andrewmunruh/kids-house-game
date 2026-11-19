@@ -42,28 +42,57 @@ export function mattressBox(item: BedFootItem): { l: number; t: number; r: numbe
   return { l, t, r, b };
 }
 
-/** The foot of the mattress, opposite the pillow, inset so a curled pet stays on the bed. Room units. */
+/**
+ * Painted bedspread by the footboard, as fractions of the item box (measured
+ * on bed.webp). This is NOT the hip-target `art.mattress`, which sits under
+ * the doll's torso and made pets land on her body.
+ */
+export const FOOT_MAT_FRAC: { x: number; y: number; w: number; h: number } = {
+  x: 0.52, y: 0.54, w: 0.34, h: 0.22,
+};
+
+/** Foot-end mattress in room units. Flip mirrors x around the bed's centre. */
+export function footMattressBox(item: BedFootItem): { l: number; t: number; r: number; b: number } | null {
+  if (!isSleepBed(item.kind)) return null;
+  const sc = item.scale ?? 1;
+  const w = pieceWidth(item.kind) * sc;
+  const h = item.h ?? w * 0.7;
+  const left = item.x - w / 2;
+  const top = item.y - h;
+  const f = FOOT_MAT_FRAC;
+  let l = left + f.x * w;
+  let r = left + (f.x + f.w) * w;
+  const t = top + f.y * h;
+  const b = top + (f.y + f.h) * h;
+  if (item.flip) {
+    const nl = item.x - (r - item.x);
+    const nr = item.x - (l - item.x);
+    l = nl;
+    r = nr;
+  }
+  return { l, t, r, b };
+}
+
+/** Anchor at the painted foot, opposite the pillow, on the bedspread by the footboard. */
 export function bedFoot(item: BedFootItem): { x: number; y: number; away: 1 | -1 } | null {
-  const mat = mattressBox(item);
-  if (!mat) return null;
+  const foot = footMattressBox(item);
+  if (!foot) return null;
   const away: 1 | -1 = item.flip ? -1 : 1;
-  const width = mat.r - mat.l;
-  const inset = Math.min(36, Math.max(18, width * 0.18));
-  const x = away === 1 ? mat.r - inset : mat.l + inset;
-  // Feet rest on the front edge of the painted mattress, not the floor or the footboard.
-  const y = mat.b - 2;
+  // Mid-foot, a little toward the footboard and the front edge so curled bodies sit on the spread.
+  const x = (foot.l + foot.r) / 2 + away * 8;
+  const y = foot.t + (foot.b - foot.t) * 0.72;
   return { x, y, away };
 }
 
 /**
- * Slots at the foot, in room units, for the painted nap/sleep bodies
- * (cat ~116×66, house dog ~70×54). x is along the bed (positive = past the
- * foot / off the mattress); y is down the screen. Both stay on the mattress,
- * on opposite sides of the foot so they miss the doll's face and each other.
+ * Slots at the painted foot, in room units, for the nap/sleep bodies
+ * (cat ~116×66, house dog ~70×54). x is along the bed (positive = toward the
+ * footboard); y is down the screen (positive = toward the front rail).
+ * Both stay on the foot of the mattress, side by side, off the doll.
  */
 export const FOOT_SLOTS: { x: number; y: number }[] = [
-  { x: -4, y: -54 },   // near the foot, toward the wall (far side of the mattress)
-  { x: -24, y: 6 },    // the other side, toward the front edge, still on the mattress
+  { x: 22, y: -34 },   // cat: wall side of the foot, by the footboard (right of the doll)
+  { x: -44, y: 24 },   // dog: front side of the foot, on the bedspread, clear of her body
 ];
 
 /** Painted body of a pet curled at the foot, at the same scale as the 150×128 / 92×71 boxes. */
@@ -93,7 +122,7 @@ export function boxesOverlap(a: { l: number; t: number; r: number; b: number }, 
   return a.l < b.r - pad && b.l < a.r - pad && a.t < b.b - pad && b.t < a.b - pad;
 }
 
-/** True when a pet's painted body is sitting on the mattress (feet on it, not just overlapping the headboard). */
+/** True when a pet's painted body is sitting on a mattress/foot box (feet on it, not just overlapping the headboard). */
 export function bodyOnMattress(
   body: { l: number; t: number; r: number; b: number },
   mat: { l: number; t: number; r: number; b: number },
@@ -105,6 +134,17 @@ export function bodyOnMattress(
   const onY = feet >= mat.t - slack && feet <= mat.b + slack * 1.5;
   const overlapX = body.l < mat.r + slack && body.r > mat.l - slack;
   return onX && onY && overlapX;
+}
+
+/** Stricter: the body's center must sit in the foot-end region, not mid-bed or on the pillow. */
+export function bodyInFootRegion(
+  body: { l: number; t: number; r: number; b: number },
+  foot: { l: number; t: number; r: number; b: number },
+  slack = 20,
+): boolean {
+  const cx = (body.l + body.r) / 2;
+  const cy = (body.t + body.b) / 2;
+  return cx >= foot.l - slack && cx <= foot.r + slack && cy >= foot.t - slack && cy <= foot.b + slack;
 }
 
 /** How close a pet must already be before we slide her to the foot (no room-wide teleport). */

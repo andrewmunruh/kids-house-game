@@ -89,6 +89,38 @@ MEASURE = """() => {
     }
     mat = { l, t, r: rr, b };
   }
+  // Painted foot of the bedspread (pet-foot.ts FOOT_MAT_FRAC), not the hip-target mat.
+  let foot = null;
+  if (bedBox) {
+    const flip = !!(bedEl && (bedEl.classList.contains('flipped') || bedEl.dataset.flip === '1'));
+    const fx = 0.52, fy = 0.54, fw = 0.34, fh = 0.22;
+    let l = bedBox.l + fx * bedBox.w;
+    let rr = bedBox.l + (fx + fw) * bedBox.w;
+    const t = bedBox.t + fy * bedBox.h;
+    const b = bedBox.t + (fy + fh) * bedBox.h;
+    if (flip) {
+      const cx = (bedBox.l + bedBox.r) / 2;
+      const nl = cx - (rr - cx), nr = cx - (l - cx);
+      l = nl; rr = nr;
+    }
+    foot = { l, t, r: rr, b };
+  }
+  // Lie-body region on the bed: pillow through mid-torso, not the foot. Used so
+  // "does not overlap the doll" means her painted body, not only .dollhead.
+  let body = null;
+  if (bedBox) {
+    const flip = !!(bedEl && (bedEl.classList.contains('flipped') || bedEl.dataset.flip === '1'));
+    let l = bedBox.l + 0.10 * bedBox.w;
+    let rr = bedBox.l + 0.54 * bedBox.w;
+    const t = bedBox.t + 0.28 * bedBox.h;
+    const b = bedBox.t + 0.56 * bedBox.h;
+    if (flip) {
+      const cx = (bedBox.l + bedBox.r) / 2;
+      const nl = cx - (rr - cx), nr = cx - (l - cx);
+      l = nl; rr = nr;
+    }
+    body = { l, t, r: rr, b };
+  }
   const poseOf = el => {
     if (!el) return null;
     const img = el.querySelector('img[src]');
@@ -107,6 +139,8 @@ MEASURE = """() => {
     face: box(head),
     doll: box(doll),
     mat,
+    foot,
+    body,
     catPose,
     dogPose,
     catStored: (__store.get().cat || {}).x,
@@ -148,32 +182,42 @@ async def run_size(browser, w, h):
     check(f'{tag}: cat is on screen', bool(m.get('cat')), m)
     check(f'{tag}: dog is on screen', bool(m.get('dog')), m)
     check(f'{tag}: doll face (.dollhead) is on screen', bool(m.get('face')), m)
-    def on_mat(body, mat, slack=20):
-        if not body or not mat:
+    def on_foot(body, foot, slack=24):
+        if not body or not foot:
             return False
         cx = (body['l'] + body['r']) / 2
+        cy = (body['t'] + body['b']) / 2
         feet = body['b']
-        on_x = mat['l'] - slack <= cx <= mat['r'] + slack
-        on_y = mat['t'] - slack <= feet <= mat['b'] + slack * 1.5
-        overlap_x = body['l'] < mat['r'] + slack and body['r'] > mat['l'] - slack
-        return on_x and on_y and overlap_x
+        in_x = foot['l'] - slack <= cx <= foot['r'] + slack
+        in_y = foot['t'] - slack <= cy <= foot['b'] + slack
+        feet_ok = foot['t'] - slack <= feet <= foot['b'] + slack * 1.5
+        return in_x and in_y and feet_ok
     if m.get('cat') and m.get('dog'):
         check(f'{tag}: two pets do not overlap each other', not hit(m['cat'], m['dog']), m)
     if m.get('cat') and m.get('face'):
         check(f'{tag}: cat does not overlap the doll face', not hit(m['cat'], m['face']), {'cat': m['cat'], 'face': m['face']})
     if m.get('dog') and m.get('face'):
         check(f'{tag}: dog does not overlap the doll face', not hit(m['dog'], m['face']), {'dog': m['dog'], 'face': m['face']})
-    if m.get('cat') and m.get('mat'):
-        check(f'{tag}: cat is on the mattress at the foot', on_mat(m['cat'], m['mat']), {'cat': m['cat'], 'mat': m['mat']})
+    if m.get('cat') and m.get('body'):
+        check(f'{tag}: cat does not overlap the doll body', not hit(m['cat'], m['body'], 4), {'cat': m['cat'], 'body': m['body']})
+    else:
+        check(f'{tag}: cat does not overlap the doll body', False, m)
+    if m.get('dog') and m.get('body'):
+        check(f'{tag}: dog does not overlap the doll body', not hit(m['dog'], m['body'], 4), {'dog': m['dog'], 'body': m['body']})
+    else:
+        check(f'{tag}: dog does not overlap the doll body', False, m)
+    if m.get('cat') and m.get('foot'):
+        check(f'{tag}: cat is on the mattress at the foot', on_foot(m['cat'], m['foot']), {'cat': m['cat'], 'foot': m['foot'], 'mat': m.get('mat')})
     else:
         check(f'{tag}: cat is on the mattress at the foot', False, m)
-    if m.get('dog') and m.get('mat'):
-        check(f'{tag}: dog is on the mattress at the foot', on_mat(m['dog'], m['mat']), {'dog': m['dog'], 'mat': m['mat']})
+    if m.get('dog') and m.get('foot'):
+        check(f'{tag}: dog is on the mattress at the foot', on_foot(m['dog'], m['foot']), {'dog': m['dog'], 'foot': m['foot'], 'mat': m.get('mat')})
     else:
         check(f'{tag}: dog is on the mattress at the foot', False, m)
     if m.get('cat') and m.get('dog'):
-        sides = abs(((m['cat']['l']+m['cat']['r'])/2) - ((m['dog']['l']+m['dog']['r'])/2)) > 16
-        check(f'{tag}: second pet is on the other side of the foot', sides, {'cat': m['cat'], 'dog': m['dog']})
+        dx = abs(((m['cat']['l']+m['cat']['r'])/2) - ((m['dog']['l']+m['dog']['r'])/2))
+        dy = abs(((m['cat']['t']+m['cat']['b'])/2) - ((m['dog']['t']+m['dog']['b'])/2))
+        check(f'{tag}: second pet is on the other side of the foot', dx > 16 or dy > 16, {'cat': m['cat'], 'dog': m['dog']})
     check(f'{tag}: cat uses a curled/lying pose', m.get('catPose') in ('nap', 'sleep'), m.get('catPose'))
     check(f'{tag}: dog uses a curled/lying pose', m.get('dogPose') in ('nap', 'sleep'), m.get('dogPose'))
     check(f'{tag}: stored cat.x is unchanged', m.get('catStored') == info.get('catX'), f"before={info.get('catX')} after={m.get('catStored')}")
