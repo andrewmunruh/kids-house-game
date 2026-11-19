@@ -93,7 +93,7 @@ MEASURE = """() => {
   let foot = null;
   if (bedBox) {
     const flip = !!(bedEl && (bedEl.classList.contains('flipped') || bedEl.dataset.flip === '1'));
-    const fx = 0.48, fy = 0.50, fw = 0.40, fh = 0.28;
+    const fx = 0.28, fy = 0.52, fw = 0.50, fh = 0.26;
     let l = bedBox.l + fx * bedBox.w;
     let rr = bedBox.l + (fx + fw) * bedBox.w;
     const t = bedBox.t + fy * bedBox.h;
@@ -121,6 +121,39 @@ MEASURE = """() => {
     }
     body = { l, t, r: rr, b };
   }
+  // Painted bedspread inside the rails/footboard (pet-foot.ts MAT_INNER_FRAC).
+  let matInner = null;
+  if (bedBox) {
+    const flip = !!(bedEl && (bedEl.classList.contains('flipped') || bedEl.dataset.flip === '1'));
+    const ix = 0.16, iy = 0.42, iw = 0.62, ih = 0.38;
+    let l = bedBox.l + ix * bedBox.w;
+    let rr = bedBox.l + (ix + iw) * bedBox.w;
+    const t = bedBox.t + iy * bedBox.h;
+    const b = bedBox.t + (iy + ih) * bedBox.h;
+    if (flip) {
+      const cx = (bedBox.l + bedBox.r) / 2;
+      const nl = cx - (rr - cx), nr = cx - (l - cx);
+      l = nl; rr = nr;
+    }
+    matInner = { l, t, r: rr, b };
+  }
+  // Pillow-end painted face. The rotated .dollhead AABB reaches toward the foot.
+  let facePaint = null;
+  if (bedBox) {
+    const flip = !!(bedEl && (bedEl.classList.contains('flipped') || bedEl.dataset.flip === '1'));
+    let l = bedBox.l + 0.08 * bedBox.w;
+    let rr = bedBox.l + 0.38 * bedBox.w;
+    const t = bedBox.t + 0.18 * bedBox.h;
+    const b = bedBox.t + 0.45 * bedBox.h;
+    if (flip) {
+      const cx = (bedBox.l + bedBox.r) / 2;
+      const nl = cx - (rr - cx), nr = cx - (l - cx);
+      l = nl; rr = nr;
+    }
+    facePaint = { l, t, r: rr, b };
+  }
+  const stageEl = document.getElementById('stage');
+  const stageBox = box(stageEl);
   const poseOf = el => {
     if (!el) return null;
     const img = el.querySelector('img[src]');
@@ -141,6 +174,9 @@ MEASURE = """() => {
     mat,
     foot,
     body,
+    matInner,
+    facePaint,
+    stage: stageBox,
     catPose,
     dogPose,
     catStored: (__store.get().cat || {}).x,
@@ -194,10 +230,11 @@ async def run_size(browser, w, h):
         return in_x and in_y and feet_ok
     if m.get('cat') and m.get('dog'):
         check(f'{tag}: two pets do not overlap each other', not hit(m['cat'], m['dog']), m)
-    if m.get('cat') and m.get('face'):
-        check(f'{tag}: cat does not overlap the doll face', not hit(m['cat'], m['face']), {'cat': m['cat'], 'face': m['face']})
-    if m.get('dog') and m.get('face'):
-        check(f'{tag}: dog does not overlap the doll face', not hit(m['dog'], m['face']), {'dog': m['dog'], 'face': m['face']})
+    face_box = m.get('facePaint') or m.get('face')
+    if m.get('cat') and face_box:
+        check(f'{tag}: cat does not overlap the doll face', not hit(m['cat'], face_box), {'cat': m['cat'], 'face': face_box})
+    if m.get('dog') and face_box:
+        check(f'{tag}: dog does not overlap the doll face', not hit(m['dog'], face_box), {'dog': m['dog'], 'face': face_box})
     if m.get('cat') and m.get('body'):
         check(f'{tag}: cat does not overlap the doll body', not hit(m['cat'], m['body'], 4), {'cat': m['cat'], 'body': m['body']})
     else:
@@ -218,6 +255,32 @@ async def run_size(browser, w, h):
         dx = abs(((m['cat']['l']+m['cat']['r'])/2) - ((m['dog']['l']+m['dog']['r'])/2))
         dy = abs(((m['cat']['t']+m['cat']['b'])/2) - ((m['dog']['t']+m['dog']['b'])/2))
         check(f'{tag}: second pet is on the other side of the foot', dx > 16 or dy > 16, {'cat': m['cat'], 'dog': m['dog']})
+    def inside(body, box, slack=12):
+        if not body or not box:
+            return False
+        return (body['l'] >= box['l'] - slack and body['r'] <= box['r'] + slack
+                and body['t'] >= box['t'] - slack and body['b'] <= box['b'] + slack)
+    if m.get('cat') and m.get('matInner'):
+        check(f'{tag}: cat is inside the mattress and inside the footboard', inside(m['cat'], m['matInner']), {'cat': m['cat'], 'matInner': m['matInner']})
+    else:
+        check(f'{tag}: cat is inside the mattress and inside the footboard', False, m)
+    if m.get('dog') and m.get('matInner'):
+        check(f'{tag}: dog is inside the mattress and inside the footboard', inside(m['dog'], m['matInner']), {'dog': m['dog'], 'matInner': m['matInner']})
+    else:
+        check(f'{tag}: dog is inside the mattress and inside the footboard', False, m)
+    def in_stage(body, stage, inset=8):
+        if not body or not stage:
+            return False
+        return (body['l'] >= stage['l'] + inset and body['r'] <= stage['r'] - inset
+                and body['t'] >= stage['t'] + inset and body['b'] <= stage['b'] - inset)
+    if m.get('cat') and m.get('stage'):
+        check(f'{tag}: cat is fully visible in the stage', in_stage(m['cat'], m['stage']), {'cat': m['cat'], 'stage': m['stage']})
+    else:
+        check(f'{tag}: cat is fully visible in the stage', False, m)
+    if m.get('dog') and m.get('stage'):
+        check(f'{tag}: dog is fully visible in the stage', in_stage(m['dog'], m['stage']), {'dog': m['dog'], 'stage': m['stage']})
+    else:
+        check(f'{tag}: dog is fully visible in the stage', False, m)
     check(f'{tag}: cat uses a curled/lying pose', m.get('catPose') in ('nap', 'sleep'), m.get('catPose'))
     check(f'{tag}: dog uses a curled/lying pose', m.get('dogPose') in ('nap', 'sleep'), m.get('dogPose'))
     check(f'{tag}: stored cat.x is unchanged', m.get('catStored') == info.get('catX'), f"before={info.get('catX')} after={m.get('catStored')}")

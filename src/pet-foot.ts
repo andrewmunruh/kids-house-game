@@ -48,7 +48,12 @@ export function mattressBox(item: BedFootItem): { l: number; t: number; r: numbe
  * the doll's torso and made pets land on her body.
  */
 export const FOOT_MAT_FRAC: { x: number; y: number; w: number; h: number } = {
-  x: 0.48, y: 0.50, w: 0.40, h: 0.28,
+  x: 0.28, y: 0.52, w: 0.50, h: 0.26,
+};
+
+/** Painted bedspread inside the rails and footboard (item-box fractions, bed.webp). */
+export const MAT_INNER_FRAC: { x: number; y: number; w: number; h: number } = {
+  x: 0.16, y: 0.42, w: 0.62, h: 0.38,
 };
 
 /** Foot-end mattress in room units. Flip mirrors x around the bed's centre. */
@@ -73,13 +78,45 @@ export function footMattressBox(item: BedFootItem): { l: number; t: number; r: n
   return { l, t, r, b };
 }
 
+/** Painted bedspread inside the footboard, in room units. Flip mirrors x around centre. */
+export function innerMattressBox(item: BedFootItem): { l: number; t: number; r: number; b: number } | null {
+  if (!isSleepBed(item.kind)) return null;
+  const sc = item.scale ?? 1;
+  const w = pieceWidth(item.kind) * sc;
+  const h = item.h ?? w * 0.7;
+  const left = item.x - w / 2;
+  const top = item.y - h;
+  const f = MAT_INNER_FRAC;
+  let l = left + f.x * w;
+  let r = left + (f.x + f.w) * w;
+  const t = top + f.y * h;
+  const b = top + (f.y + f.h) * h;
+  if (item.flip) {
+    const nl = item.x - (r - item.x);
+    const nr = item.x - (l - item.x);
+    l = nl;
+    r = nr;
+  }
+  return { l, t, r, b };
+}
+
+/** True when the painted body is fully on the mattress, inside the footboard. */
+export function bodyInsideBox(
+  body: { l: number; t: number; r: number; b: number },
+  box: { l: number; t: number; r: number; b: number },
+  slack = 12,
+): boolean {
+  return body.l >= box.l - slack && body.r <= box.r + slack && body.t >= box.t - slack && body.b <= box.b + slack;
+}
+
 /** Anchor at the painted foot, opposite the pillow, on the bedspread by the footboard. */
 export function bedFoot(item: BedFootItem): { x: number; y: number; away: 1 | -1 } | null {
   const foot = footMattressBox(item);
   if (!foot) return null;
   const away: 1 | -1 = item.flip ? -1 : 1;
-  // Mid-foot, a little toward the footboard and the front edge so curled bodies sit on the spread.
-  const x = (foot.l + foot.r) / 2 + away * 8;
+  // Toward the footboard end of the foot-region (not the mid-bed), a little to the front.
+  const mid = (foot.l + foot.r) / 2;
+  const x = mid + away * ((foot.r - foot.l) * 0.20 + 8);
   const y = foot.t + (foot.b - foot.t) * 0.72;
   return { x, y, away };
 }
@@ -91,8 +128,8 @@ export function bedFoot(item: BedFootItem): { x: number; y: number; away: 1 | -1
  * Both stay on the foot of the mattress, side by side, off the doll.
  */
 export const FOOT_SLOTS: { x: number; y: number }[] = [
-  { x: 30, y: 20 },    // cat: footboard side, on the spread, right of the doll
-  { x: -71, y: 16 },   // dog: left side of the foot, below her body, on the spread
+  { x: -22, y: 26 },   // cat: on the spread, fully inside the footboard, below her body
+  { x: -123, y: 14 },  // dog: left of the cat at the foot, below her body
 ];
 
 /** Painted body of a pet curled at the foot, at the same scale as the 150×128 / 92×71 boxes. */

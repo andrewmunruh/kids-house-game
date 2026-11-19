@@ -4,7 +4,7 @@ import { initialState } from '../src/shared/state';
 import { bedArt, pieceWidth } from '../src/shared/sit';
 import {
   bedFoot, bodyInFootRegion, bodyOnMattress, boxesOverlap, boxAtFeet, isSleepBed,
-  footMattressBox, mattressBox, petFootTargets, petFootTranslates, FOOT_BODY, FOOT_SLOTS,
+  footMattressBox, innerMattressBox, bodyInsideBox, mattressBox, petFootTargets, petFootTranslates, FOOT_BODY, FOOT_SLOTS,
 } from '../src/pet-foot';
 
 let pass = 0;
@@ -41,6 +41,9 @@ const dogB = boxAtFeet(dogT.x, dogT.y, FOOT_BODY.dog.w, FOOT_BODY.dog.h);
 check('two pets do not overlap each other (room units)', !boxesOverlap(catB, dogB), JSON.stringify({ catB, dogB }));
 check('cat is on the mattress at the foot', bodyOnMattress(catB, footBox, 24) && bodyInFootRegion(catB, footBox), JSON.stringify({ catB, footBox, catT }));
 check('dog is on the mattress at the foot', bodyOnMattress(dogB, footBox, 24) && bodyInFootRegion(dogB, footBox), JSON.stringify({ dogB, footBox, dogT }));
+const matInner = innerMattressBox({ kind: 'bed', x: bed.x, y: bed.y, flip: bed.flip, scale: 1, h: w })!;
+check('cat is inside the mattress and inside the footboard', bodyInsideBox(catB, matInner), JSON.stringify({ catB, matInner }));
+check('dog is inside the mattress and inside the footboard', bodyInsideBox(dogB, matInner), JSON.stringify({ dogB, matInner }));
 check('the second pet is beside the first at the foot', Math.abs(catT.x - dogT.x) > 30 || Math.abs(catT.y - dogT.y) > 30, JSON.stringify({ catT, dogT, foot }));
 
 // Doll face at the pillow, plus the painted lie body (head through mid-torso), which
@@ -71,6 +74,9 @@ check('flipped: dog misses the face', !boxesOverlap(fDog, fFace));
 check('flipped: cat misses the doll body', !boxesOverlap(fCat, fBody, 4), JSON.stringify({ fCat, fBody }));
 check('flipped: dog misses the doll body', !boxesOverlap(fDog, fBody, 4), JSON.stringify({ fDog, fBody }));
 check('flipped: cat is on the foot of the mattress', bodyOnMattress(fCat, fFoot, 24) && bodyInFootRegion(fCat, fFoot), JSON.stringify({ fCat, fFoot }));
+const fInner = innerMattressBox({ kind: 'bed', x: bed.x, y: bed.y, flip: true, scale: 1, h: w })!;
+check('flipped: cat is inside the mattress and inside the footboard', bodyInsideBox(fCat, fInner), JSON.stringify({ fCat, fInner }));
+check('flipped: dog is inside the mattress and inside the footboard', bodyInsideBox(fDog, fInner), JSON.stringify({ fDog, fInner }));
 check('flipped: dog is on the foot of the mattress', bodyOnMattress(fDog, fFoot, 24) && bodyInFootRegion(fDog, fFoot), JSON.stringify({ fDog, fFoot }));
 
 // Translates: a cat already near the bed moves visually; cat.x is not an output.
