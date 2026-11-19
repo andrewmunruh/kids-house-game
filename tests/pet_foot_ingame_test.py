@@ -44,15 +44,71 @@ MEASURE = """() => {
     if (r.width < 2 || r.height < 2) return null;
     return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height };
   };
+  // Painted body only (object-fit: contain, bottom centre). The CSS box includes
+  // transparent padding, which would make two on-mattress pets look overlapped.
+  // Fractions are the opaque bbox of cat-*-nap (360x300) and dog-*-sleep (390x300).
+  const FRAC = {
+    nap: { nw: 360, nh: 300, l: 61, t: 145, r: 339, b: 300 },
+    sleep: { nw: 390, nh: 300, l: 58, t: 58, r: 288, b: 287 },
+  };
+  const opaque = (sel, pose) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    const img = el.querySelector('img.petsprite, img, svg');
+    const host = img || el;
+    const br = host.getBoundingClientRect();
+    if (br.width < 2 || br.height < 2) return null;
+    const fr = FRAC[pose];
+    if (fr) {
+      const scale = Math.min(br.width / fr.nw, br.height / fr.nh);
+      const dw = fr.nw * scale, dh = fr.nh * scale;
+      const ox = br.left + (br.width - dw) / 2;
+      const oy = br.bottom - dh;
+      return { l: ox + fr.l * scale, t: oy + fr.t * scale, r: ox + fr.r * scale, b: oy + fr.b * scale };
+    }
+    return { l: br.left, t: br.top, r: br.right, b: br.bottom };
+  };
   const cat = document.querySelector('.pet.pet-cat');
   const dog = document.querySelector('.pet.pet-dog:not(.kenneled)');
   const doll = document.querySelector('.char[data-cid]');
   const head = doll && doll.querySelector('.dollhead');
+  const bedEl = document.querySelector('.item[data-kind="bed"]');
+  const bedBox = box(bedEl);
+  let mat = null;
+  if (bedBox) {
+    const flip = !!(bedEl && (bedEl.classList.contains('flipped') || bedEl.dataset.flip === '1'));
+    const mx = 0.36, my = 0.34, mw = 0.36, mh = 0.16;
+    let l = bedBox.l + mx * bedBox.w;
+    let rr = bedBox.l + (mx + mw) * bedBox.w;
+    const t = bedBox.t + my * bedBox.h;
+    const b = bedBox.t + (my + mh) * bedBox.h;
+    if (flip) {
+      const cx = (bedBox.l + bedBox.r) / 2;
+      const nl = cx - (rr - cx), nr = cx - (l - cx);
+      l = nl; rr = nr;
+    }
+    mat = { l, t, r: rr, b };
+  }
+  const poseOf = el => {
+    if (!el) return null;
+    const img = el.querySelector('img[src]');
+    const src = (img && img.getAttribute('src')) || '';
+    if (/-nap/.test(src) || el.querySelector('svg.nap')) return 'nap';
+    if (/-sleep/.test(src) || el.querySelector('svg.sleep')) return 'sleep';
+    if (/-sit/.test(src)) return 'sit';
+    if (/-stand/.test(src)) return 'stand';
+    return el.dataset.mood || null;
+  };
+  const catPose = poseOf(cat);
+  const dogPose = poseOf(dog);
   return {
-    cat: box(cat),
-    dog: box(dog),
+    cat: opaque('.pet.pet-cat', catPose) || box(cat),
+    dog: opaque('.pet.pet-dog:not(.kenneled)', dogPose) || box(dog),
     face: box(head),
     doll: box(doll),
+    mat,
+    catPose,
+    dogPose,
     catStored: (__store.get().cat || {}).x,
     footClass: !!(cat && cat.classList.contains('soc-foot')) || !!(dog && dog.classList.contains('soc-foot')),
     catT: cat && cat.style.translate,
@@ -92,12 +148,34 @@ async def run_size(browser, w, h):
     check(f'{tag}: cat is on screen', bool(m.get('cat')), m)
     check(f'{tag}: dog is on screen', bool(m.get('dog')), m)
     check(f'{tag}: doll face (.dollhead) is on screen', bool(m.get('face')), m)
+    def on_mat(body, mat, slack=20):
+        if not body or not mat:
+            return False
+        cx = (body['l'] + body['r']) / 2
+        feet = body['b']
+        on_x = mat['l'] - slack <= cx <= mat['r'] + slack
+        on_y = mat['t'] - slack <= feet <= mat['b'] + slack * 1.5
+        overlap_x = body['l'] < mat['r'] + slack and body['r'] > mat['l'] - slack
+        return on_x and on_y and overlap_x
     if m.get('cat') and m.get('dog'):
         check(f'{tag}: two pets do not overlap each other', not hit(m['cat'], m['dog']), m)
     if m.get('cat') and m.get('face'):
         check(f'{tag}: cat does not overlap the doll face', not hit(m['cat'], m['face']), {'cat': m['cat'], 'face': m['face']})
     if m.get('dog') and m.get('face'):
         check(f'{tag}: dog does not overlap the doll face', not hit(m['dog'], m['face']), {'dog': m['dog'], 'face': m['face']})
+    if m.get('cat') and m.get('mat'):
+        check(f'{tag}: cat is on the mattress at the foot', on_mat(m['cat'], m['mat']), {'cat': m['cat'], 'mat': m['mat']})
+    else:
+        check(f'{tag}: cat is on the mattress at the foot', False, m)
+    if m.get('dog') and m.get('mat'):
+        check(f'{tag}: dog is on the mattress at the foot', on_mat(m['dog'], m['mat']), {'dog': m['dog'], 'mat': m['mat']})
+    else:
+        check(f'{tag}: dog is on the mattress at the foot', False, m)
+    if m.get('cat') and m.get('dog'):
+        sides = abs(((m['cat']['l']+m['cat']['r'])/2) - ((m['dog']['l']+m['dog']['r'])/2)) > 16
+        check(f'{tag}: second pet is on the other side of the foot', sides, {'cat': m['cat'], 'dog': m['dog']})
+    check(f'{tag}: cat uses a curled/lying pose', m.get('catPose') in ('nap', 'sleep'), m.get('catPose'))
+    check(f'{tag}: dog uses a curled/lying pose', m.get('dogPose') in ('nap', 'sleep'), m.get('dogPose'))
     check(f'{tag}: stored cat.x is unchanged', m.get('catStored') == info.get('catX'), f"before={info.get('catX')} after={m.get('catStored')}")
     await c.close()
 

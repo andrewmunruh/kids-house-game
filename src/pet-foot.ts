@@ -19,31 +19,58 @@ export function isSleepBed(kind: string): boolean {
   return SLEEP.has(k) || SLEEP.has(k.startsWith('pack:') ? k : 'pack:' + k);
 }
 
-/** The foot of the mattress, opposite the pillow. Room units. */
-export function bedFoot(item: BedFootItem): { x: number; y: number; away: 1 | -1 } | null {
+/** Painted mattress in room units (y grows down). Flip mirrors x around the bed's centre. */
+export function mattressBox(item: BedFootItem): { l: number; t: number; r: number; b: number } | null {
   if (!isSleepBed(item.kind)) return null;
   const art = bedArt(item.kind);
   if (!art) return null;
   const sc = item.scale ?? 1;
   const w = pieceWidth(item.kind) * sc;
-  const footFrac = Math.min(0.92, art.mattress.x + art.mattress.w + 0.08);
-  const away: 1 | -1 = item.flip ? -1 : 1;
-  const x = item.x + away * (footFrac - 0.5) * w;
   const h = item.h ?? w * 0.7;
-  // A little above the painted foot, on the mattress rather than mid-air.
-  const y = item.y - h * 0.16;
+  const left = item.x - w / 2;
+  const top = item.y - h;
+  let l = left + art.mattress.x * w;
+  let r = left + (art.mattress.x + art.mattress.w) * w;
+  const t = top + art.mattress.y * h;
+  const b = top + (art.mattress.y + art.mattress.h) * h;
+  if (item.flip) {
+    const nl = item.x - (r - item.x);
+    const nr = item.x - (l - item.x);
+    l = nl;
+    r = nr;
+  }
+  return { l, t, r, b };
+}
+
+/** The foot of the mattress, opposite the pillow, inset so a curled pet stays on the bed. Room units. */
+export function bedFoot(item: BedFootItem): { x: number; y: number; away: 1 | -1 } | null {
+  const mat = mattressBox(item);
+  if (!mat) return null;
+  const away: 1 | -1 = item.flip ? -1 : 1;
+  const width = mat.r - mat.l;
+  const inset = Math.min(36, Math.max(18, width * 0.18));
+  const x = away === 1 ? mat.r - inset : mat.l + inset;
+  // Feet rest on the front edge of the painted mattress, not the floor or the footboard.
+  const y = mat.b - 2;
   return { x, y, away };
 }
 
 /**
- * Slots at the foot, in room units, for 150×128 (cat) and 92×71 (house dog) boxes.
- * Offsets go past the foot (away from the pillow) so they miss the doll's face,
- * and they are staggered in y so two pets do not overlap each other.
+ * Slots at the foot, in room units, for the painted nap/sleep bodies
+ * (cat ~116×66, house dog ~70×54). x is along the bed (positive = past the
+ * foot / off the mattress); y is down the screen. Both stay on the mattress,
+ * on opposite sides of the foot so they miss the doll's face and each other.
  */
 export const FOOT_SLOTS: { x: number; y: number }[] = [
-  { x: 18, y: -30 },  // on the mattress at the foot
-  { x: 88, y: 92 },   // on the floor, further past the foot
+  { x: -4, y: -54 },   // near the foot, toward the wall (far side of the mattress)
+  { x: -24, y: 6 },    // the other side, toward the front edge, still on the mattress
 ];
+
+/** Painted body of a pet curled at the foot, at the same scale as the 150×128 / 92×71 boxes. */
+export const FOOT_BODY: Record<string, { w: number; h: number }> = {
+  cat: { w: 116, h: 66 },
+  dog: { w: 70, h: 54 },
+};
 
 export function petFootTargets(
   foot: { x: number; y: number; away: 1 | -1 },
@@ -52,7 +79,7 @@ export function petFootTargets(
   const sorted = [...keys].sort();
   const out = new Map<string, { x: number; y: number }>();
   for (let i = 0; i < sorted.length; i++) {
-    const s = FOOT_SLOTS[i] ?? { x: 88 + (i - 1) * 90, y: 92 };
+    const s = FOOT_SLOTS[i] ?? { x: FOOT_SLOTS[1].x - (i - 1) * 50, y: FOOT_SLOTS[1].y };
     out.set(sorted[i], { x: foot.x + foot.away * s.x, y: foot.y + s.y });
   }
   return out;
@@ -64,6 +91,20 @@ export function boxAtFeet(cx: number, cy: number, w: number, h: number) {
 
 export function boxesOverlap(a: { l: number; t: number; r: number; b: number }, b: { l: number; t: number; r: number; b: number }, pad = 0): boolean {
   return a.l < b.r - pad && b.l < a.r - pad && a.t < b.b - pad && b.t < a.b - pad;
+}
+
+/** True when a pet's painted body is sitting on the mattress (feet on it, not just overlapping the headboard). */
+export function bodyOnMattress(
+  body: { l: number; t: number; r: number; b: number },
+  mat: { l: number; t: number; r: number; b: number },
+  slack = 16,
+): boolean {
+  const cx = (body.l + body.r) / 2;
+  const feet = body.b;
+  const onX = cx >= mat.l - slack && cx <= mat.r + slack;
+  const onY = feet >= mat.t - slack && feet <= mat.b + slack * 1.5;
+  const overlapX = body.l < mat.r + slack && body.r > mat.l - slack;
+  return onX && onY && overlapX;
 }
 
 /** How close a pet must already be before we slide her to the foot (no room-wide teleport). */

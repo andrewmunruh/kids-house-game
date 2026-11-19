@@ -4146,13 +4146,14 @@ function tickDogs(now: number, dt: number) {
     const dx = tx - r.x, dy = ty - r.y, d = Math.hypot(dx, dy); let moving = false;
     if (d > (fetchSt ? 4 : 10) && !tricking) { const step = prefersReducedMotion() ? d : Math.min(d, speed * dt); r.x += dx / d * step; r.y += dy / d * step; moving = true; if (Math.abs(dx) > 1.5) r.flip = dx < 0; r.idle = 0; }
     else { r.idle += dt; if (!tricking && r.idle > 0.3 && Math.abs(o.x - r.x) > 4) r.flip = o.x < r.x; }
-    const pose = tricking && r.sitTrick ? 'sit' : moving ? 'stand' : r.idle > 0.9 ? 'sit' : 'stand';
-    const look = pose + o.dog.breed;
+    const atFoot = r.el.classList.contains('soc-foot');
+    const pose: 'stand' | 'sit' | 'sleep' = atFoot ? 'sleep' : tricking && r.sitTrick ? 'sit' : moving ? 'stand' : r.idle > 0.9 ? 'sit' : 'stand';
+    const look = pose + o.dog.breed + (atFoot ? 'f' : '');
     if (r.pose + r.look !== pose + look) {
       // Leave the speech bubble where it is. Detaching it restarted the pop, so one
       // approach played the bubble again each time the dog stood or sat.
       for (const node of [...r.el.children]) if (!node.matches('.bubble, .kennelBtn')) node.remove();
-      r.el.insertAdjacentHTML('afterbegin', `<div class="inner">${dogSprite(o.dog.breed, pose as 'stand' | 'sit' | 'sleep', dogSVG(o.dog.breed, pose as 'stand' | 'sit'))}</div>`);
+      r.el.insertAdjacentHTML('afterbegin', `<div class="inner">${dogSprite(o.dog.breed, pose, dogSVG(o.dog.breed, pose))}</div>`);
       r.pose = pose; r.look = look;
     }
     r.el.dataset.name = o.dog.name;
@@ -4779,8 +4780,9 @@ function tickCat() {
   const perch = leaping ? 2 : b.perch;
   const x = leaping && tower ? tower.x : b.x;
   const mood = leaping ? 'play' : b.mood;
-  const pose = mood === 'walk' ? 'stand' : mood === 'nap' ? 'nap' : 'sit';
-  const key = pose + cat.coat + (perch ? 'p' : '');
+  const atFoot = catEl.classList.contains('soc-foot');
+  const pose = atFoot || mood === 'nap' ? 'nap' : mood === 'walk' ? 'stand' : 'sit';
+  const key = pose + cat.coat + (perch ? 'p' : '') + (atFoot ? 'f' : '');
   if (key !== catKey) {
     // Pose changes every few seconds. Keep the purr (bubble + hearts); replacing the
     // whole node used to throw the hearts away mid-animation.
@@ -4792,7 +4794,7 @@ function tickCat() {
   if (perch > 0 && catPerch === 0) { catEl.classList.add('hop'); const el = catEl; setTimeout(() => el.classList.remove('hop'), 420); }
   catPerch = perch;
   catEl.dataset.name = cat.name; catEl.dataset.mood = mood; catEl.dataset.perch = String(perch); catEl.dataset.leap = leaping ? '1' : '0'; catEl.dataset.curl = b.curl ? '1' : '0';
-  catEl.classList.toggle('walking', mood === 'walk'); catEl.classList.toggle('groom', mood === 'groom'); catEl.classList.toggle('play', mood === 'play' && !leaping); catEl.classList.toggle('leap', leaping); catEl.classList.toggle('flipped', b.flip); catEl.classList.toggle('curl', b.curl === 1);
+  catEl.classList.toggle('walking', mood === 'walk'); catEl.classList.toggle('groom', mood === 'groom'); catEl.classList.toggle('play', mood === 'play' && !leaping); catEl.classList.toggle('leap', leaping); catEl.classList.toggle('flipped', b.flip); catEl.classList.toggle('curl', b.curl === 1 || atFoot);
   layer.querySelectorAll<HTMLElement>('.item.toy-live').forEach(el => el.classList.remove('toy-live'));
   if (tower && mood === 'play' && perch && !leaping) layer.querySelector<HTMLElement>(`.item[data-id="${tower.id}"]`)?.classList.add('toy-live');
   // __pinCat holds her on a character's feet for tests. She stays under characters (5000 + y).

@@ -3,7 +3,8 @@
 import { initialState } from '../src/shared/state';
 import { bedArt, pieceWidth } from '../src/shared/sit';
 import {
-  bedFoot, boxesOverlap, boxAtFeet, isSleepBed, petFootTargets, petFootTranslates, FOOT_SLOTS,
+  bedFoot, bodyOnMattress, boxesOverlap, boxAtFeet, isSleepBed, mattressBox,
+  petFootTargets, petFootTranslates, FOOT_BODY, FOOT_SLOTS,
 } from '../src/pet-foot';
 
 let pass = 0;
@@ -31,10 +32,14 @@ check('stored bed.x is not the foot (she used to curl mid-mattress)', !!foot && 
 const keys = ['cat', 'solo'];
 const targets = petFootTargets(foot!, keys);
 const catT = targets.get('cat')!, dogT = targets.get('solo')!;
-// Real painted boxes: cat 150×128, house dog 92×71. Feet at (x, y).
-const catB = boxAtFeet(catT.x, catT.y, 150, 128);
-const dogB = boxAtFeet(dogT.x, dogT.y, 92, 71);
+const mat = mattressBox({ kind: 'bed', x: bed.x, y: bed.y, flip: bed.flip, scale: 1, h: w })!;
+// Painted nap/sleep bodies (the CSS box is larger because of transparent padding).
+const catB = boxAtFeet(catT.x, catT.y, FOOT_BODY.cat.w, FOOT_BODY.cat.h);
+const dogB = boxAtFeet(dogT.x, dogT.y, FOOT_BODY.dog.w, FOOT_BODY.dog.h);
 check('two pets do not overlap each other (room units)', !boxesOverlap(catB, dogB), JSON.stringify({ catB, dogB }));
+check('cat is on the mattress at the foot', bodyOnMattress(catB, mat), JSON.stringify({ catB, mat, catT }));
+check('dog is on the mattress at the foot', bodyOnMattress(dogB, mat), JSON.stringify({ dogB, mat, dogT }));
+check('the second pet is on the other side of the foot', Math.abs(catT.y - dogT.y) > 40, JSON.stringify({ catT, dogT, foot }));
 
 // Doll face: a generous 90×90 around the painted head target, at pillow height.
 const headY = bed.y - w * (1 - art.head.y);
@@ -45,14 +50,17 @@ check('dog does not overlap the doll face', !boxesOverlap(dogB, face), JSON.stri
 // Flipped bed mirrors away from the head too.
 const flipped = bedFoot({ kind: 'bed', x: bed.x, y: bed.y, flip: true, scale: 1, h: w })!;
 check('flipped foot is on the other side of center', (flipped.x - bed.x) * (foot!.x - bed.x) < 0, `flip=${flipped.x} raw=${foot!.x}`);
+const fMat = mattressBox({ kind: 'bed', x: bed.x, y: bed.y, flip: true, scale: 1, h: w })!;
 const fTargets = petFootTargets(flipped, keys);
 const fHeadX = bed.x + -1 * (art.head.x - 0.5) * w;
 const fFace = boxAtFeet(fHeadX, headY + 20, 90, 90);
-const fCat = boxAtFeet(fTargets.get('cat')!.x, fTargets.get('cat')!.y, 150, 128);
-const fDog = boxAtFeet(fTargets.get('solo')!.x, fTargets.get('solo')!.y, 92, 71);
+const fCat = boxAtFeet(fTargets.get('cat')!.x, fTargets.get('cat')!.y, FOOT_BODY.cat.w, FOOT_BODY.cat.h);
+const fDog = boxAtFeet(fTargets.get('solo')!.x, fTargets.get('solo')!.y, FOOT_BODY.dog.w, FOOT_BODY.dog.h);
 check('flipped: pets do not overlap each other', !boxesOverlap(fCat, fDog));
 check('flipped: cat misses the face', !boxesOverlap(fCat, fFace));
 check('flipped: dog misses the face', !boxesOverlap(fDog, fFace));
+check('flipped: cat is on the mattress', bodyOnMattress(fCat, fMat), JSON.stringify({ fCat, fMat }));
+check('flipped: dog is on the mattress', bodyOnMattress(fDog, fMat), JSON.stringify({ fDog, fMat }));
 
 // Translates: a cat already near the bed moves visually; cat.x is not an output.
 const catX = 400; // a stored wander-center far from the painted spot
@@ -61,7 +69,7 @@ const nearDog = { key: 'solo', x: bed.x + 40, y: 580 };
 const lying = [{ x: bed.x, y: bed.y }];
 const t = petFootTranslates([nearCat, nearDog], [{ kind: 'bed', x: bed.x, y: bed.y, flip: false, scale: 1, h: w }], lying);
 check('nearby pets get a foot translate', !!t && t.has('cat') && t.has('solo'), t && JSON.stringify([...t.entries()]));
-check('translate does not mention stored cat.x', t != null && !JSON.stringify([...t.values()]).includes(String(catX)));
+check('translate does not mention stored cat.x', t != null && [...t.values()].every(v => 'dx' in v && 'dy' in v && !('x' in v)) && !JSON.stringify([...t.values()]).includes('"x"'), JSON.stringify({ catX, vals: t && [...t.values()] }));
 
 const far = petFootTranslates([{ key: 'cat', x: 200, y: 560 }], [{ kind: 'bed', x: bed.x, y: bed.y, scale: 1, h: w }], lying);
 check('a pet across the room is not teleported', far == null || !far.has('cat'), far && JSON.stringify([...far.entries()]));
