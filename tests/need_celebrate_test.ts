@@ -54,5 +54,7 @@ for (const n of NEEDS) {
 }
 check('hungry crumbs have no apple face', burstMarkup('hungry').includes('nb-crumb') && !burstMarkup('hungry').includes('<svg'));
 check('burst includes a central aura and stays faceless', burstMarkup('hungry').includes('nb-aura') && !/face|eye|mouth|smile/i.test(burstMarkup('hungry')));
+check('burst has code-drawn stars and hearts', burstMarkup('playful').includes('nb-star') && burstMarkup('playful').includes('nb-heart') && burstMarkup('playful').includes('♥'));
+
 
 console.log(`need_celebrate_test: ${pass} passed`);

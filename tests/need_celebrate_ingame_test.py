@@ -264,6 +264,8 @@ async def run_solo(browser, reduced=False):
         check(f'{tag}: a celebration is on screen', st['glow'] or st['vis'] >= 1, st)
         check(f'{tag}: at most one burst (no stack)', st['n'] <= 1, st)
         check(f'{tag}: burst never captures pointer', st['peBurst'] == 'none', st)
+        # Peak is ~36% of the 1.4s aura (~500ms from meet; 80ms already elapsed).
+        await pg.wait_for_timeout(420)
         loc = await pg.evaluate("""() => {
           const el = document.querySelector('.char[data-cid]');
           const burst = el && el.querySelector(':scope > .need-burst');
@@ -273,19 +275,23 @@ async def run_solo(browser, reduced=False):
           const h = head.getBoundingClientRect();
           const a = aura ? aura.getBoundingClientRect() : burst.getBoundingClientRect();
           const hx = h.left + h.width / 2, hy = h.top;
+          const cs = aura ? getComputedStyle(aura) : null;
           const ax = a.left + a.width / 2, ay = a.top + a.height / 2;
           return {
             missing: false,
             dx: ax - hx,
             dy: ay - hy,
             auraW: a.width, auraH: a.height,
+            headW: h.width, headH: h.height,
+            opacity: cs ? parseFloat(cs.opacity) : 0,
             above: ay <= h.top + 24,
             pe: getComputedStyle(burst).pointerEvents,
           };
         }""")
         check(f'{tag}: burst is centered on the painted head', (not loc.get('missing')) and abs(loc.get('dx') or 99) <= 70, loc)
         check(f'{tag}: burst sits just above the head', (not loc.get('missing')) and loc.get('above') and (loc.get('dy') or 0) > -140, loc)
-        check(f'{tag}: burst is big enough to read across the room', (loc.get('auraW') or 0) >= 48, loc)
+        check(f'{tag}: burst at peak is at least as wide as her head', (loc.get('auraW') or 0) >= max(70, (loc.get('headW') or 0) * 0.9), loc)
+        check(f'{tag}: burst at peak is fully visible', (loc.get('opacity') or 0) >= 0.75, loc)
 
     # Tap during the celebration: open the menu, then close it. Input must work.
     try:

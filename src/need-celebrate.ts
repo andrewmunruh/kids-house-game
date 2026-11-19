@@ -46,22 +46,26 @@ export function tickCelebrate(q: CelebrateQueue, now: number): { q: CelebrateQue
   return { q, start: null };
 }
 
-const ANGLES: Record<Need, number[]> = {
-  hungry: [-50, -22, 8, 36, 62],
-  sleepy: [-40, -12, 16, 44],
-  playful: [-56, -28, 0, 28, 56],
-  clean: [-48, -18, 12, 40, 68],
-};
+/** Faceless burst bits. Every need shares a bold ring of stars and hearts
+ *  around a gold aura. Angles are from straight up. */
+const BITS: { cls: string; a: number; dl: number; text?: string }[] = [
+  { cls: 'nb-star', a: -56, dl: 0 },
+  { cls: 'nb-heart', a: -28, dl: 40 },
+  { cls: 'nb-star', a: 0, dl: 20 },
+  { cls: 'nb-heart', a: 28, dl: 50 },
+  { cls: 'nb-star', a: 56, dl: 10 },
+  { cls: 'nb-spark', a: -78, dl: 30 },
+  { cls: 'nb-spark', a: 78, dl: 60 },
+];
 
-/** Gentle, faceless particles. Icons only — no faces on food or items. */
+/** Cheerful, faceless particles. Icons only — no faces on food or items. */
 export function burstMarkup(need: Need): string {
-  const angles = ANGLES[need] ?? ANGLES.playful;
-  const bits = angles.map((a, i) => {
-    const delay = i * 40;
-    if (need === 'hungry') return `<i class="nb-crumb" style="--a:${a}deg;--dl:${delay}ms"></i>`;
-    if (need === 'sleepy') return `<i class="nb-z" style="--a:${a}deg;--dl:${delay}ms">z</i>`;
-    if (need === 'clean') return `<i class="nb-bubble" style="--a:${a}deg;--dl:${delay}ms"></i>`;
-    return `<i class="nb-spark" style="--a:${a}deg;--dl:${delay}ms"></i>`;
-  });
+  const extra = need === 'hungry' ? 'nb-crumb' : need === 'sleepy' ? 'nb-z' : need === 'clean' ? 'nb-bubble' : 'nb-spark';
+  const bits = BITS.map((b) => b.cls === 'nb-heart'
+    ? `<i class="nb-heart" style="--a:${b.a}deg;--dl:${b.dl}ms">♥</i>`
+    : `<i class="${b.cls}" style="--a:${b.a}deg;--dl:${b.dl}ms"></i>`);
+  bits.push(extra === 'nb-z'
+    ? `<i class="nb-z" style="--a:12deg;--dl:35ms">z</i>`
+    : `<i class="${extra}" style="--a:12deg;--dl:35ms"></i>`);
   return `<div class="need-burst need-burst-${need}" data-need-cele="${need}" aria-hidden="true"><span class="nb-aura"></span>${bits.join('')}</div>`;
 }

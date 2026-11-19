@@ -22,32 +22,55 @@
 .char.pose-lie.need-snooze::after { content: 'z z'; }
 @keyframes needZ { 0% { opacity: 0; transform: translate(0, 0) scale(.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(18px, -34px) scale(1.2); } }
 
-/* Care met: a short, gentle hop and need-specific sparkles. Never blocks input.
-   --nbs is the painted stage scale so the burst stays readable when the camera zooms out. */
+/* Care met: a short hop and a bold, cheerful burst just above her head.
+   Never blocks input. --nbs is the painted stage scale so the burst stays
+   readable when the camera zooms out. Peak is ~36% of 1.4s ≈ 500ms. */
 .char > .inner.need-hop { animation: needHop .5s cubic-bezier(.3, 1.6, .5, 1); pointer-events: none; }
 @keyframes needHop { 0% { transform: translateY(0); } 40% { transform: translateY(-10px) scale(1.03, .98); } 100% { transform: translateY(0); } }
 .need-burst { position: absolute; left: 50%; top: 8%; width: 0; height: 0; pointer-events: none; z-index: 4;
   --ns: calc(1 / max(0.35, var(--nbs, 1))); }
-.need-burst .nb-aura { position: absolute; left: 0; top: 0; width: calc(96px * var(--ns)); height: calc(96px * var(--ns));
-  margin: calc(-48px * var(--ns)) 0 0 calc(-48px * var(--ns)); border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle, rgba(255, 230, 120, .95) 0%, rgba(255, 196, 70, .7) 38%, rgba(255, 209, 102, 0) 72%);
-  animation: needAura 1.2s ease-out forwards; }
-@keyframes needAura { 0% { opacity: 0; transform: scale(.4); } 22% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.12); } }
-.need-burst i { position: absolute; left: calc(-16px * var(--ns)); top: calc(-16px * var(--ns));
-  width: calc(32px * var(--ns)); height: calc(32px * var(--ns)); opacity: 0; pointer-events: none;
-  animation: needPop 1.15s ease-out var(--dl, 0ms) forwards; }
+/* Aura is at least as wide as the painted head (~80–100px typical) and fully
+   opaque at peak, so the burst reads across the room. */
+.need-burst .nb-aura { position: absolute; left: 0; top: 0; width: calc(140px * var(--ns)); height: calc(140px * var(--ns));
+  margin: calc(-70px * var(--ns)) 0 0 calc(-70px * var(--ns)); border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, #ffe34a 0%, #ffcc33 28%, rgba(255, 180, 50, .85) 52%, rgba(255, 200, 80, 0) 74%);
+  box-shadow: 0 0 28px 10px rgba(255, 210, 60, .65);
+  animation: needAura 1.4s ease-out forwards; }
+@keyframes needAura {
+  0% { opacity: 0; transform: scale(.28); }
+  10% { opacity: .45; transform: scale(.55); }
+  36% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.08); }
+}
+.need-burst i { position: absolute; left: calc(-20px * var(--ns)); top: calc(-20px * var(--ns));
+  width: calc(40px * var(--ns)); height: calc(40px * var(--ns)); opacity: 0; pointer-events: none;
+  animation: needPop 1.4s ease-out var(--dl, 0ms) forwards; }
 .need-burst .nb-spark { background: #ffd166; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
-.need-burst .nb-crumb { background: #e86a5a; border-radius: 50%; width: calc(30px * var(--ns)); height: calc(30px * var(--ns));
+.need-burst .nb-star { background: #ffef6a; clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  width: calc(44px * var(--ns)); height: calc(44px * var(--ns));
+  left: calc(-22px * var(--ns)); top: calc(-22px * var(--ns));
+  filter: drop-shadow(0 0 4px rgba(255, 200, 40, .9)); }
+.need-burst .nb-heart { background: none; color: #ff5d8f;
+  font: 700 calc(38px * var(--ns))/1 system-ui, sans-serif;
+  -webkit-text-stroke: 1px #5b3d5c;
+  display: flex; align-items: center; justify-content: center;
+  filter: drop-shadow(0 0 3px rgba(255, 80, 120, .7)); }
+.need-burst .nb-crumb { background: #e86a5a; border-radius: 50%; width: calc(34px * var(--ns)); height: calc(34px * var(--ns));
   box-shadow: inset -4px -5px 0 rgba(255,255,255,.28); }
 .need-burst .nb-crumb::after { content: ''; position: absolute; left: 55%; top: -18%; width: 45%; height: 40%;
   background: #7bd389; border-radius: 60% 40% 50% 50%; transform: rotate(25deg); }
-.need-burst .nb-z { background: none; color: #8fb8ff; font: 700 calc(28px * var(--ns))/1 system-ui, sans-serif;
+.need-burst .nb-z { background: none; color: #8fb8ff; font: 700 calc(32px * var(--ns))/1 system-ui, sans-serif;
   -webkit-text-stroke: 1px #5b3d5c; width: auto; height: auto; left: 0; top: 0; }
 .need-burst .nb-bubble { background: #c8efff; border: 3px solid #7eb7d4; border-radius: 50%;
-  width: calc(26px * var(--ns)); height: calc(26px * var(--ns)); box-shadow: inset -3px -3px 0 #fff8; }
-@keyframes needPop { 0% { opacity: 0; transform: rotate(var(--a)) translateY(0) scale(.45); }
-  20% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(-48px * var(--ns))) scale(1.15); } }
-.char.need-glow > .inner { filter: drop-shadow(0 0 10px #ffd166) drop-shadow(0 0 18px rgba(255, 209, 102, .8)); }
+  width: calc(30px * var(--ns)); height: calc(30px * var(--ns)); box-shadow: inset -3px -3px 0 #fff8; }
+/* Peak stays tight above the head (short travel). Start is small; end fades. */
+@keyframes needPop {
+  0% { opacity: 0; transform: rotate(var(--a)) translateY(0) scale(.35); }
+  10% { opacity: .55; transform: rotate(var(--a)) translateY(calc(-6px * var(--ns))) scale(.65); }
+  36% { opacity: 1; transform: rotate(var(--a)) translateY(calc(-26px * var(--ns))) scale(1.2); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(-44px * var(--ns))) scale(.9); }
+}
+.char.need-glow > .inner { filter: drop-shadow(0 0 12px #ffd166) drop-shadow(0 0 22px rgba(255, 209, 102, .9)); }
 .need-friend-heart { position: absolute; left: 70%; top: 18%; width: 14px; height: 14px; pointer-events: none; z-index: 4; background: #ff7aa8; clip-path: path('M7 13 L1.5 7.5 A3.2 3.2 0 0 1 7 3 A3.2 3.2 0 0 1 12.5 7.5 Z'); animation: needFriend 1.2s ease-out forwards; }
 @keyframes needFriend { 0% { opacity: 0; transform: translateY(4px) scale(.5); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(-28px) scale(1); } }
 
