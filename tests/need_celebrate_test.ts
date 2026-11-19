@@ -53,5 +53,6 @@ for (const n of NEEDS) {
   check(`${n} burst is marked for tests`, html.includes(`data-need-cele="${n}"`));
 }
 check('hungry crumbs have no apple face', burstMarkup('hungry').includes('nb-crumb') && !burstMarkup('hungry').includes('<svg'));
+check('burst includes a central aura and stays faceless', burstMarkup('hungry').includes('nb-aura') && !/face|eye|mouth|smile/i.test(burstMarkup('hungry')));
 
 console.log(`need_celebrate_test: ${pass} passed`);

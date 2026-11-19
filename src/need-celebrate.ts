@@ -63,5 +63,5 @@ export function burstMarkup(need: Need): string {
     if (need === 'clean') return `<i class="nb-bubble" style="--a:${a}deg;--dl:${delay}ms"></i>`;
     return `<i class="nb-spark" style="--a:${a}deg;--dl:${delay}ms"></i>`;
   });
-  return `<div class="need-burst need-burst-${need}" data-need-cele="${need}" aria-hidden="true">${bits.join('')}</div>`;
+  return `<div class="need-burst need-burst-${need}" data-need-cele="${need}" aria-hidden="true"><span class="nb-aura"></span>${bits.join('')}</div>`;
 }

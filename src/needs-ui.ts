@@ -92,6 +92,9 @@ export function installNeeds(d: NeedsDeps) {
       return;
     }
     el.insertAdjacentHTML('beforeend', burstMarkup(need));
+    const burstEl = el.querySelector<HTMLElement>(':scope > .need-burst');
+    if (burstEl) anchorBurst(el, burstEl);
+    requestAnimationFrame(() => { if (burstEl && burstEl.isConnected) anchorBurst(el, burstEl); });
     const inner = el.querySelector(':scope > .inner');
     inner?.classList.remove('need-hop');
     void (inner as HTMLElement | null)?.offsetWidth;
@@ -109,6 +112,21 @@ export function installNeeds(d: NeedsDeps) {
     if (prefersReducedMotion()) return;
     el.insertAdjacentHTML('beforeend', '<div class="need-friend-heart" aria-hidden="true"></div>');
     setTimeout(() => el.querySelector(':scope > .need-friend-heart')?.remove(), CELEBRATE_MS);
+  }
+
+  /** Pin the burst just above the doll's painted head so it tracks the camera and scale. */
+  function anchorBurst(el: HTMLElement, burstEl: HTMLElement) {
+    const sc = el.offsetWidth ? el.getBoundingClientRect().width / el.offsetWidth : 1;
+    if (sc > 0 && Number.isFinite(sc)) burstEl.style.setProperty('--nbs', sc.toFixed(3));
+    const head = el.querySelector('.inner svg .dollhead') || el.querySelector('.dollhead');
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    if (!head) { burstEl.style.left = '50%'; burstEl.style.top = '10%'; return; }
+    const h = head.getBoundingClientRect();
+    if (!h.width) { burstEl.style.left = '50%'; burstEl.style.top = '10%'; return; }
+    burstEl.style.left = ((h.left + h.width / 2 - r.left) / r.width * 100).toFixed(1) + '%';
+    // A little above the crown, in the doll's own box, so a zoom-out still keeps it on her.
+    burstEl.style.top = ((h.top - r.top) / r.height * 100 - 10).toFixed(1) + '%';
   }
 
   /** Lying dolls are drawn sideways, so the bubble goes over her head on the pillow instead of where a standing head would be. */
