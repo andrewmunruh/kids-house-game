@@ -128,7 +128,7 @@ export function bedFoot(item: BedFootItem): { x: number; y: number; away: 1 | -1
  * Both stay on the foot of the mattress, side by side, off the doll.
  */
 export const FOOT_SLOTS: { x: number; y: number }[] = [
-  { x: -22, y: 26 },   // cat: on the spread, fully inside the footboard, below her body
+  { x: -28, y: 26 },   // cat: on the spread, fully inside the footboard, below her body
   { x: -102, y: 26 },  // dog: next to the cat at the foot, clear of her hair and body
 ];
 
