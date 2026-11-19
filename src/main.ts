@@ -13,7 +13,7 @@ import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROS
 import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } from './pets';
 import { mailboxArt, installMail } from './mail';
 import { installPlayMode, playGesture } from './playmode';
-import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, seatFrontKind, standBeside, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
+import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, seatFrontKind, standBeside, STAND_Y, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
 import { isFood } from './shared/needs';
 import { playDropPolish, isTableKind } from './play-drop';
 import { addTableNibbles, openFridges } from './eat-look';
@@ -960,6 +960,42 @@ function heldFoodOf(c: Character): { hand: Hand; kind: string }[] {
   }
   return out;
 }
+/**
+ * Is a standing doll at room x (feet on STAND_Y) fully on the stage and clear of the room arrows, the Paint button
+ * and the care bar, if the stage were slid `shift` screen px sideways? Her drawn body is about 105 room px wide and
+ * sits a little right of x; 118 leaves a little air. Her feet sit about 14 room px above STAND_Y. View only; nothing is saved from here.
+ */
+function standingBlocked(x: number, shift = 0): boolean {
+  const sr = stage.getBoundingClientRect();
+  if (sr.width < 20) return false;
+  const sx = sr.width / VIEW_W, sy = sr.height / H;
+  const left = 54, right = 64, up = 190, pad = 6; // her drawn body sits a little right of x
+  const body = { l: sr.left + (x - left - camX) * sx + shift, r: sr.left + (x + right - camX) * sx + shift, t: sr.top + (STAND_Y - up) * sy, b: sr.top + (STAND_Y - 14) * sy };
+  if (body.l < sr.left + pad || body.r > sr.right - pad) return true;
+  for (const el of [$('artFab'), $('nudgeL'), $('nudgeR'), document.querySelector('.babyCare')]) {
+    if (!el || (el as HTMLElement).hidden || el.classList.contains('hidden') || el.classList.contains('off')) continue;
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+    const b = el.getBoundingClientRect();
+    if (b.width < 2 || b.height < 2) continue;
+    if (body.l < b.right + pad && body.r > b.left - pad && body.t < b.bottom + 4 && body.b > b.top - 4) return true;
+  }
+  return false;
+}
+const standClearAt = (x: number) => !standingBlocked(x);
+/** After she is put down beside a table: if the camera leaves her cut off or under a button, slide it the least that frees her. */
+function keepStandingInView(x: number) {
+  if (view !== 'house' || !standingBlocked(x)) return;
+  const sx = stage.getBoundingClientRect().width / VIEW_W;
+  for (let d = 4; d <= 600; d += 4) {
+    for (const s of [d, -d]) {
+      if (standingBlocked(x, s)) continue;
+      markPanned();
+      glideTo(camX - s / sx);
+      return;
+    }
+  }
+}
 function finishDollPlayDrop(id: string, releaseX: number, releaseY: number, hit: PlacedItem | null) {
   const s = store.get();
   const c = s.characters.find(x => x.id === id);
@@ -971,9 +1007,11 @@ function finishDollPlayDrop(id: string, releaseX: number, releaseY: number, hit:
     occupied: takenSeats(id),
     held: heldFoodOf(c),
     seatPiece: it => seatPieceOf(it as PlacedItem),
+    standOk: standClearAt,
   });
   for (const r of result.releases) store.dispatch({ type: 'char/release', id, hand: r.hand, x: r.x, y: r.y });
   moveDoll(id, s.currentRoom, result.x, result.y, result.seat);
+  if (result.beside) keepStandingInView(result.x);
 }
 function finishAvatarPlayDrop(releaseX: number, releaseY: number, hit: PlacedItem | null) {
   const cur = myPres();
@@ -986,9 +1024,11 @@ function finishAvatarPlayDrop(releaseX: number, releaseY: number, hit: PlacedIte
     occupied: takenSeats(undefined, hood.pid),
     held: [],
     seatPiece: it => seatPieceOf(it as PlacedItem),
+    standOk: standClearAt,
   });
   const seat = result.seat ? { id: result.seat.item, pose: result.seat.pose, n: result.seat.n } : null;
   placeMe(cur, result.x, result.y, cur.flip, seat);
+  if (result.beside) keepStandingInView(result.x);
 }
 function seatFrontClass(kind: string): string { return seatFrontKind(kind); }
 /** Seats with a kid drawn in the classic (legacy, no look2) sit pose; filled by seatedHere. */
@@ -2727,6 +2767,7 @@ installNeeds({ get: () => store.get(), dispatch: a => store.dispatch(a), subscri
 (window as any).__yieldNudges = yieldNudgesSoon;
 (window as any).__myPres = () => myPres();
 (window as any).__playDropPolish = playDropPolish;
+(window as any).__standingBlocked = standingBlocked;
 (window as any).__takenSeats = takenSeats;
 (window as any).__applyPlayDrop = (id: string, releaseX: number, releaseY: number, hitId?: string | null) => {
   const s = store.get();

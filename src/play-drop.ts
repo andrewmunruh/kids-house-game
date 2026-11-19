@@ -36,7 +36,30 @@ export type PlayDrop = {
   y: number;
   seat: DollSeat | null;
   releases: { hand: 'left' | 'right'; x: number; y: number }[];
+  /** Stood on the floor next to a table with no seat. The caller keeps her in view. */
+  beside?: boolean;
 };
+
+/**
+ * Floor beside a table with no seat: standBeside's spot, unless `ok` says her body would be hidden or cut there
+ * (off the view, behind the Paint button, the care bar or a room arrow). Then the other side, then a little further
+ * out on either side. Without `ok` this is exactly standBeside.
+ */
+export function standNextTo(
+  piece: { x: number }, pieceW: number, fromX: number, roomW: number, ok?: (x: number) => boolean,
+): { x: number; y: number } {
+  const first = standBeside(piece.x, pieceW, fromX, roomW);
+  if (!ok || ok(first.x)) return first;
+  const reach = Math.max(0, pieceW) / 2 + 70, edge = 40;
+  const pref = first.x >= piece.x ? 1 : -1;
+  for (let extra = 0; extra <= 360; extra += 20) {
+    for (const side of [pref, -pref]) {
+      const x = piece.x + side * (reach + extra);
+      if (x >= edge && x <= roomW - edge && ok(x)) return { x, y: STAND_Y };
+    }
+  }
+  return first;
+}
 
 const TABLE_CHAIR_R = 320;
 const FOOD_ON_TABLE_R = 180;
@@ -87,6 +110,8 @@ export function playDropPolish(opts: {
   held: HeldFood[];
   seatPiece: (it: DropItem) => SeatPiece | null;
   roomW?: number;
+  /** Is a standing doll at this room x fully in view and clear of the buttons? Unset means anywhere. */
+  standOk?: (x: number) => boolean;
 }): PlayDrop {
   const roomW = opts.roomW ?? 2400;
   const { releaseX, releaseY, hit, items, occupied, held, seatPiece } = opts;
@@ -130,8 +155,8 @@ export function playDropPolish(opts: {
       if (d < bestD) { bestD = d; best = { x: drop.x, y: drop.y, seat: drop.seat }; }
     }
     if (best) return { ...best, releases };
-    const stand = standBeside(table.x, pieceWidth(table.kind), releaseX, roomW);
-    return { x: stand.x, y: stand.y, seat: null, releases };
+    const stand = standNextTo(table, pieceWidth(table.kind), releaseX, roomW, opts.standOk);
+    return { x: stand.x, y: stand.y, seat: null, releases, beside: true };
   }
 
   const piece = hit ? seatPiece(hit) : null;
