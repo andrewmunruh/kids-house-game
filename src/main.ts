@@ -4157,7 +4157,9 @@ function tickDogs(now: number, dt: number) {
       r.pose = pose; r.look = look;
     }
     r.el.dataset.name = o.dog.name;
-    r.el.classList.toggle('walking', moving); r.el.classList.toggle('flipped', r.flip);
+    const stFoot = atFoot && view === 'house' ? store.get() : null;
+    const footBed = stFoot ? stFoot.rooms[stFoot.currentRoom]?.items.find(i => i.kind === 'bed') : undefined;
+    r.el.classList.toggle('walking', moving); r.el.classList.toggle('flipped', atFoot ? !!footBed?.flip : r.flip);
     o.place(r.el, r.x, r.y, 92 * o.scale, 71 * o.scale); r.el.style.zIndex = o.z(r.y + 1);
     syncKennelBtn(r.el, o.key, false);
   }
@@ -4794,7 +4796,8 @@ function tickCat() {
   if (perch > 0 && catPerch === 0) { catEl.classList.add('hop'); const el = catEl; setTimeout(() => el.classList.remove('hop'), 420); }
   catPerch = perch;
   catEl.dataset.name = cat.name; catEl.dataset.mood = mood; catEl.dataset.perch = String(perch); catEl.dataset.leap = leaping ? '1' : '0'; catEl.dataset.curl = b.curl ? '1' : '0';
-  catEl.classList.toggle('walking', mood === 'walk'); catEl.classList.toggle('groom', mood === 'groom'); catEl.classList.toggle('play', mood === 'play' && !leaping); catEl.classList.toggle('leap', leaping); catEl.classList.toggle('flipped', b.flip); catEl.classList.toggle('curl', b.curl === 1 || atFoot);
+  const sleepBed = atFoot ? s.rooms[s.currentRoom]?.items.find(i => i.kind === 'bed') : undefined;
+  catEl.classList.toggle('walking', mood === 'walk'); catEl.classList.toggle('groom', mood === 'groom'); catEl.classList.toggle('play', mood === 'play' && !leaping); catEl.classList.toggle('leap', leaping); catEl.classList.toggle('flipped', atFoot ? !!sleepBed?.flip : b.flip); catEl.classList.toggle('curl', b.curl === 1 || atFoot);
   layer.querySelectorAll<HTMLElement>('.item.toy-live').forEach(el => el.classList.remove('toy-live'));
   if (tower && mood === 'play' && perch && !leaping) layer.querySelector<HTMLElement>(`.item[data-id="${tower.id}"]`)?.classList.add('toy-live');
   // __pinCat holds her on a character's feet for tests. She stays under characters (5000 + y).

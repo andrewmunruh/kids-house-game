@@ -129,14 +129,38 @@ export function bedFoot(item: BedFootItem): { x: number; y: number; away: 1 | -1
  */
 export const FOOT_SLOTS: { x: number; y: number }[] = [
   { x: -22, y: 26 },   // cat: on the spread, fully inside the footboard, below her body
-  { x: -123, y: 14 },  // dog: left of the cat at the foot, below her body
+  { x: -102, y: 26 },  // dog: next to the cat at the foot, clear of her hair and body
 ];
 
 /** Painted body of a pet curled at the foot, at the same scale as the 150×128 / 92×71 boxes. */
 export const FOOT_BODY: Record<string, { w: number; h: number }> = {
   cat: { w: 116, h: 66 },
-  dog: { w: 70, h: 54 },
+  dog: { w: 56, h: 54 },
 };
+
+/**
+ * Opaque nap/sleep sprite in the 150×128 / 92×71 CSS box (object-fit: contain,
+ * bottom centre). Use this for overlap checks: the nap cat is a little right of
+ * centre and the sleep dog a little left, so a centred FOOT_BODY box is loose.
+ */
+export const FOOT_SPRITE = {
+  cat: { cssW: 150, cssH: 128, artW: 360, artH: 300, l: 61, t: 145, r: 339, b: 300 },
+  dog: { cssW: 92, cssH: 71, artW: 390, artH: 300, l: 58, t: 58, r: 288, b: 287 },
+} as const;
+
+export function paintedFootBox(cx: number, cy: number, kind: 'cat' | 'dog', flip = false): { l: number; t: number; r: number; b: number } {
+  const s = FOOT_SPRITE[kind];
+  const scale = Math.min(s.cssW / s.artW, s.cssH / s.artH);
+  const dw = s.artW * scale, dh = s.artH * scale;
+  const ox = cx - dw / 2, oy = cy - dh;
+  let l = ox + s.l * scale, r = ox + s.r * scale;
+  if (flip) {
+    const nl = 2 * cx - r, nr = 2 * cx - l;
+    l = nl;
+    r = nr;
+  }
+  return { l, t: oy + s.t * scale, r, b: oy + s.b * scale };
+}
 
 export function petFootTargets(
   foot: { x: number; y: number; away: 1 | -1 },

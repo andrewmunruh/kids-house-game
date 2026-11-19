@@ -4,7 +4,7 @@ import { initialState } from '../src/shared/state';
 import { bedArt, pieceWidth } from '../src/shared/sit';
 import {
   bedFoot, bodyInFootRegion, bodyOnMattress, boxesOverlap, boxAtFeet, isSleepBed,
-  footMattressBox, innerMattressBox, bodyInsideBox, mattressBox, petFootTargets, petFootTranslates, FOOT_BODY, FOOT_SLOTS,
+  footMattressBox, innerMattressBox, bodyInsideBox, mattressBox, petFootTargets, petFootTranslates, paintedFootBox, FOOT_BODY, FOOT_SLOTS,
 } from '../src/pet-foot';
 
 let pass = 0;
@@ -38,7 +38,9 @@ check('the painted foot is past the hip-target mattress', footBox.r > mat.r - 8,
 // Painted nap/sleep bodies (the CSS box is larger because of transparent padding).
 const catB = boxAtFeet(catT.x, catT.y, FOOT_BODY.cat.w, FOOT_BODY.cat.h);
 const dogB = boxAtFeet(dogT.x, dogT.y, FOOT_BODY.dog.w, FOOT_BODY.dog.h);
-check('two pets do not overlap each other (room units)', !boxesOverlap(catB, dogB), JSON.stringify({ catB, dogB }));
+const catPaint = paintedFootBox(catT.x, catT.y, 'cat');
+const dogPaint = paintedFootBox(dogT.x, dogT.y, 'dog');
+check('two pets do not overlap each other (room units)', !boxesOverlap(catPaint, dogPaint), JSON.stringify({ catPaint, dogPaint, catB, dogB }));
 check('cat is on the mattress at the foot', bodyOnMattress(catB, footBox, 24) && bodyInFootRegion(catB, footBox), JSON.stringify({ catB, footBox, catT }));
 check('dog is on the mattress at the foot', bodyOnMattress(dogB, footBox, 24) && bodyInFootRegion(dogB, footBox), JSON.stringify({ dogB, footBox, dogT }));
 const matInner = innerMattressBox({ kind: 'bed', x: bed.x, y: bed.y, flip: bed.flip, scale: 1, h: w })!;
@@ -52,10 +54,10 @@ const headY = bed.y - w * (1 - art.head.y);
 const face = boxAtFeet(headX, headY + 20, 90, 90);
 const left = bed.x - w / 2, top = bed.y - w;
 const body = { l: left + 0.10 * w, t: top + 0.28 * w, r: left + 0.54 * w, b: top + 0.56 * w };
-check('cat does not overlap the doll face', !boxesOverlap(catB, face), JSON.stringify({ catB, face, headX, headY }));
-check('dog does not overlap the doll face', !boxesOverlap(dogB, face), JSON.stringify({ dogB, face }));
-check('cat does not overlap the doll body', !boxesOverlap(catB, body, 4), JSON.stringify({ catB, body }));
-check('dog does not overlap the doll body', !boxesOverlap(dogB, body, 4), JSON.stringify({ dogB, body }));
+check('cat does not overlap the doll face', !boxesOverlap(catPaint, face), JSON.stringify({ catPaint, face, headX, headY }));
+check('dog does not overlap the doll face', !boxesOverlap(dogPaint, face), JSON.stringify({ dogPaint, face }));
+check('cat does not overlap the doll body', !boxesOverlap(catPaint, body, 4), JSON.stringify({ catPaint, body }));
+check('dog does not overlap the doll body', !boxesOverlap(dogPaint, body, 4), JSON.stringify({ dogPaint, body }));
 
 // Flipped bed mirrors away from the head too.
 const flipped = bedFoot({ kind: 'bed', x: bed.x, y: bed.y, flip: true, scale: 1, h: w })!;
@@ -67,12 +69,14 @@ const fHeadX = bed.x + -1 * (art.head.x - 0.5) * w;
 const fFace = boxAtFeet(fHeadX, headY + 20, 90, 90);
 const fCat = boxAtFeet(fTargets.get('cat')!.x, fTargets.get('cat')!.y, FOOT_BODY.cat.w, FOOT_BODY.cat.h);
 const fDog = boxAtFeet(fTargets.get('solo')!.x, fTargets.get('solo')!.y, FOOT_BODY.dog.w, FOOT_BODY.dog.h);
+const fCatPaint = paintedFootBox(fTargets.get('cat')!.x, fTargets.get('cat')!.y, 'cat', true);
+const fDogPaint = paintedFootBox(fTargets.get('solo')!.x, fTargets.get('solo')!.y, 'dog', true);
 const fBody = { l: bed.x * 2 - body.r, t: body.t, r: bed.x * 2 - body.l, b: body.b };
-check('flipped: pets do not overlap each other', !boxesOverlap(fCat, fDog));
-check('flipped: cat misses the face', !boxesOverlap(fCat, fFace));
-check('flipped: dog misses the face', !boxesOverlap(fDog, fFace));
-check('flipped: cat misses the doll body', !boxesOverlap(fCat, fBody, 4), JSON.stringify({ fCat, fBody }));
-check('flipped: dog misses the doll body', !boxesOverlap(fDog, fBody, 4), JSON.stringify({ fDog, fBody }));
+check('flipped: pets do not overlap each other', !boxesOverlap(fCatPaint, fDogPaint), JSON.stringify({ fCatPaint, fDogPaint }));
+check('flipped: cat misses the face', !boxesOverlap(fCatPaint, fFace));
+check('flipped: dog misses the face', !boxesOverlap(fDogPaint, fFace));
+check('flipped: cat misses the doll body', !boxesOverlap(fCatPaint, fBody, 4), JSON.stringify({ fCatPaint, fBody }));
+check('flipped: dog misses the doll body', !boxesOverlap(fDogPaint, fBody, 4), JSON.stringify({ fDogPaint, fBody }));
 check('flipped: cat is on the foot of the mattress', bodyOnMattress(fCat, fFoot, 24) && bodyInFootRegion(fCat, fFoot), JSON.stringify({ fCat, fFoot }));
 const fInner = innerMattressBox({ kind: 'bed', x: bed.x, y: bed.y, flip: true, scale: 1, h: w })!;
 check('flipped: cat is inside the mattress and inside the footboard', bodyInsideBox(fCat, fInner), JSON.stringify({ fCat, fInner }));

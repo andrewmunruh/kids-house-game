@@ -164,6 +164,28 @@ MEASURE = """() => {
     if (/-stand/.test(src)) return 'stand';
     return el.dataset.mood || null;
   };
+
+  // Tight painted head + hair (transformed SVG getBBox), not the rotated .dollhead AABB
+  // which reaches toward the foot and is too loose to catch a pet on her bun.
+  const tight = (root, sel) => {
+    if (!root) return null;
+    let L = Infinity, T = Infinity, R = -Infinity, B = -Infinity, found = false;
+    for (const el of root.querySelectorAll(sel)) {
+      try {
+        if (typeof el.getBBox !== 'function' || typeof el.getScreenCTM !== 'function') continue;
+        const bb = el.getBBox();
+        const m = el.getScreenCTM();
+        if (!m || bb.width < 0.5 || bb.height < 0.5) continue;
+        for (const [x, y] of [[bb.x, bb.y], [bb.x + bb.width, bb.y], [bb.x, bb.y + bb.height], [bb.x + bb.width, bb.y + bb.height]]) {
+          const sx = m.a * x + m.c * y + m.e, sy = m.b * x + m.d * y + m.f;
+          if (sx < L) L = sx; if (sy < T) T = sy; if (sx > R) R = sx; if (sy > B) B = sy;
+          found = true;
+        }
+      } catch (e) {}
+    }
+    return found ? { l: L, t: T, r: R, b: B, w: R - L, h: B - T } : null;
+  };
+  const headHair = tight(doll, '.dollhead, [data-dollhead], [data-layer="hair-back"], [data-layer="hair-front"], [data-layer="head"], .hair, .bang, .bun');
   const catPose = poseOf(cat);
   const dogPose = poseOf(dog);
   return {
@@ -176,6 +198,7 @@ MEASURE = """() => {
     body,
     matInner,
     facePaint,
+    headHair,
     stage: stageBox,
     catPose,
     dogPose,
@@ -243,6 +266,24 @@ async def run_size(browser, w, h):
         check(f'{tag}: dog does not overlap the doll body', not hit(m['dog'], m['body'], 4), {'dog': m['dog'], 'body': m['body']})
     else:
         check(f'{tag}: dog does not overlap the doll body', False, m)
+    # Extra painted-rect check: tight head (including hair) plus the body rect, both sizes.
+    head_hair = m.get('headHair')
+    if not head_hair:
+        check(f'{tag}: painted head (including hair) is on screen', False, m)
+    else:
+        check(f'{tag}: painted head (including hair) is on screen', True, {'headHair': head_hair})
+        if m.get('cat'):
+            check(f'{tag}: cat is clear of the doll\'s painted head (including hair)', not hit(m['cat'], head_hair), {'cat': m['cat'], 'headHair': head_hair})
+        if m.get('dog'):
+            check(f'{tag}: dog is clear of the doll\'s painted head (including hair)', not hit(m['dog'], head_hair), {'dog': m['dog'], 'headHair': head_hair})
+    if m.get('cat') and m.get('body'):
+        check(f'{tag}: cat is clear of the doll\'s painted body rect', not hit(m['cat'], m['body']), {'cat': m['cat'], 'body': m['body']})
+    else:
+        check(f'{tag}: cat is clear of the doll\'s painted body rect', False, m)
+    if m.get('dog') and m.get('body'):
+        check(f'{tag}: dog is clear of the doll\'s painted body rect', not hit(m['dog'], m['body']), {'dog': m['dog'], 'body': m['body']})
+    else:
+        check(f'{tag}: dog is clear of the doll\'s painted body rect', False, m)
     if m.get('cat') and m.get('foot'):
         check(f'{tag}: cat is on the mattress at the foot', on_foot(m['cat'], m['foot']), {'cat': m['cat'], 'foot': m['foot'], 'mat': m.get('mat')})
     else:
