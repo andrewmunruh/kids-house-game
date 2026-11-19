@@ -10,6 +10,7 @@ WEB = os.environ.get("WEB", "http://127.0.0.1:5310/kids-house-game").rstrip("/")
 HOOD = os.environ.get("HOOD", "http://127.0.0.1:5311").rstrip("/")
 SHOTS = Path(os.environ["SHOTS"]) if os.environ.get("SHOTS") else None
 SEND = Path(os.environ["SEND"]) if os.environ.get("SEND") else None
+SHOT_ALL = os.environ.get("SHOT_ALL") == "1"  # one frame per drop point/camera (yard) instead of one per scene
 TAG = os.environ.get("TAG", "run")
 PROBE = os.environ.get("EXPECT") == "probe"
 SKIP = "for (const p of ['','preview:']) { localStorage.setItem(p+'cozy-whatsnew','999'); localStorage.setItem(p+'avatar-intro','1'); localStorage.setItem(p+'cozy-welcome','1'); }"
@@ -236,7 +237,9 @@ async def run_scene(pg, sc, w, h, which, frac):
     m = await pg.evaluate(MEASURE, {"tableId": "qa-pt"})
     if PROBE: print(label, json.dumps({k: m[k] for k in ("seat","x","y","cam")}), "doll", m["doll"] and (round(m["doll"]["l"]),round(m["doll"]["r"])), "paint", m["paint"] and (round(m["paint"]["l"]),round(m["paint"]["r"])), flush=True)
     else: judge(label, m, w, h)
-    if frac == 0.15 and which == 'left': await shot(pg, sc["shot"], w, h)
+    if SHOT_ALL and (sc["room"] == "backyard" or (which, frac) in (('left', 0.15), ('right', 0.85))):
+        await shot(pg, f"{sc['shot']}_cam-{which}_drop{int(frac*100)}", w, h)
+    elif frac == 0.15 and which == 'left': await shot(pg, sc["shot"], w, h)
 
 async def run_control(pg, w, h):
     """A real seat still seats her: the yard bench, same drag."""
