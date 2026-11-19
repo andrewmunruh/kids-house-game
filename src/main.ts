@@ -13,7 +13,8 @@ import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROS
 import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } from './pets';
 import { mailboxArt, installMail } from './mail';
 import { installPlayMode, playGesture } from './playmode';
-import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, seatFrontKind, standBeside, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
+import { clientSeatFractions } from './picnic_seats';
+import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFrontKind, standBeside, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
 import { isFood } from './shared/needs';
 import { playDropPolish, isTableKind } from './play-drop';
 import { addTableNibbles, openFridges } from './eat-look';
@@ -836,15 +837,7 @@ function ownsDolls(): boolean {
   if (!hood || inner === local) return true;
   return hood.houses.get(currentHouseId)?.meta.ownerId === hood.pid;
 }
-/** B17a has no picnic seats. r8's sit.ts still lists picnic-table fractions
- *  (for the old 180×110 box). Those must not be used on the 2× table, and
- *  sit.ts cannot change because the Worker must stay byte-identical to r8.
- *  Client-only: a doll cannot sit at the picnic table in this build. */
-function clientSeatFractions(kind: string) {
-  const k = String(kind || '').toLowerCase().replace(/^pack:/, '');
-  if (k === 'picnic-table') return null;
-  return seatFractions(kind);
-}
+/** Picnic seats are off in this client (PICNIC_SEATS_ENABLED in picnic_seats.ts); the shared sit.ts fractions are the only source. */
 function seatPieceOf(it: PlacedItem): SeatPiece | null {
   const def = ITEM_MAP[it.kind];
   if (!def || !clientSeatFractions(it.kind)) return null;
