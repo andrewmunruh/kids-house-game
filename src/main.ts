@@ -13,9 +13,9 @@ import { NICKNAMES, PHRASES, EMOTES, MAX_CHAT, CODE_MAX, ROSTER_SUGGEST, MAX_ROS
 import { catSVG, dogSVG, catAt, kennelLook, towerFootY, CAT_COATS, DOG_BREEDS } from './pets';
 import { mailboxArt, installMail } from './mail';
 import { installPlayMode, playGesture } from './playmode';
-import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, seatFrontKind, standBeside, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
+import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, seatFrontKind, standBeside, STAND_Y, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
 import { isFood } from './shared/needs';
-import { playDropPolish, isTableKind } from './play-drop';
+import { playDropPolish, isTableKind, type Stander } from './play-drop';
 import { addTableNibbles, openFridges } from './eat-look';
 import { planShare, shareActions, recoverShare, locateSnack } from './share-snack';
 import { babyOccupant } from './shared/baby';
@@ -960,6 +960,76 @@ function heldFoodOf(c: Character): { hand: Hand; kind: string }[] {
   }
   return out;
 }
+/**
+ * Is a standing doll at room x (feet on STAND_Y) fully on the stage, with a 24px margin, and clear of the room arrows, the Paint
+ * button and the care bar, if the stage were slid `shift` screen px sideways? The box is her whole DRAWN body, measured from her
+ * element and every part of it (hair buns, both arms through the wave and heart poses): x-66 .. x+82 and 232 above to 14 below
+ * STAND_Y in room px. Her element's own box (x-54 .. x+66) is narrower than the raised-arm poses. View only; nothing is saved from here.
+ */
+function standingBlocked(x: number, shift = 0, obstacles = standObstacles()): boolean {
+  const sr = stage.getBoundingClientRect();
+  if (sr.width < 20) return false;
+  const sx = sr.width / VIEW_W, sy = sr.height / H;
+  const left = 66, right = 82, up = 232, down = 14, edgePad = 24, pad = 8;
+  const body = { l: sr.left + (x - left - camX) * sx + shift, r: sr.left + (x + right - camX) * sx + shift, t: sr.top + (STAND_Y - up) * sy, b: sr.top + (STAND_Y + down) * sy };
+  // UI pieces are tested against the body down to just above the feet: the care bar sits along the floor line and may cover her shoes, as it always has.
+  const ob = sr.top + (STAND_Y - 6) * sy;
+  if (body.l < sr.left + edgePad || body.r > sr.right - edgePad) return true;
+  for (const b of obstacles) if (body.l < b.right + pad && body.r > b.left - pad && body.t < b.bottom + 4 && ob > b.top) return true;
+  return false;
+}
+/** The room arrows, Paint button and care bar that are showing, as screen rects (they do not move when the stage slides). */
+function standObstacles(): DOMRect[] {
+  const out: DOMRect[] = [];
+  for (const el of [$('artFab'), $('nudgeL'), $('nudgeR'), document.querySelector('.babyCare')]) {
+    if (!el || (el as HTMLElement).hidden || el.classList.contains('hidden') || el.classList.contains('off')) continue;
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+    const b = el.getBoundingClientRect();
+    if (b.width >= 2 && b.height >= 2) out.push(b);
+  }
+  return out;
+}
+/** Screen px to slide the stage so a standing doll at room x is clear (0 = already), or null when no camera position can. */
+function standShift(x: number, obstacles = standObstacles()): number | null {
+  if (!standingBlocked(x, 0, obstacles)) return 0;
+  const sr = stage.getBoundingClientRect();
+  const sx = sr.width / VIEW_W;
+  for (let d = 4; d <= sr.width + 400; d += 4) {
+    for (const s of [d, -d]) {
+      const to = camX - s / sx;
+      if (to < -0.5 || to > maxCam() + 0.5) continue;   // the camera cannot go there
+      if (!standingBlocked(x, s, obstacles)) return s;
+    }
+  }
+  return null;
+}
+/** Everyone else standing in this room (baby, other dolls, other kids' avatars) with half their drawn width, so she is not put on top of them. */
+function standersIn(skipChar?: string, skipPid?: string): Stander[] {
+  const s = store.get(), out: Stander[] = [];
+  if (s.baby && s.baby.room === s.currentRoom && !s.baby.holder) out.push({ x: s.baby.x, hw: 60 });
+  for (const c of s.characters) if (c.id !== skipChar && c.room === s.currentRoom) out.push({ x: c.x, hw: 60 });
+  if (hood && view === 'house') {
+    for (const [pid, p] of hood.presence.entries()) {
+      if (pid === skipPid || p.where !== 'house' || p.houseId !== currentHouseId || p.room !== s.currentRoom) continue;
+      out.push({ x: p.x, hw: 60 });
+    }
+  }
+  return out;
+}
+/** Camera slide (room px) a standing spot needs; Infinity when no camera position in the room can show her there. */
+const standCostNow = () => {
+  const obstacles = standObstacles(), sx = stage.getBoundingClientRect().width / VIEW_W;
+  return (x: number) => { const s = standShift(x, obstacles); return s === null ? Infinity : Math.abs(s) / sx; };
+};
+/** After she is put down beside a table: if the camera leaves her cut off or under a button, slide it the least that frees her. */
+function keepStandingInView(x: number) {
+  if (view !== 'house') return;
+  const s = standShift(x);
+  if (!s) return;
+  markPanned();
+  glideTo(camX - s / (stage.getBoundingClientRect().width / VIEW_W));
+}
 function finishDollPlayDrop(id: string, releaseX: number, releaseY: number, hit: PlacedItem | null) {
   const s = store.get();
   const c = s.characters.find(x => x.id === id);
@@ -971,9 +1041,12 @@ function finishDollPlayDrop(id: string, releaseX: number, releaseY: number, hit:
     occupied: takenSeats(id),
     held: heldFoodOf(c),
     seatPiece: it => seatPieceOf(it as PlacedItem),
+    standCost: standCostNow(),
+    standers: standersIn(id),
   });
   for (const r of result.releases) store.dispatch({ type: 'char/release', id, hand: r.hand, x: r.x, y: r.y });
   moveDoll(id, s.currentRoom, result.x, result.y, result.seat);
+  if (result.beside) keepStandingInView(result.x);
 }
 function finishAvatarPlayDrop(releaseX: number, releaseY: number, hit: PlacedItem | null) {
   const cur = myPres();
@@ -986,9 +1059,12 @@ function finishAvatarPlayDrop(releaseX: number, releaseY: number, hit: PlacedIte
     occupied: takenSeats(undefined, hood.pid),
     held: [],
     seatPiece: it => seatPieceOf(it as PlacedItem),
+    standCost: standCostNow(),
+    standers: standersIn(undefined, hood?.pid),
   });
   const seat = result.seat ? { id: result.seat.item, pose: result.seat.pose, n: result.seat.n } : null;
   placeMe(cur, result.x, result.y, cur.flip, seat);
+  if (result.beside) keepStandingInView(result.x);
 }
 function seatFrontClass(kind: string): string { return seatFrontKind(kind); }
 /** Seats with a kid drawn in the classic (legacy, no look2) sit pose; filled by seatedHere. */
@@ -2727,6 +2803,8 @@ installNeeds({ get: () => store.get(), dispatch: a => store.dispatch(a), subscri
 (window as any).__yieldNudges = yieldNudgesSoon;
 (window as any).__myPres = () => myPres();
 (window as any).__playDropPolish = playDropPolish;
+(window as any).__standingBlocked = standingBlocked;
+(window as any).__standShift = standShift;
 (window as any).__takenSeats = takenSeats;
 (window as any).__applyPlayDrop = (id: string, releaseX: number, releaseY: number, hitId?: string | null) => {
   const s = store.get();
