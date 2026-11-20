@@ -74,7 +74,8 @@ export function standNextTo(
 ): { x: number; y: number } {
   const first = standBeside(piece.x, pieceW, fromX, roomW);
   if (!check) return first;
-  const reach = Math.max(0, pieceW) / 2 + 70, edge = 40;
+  // standBeside's 70px gap is a hair short for her widest drawn pose (arm up), so the scan keeps her whole drawn body off the piece.
+  const reach = Math.max(0, pieceW) / 2 + STAND_DRAWN_HW + 2, edge = 40;
   const cost = check.cost ?? (() => 0);
   const bad = check.bad ?? (() => false);
   const crowded = check.crowded ?? (() => false);
@@ -87,7 +88,7 @@ export function standNextTo(
   let best: C | null = null;
   for (let extra = 0; extra <= MAX_WALK_OUT; extra += 10) {
     for (const side of [pref, -pref]) {
-      const x = extra === 0 && side === pref ? first.x : piece.x + side * (reach + extra);
+      const x = piece.x + side * (reach + extra);
       if (x < edge || x > roomW - edge || bad(x)) continue;
       const c = cost(x);
       if (!Number.isFinite(c)) continue;

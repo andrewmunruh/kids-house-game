@@ -22,12 +22,12 @@ const noSeat = (_it: DropItem): SeatPiece | null => null;
   const b = standBeside(picnic.x, 320, 900, W);
   check('no view check: exactly standBeside', a.x === b.x && a.y === b.y, JSON.stringify(a));
   const ok = standNextTo(picnic, 320, 900, W, { cost: cost(() => true) });
-  check('view check says yes: first spot kept', ok.x === b.x, `x=${ok.x}`);
+  check('view check says yes: the normal side, 14px further out for her arm pose', Math.abs(ok.x - b.x) === 14 && Math.sign(ok.x - picnic.x) === Math.sign(b.x - picnic.x), `x=${ok.x}`);
 }
 {
   // Her side (left, x=854) is behind the Paint button; the right side is fine.
   const r = standNextTo(picnic, 320, 900, W, { cost: cost(x => x > 1000) });
-  check('left side hidden: lands on the right, beside the table', r.x === picnic.x + 230 && r.y === STAND_Y, JSON.stringify(r));
+  check('left side hidden: lands on the right, beside the table', r.x === picnic.x + 244 && r.y === STAND_Y, JSON.stringify(r));
   // Both sides hidden at the first spot but a little further out is fine.
   const far = standNextTo(picnic, 320, 900, W, { cost: cost(x => x < 800 || x > 1450) });
   check('no camera can show either normal spot: steps further out', far.x < picnic.x && far.x <= 800 && far.x >= 700, JSON.stringify(far));
@@ -40,14 +40,14 @@ const base = { releaseX: 1104, releaseY: 520, hit: picnic, items: [picnic], occu
 {
   const r = playDropPolish(base);
   check('picnic table drop: stands, no seat', r.seat === null && r.y === STAND_Y, JSON.stringify(r));
-  check('picnic table drop: same 230 off the middle as today (same as the Worker stand-beside)', Math.abs(Math.abs(r.x - picnic.x) - 230) < 1, `x=${r.x}`);
+  check('picnic table drop: same 230 off the middle (the Worker stand-beside, no view check)', Math.abs(Math.abs(r.x - picnic.x) - 230) < 1, `x=${r.x}`);
   check('picnic table drop: beside, not under the table', Math.abs(r.x - picnic.x) >= 180);
   check('picnic table drop: flagged beside (caller keeps her in view)', r.beside === true);
 }
 {
   // Drop on the left of the table with the left side behind the Paint button: she lands on the right.
   const r = playDropPolish({ ...base, releaseX: 900, standCost: cost(x => x > 1000) });
-  check('left behind Paint: lands right of the table, in view', r.seat === null && r.x === picnic.x + 230, JSON.stringify(r));
+  check('left behind Paint: lands right of the table, in view', r.seat === null && r.x === picnic.x + 244, JSON.stringify(r));
   const l = playDropPolish({ ...base, releaseX: 900 });
   check('no view check: keeps the side she came from', l.x === picnic.x - 230, JSON.stringify(l));
 }
@@ -67,9 +67,9 @@ const base = { releaseX: 1104, releaseY: 520, hit: picnic, items: [picnic], occu
   check('drop on the right half: stands right, beside the table', at(picnic.x + 120).x === picnic.x + 230);
   check('drop dead centre: stands right (same as today)', at(picnic.x).x === picnic.x + 230);
   const leftHidden = (x: number) => x > 1000, rightHidden = (x: number) => x < 1200;
-  check('left half + left hidden: right side', at(picnic.x - 120, leftHidden).x === picnic.x + 230);
-  check('right half + right hidden: left side', at(picnic.x + 120, rightHidden).x === picnic.x - 230);
-  check('centre + right hidden: left side', at(picnic.x, rightHidden).x === picnic.x - 230);
+  check('left half + left hidden: right side', at(picnic.x - 120, leftHidden).x === picnic.x + 244);
+  check('right half + right hidden: left side', at(picnic.x + 120, rightHidden).x === picnic.x - 244);
+  check('centre + right hidden: left side', at(picnic.x, rightHidden).x === picnic.x - 244);
   check('every drop point lands beside, never under the table, and never seated',
     [-160, -80, 0, 80, 160].every(dx => { const r = at(picnic.x + dx, dx < 0 ? leftHidden : rightHidden); return r.seat === null && Math.abs(r.x - picnic.x) >= 160 && r.y === STAND_Y && r.beside === true; }));
 }
@@ -98,7 +98,7 @@ const base = { releaseX: 1104, releaseY: 520, hit: picnic, items: [picnic], occu
 
 // ---- the camera slides before she walks away from the table (B17b-table fix #2) ----
 {
-  const R = 230; // 320/2 + 70
+  const R = 244; // 320/2 + 82 + 2
   const t = picnic;
   // Both normal spots can be shown, the right one only after a slide of 90, the left one as is: left, no slide.
   const a = standNextTo(t, 320, 1200, W, { cost: x => x > t.x ? 90 : 0 });
@@ -133,12 +133,12 @@ const base = { releaseX: 1104, releaseY: 520, hit: picnic, items: [picnic], occu
   const fridge: DropItem = { id: 'fridge-1', kind: 'fridge', x: 1000, y: 500 };
   const r = playDropPolish({ releaseX: 1100, releaseY: 500, hit: table, items: [table, fridge], occupied: [], held: [], seatPiece: noSeat, roomW: W, standCost: () => 0 });
   check('table drop with a fridge on her side: never inside the fridge zone', Math.hypot(r.x - fridge.x, STAND_Y - fridge.y) > 130, JSON.stringify(r));
-  check('...and she lands at the normal reach beside the table', Math.abs(Math.abs(r.x - table.x) - 230) < 0.5, JSON.stringify(r));
+  check('...and she lands at the normal reach beside the table', Math.abs(Math.abs(r.x - table.x) - 244) < 0.5, JSON.stringify(r));
 }
 
 // ---- the baby / other dolls: never on them, and the side away from them when both sides can be shown ----
 {
-  const t = picnic; const R = 230;
+  const t = picnic; const R = 244;
   const baby = { x: t.x + 136, hw: 60 };
   const a = standNextTo(t, 320, t.x + 100, W, { cost: () => 0, others: [baby] });
   check('baby on the right: she takes the normal reach on the LEFT, even when she was dropped on the right', a.x === t.x - R, JSON.stringify(a));
@@ -164,7 +164,7 @@ const base = { releaseX: 1104, releaseY: 520, hit: picnic, items: [picnic], occu
   check('kitchen: never in the fridge zone', Math.hypot(k.x - fr.x, STAND_Y - fr.y) > 130, JSON.stringify(k));
   check('kitchen: left of the table (away from the baby)', k.x < kt.x, JSON.stringify(k));
   check('kitchen: not on the fridge or the stove', Math.abs(k.x - fr.x) >= 75 + 55 && Math.abs(k.x - st.x) >= 85 + 55, JSON.stringify(k));
-  check('kitchen: within the walk-out budget', Math.abs(k.x - kt.x) <= 230 + 360, JSON.stringify(k));
+  check('kitchen: within the walk-out budget', Math.abs(k.x - kt.x) <= 244 + 360, JSON.stringify(k));
   // Default kitchen (fridge 200, table 520, stove 800, chairs removed), baby far away: left is the fridge's, so right of the table.
   const dt: DropItem = { id: 'table-2', kind: 'table', x: 520, y: 500 };
   const df: DropItem = { id: 'fridge-1', kind: 'fridge', x: 200, y: 470 };

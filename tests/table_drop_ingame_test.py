@@ -16,7 +16,7 @@ PROBE = os.environ.get("EXPECT") == "probe"
 SKIP = "for (const p of ['','preview:']) { localStorage.setItem(p+'cozy-whatsnew','999'); localStorage.setItem(p+'avatar-intro','1'); localStorage.setItem(p+'cozy-welcome','1'); }"
 YARD_X, YARD_Y = 1104, 520
 STAND_Y = 540
-NORMAL_REACH = 230
+NORMAL_REACH = 244
 WALK_OUT = 360
 SIZES = ((820, 1180), (1180, 820))
 # Yard cameras: where the table sits in view. 'left' (cam 805) puts it near the left edge, as in the QA frame;
@@ -209,7 +209,7 @@ def judge(label, m, w, h, sc=None):
     check(f"{label}: clear of Paint button", not inter(d, m["paint"]), f"doll={d and (round(d['l']),round(d['r']),round(d['t']),round(d['b']))} paint={m['paint'] and (round(m['paint']['l']),round(m['paint']['r']),round(m['paint']['t']),round(m['paint']['b']))}")
     check(f"{label}: clear of the care bar", not inter(d, m["care"]), f"care={m['care'] and (round(m['care']['l']),round(m['care']['r']),round(m['care']['t']),round(m['care']['b']))}")
     check(f"{label}: clear of the room arrows", not any(inter(d, n) for n in m["nudges"]), "")
-    # beside the table: her body is next to it, not in the middle of it. How far out she may walk (past a fridge or the baby) is judged by the "lands within 230+360px" check.
+    # beside the table: her body is next to it, not in the middle of it. How far out she may walk (past a fridge or the baby) is judged by the "lands within 244+360px" check.
     near = bool(d and t)
     outside = bool(d and t) and ((d["l"]+d["r"])/2 < t["l"] or (d["l"]+d["r"])/2 > t["r"])
     check(f"{label}: beside the table (next to it, not on top of it)", near and outside, f"doll mid {d and round((d['l']+d['r'])/2)} table {t and (round(t['l']),round(t['r']))}")
