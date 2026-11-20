@@ -114,6 +114,10 @@ MEASURE = """
     care_clearance: (care && painted) ? +(care.top - painted.bottom).toFixed(1) : null,
     fence_clearance: painted ? +(painted.top - fenceCss).toFixed(1) : null,
     hitPainted: kindOf(hitPainted),
+    hitDesc: hitPainted ? (hitPainted.tagName + '.' + String(hitPainted.className && hitPainted.className.baseVal !== undefined ? hitPainted.className.baseVal : hitPainted.className).slice(0,60) + ' parent=' + (hitPainted.parentElement ? hitPainted.parentElement.tagName + '.' + String(hitPainted.parentElement.className).slice(0,60) : '') + ' cam=' + (window.__cam ? __cam.get() : '?') + ' charsAt=' + JSON.stringify([...document.querySelectorAll('.char,.baby')].map(e => {const b=e.getBoundingClientRect(); return [e.className.slice(0,30), Math.round(b.left), Math.round(b.right), Math.round(b.top), Math.round(b.bottom)];}))) : 'elementFromPoint=null',
+    hitPt: table ? [Math.round((table.left+table.right)/2), Math.round(painted.bottom - 8)] : null,
+    hitLow: kindOf(hitLow),
+    hitLow: kindOf(hitLow),
     hitLow: kindOf(hitLow),
     careVis: !!(care && care.vis),
   };
@@ -177,7 +181,14 @@ async def wait_art(pg, timeout=15000):
     except Exception:
         return False
 
+AVATAR_NO_HIT = """() => { if (!document.getElementById('qa-nohit')) { const st = document.createElement('style'); st.id = 'qa-nohit';
+  // She enters a house at a random x in 900..1200 (main.ts), which can put her right on the bench's hit-test point
+  // (table centre, 8px above the painted bottom) and make elementFromPoint answer with her, not the table: a flaky 'hit=None'.
+  // Taking her out of hit-testing keeps the check about the painted table art; nothing else about her changes.
+  st.textContent = '.char.avatar.mine{pointer-events:none !important}'; document.head.appendChild(st); } }"""
+
 async def measure(pg):
+    await pg.evaluate(AVATAR_NO_HIT)
     return await pg.evaluate(MEASURE, {"fenceY": FENCE_Y, "padTop": ART_PAD_TOP, "padBot": ART_PAD_BOT})
 
 async def set_mode(pg, play=True):
@@ -366,7 +377,7 @@ async def measure_sizes(pg, browser_name, sizes=SIZES):
         check(f"{tag} paints foot at 520", m.get("paintFoot") is not None and abs(m["paintFoot"] - CAP) <= 1.5, f"paintFoot={m.get('paintFoot')}")
         check(f"{tag} stored y still 580", m.get("storedY") == SAVED, f"storedY={m.get('storedY')}")
         check(f"{tag} care-bar clearance >= 8px", (m.get("care_clearance") is not None) and m["care_clearance"] >= 8, f"care={m.get('care_clearance')} fence={m.get('fence_clearance')} careVis={m.get('careVis')}")
-        check(f"{tag} hit-test on painted bench", m.get("hitPainted") == "picnic-table", f"hit={m.get('hitPainted')}")
+        check(f"{tag} hit-test on painted bench", m.get("hitPainted") == "picnic-table", f"hit={m.get('hitPainted')} {m.get('hitDesc')} pt={m.get('hitPt')}")
         check(f"{tag} hit-test below cap is not the table", m.get("hitLow") != "picnic-table", f"hit={m.get('hitLow')}")
         if SHOTS:
             raw = SHOTS / f"{browser_name}_{w}x{h}_loaded_y580.png"
