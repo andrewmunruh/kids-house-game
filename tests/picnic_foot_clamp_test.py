@@ -185,7 +185,7 @@ AVATAR_NO_HIT = """() => { if (!document.getElementById('qa-nohit')) { const st 
   // She enters a house at a random x in 900..1200 (main.ts), which can put her right on the bench's hit-test point
   // (table centre, 8px above the painted bottom) and make elementFromPoint answer with her, not the table: a flaky 'hit=None'.
   // Taking her out of hit-testing keeps the check about the painted table art; nothing else about her changes.
-  st.textContent = '.char.avatar.mine{pointer-events:none !important}'; document.head.appendChild(st); } }"""
+  st.textContent = '.char.avatar.mine, .char.avatar.mine *{pointer-events:none !important}'; document.head.appendChild(st); } }"""
 
 async def measure(pg):
     await pg.evaluate(AVATAR_NO_HIT)
