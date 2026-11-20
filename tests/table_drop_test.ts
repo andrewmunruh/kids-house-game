@@ -136,4 +136,41 @@ const base = { releaseX: 1104, releaseY: 520, hit: picnic, items: [picnic], occu
   check('...and she lands at the normal reach beside the table', Math.abs(Math.abs(r.x - table.x) - 230) < 0.5, JSON.stringify(r));
 }
 
+// ---- the baby / other dolls: never on them, and the side away from them when both sides can be shown ----
+{
+  const t = picnic; const R = 230;
+  const baby = { x: t.x + 136, hw: 60 };
+  const a = standNextTo(t, 320, t.x + 100, W, { cost: () => 0, others: [baby] });
+  check('baby on the right: she takes the normal reach on the LEFT, even when she was dropped on the right', a.x === t.x - R, JSON.stringify(a));
+  const b = standNextTo(t, 320, t.x - 100, W, { cost: () => 0, others: [baby] });
+  check('baby on the right, dropped on the left: left', b.x === t.x - R, JSON.stringify(b));
+  const doll = { x: t.x - R, hw: 60 };
+  const c = standNextTo(t, 320, t.x - 100, W, { cost: () => 0, others: [doll] });
+  check('another doll on the normal left spot: she goes right', c.x === t.x + R, JSON.stringify(c));
+  // Left cannot be shown by any camera: the baby's side, but not ON the baby (steps out past it).
+  const d = standNextTo(t, 320, t.x, W, { cost: x => x < t.x ? Infinity : 0, others: [baby] });
+  check('left unreachable: right side, clear of the baby by body + baby half widths', d.x > t.x && Math.abs(d.x - baby.x) >= baby.hw + 55, JSON.stringify(d));
+  check('...and no further out than the walk-out budget', Math.abs(d.x - t.x) <= R + 360);
+  // Someone standing far away on one side does not count as "that side taken".
+  const e = standNextTo(t, 320, t.x + 100, W, { cost: () => 0, others: [{ x: t.x + 1000, hw: 60 }] });
+  check('a kid far away does not push her to the other side', e.x === t.x + R, JSON.stringify(e));
+  // Kitchen as the test builds it: table 1200, fridge 900 (zone x 777..1023), baby 1336, stove 1500. Left normal spot is IN the fridge zone.
+  const kt: DropItem = { id: 'qa-pt', kind: 'table', x: 1200, y: 500 };
+  const fr: DropItem = { id: 'fridge-1', kind: 'fridge', x: 900, y: 470 };
+  const st: DropItem = { id: 'stove-4', kind: 'stove', x: 1500, y: 470 };
+  const cake: DropItem = { id: 'cake-3', kind: 'cake', x: 1220, y: 395 };
+  const items = [fr, kt, st, cake];
+  const k = playDropPolish({ releaseX: 1200 + 100, releaseY: 500, hit: kt, items, occupied: [], held: [], seatPiece: noSeat, roomW: W, standCost: () => 0, standers: [{ x: 1336, hw: 60 }] });
+  check('kitchen: never in the fridge zone', Math.hypot(k.x - fr.x, STAND_Y - fr.y) > 130, JSON.stringify(k));
+  check('kitchen: left of the table (away from the baby)', k.x < kt.x, JSON.stringify(k));
+  check('kitchen: not on the fridge or the stove', Math.abs(k.x - fr.x) >= 75 + 55 && Math.abs(k.x - st.x) >= 85 + 55, JSON.stringify(k));
+  check('kitchen: within the walk-out budget', Math.abs(k.x - kt.x) <= 230 + 360, JSON.stringify(k));
+  // Default kitchen (fridge 200, table 520, stove 800, chairs removed), baby far away: left is the fridge's, so right of the table.
+  const dt: DropItem = { id: 'table-2', kind: 'table', x: 520, y: 500 };
+  const df: DropItem = { id: 'fridge-1', kind: 'fridge', x: 200, y: 470 };
+  const ds: DropItem = { id: 'stove-4', kind: 'stove', x: 800, y: 470 };
+  const q = playDropPolish({ releaseX: 480, releaseY: 500, hit: dt, items: [df, dt, ds], occupied: [], held: [], seatPiece: noSeat, roomW: W, standCost: () => 0, standers: [] });
+  check('default kitchen, nobody around: she avoids the fridge zone', Math.hypot(q.x - df.x, STAND_Y - df.y) > 130, JSON.stringify(q));
+}
+
 console.log(`RESULT ${pass} pass ${fail} fail`);

@@ -40,21 +40,34 @@ export type PlayDrop = {
   beside?: boolean;
 };
 
+/** Someone already standing in the room: the baby, another doll, another kid's avatar. `hw` is half their drawn width. */
+export type Stander = { x: number; hw: number };
+
 /** What the caller knows about the stage around a standing spot. All optional; with none, standNextTo is standBeside. */
 export type StandCheck = {
   /** Room px the camera must slide to show a standing doll at x clear of the buttons: 0 = already fine, Infinity = no camera position can. */
   cost?: (x: number) => number;
   /** Standing here would trip something (a fridge's open zone). Never chosen while another spot works. */
   bad?: (x: number) => boolean;
-  /** Standing here would overlap another piece of furniture. Only matters for spots further out than the normal reach. */
+  /** Standing here would overlap another piece of furniture. */
   crowded?: (x: number) => boolean;
+  /** Others standing in the room. She does not stand on them, and prefers the side of the table they are not on. */
+  others?: Stander[];
 };
 
+export const STAND_BODY_HW = 55;   // half her drawn width on the floor
+export const STAND_DRAWN_HW = 82;   // half her widest drawn width (wave pose, arms and hair buns): the clearance a piece needs
+const OTHERS_SIDE_PENALTY = 300;   // room px of extra walking we accept to be on the side away from the baby
+const MAX_WALK_OUT = 360;
+
 /**
- * Floor beside a table with no seat. First choice is standBeside's spot at the normal reach, or the other side at the
- * same reach, whichever needs the smaller camera slide (the caller then slides it; none if she is already in view).
- * Only when no camera position in the room can show either normal spot do we walk further out, and then only to
- * spots that are not in a fridge's open zone and not on another piece. Without `check` this is exactly standBeside.
+ * Floor beside a table with no seat. Candidates are both sides of the table, starting at the normal reach (standBeside's
+ * spot and its mirror) and stepping outward. A candidate must be inside the room, outside every fridge's open zone and
+ * showable by some camera position (cost finite). Among those we prefer, in order: (1) not on anybody and not on another
+ * piece, (2) not on anybody, (3) anything. Inside a tier the cheapest wins: steps out + half the camera slide, plus
+ * OTHERS_SIDE_PENALTY if she would stand on the same side of the table as the baby or other dolls. So with both sides
+ * clean she takes the normal reach on the side away from them, with the smaller slide on a tie.
+ * Without `check` this is exactly standBeside.
  */
 export function standNextTo(
   piece: { x: number }, pieceW: number, fromX: number, roomW: number, check?: StandCheck,
@@ -65,31 +78,27 @@ export function standNextTo(
   const cost = check.cost ?? (() => 0);
   const bad = check.bad ?? (() => false);
   const crowded = check.crowded ?? (() => false);
-  const inRoom = (x: number) => x >= edge && x <= roomW - edge;
+  const others = check.others ?? [];
   const pref = first.x >= piece.x ? 1 : -1;
-  // 1. the normal spots
-  let best: { x: number; c: number } | null = null;
-  for (const x of [first.x, piece.x - pref * reach]) {
-    if (!inRoom(x) || bad(x)) continue;
-    const c = cost(x);
-    if (Number.isFinite(c) && (!best || c < best.c)) best = { x, c };
-  }
-  if (best) return { x: best.x, y: STAND_Y };
-  // 2. further out, only where the camera can show her; clear of other pieces first, then without that rule
-  for (const strict of [true, false]) {
-    for (let extra = 20; extra <= 360; extra += 20) {
-      let pick: { x: number; c: number } | null = null;
-      for (const side of [pref, -pref]) {
-        const x = piece.x + side * (reach + extra);
-        if (!inRoom(x) || bad(x) || (strict && crowded(x))) continue;
-        const c = cost(x);
-        if (Number.isFinite(c) && (!pick || c < pick.c)) pick = { x, c };
-      }
-      if (pick) return { x: pick.x, y: STAND_Y };
+  const onOthers = (x: number) => others.some(o => Math.abs(o.x - x) < o.hw + STAND_BODY_HW);
+  const sideOf = (x: number) => (x >= piece.x ? 1 : -1);
+  const taken = (side: number) => others.some(o => sideOf(o.x) === side && Math.abs(o.x - piece.x) <= reach + MAX_WALK_OUT + 120);
+  type C = { x: number; score: number; tier: number };
+  let best: C | null = null;
+  for (let extra = 0; extra <= MAX_WALK_OUT; extra += 10) {
+    for (const side of [pref, -pref]) {
+      const x = extra === 0 && side === pref ? first.x : piece.x + side * (reach + extra);
+      if (x < edge || x > roomW - edge || bad(x)) continue;
+      const c = cost(x);
+      if (!Number.isFinite(c)) continue;
+      const tier = onOthers(x) ? 2 : crowded(x) ? 1 : 0;
+      const score = extra + c * 0.5 + (taken(side) ? OTHERS_SIDE_PENALTY : 0) + (side === pref ? 0 : 0.001);
+      if (!best || tier < best.tier || (tier === best.tier && score < best.score)) best = { x, score, tier };
     }
   }
-  // 3. nothing can be shown: the normal spot that trips nothing, else standBeside's own
-  for (const x of [first.x, piece.x - pref * reach]) if (inRoom(x) && !bad(x)) return { x, y: STAND_Y };
+  if (best) return { x: best.x, y: STAND_Y };
+  // nothing can be shown: the normal spot that trips nothing, else standBeside's own
+  for (const x of [first.x, piece.x - pref * reach]) if (x >= edge && x <= roomW - edge && !bad(x)) return { x, y: STAND_Y };
   return first;
 }
 
@@ -144,6 +153,8 @@ export function playDropPolish(opts: {
   roomW?: number;
   /** Camera slide (room px) that shows a standing doll at this room x clear of the buttons: 0 fine, Infinity impossible. Unset means anywhere. */
   standCost?: (x: number) => number;
+  /** Others standing in the room (baby, other dolls, avatars); she lands on neither them nor, if she can help it, their side of the table. */
+  standers?: Stander[];
 }): PlayDrop {
   const roomW = opts.roomW ?? 2400;
   const { releaseX, releaseY, hit, items, occupied, held, seatPiece } = opts;
@@ -191,7 +202,9 @@ export function playDropPolish(opts: {
       cost: opts.standCost,
       // her derived fridge-open reads dolls at STAND_Y; a table drop must never be what opens one
       bad: x => items.some(it => isFridge(it.kind) && Math.hypot(x - it.x, STAND_Y - it.y) <= FRIDGE_RADIUS + 12),
-      crowded: x => items.some(it => it.id !== table.id && Math.abs(x - it.x) < pieceWidth(it.kind) / 2 + 50),
+      // other furniture on the floor row (not things standing on the table); unknown kinds are about 170 wide, not the 320 default
+      crowded: x => items.some(it => it.id !== table.id && it.y > table.y - 60 && Math.abs(x - it.x) < (pieceWidth(it.kind) < 320 ? pieceWidth(it.kind) / 2 : 85) + STAND_DRAWN_HW),
+      others: opts.standers,
     } : undefined);
     return { x: stand.x, y: stand.y, seat: null, releases, beside: true };
   }

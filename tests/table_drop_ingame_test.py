@@ -17,6 +17,7 @@ SKIP = "for (const p of ['','preview:']) { localStorage.setItem(p+'cozy-whatsnew
 YARD_X, YARD_Y = 1104, 520
 STAND_Y = 540
 NORMAL_REACH = 230
+WALK_OUT = 360
 SIZES = ((820, 1180), (1180, 820))
 # Yard cameras: where the table sits in view. 'left' (cam 805) puts it near the left edge, as in the QA frame;
 # 'right' pans so the table's right end is just inside the right edge.
@@ -68,13 +69,21 @@ HIDE = "() => { if (!document.getElementById('qa-hide')) { const st = document.c
 
 # Where she stands, and what is around her, in screen px.
 MEASURE = """
-({tableId}) => {
+async ({tableId}) => {
   const R = e => { if (!e) return null; const b = e.getBoundingClientRect(); return {l:b.left, r:b.right, t:b.top, b:b.bottom, w:b.width, h:b.height}; };
   const vis = e => { if (!e || e.hidden || e.offsetParent === null && getComputedStyle(e).position !== 'fixed') return null; const r = R(e); return r.w > 2 && r.h > 2 && getComputedStyle(e).visibility !== 'hidden' ? r : null; };
   const stage = R(document.getElementById('stage'));
   const c = (__store.get().characters||[]).find(x => x.room === __store.get().currentRoom);
   const el = document.querySelector('.char[data-cid]') || document.querySelector('.char:not(.avatar)');
   const t = document.querySelector('.item[data-id="'+tableId+'"]');
+  // her whole DRAWN body: the element and every part of it (hair buns, both arms), sampled for a second so a waving arm is counted
+  const full = {l: 1e9, r: -1e9, t: 1e9, b: -1e9};
+  for (let k = 0; k < 12; k++) {
+    for (const n of el ? [el, ...el.querySelectorAll('*')] : []) { const r = n.getBoundingClientRect(); if (r.width < 1 || r.height < 1) continue;
+      full.l = Math.min(full.l, r.left); full.r = Math.max(full.r, r.right); full.t = Math.min(full.t, r.top); full.b = Math.max(full.b, r.bottom); }
+    await new Promise(r => setTimeout(r, 80));
+  }
+  const pieces = [...document.querySelectorAll('.item')].map(e => ({id: e.dataset.id, kind: e.dataset.kind, ...R(e)}));
   const nudges = ['nudgeL','nudgeR'].map(i => document.getElementById(i)).filter(e => e && !e.classList.contains('off')).map(vis).filter(Boolean);
   return {
     seat: c ? (c.seat||null) : 'none', x: c && c.x, y: c && c.y,
@@ -84,6 +93,8 @@ MEASURE = """
     care: vis(document.querySelector('.babyCare')),
     nudges,
     baby: R(document.querySelector('.baby')),
+    full: full.l > 1e8 ? null : {l: full.l, r: full.r, t: full.t, b: full.b, w: full.r - full.l, h: full.b - full.t},
+    pieces,
     opened: [...document.querySelectorAll('.item.opened')].map(e => e.dataset.kind),
     fridges: document.querySelectorAll('.item[data-kind*=fridge]').length,
   };
@@ -198,20 +209,28 @@ def judge(label, m, w, h, sc=None):
     check(f"{label}: clear of Paint button", not inter(d, m["paint"]), f"doll={d and (round(d['l']),round(d['r']),round(d['t']),round(d['b']))} paint={m['paint'] and (round(m['paint']['l']),round(m['paint']['r']),round(m['paint']['t']),round(m['paint']['b']))}")
     check(f"{label}: clear of the care bar", not inter(d, m["care"]), f"care={m['care'] and (round(m['care']['l']),round(m['care']['r']),round(m['care']['t']),round(m['care']['b']))}")
     check(f"{label}: clear of the room arrows", not any(inter(d, n) for n in m["nudges"]), "")
-    # beside the table: her body is next to it, not in the middle of it and not a screen away.
-    near = bool(d and t) and (abs((d["l"]+d["r"])/2 - (t["l"]+t["r"])/2) <= t["w"]/2 + d["w"] + 90)
+    # beside the table: her body is next to it, not in the middle of it. How far out she may walk (past a fridge or the baby) is judged by the "lands within 230+360px" check.
+    near = bool(d and t)
     outside = bool(d and t) and ((d["l"]+d["r"])/2 < t["l"] or (d["l"]+d["r"])/2 > t["r"])
     check(f"{label}: beside the table (next to it, not on top of it)", near and outside, f"doll mid {d and round((d['l']+d['r'])/2)} table {t and (round(t['l']),round(t['r']))}")
-    # at the normal reach from the table (standBeside's 160 + 70 for a 320 piece): the camera slides, she does not wander off.
-    if sc: check(f"{label}: lands at most the normal reach ({NORMAL_REACH}px) from the table middle", m["x"] is not None and abs(m["x"] - sc["x"]) <= NORMAL_REACH + 2, f"x={m['x']} table x={sc['x']}")
+    # her whole drawn body (hair buns, arms in any pose) is inside the stage with a 24px margin all round
+    f = m["full"]
+    check(f"{label}: whole drawn body inside the stage with a 24px margin", bool(f) and f["l"] >= st["l"] + 24 and f["r"] <= st["r"] - 24 and f["t"] >= st["t"] + 24 and f["b"] <= st["b"] - 24,
+          f"body {f and (round(f['l']),round(f['r']),round(f['t']),round(f['b']))} stage {round(st['l']),round(st['r']),round(st['t']),round(st['b'])}")
+    # not on the baby, and not on the table or any other piece (bounding boxes, whole drawn body)
+    bb = m["baby"]
+    if bb and f: check(f"{label}: does not overlap the baby's box", not inter(f, bb), f"body {round(f['l'])}-{round(f['r'])} baby {round(bb['l'])}-{round(bb['r'])}")
+    if f:
+        hit = [p for p in m["pieces"] if inter(f, p)]
+        check(f"{label}: does not overlap any piece's box", not hit, f"overlaps {[(p['id'], round(p['l']), round(p['r'])) for p in hit]} body {round(f['l'])}-{round(f['r'])}")
+    # the side away from the baby (the baby is always put beside the table in these scenes, and the far side is showable)
+    if bb and t and d: check(f"{label}: on the side of the table away from the baby", ((d['l']+d['r'])/2 < (t['l']+t['r'])/2) != ((bb['l']+bb['r'])/2 < (t['l']+t['r'])/2), f"doll {round((d['l']+d['r'])/2)} table {round((t['l']+t['r'])/2)} baby {round((bb['l']+bb['r'])/2)}")
+    # at most the normal reach plus the walk-out budget from the table (she only walks out when a fridge zone, the baby or a piece is in the way) (standBeside's 160 + 70 for a 320 piece): the camera slides, she does not wander off.
+    if sc: check(f"{label}: lands within {NORMAL_REACH}+{WALK_OUT}px of the table middle", m["x"] is not None and abs(m["x"] - sc["x"]) <= NORMAL_REACH + WALK_OUT + 2, f"x={m['x']} table x={sc['x']}")
     # a table drop never opens a fridge (B18 derives fridge-open from where dolls stand)
     if sc and sc["room"] == "kitchen": check(f"{label}: the kitchen has a fridge for that check to mean something", m["fridges"] >= 1, f"fridges={m['fridges']}")
     check(f"{label}: no fridge opened by the drop", not m["opened"], f"opened={m['opened']} fridges_in_room={m['fridges']}")
-    # nobody else (baby) under her
-    bb = m["baby"]
-    if bb and d:
-        mid = bb["l"] + bb["w"] * 0.15, bb["r"] - bb["w"] * 0.15
-        check(f"{label}: not on top of the baby", not (d["l"] < mid[1] and d["r"] > mid[0]), f"doll {round(d['l'])}-{round(d['r'])} baby {round(bb['l'])}-{round(bb['r'])}")
+
 
 _last_create = [0.0]
 async def create_house(pg):
