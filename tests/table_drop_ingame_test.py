@@ -16,6 +16,7 @@ PROBE = os.environ.get("EXPECT") == "probe"
 SKIP = "for (const p of ['','preview:']) { localStorage.setItem(p+'cozy-whatsnew','999'); localStorage.setItem(p+'avatar-intro','1'); localStorage.setItem(p+'cozy-welcome','1'); }"
 YARD_X, YARD_Y = 1104, 520
 STAND_Y = 540
+NORMAL_REACH = 230
 SIZES = ((820, 1180), (1180, 820))
 # Yard cameras: where the table sits in view. 'left' (cam 805) puts it near the left edge, as in the QA frame;
 # 'right' pans so the table's right end is just inside the right edge.
@@ -82,6 +83,9 @@ MEASURE = """
     paint: vis(document.getElementById('artFab')),
     care: vis(document.querySelector('.babyCare')),
     nudges,
+    baby: R(document.querySelector('.baby')),
+    opened: [...document.querySelectorAll('.item.opened')].map(e => e.dataset.kind),
+    fridges: document.querySelectorAll('.item[data-kind*=fridge]').length,
   };
 }
 """
@@ -184,7 +188,7 @@ def visible(d):
     """The doll's element box has transparent padding: about 12px each side and a 22px shadow under her feet."""
     return d and {"l": d["l"] + 12, "r": d["r"] - 12, "t": d["t"], "b": d["b"] - 22, "w": d["w"] - 24, "h": d["h"] - 22}
 
-def judge(label, m, w, h):
+def judge(label, m, w, h, sc=None):
     d, t, st = visible(m["doll"]), m["table"], m["stage"]
     ok_seat = m["seat"] is None
     check(f"{label}: stands (no seat)", ok_seat, json.dumps(m["seat"]))
@@ -198,6 +202,16 @@ def judge(label, m, w, h):
     near = bool(d and t) and (abs((d["l"]+d["r"])/2 - (t["l"]+t["r"])/2) <= t["w"]/2 + d["w"] + 90)
     outside = bool(d and t) and ((d["l"]+d["r"])/2 < t["l"] or (d["l"]+d["r"])/2 > t["r"])
     check(f"{label}: beside the table (next to it, not on top of it)", near and outside, f"doll mid {d and round((d['l']+d['r'])/2)} table {t and (round(t['l']),round(t['r']))}")
+    # at the normal reach from the table (standBeside's 160 + 70 for a 320 piece): the camera slides, she does not wander off.
+    if sc: check(f"{label}: lands at most the normal reach ({NORMAL_REACH}px) from the table middle", m["x"] is not None and abs(m["x"] - sc["x"]) <= NORMAL_REACH + 2, f"x={m['x']} table x={sc['x']}")
+    # a table drop never opens a fridge (B18 derives fridge-open from where dolls stand)
+    if sc and sc["room"] == "kitchen": check(f"{label}: the kitchen has a fridge for that check to mean something", m["fridges"] >= 1, f"fridges={m['fridges']}")
+    check(f"{label}: no fridge opened by the drop", not m["opened"], f"opened={m['opened']} fridges_in_room={m['fridges']}")
+    # nobody else (baby) under her
+    bb = m["baby"]
+    if bb and d:
+        mid = bb["l"] + bb["w"] * 0.15, bb["r"] - bb["w"] * 0.15
+        check(f"{label}: not on top of the baby", not (d["l"] < mid[1] and d["r"] > mid[0]), f"doll {round(d['l'])}-{round(d['r'])} baby {round(bb['l'])}-{round(bb['r'])}")
 
 _last_create = [0.0]
 async def create_house(pg):
@@ -236,8 +250,8 @@ async def run_scene(pg, sc, w, h, which, frac):
     await pg.wait_for_timeout(2200)  # the game may slide the camera a little to keep her in view
     m = await pg.evaluate(MEASURE, {"tableId": "qa-pt"})
     if PROBE: print(label, json.dumps({k: m[k] for k in ("seat","x","y","cam")}), "doll", m["doll"] and (round(m["doll"]["l"]),round(m["doll"]["r"])), "paint", m["paint"] and (round(m["paint"]["l"]),round(m["paint"]["r"])), flush=True)
-    else: judge(label, m, w, h)
-    if SHOT_ALL and (sc["room"] == "backyard" or (which, frac) in (('left', 0.15), ('right', 0.85))):
+    else: judge(label, m, w, h, sc)
+    if SHOT_ALL:
         await shot(pg, f"{sc['shot']}_cam-{which}_drop{int(frac*100)}", w, h)
     elif frac == 0.15 and which == 'left': await shot(pg, sc["shot"], w, h)
 
@@ -265,13 +279,12 @@ async def main():
         for (w, h) in SIZES:
             ctx, pg = await open_house(wk, w, h)
             # Order matters: the yard camera is only 'hers' (panned) after a real pan, so 'panned' runs last.
-            for sc in ([] if os.environ.get("ONLY") == "panned" else SCENES):
+            for sc in ([] if os.environ.get("ONLY") == "panned" else [x for x in SCENES if os.environ.get("ONLY") != "kitchen" or x["room"] == "kitchen"]):
                 for which in ('left', 'right'):
                     for frac in (0.15, 0.5, 0.85):
-                        if sc["room"] != "backyard" and frac == 0.5: continue
                         await run_scene(pg, sc, w, h, which, frac)
-            if os.environ.get("ONLY") != "panned": await run_control(pg, w, h)
-            for frac in (0.15, 0.5, 0.85):
+            if os.environ.get("ONLY") not in ("panned", "kitchen"): await run_control(pg, w, h)
+            for frac in ((0.15, 0.5, 0.85) if os.environ.get("ONLY") != "kitchen" else ()):
                 await run_scene(pg, SCENES[0], w, h, 'panned', frac)
             await ctx.close()
         await wk.close()

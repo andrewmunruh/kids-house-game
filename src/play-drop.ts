@@ -2,7 +2,7 @@
 // A drop on the table (or food on it) sits her in the nearest empty chair.
 // A drop on a tub or bed puts down held food first; a tub drop stands her in the water.
 import { isFood } from './shared/needs';
-import { isTub } from './shared/ambient';
+import { FRIDGE_RADIUS, isFridge, isTub } from './shared/ambient';
 import {
   pieceWidth, resolveDrop, seatFractions, standBeside, STAND_Y,
   type DollSeat, type SeatPiece,
@@ -40,24 +40,56 @@ export type PlayDrop = {
   beside?: boolean;
 };
 
+/** What the caller knows about the stage around a standing spot. All optional; with none, standNextTo is standBeside. */
+export type StandCheck = {
+  /** Room px the camera must slide to show a standing doll at x clear of the buttons: 0 = already fine, Infinity = no camera position can. */
+  cost?: (x: number) => number;
+  /** Standing here would trip something (a fridge's open zone). Never chosen while another spot works. */
+  bad?: (x: number) => boolean;
+  /** Standing here would overlap another piece of furniture. Only matters for spots further out than the normal reach. */
+  crowded?: (x: number) => boolean;
+};
+
 /**
- * Floor beside a table with no seat: standBeside's spot, unless `ok` says her body would be hidden or cut there
- * (off the view, behind the Paint button, the care bar or a room arrow). Then the other side, then a little further
- * out on either side. Without `ok` this is exactly standBeside.
+ * Floor beside a table with no seat. First choice is standBeside's spot at the normal reach, or the other side at the
+ * same reach, whichever needs the smaller camera slide (the caller then slides it; none if she is already in view).
+ * Only when no camera position in the room can show either normal spot do we walk further out, and then only to
+ * spots that are not in a fridge's open zone and not on another piece. Without `check` this is exactly standBeside.
  */
 export function standNextTo(
-  piece: { x: number }, pieceW: number, fromX: number, roomW: number, ok?: (x: number) => boolean,
+  piece: { x: number }, pieceW: number, fromX: number, roomW: number, check?: StandCheck,
 ): { x: number; y: number } {
   const first = standBeside(piece.x, pieceW, fromX, roomW);
-  if (!ok || ok(first.x)) return first;
+  if (!check) return first;
   const reach = Math.max(0, pieceW) / 2 + 70, edge = 40;
+  const cost = check.cost ?? (() => 0);
+  const bad = check.bad ?? (() => false);
+  const crowded = check.crowded ?? (() => false);
+  const inRoom = (x: number) => x >= edge && x <= roomW - edge;
   const pref = first.x >= piece.x ? 1 : -1;
-  for (let extra = 0; extra <= 360; extra += 20) {
-    for (const side of [pref, -pref]) {
-      const x = piece.x + side * (reach + extra);
-      if (x >= edge && x <= roomW - edge && ok(x)) return { x, y: STAND_Y };
+  // 1. the normal spots
+  let best: { x: number; c: number } | null = null;
+  for (const x of [first.x, piece.x - pref * reach]) {
+    if (!inRoom(x) || bad(x)) continue;
+    const c = cost(x);
+    if (Number.isFinite(c) && (!best || c < best.c)) best = { x, c };
+  }
+  if (best) return { x: best.x, y: STAND_Y };
+  // 2. further out, only where the camera can show her; clear of other pieces first, then without that rule
+  for (const strict of [true, false]) {
+    for (let extra = 20; extra <= 360; extra += 20) {
+      let pick: { x: number; c: number } | null = null;
+      for (const side of [pref, -pref]) {
+        const x = piece.x + side * (reach + extra);
+        if (!inRoom(x) || bad(x) || (strict && crowded(x))) continue;
+        const c = cost(x);
+        if (Number.isFinite(c) && (!pick || c < pick.c)) pick = { x, c };
+      }
+      if (pick) return { x: pick.x, y: STAND_Y };
     }
   }
+  // 3. nothing can be shown: the normal spot that trips nothing, else standBeside's own
+  for (const x of [first.x, piece.x - pref * reach]) if (inRoom(x) && !bad(x)) return { x, y: STAND_Y };
   return first;
 }
 
@@ -110,8 +142,8 @@ export function playDropPolish(opts: {
   held: HeldFood[];
   seatPiece: (it: DropItem) => SeatPiece | null;
   roomW?: number;
-  /** Is a standing doll at this room x fully in view and clear of the buttons? Unset means anywhere. */
-  standOk?: (x: number) => boolean;
+  /** Camera slide (room px) that shows a standing doll at this room x clear of the buttons: 0 fine, Infinity impossible. Unset means anywhere. */
+  standCost?: (x: number) => number;
 }): PlayDrop {
   const roomW = opts.roomW ?? 2400;
   const { releaseX, releaseY, hit, items, occupied, held, seatPiece } = opts;
@@ -155,7 +187,12 @@ export function playDropPolish(opts: {
       if (d < bestD) { bestD = d; best = { x: drop.x, y: drop.y, seat: drop.seat }; }
     }
     if (best) return { ...best, releases };
-    const stand = standNextTo(table, pieceWidth(table.kind), releaseX, roomW, opts.standOk);
+    const stand = standNextTo(table, pieceWidth(table.kind), releaseX, roomW, opts.standCost ? {
+      cost: opts.standCost,
+      // her derived fridge-open reads dolls at STAND_Y; a table drop must never be what opens one
+      bad: x => items.some(it => isFridge(it.kind) && Math.hypot(x - it.x, STAND_Y - it.y) <= FRIDGE_RADIUS + 12),
+      crowded: x => items.some(it => it.id !== table.id && Math.abs(x - it.x) < pieceWidth(it.kind) / 2 + 50),
+    } : undefined);
     return { x: stand.x, y: stand.y, seat: null, releases, beside: true };
   }
 

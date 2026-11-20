@@ -982,19 +982,48 @@ function standingBlocked(x: number, shift = 0): boolean {
   }
   return false;
 }
-const standClearAt = (x: number) => !standingBlocked(x);
-/** After she is put down beside a table: if the camera leaves her cut off or under a button, slide it the least that frees her. */
-function keepStandingInView(x: number) {
-  if (view !== 'house' || !standingBlocked(x)) return;
+/** Screen px to slide the stage so a standing doll at room x is clear (0 = already), or null when no camera position can. */
+function standShift(x: number): number | null {
+  if (!standingBlocked(x)) return 0;
   const sx = stage.getBoundingClientRect().width / VIEW_W;
   for (let d = 4; d <= 600; d += 4) {
     for (const s of [d, -d]) {
       if (standingBlocked(x, s)) continue;
-      markPanned();
-      glideTo(camX - s / sx);
-      return;
+      const to = camX - s / sx;
+      if (to >= -0.5 && to <= maxCam() + 0.5) return s;
     }
   }
+  return null;
+}
+/** Room x of everyone else standing in this room (baby, other dolls, other kids' avatars), so she is not put on top of them. */
+function othersStandingX(skipChar?: string, skipPid?: string): number[] {
+  const s = store.get(), out: number[] = [];
+  if (s.baby && s.baby.room === s.currentRoom && !s.baby.holder) out.push(s.baby.x);
+  for (const c of s.characters) if (c.id !== skipChar && c.room === s.currentRoom) out.push(c.x);
+  if (hood && view === 'house') {
+    for (const [pid, p] of hood.presence.entries()) {
+      if (pid === skipPid || p.where !== 'house' || p.houseId !== currentHouseId || p.room !== s.currentRoom) continue;
+      out.push(p.x);
+    }
+  }
+  return out;
+}
+/** Camera slide (room px) a standing spot needs, plus a nudge away from spots someone already stands on. */
+const standCostFor = (skipChar?: string, skipPid?: string) => {
+  const others = othersStandingX(skipChar, skipPid);
+  return (x: number) => {
+    const s = standShift(x);
+    if (s === null) return Infinity;
+    return Math.abs(s) / (stage.getBoundingClientRect().width / VIEW_W) + (others.some(o => Math.abs(o - x) < 90) ? 140 : 0);
+  };
+};
+/** After she is put down beside a table: if the camera leaves her cut off or under a button, slide it the least that frees her. */
+function keepStandingInView(x: number) {
+  if (view !== 'house') return;
+  const s = standShift(x);
+  if (!s) return;
+  markPanned();
+  glideTo(camX - s / (stage.getBoundingClientRect().width / VIEW_W));
 }
 function finishDollPlayDrop(id: string, releaseX: number, releaseY: number, hit: PlacedItem | null) {
   const s = store.get();
@@ -1007,7 +1036,7 @@ function finishDollPlayDrop(id: string, releaseX: number, releaseY: number, hit:
     occupied: takenSeats(id),
     held: heldFoodOf(c),
     seatPiece: it => seatPieceOf(it as PlacedItem),
-    standOk: standClearAt,
+    standCost: standCostFor(id),
   });
   for (const r of result.releases) store.dispatch({ type: 'char/release', id, hand: r.hand, x: r.x, y: r.y });
   moveDoll(id, s.currentRoom, result.x, result.y, result.seat);
@@ -1024,7 +1053,7 @@ function finishAvatarPlayDrop(releaseX: number, releaseY: number, hit: PlacedIte
     occupied: takenSeats(undefined, hood.pid),
     held: [],
     seatPiece: it => seatPieceOf(it as PlacedItem),
-    standOk: standClearAt,
+    standCost: standCostFor(undefined, hood?.pid),
   });
   const seat = result.seat ? { id: result.seat.item, pose: result.seat.pose, n: result.seat.n } : null;
   placeMe(cur, result.x, result.y, cur.flip, seat);
