@@ -110,7 +110,7 @@ export function standNextTo(
   const crowded = check.crowded ?? (() => false);
   const others = check.others ?? [];
   const pref = first.x >= piece.x ? 1 : -1;
-  const onOthers = (x: number) => others.some(o => Math.abs(o.x - x) < o.hw + STAND_BODY_HW);
+  const onOthers = (x: number) => others.some(o => Math.abs(o.x - x) < o.hw + STAND_DRAWN_HW);
   const sideOf = (x: number) => (x >= piece.x ? 1 : -1);
   const taken = (side: number) => others.some(o => sideOf(o.x) === side && Math.abs(o.x - piece.x) <= maxSideR + MAX_WALK_OUT + 120);
   const awayTaken = taken(pref), otherTaken = taken(-pref);
@@ -311,7 +311,7 @@ export function playDropPolish(opts: {
       crowded: x => items.some(it => {
         if (it.id === table.id || it.y <= table.y - 60) return false;
         const iw = opts.itemWidth ? opts.itemWidth(it) : (ITEM_W[slug(it.kind)] ?? (pieceWidth(it.kind) < 320 ? pieceWidth(it.kind) : 170)) * (it.scale || 1);
-        return Math.abs(x - it.x) < iw / 2 + STAND_BODY_HW;
+        return Math.abs(x - it.x) < iw / 2 + STAND_DRAWN_HW;
       }),
       others: opts.standers,
       onFar: info => {

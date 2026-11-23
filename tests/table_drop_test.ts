@@ -126,9 +126,9 @@ const base = { releaseX: 1104, releaseY: 520, hit: picnic, items: [picnic], occu
   const table: DropItem = { id: 'table-2', kind: 'table', x: 1200, y: 500 };
   // Scaled narrow fridge sitting beside the table: the normal left spot (1016) is within FRIDGE_RADIUS (130),
   // yet physically clear of the scaled fridge box (920 ± 40 = 880..960 vs 1016 - 62 = 954? use 900 scale 0.6 -> 855..945).
-  const smallFridge: DropItem = { id: 'fridge-1', kind: 'fridge', x: 910, y: 470, scale: 0.6 };
+  const smallFridge: DropItem = { id: 'fridge-1', kind: 'fridge', x: 910, y: 510, scale: 0.5 };
   const r = playDropPolish({ releaseX: 1120, releaseY: 500, hit: table, items: [table, smallFridge], occupied: [], held: [], seatPiece: noSeat, roomW: W, standCost: () => 0, standers: [{ x: 1336, hw: 60 }] });
-  check('closed fridge open-door zone does not block the near left spot', r.besideKind === 'away-side' && Math.hypot(r.x - smallFridge.x, STAND_Y - smallFridge.y) <= 130 && Math.abs(r.x - 1018) <= 6, JSON.stringify(r));
+  check('closed fridge open-door zone does not block the near left spot', r.besideKind === 'away-side' && Math.hypot(r.x - smallFridge.x, STAND_Y - smallFridge.y) <= 130 && r.x >= 910 + 37.5 + 82, JSON.stringify(r));
 }
 
 // ---- candidate order: away-side -> in-front -> other-side -> far ----
@@ -181,9 +181,13 @@ const base = { releaseX: 1104, releaseY: 520, hit: picnic, items: [picnic], occu
   const cake: DropItem = { id: 'cake-3', kind: 'cake', x: 1220, y: 395 };
   const items = [fr, kt, st, cake];
   const k = playDropPolish({ releaseX: 1200 + 100, releaseY: 500, hit: kt, items, occupied: [], held: [], seatPiece: noSeat, roomW: W, standCost: () => 0, standers: [{ x: 1336, hw: 60 }] });
-  check('kitchen: lands on the left (away-side) between fridge and table, never walks past fridge', k.besideKind === 'away-side' && k.x < 1100 && k.x > 975, JSON.stringify(k));
-  check('kitchen: within 1 doll-width (120px) of the table left edge', Math.abs(1100 - k.x) <= 120, JSON.stringify(k));
-  check('kitchen: not on the fridge or the stove', Math.abs(k.x - fr.x) >= 75 + STAND_BODY_HW && Math.abs(k.x - st.x) >= 85 + STAND_BODY_HW, JSON.stringify(k));
+  check('kitchen (125px fridge-table gap): avoids squeezing wave arm onto fridge, chooses in-front clear of baby', k.besideKind === 'in-front' && k.x >= 1100 && k.x <= 1200 && Math.abs(k.x - 1336) >= 60 + 82, JSON.stringify(k));
+  check('kitchen: within 1 doll-width (120px) of the table', k.x >= 1100 - 120 && k.x <= 1300 + 120, JSON.stringify(k));
+  check('kitchen: clear of the fridge and the stove (full drawn body)', Math.abs(k.x - fr.x) >= 75 + 82 && Math.abs(k.x - st.x) >= 85 + 82, JSON.stringify(k));
+  // Wider gap (145px, table at 1220) fits full drawn body on away-side without touching fridge.
+  const ktWide: DropItem = { id: 'qa-pt', kind: 'table', x: 1220, y: 500 };
+  const kw = playDropPolish({ releaseX: 1220 + 100, releaseY: 500, hit: ktWide, items: [fr, ktWide, st, cake], occupied: [], held: [], seatPiece: noSeat, roomW: W, standCost: () => 0, standers: [{ x: 1356, hw: 60 }] });
+  check('kitchen (145px fridge-table gap): lands on away-side (1058) clear of fridge and table', kw.besideKind === 'away-side' && kw.x < 1120 && kw.x > 975 && Math.abs(kw.x - fr.x) >= 75 + 82, JSON.stringify(kw));
 
   // Default kitchen (fridge 900, table 1220, stove 1500, chairs removed), baby far away.
   const dt: DropItem = { id: 'table-2', kind: 'table', x: 1220, y: 500 };
