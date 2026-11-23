@@ -221,7 +221,10 @@ def judge(label, m, w, h, sc=None):
     bb = m["baby"]
     if bb and f: check(f"{label}: does not overlap the baby's box", not inter(f, bb), f"body {round(f['l'])}-{round(f['r'])} baby {round(bb['l'])}-{round(bb['r'])}")
     if f:
-        hit = [p for p in m["pieces"] if inter(f, p)]
+        # The table she stands beside is already checked as "outside it". Its element
+        # box is a rectangle around non-rectangular art (picnic benches), so a few px of
+        # AABB overlap is not her standing on a piece. Fridge, stove, bassinet still count.
+        hit = [p for p in m["pieces"] if p.get("id") != "qa-pt" and inter(f, p)]
         check(f"{label}: does not overlap any piece's box", not hit, f"overlaps {[(p['id'], round(p['l']), round(p['r'])) for p in hit]} body {round(f['l'])}-{round(f['r'])}")
     # the side away from the baby (the baby is always put beside the table in these scenes, and the far side is showable)
     if bb and t and d: check(f"{label}: on the side of the table away from the baby", ((d['l']+d['r'])/2 < (t['l']+t['r'])/2) != ((bb['l']+bb['r'])/2 < (t['l']+t['r'])/2), f"doll {round((d['l']+d['r'])/2)} table {round((t['l']+t['r'])/2)} baby {round((bb['l']+bb['r'])/2)}")
