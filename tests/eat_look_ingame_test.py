@@ -1,6 +1,9 @@
 # B18 item 2: fridge open is derived and agrees on both iPads; nibble at the table;
 # nothing stuck after leave, hold end, reload, or rejoin. An old visitor sees today's behavior.
-# usage: WEB=... [HOOD=...] [OLDWEB=...] python tests/eat_look_ingame_test.py
+# usage: WEB=... [HOOD=...] [OLDWEB=...] [OLD_FRIDGE_OPEN=auto|1|0] python tests/eat_look_ingame_test.py
+# The mixed check depends on what the OLD client is: a pre-B18 client (ea83ae5 and older) has no derived fridge-open,
+# so it must stay closed; a B18+ client (dae7cc6 onward) derives it too and must open and close in step.
+# OLD_FRIDGE_OPEN=auto (default) reads the old client's stylesheet for B18's 'ambSitNibble' keyframes.
 import asyncio, os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from playwright.async_api import async_playwright
@@ -9,6 +12,9 @@ from testnav import SKIP_WN
 WEB = os.environ.get('WEB', 'http://localhost:5350').rstrip('/')
 HOOD = os.environ.get('HOOD', '').rstrip('/')
 OLDWEB = os.environ.get('OLDWEB', '').rstrip('/')
+OLD_FRIDGE_OPEN = os.environ.get('OLD_FRIDGE_OPEN', 'auto').lower()
+# B18 (dd31395) added the ambSitNibble keyframes with the derived open fridge; no earlier build has them.
+HAS_B18_CSS = """() => [...document.styleSheets].some(ss => { try { return [...ss.cssRules].some(r => r.name === 'ambSitNibble'); } catch (e) { return false; } })"""
 assert 'workers.dev' not in WEB
 ok_all = True
 
@@ -372,13 +378,23 @@ async def run_two_and_mixed(browser):
     so = await O.evaluate(FRIDGE_STATE)
     sa4 = await A.evaluate(FRIDGE_STATE)
     check('mixed: new client opens the fridge (derived)', sa4['opened'] is True and sa4['on'] is False, sa4)
-    # Old client has today's behavior: local .opened only, so it stays closed, and no item.on arrived.
-    check('mixed: old client has no item.on (today\'s behavior)', so['on'] is False, so)
-    check('mixed: old client does not inherit a stuck-open fridge', so['opened'] is False, so)
+    if OLD_FRIDGE_OPEN in ('1', 'true', 'yes'): old_has = True
+    elif OLD_FRIDGE_OPEN in ('0', 'false', 'no'): old_has = False
+    else: old_has = bool(await O.evaluate(HAS_B18_CSS))
+    print(f"INFO old client {'has' if old_has else 'lacks'} the derived fridge-open (B18+)", flush=True)
+    if old_has:
+        # B18+ old client derives it from the same synced positions: open now, no item.on, closed when she leaves.
+        check('mixed: old (B18+) client has no item.on', so['on'] is False, so)
+        check('mixed: old (B18+) client opens the fridge too (derived, not stuck)', so['opened'] is True, so)
+    else:
+        # Pre-B18 client has today's behavior: local .opened only, so it stays closed, and no item.on arrived.
+        check('mixed: old client has no item.on (today\'s behavior)', so['on'] is False, so)
+        check('mixed: old client does not inherit a stuck-open fridge', so['opened'] is False, so)
     await move_to_fridge(A, False)
     await A.wait_for_timeout(500)
     so2 = await O.evaluate(FRIDGE_STATE)
-    check('mixed: after she leaves, old client still closed, no on flag', (not so2['opened']) and (not so2['on']), so2)
+    if old_has: check('mixed: after she leaves, old (B18+) client closes again, no on flag', (not so2['opened']) and (not so2['on']), so2)
+    else: check('mixed: after she leaves, old client still closed, no on flag', (not so2['opened']) and (not so2['on']), so2)
     await cA.close(); await cB.close(); await cO.close()
 
 async def main():
