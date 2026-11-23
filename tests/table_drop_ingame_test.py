@@ -40,6 +40,9 @@ SETUP = """
   s.get().rooms[room].items.slice().forEach(i => {
     if (String(i.id).startsWith('qa-')) return;
     if (noChairs && /chair|stool|bench/.test(i.kind)) { s.dispatch({type:'item/delete', room, id:i.id}); return; }
+    // qa-pt is the table under test: a leftover seed table at nearly the same x (kitchen table-2 at 1220
+    // vs qa-pt at 1200) would crowd the floor in front of qa-pt and force a far-spot fallback.
+    if (/(^|-)table$/.test(String(i.kind).replace(/^pack:/,'').toLowerCase())) { s.dispatch({type:'item/delete', room, id:i.id}); return; }
     if (room === 'backyard') s.dispatch({type:'item/move', room, id:i.id, x:400, y:i.y});
   });
   const look2 = {v:1, hair:'buns', hairC:'#5b3a29', skin:'#f6d2b5', eyes:'big', eyeC:'#5a321c', blush:true, top:'classic', topC:'#ff7aa8', bottom:'pants', bottomC:'#5aa9e6', shoes:'classic'};
