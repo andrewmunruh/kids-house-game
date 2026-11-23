@@ -68,6 +68,14 @@ export const STAND_DRAWN_HW = 82;  // half her widest drawn width (wave pose, ar
 export const MAX_EDGE_DIST = 118;  // within ~1 doll-width (CHAR_W = 120) of the table's edge
 const MAX_WALK_OUT = 360;
 
+// .stage is border-box with a 6px border, so only viewW - 12 room px of the room are visible.
+export const STAGE_BORDER = 6;
+/** Visible room-x window for a camera, after the stage's 6px border is taken off both sides. */
+export function cameraRoomWindow(camX: number, viewW: number, shiftRoom = 0): { l: number; r: number } {
+  const l = camX - shiftRoom;
+  return { l, r: l + viewW - 2 * STAGE_BORDER };
+}
+
 // Built-in widths of non-seat items whose kind is omitted from shared PIECE_W (which defaults to 320).
 const ITEM_W: Record<string, number> = {
   table: 200,

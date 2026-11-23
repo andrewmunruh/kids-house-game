@@ -86,12 +86,23 @@ async ({tableId}) => {
       full.l = Math.min(full.l, r.left); full.r = Math.max(full.r, r.right); full.t = Math.min(full.t, r.top); full.b = Math.max(full.b, r.bottom); }
     await new Promise(r => setTimeout(r, 80));
   }
+  // Re-read doll and table until both boxes are non-empty (a layout frame can return 0×0).
+  const readDT = () => {
+    const el2 = document.querySelector('.char[data-cid]') || document.querySelector('.char:not(.avatar)');
+    const t2 = document.querySelector('.item[data-id="'+tableId+'"]');
+    return { doll: R(el2), table: R(t2) };
+  };
+  let dt = readDT();
+  for (let i = 0; i < 20 && (!dt.doll || dt.doll.w < 2 || !dt.table || dt.table.w < 2); i++) {
+    await new Promise(r => setTimeout(r, 50));
+    dt = readDT();
+  }
   const pieces = [...document.querySelectorAll('.item')].map(e => ({id: e.dataset.id, kind: e.dataset.kind, ...R(e)}));
   const nudges = ['nudgeL','nudgeR'].map(i => document.getElementById(i)).filter(e => e && !e.classList.contains('off')).map(vis).filter(Boolean);
   return {
     seat: c ? (c.seat||null) : 'none', x: c && c.x, y: c && c.y,
     cam: window.__cam && __cam.get(),
-    doll: R(el), table: R(t), stage,
+    doll: dt.doll, table: dt.table, stage,
     paint: vis(document.getElementById('artFab')),
     care: vis(document.querySelector('.babyCare')),
     nudges,

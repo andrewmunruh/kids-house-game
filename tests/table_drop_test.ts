@@ -1,7 +1,7 @@
 // Play-drop onto a table with no seat: she stands BESIDE it, on a side that is in view and clear of the buttons.
 // Client-only (src/play-drop.ts). Run: npx vite-node tests/table_drop_test.ts
 import { seatFractions, standBeside, STAND_Y, type SeatPiece } from '../src/shared/sit';
-import { playDropPolish, standNextTo, STAND_BODY_HW, type DropItem } from '../src/play-drop';
+import { playDropPolish, standNextTo, STAND_BODY_HW, cameraRoomWindow, STAGE_BORDER, type DropItem } from '../src/play-drop';
 
 let pass = 0, fail = 0;
 const check = (name: string, ok: boolean, extra = '') => {
@@ -195,6 +195,20 @@ const base = { releaseX: 1104, releaseY: 520, hit: picnic, items: [picnic], occu
   const ds: DropItem = { id: 'stove-4', kind: 'stove', x: 1500, y: 470 };
   const q = playDropPolish({ releaseX: 1180, releaseY: 500, hit: dt, items: [df, dt, ds], occupied: [], held: [], seatPiece: noSeat, roomW: W, standCost: () => 0, standers: [] });
   check('default kitchen: stays beside the table (never walks past fridge)', q.x > df.x + 75 && Math.abs(q.x - (dt.x - 100)) <= 120, JSON.stringify(q));
+}
+
+
+// ---- visible camera window accounts for the 6px stage border ----
+{
+  const w = cameraRoomWindow(100, 1000);
+  check('camera window is 12px narrower than VIEW_W (6px border each side)', w.l === 100 && w.r === 100 + 1000 - 2 * STAGE_BORDER, JSON.stringify(w));
+  const shifted = cameraRoomWindow(100, 1000, 20);
+  check('camera window shift moves both edges by the room-px slide', shifted.l === 80 && shifted.r - shifted.l === 1000 - 12, JSON.stringify(shifted));
+  // The panned-yard miss: 181 room px of a 360px table looked like 50% if VIEW_W was used (camR 12px too far).
+  const camX = 105.2, tableL = 924, tableR = 1284, viewW = 1000;
+  const wrong = Math.max(0, Math.min(tableR, camX + viewW) - Math.max(tableL, camX));
+  const right = (() => { const v = cameraRoomWindow(camX, viewW); return Math.max(0, Math.min(tableR, v.r) - Math.max(tableL, v.l)); })();
+  check('12px over-count would pass 50% when only 47% is really visible', wrong >= 180 && right < 180, `wrong=${wrong.toFixed(1)} right=${right.toFixed(1)}`);
 }
 
 console.log(`RESULT ${pass} pass ${fail} fail`);

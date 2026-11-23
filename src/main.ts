@@ -15,7 +15,7 @@ import { mailboxArt, installMail } from './mail';
 import { installPlayMode, playGesture } from './playmode';
 import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, seatFrontKind, standBeside, STAND_Y, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
 import { isFood } from './shared/needs';
-import { playDropPolish, isTableKind, itemSpanWidth, type DropItem, type Stander } from './play-drop';
+import { playDropPolish, isTableKind, itemSpanWidth, cameraRoomWindow, type DropItem, type Stander } from './play-drop';
 import { addTableNibbles, openFridges } from './eat-look';
 import { planShare, shareActions, recoverShare, locateSnack } from './share-snack';
 import { babyOccupant } from './shared/baby';
@@ -986,10 +986,13 @@ function standingBlocked(x: number, shift = 0, obstacles = standObstacles(), y =
   if (body.l < sr.left + edgePad || body.r > sr.right - edgePad) return true;
   for (const b of obstacles) if (body.l < b.right + pad && body.r > b.left - pad && body.t < b.bottom + 4 && ob > b.top) return true;
   if (tableSpan) {
-    const camL = camX - shift / sx, camR = camL + VIEW_W;
+    // Visible room is VIEW_W minus the 6px stage border on each side (border-box). Counting
+    // the full VIEW_W over-states how much of the table is on screen by 12 room px, which let
+    // a ~49% view pass the 50% check and skip the post-drop glide.
+    const view = cameraRoomWindow(camX, VIEW_W, shift / sx);
     const tw = tableSpan.r - tableSpan.l;
-    const visW = Math.max(0, Math.min(tableSpan.r, camR) - Math.max(tableSpan.l, camL));
-    if (visW < Math.min(tw * 0.5, VIEW_W * 0.8) - 0.5) return true;
+    const visW = Math.max(0, Math.min(tableSpan.r, view.r) - Math.max(tableSpan.l, view.l));
+    if (visW < Math.min(tw * 0.5, (view.r - view.l) * 0.8) - 0.5) return true;
   }
   return false;
 }
