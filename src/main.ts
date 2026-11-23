@@ -15,7 +15,7 @@ import { mailboxArt, installMail } from './mail';
 import { installPlayMode, playGesture } from './playmode';
 import { anchorsOf, bedArt, lieBedKinds, lieOffset, lieSpot, pieceWidth, resolveDrop, seatFractions, seatFrontKind, standBeside, STAND_Y, type DollSeat, type PresSeat, type SeatPiece } from './shared/sit';
 import { isFood } from './shared/needs';
-import { playDropPolish, isTableKind, type Stander } from './play-drop';
+import { playDropPolish, isTableKind, itemSpanWidth, type DropItem, type Stander } from './play-drop';
 import { addTableNibbles, openFridges } from './eat-look';
 import { planShare, shareActions, recoverShare, locateSnack } from './share-snack';
 import { babyOccupant } from './shared/baby';
@@ -889,7 +889,8 @@ function remembered(key: string, seat: DollSeat | null) {
   if (seat) localPose.set(key, seat); else localPose.delete(key);
 }
 /** A seat object goes on the wire only after welcome said sit:1. Solo play always saves it. */
-function moveDoll(id: string, room: RoomId, x: number, y: number, seat: DollSeat | null) {
+function moveDoll(id: string, room: RoomId, x: number, y: number, seat: DollSeat | null, fromTableDrop = false) {
+  if (!fromTableDrop) tableDropFridgeSuppress.delete(id);
   if (seat) markPanned();
   const offline = !hood || inner === local;
   const sendSeat = offline || !!hood?.speaksSit;
@@ -960,22 +961,36 @@ function heldFoodOf(c: Character): { hand: Hand; kind: string }[] {
   }
   return out;
 }
+// Client-only: a drop-beside-table landing does not count as a fridge visit (B18 derived fridge-open).
+// Cleared as soon as the doll is lifted, seated, or moved elsewhere.
+const tableDropFridgeSuppress = new Map<string, { room: RoomId; x: number; y: number; at: number }>();
+type TableSpan = { l: number; r: number };
+function itemWidthNow(it: DropItem): number {
+  const d = ITEM_MAP[it.kind];
+  return d ? placedBox(d, drawnScale(it as PlacedItem)).w : itemSpanWidth(it);
+}
 /**
- * Is a standing doll at room x (feet on STAND_Y) fully on the stage, with a 24px margin, and clear of the room arrows, the Paint
- * button and the care bar, if the stage were slid `shift` screen px sideways? The box is her whole DRAWN body, measured from her
- * element and every part of it (hair buns, both arms through the wave and heart poses): x-66 .. x+82 and 232 above to 14 below
- * STAND_Y in room px. Her element's own box (x-54 .. x+66) is narrower than the raised-arm poses. View only; nothing is saved from here.
+ * Is a standing doll at room (x, y) fully on the stage, with a 24px margin, clear of the room arrows, the Paint
+ * button and the care bar, AND leaving at least half of `tableSpan` in view, if the stage were slid `shift` screen px sideways?
+ * The box is her whole DRAWN body, measured from her element and every part of it (hair buns, both arms through the wave and heart poses):
+ * x-66 .. x+82 and 232 above to 14 below y in room px. View only; nothing is saved from here.
  */
-function standingBlocked(x: number, shift = 0, obstacles = standObstacles()): boolean {
+function standingBlocked(x: number, shift = 0, obstacles = standObstacles(), y = STAND_Y, tableSpan?: TableSpan): boolean {
   const sr = stage.getBoundingClientRect();
   if (sr.width < 20) return false;
   const sx = sr.width / VIEW_W, sy = sr.height / H;
   const left = 66, right = 82, up = 232, down = 14, edgePad = 24, pad = 8;
-  const body = { l: sr.left + (x - left - camX) * sx + shift, r: sr.left + (x + right - camX) * sx + shift, t: sr.top + (STAND_Y - up) * sy, b: sr.top + (STAND_Y + down) * sy };
+  const body = { l: sr.left + (x - left - camX) * sx + shift, r: sr.left + (x + right - camX) * sx + shift, t: sr.top + (y - up) * sy, b: sr.top + (y + down) * sy };
   // UI pieces are tested against the body down to just above the feet: the care bar sits along the floor line and may cover her shoes, as it always has.
-  const ob = sr.top + (STAND_Y - 6) * sy;
+  const ob = sr.top + (y - 6) * sy;
   if (body.l < sr.left + edgePad || body.r > sr.right - edgePad) return true;
   for (const b of obstacles) if (body.l < b.right + pad && body.r > b.left - pad && body.t < b.bottom + 4 && ob > b.top) return true;
+  if (tableSpan) {
+    const camL = camX - shift / sx, camR = camL + VIEW_W;
+    const tw = tableSpan.r - tableSpan.l;
+    const visW = Math.max(0, Math.min(tableSpan.r, camR) - Math.max(tableSpan.l, camL));
+    if (visW < Math.min(tw * 0.5, VIEW_W * 0.8) - 0.5) return true;
+  }
   return false;
 }
 /** The room arrows, Paint button and care bar that are showing, as screen rects (they do not move when the stage slides). */
@@ -990,16 +1005,16 @@ function standObstacles(): DOMRect[] {
   }
   return out;
 }
-/** Screen px to slide the stage so a standing doll at room x is clear (0 = already), or null when no camera position can. */
-function standShift(x: number, obstacles = standObstacles()): number | null {
-  if (!standingBlocked(x, 0, obstacles)) return 0;
+/** Screen px to slide the stage so a standing doll at room (x, y) is clear (0 = already), or null when no camera position can. */
+function standShift(x: number, obstacles = standObstacles(), y = STAND_Y, tableSpan?: TableSpan): number | null {
+  if (!standingBlocked(x, 0, obstacles, y, tableSpan)) return 0;
   const sr = stage.getBoundingClientRect();
   const sx = sr.width / VIEW_W;
   for (let d = 4; d <= sr.width + 400; d += 4) {
     for (const s of [d, -d]) {
       const to = camX - s / sx;
       if (to < -0.5 || to > maxCam() + 0.5) continue;   // the camera cannot go there
-      if (!standingBlocked(x, s, obstacles)) return s;
+      if (!standingBlocked(x, s, obstacles, y, tableSpan)) return s;
     }
   }
   return null;
@@ -1017,15 +1032,19 @@ function standersIn(skipChar?: string, skipPid?: string): Stander[] {
   }
   return out;
 }
-/** Camera slide (room px) a standing spot needs; Infinity when no camera position in the room can show her there. */
+/** Camera slide (room px) a standing spot needs; Infinity when no camera position in the room can show her (and >=50% of the table) there. */
 const standCostNow = () => {
   const obstacles = standObstacles(), sx = stage.getBoundingClientRect().width / VIEW_W;
-  return (x: number) => { const s = standShift(x, obstacles); return s === null ? Infinity : Math.abs(s) / sx; };
+  return (x: number, y = STAND_Y, table?: DropItem) => {
+    const span = table ? (() => { const w = itemWidthNow(table); return { l: table.x - w / 2, r: table.x + w / 2 }; })() : undefined;
+    const s = standShift(x, obstacles, y, span);
+    return s === null ? Infinity : Math.abs(s) / sx;
+  };
 };
-/** After she is put down beside a table: if the camera leaves her cut off or under a button, slide it the least that frees her. */
-function keepStandingInView(x: number) {
+/** After she is put down beside a table: if the camera leaves her cut off, under a button, or with <50% of the table showing, slide it the least that frees her. */
+function keepStandingInView(x: number, y = STAND_Y, tableSpan?: TableSpan) {
   if (view !== 'house') return;
-  const s = standShift(x);
+  const s = standShift(x, standObstacles(), y, tableSpan);
   if (!s) return;
   markPanned();
   glideTo(camX - s / (stage.getBoundingClientRect().width / VIEW_W));
@@ -1043,10 +1062,17 @@ function finishDollPlayDrop(id: string, releaseX: number, releaseY: number, hit:
     seatPiece: it => seatPieceOf(it as PlacedItem),
     standCost: standCostNow(),
     standers: standersIn(id),
+    itemWidth: itemWidthNow,
   });
+  (window as any).__lastPlayDrop = result;
+  if (result.beside) tableDropFridgeSuppress.set(id, { room: s.currentRoom, x: result.x, y: result.y, at: Date.now() });
+  else tableDropFridgeSuppress.delete(id);
   for (const r of result.releases) store.dispatch({ type: 'char/release', id, hand: r.hand, x: r.x, y: r.y });
-  moveDoll(id, s.currentRoom, result.x, result.y, result.seat);
-  if (result.beside) keepStandingInView(result.x);
+  moveDoll(id, s.currentRoom, result.x, result.y, result.seat, true);
+  if (result.beside) {
+    const span = result.besideTable ? { l: result.besideTable.x - result.besideTable.w / 2, r: result.besideTable.x + result.besideTable.w / 2 } : undefined;
+    keepStandingInView(result.x, result.y, span);
+  }
 }
 function finishAvatarPlayDrop(releaseX: number, releaseY: number, hit: PlacedItem | null) {
   const cur = myPres();
@@ -1061,10 +1087,15 @@ function finishAvatarPlayDrop(releaseX: number, releaseY: number, hit: PlacedIte
     seatPiece: it => seatPieceOf(it as PlacedItem),
     standCost: standCostNow(),
     standers: standersIn(undefined, hood?.pid),
+    itemWidth: itemWidthNow,
   });
+  (window as any).__lastPlayDrop = result;
   const seat = result.seat ? { id: result.seat.item, pose: result.seat.pose, n: result.seat.n } : null;
   placeMe(cur, result.x, result.y, cur.flip, seat);
-  if (result.beside) keepStandingInView(result.x);
+  if (result.beside) {
+    const span = result.besideTable ? { l: result.besideTable.x - result.besideTable.w / 2, r: result.besideTable.x + result.besideTable.w / 2 } : undefined;
+    keepStandingInView(result.x, result.y, span);
+  }
 }
 function seatFrontClass(kind: string): string { return seatFrontKind(kind); }
 /** Seats with a kid drawn in the classic (legacy, no look2) sit pose; filled by seatedHere. */
@@ -4446,7 +4477,15 @@ function syncAmbient() {
   }
   // Derived each frame from synced house-doll positions. Player avatars on the street
   // do not keep the fridge open; "she left" means the house doll left.
-  const fridgesOpen = openFridges(items, chars.filter(c => !c.id.startsWith('p:')));
+  const nowMs = Date.now();
+  for (const [cid, spot] of tableDropFridgeSuppress.entries()) {
+    const dc = s.characters.find(x => x.id === cid);
+    if (!dc || dollSeat(dc) || charEls.get(cid)?.classList.contains('lifted')
+        || (nowMs - spot.at > 3000 && (dc.room !== spot.room || Math.abs(dc.x - spot.x) > 1 || Math.abs(dc.y - spot.y) > 1))) {
+      tableDropFridgeSuppress.delete(cid);
+    }
+  }
+  const fridgesOpen = openFridges(items, chars.filter(c => !c.id.startsWith('p:') && !tableDropFridgeSuppress.has(c.id)));
   layer.querySelectorAll<HTMLElement>('.item').forEach(el => {
     if (isFridge(el.dataset.kind || '') && el.dataset.id) el.classList.toggle('opened', fridgesOpen.has(el.dataset.id));
   });

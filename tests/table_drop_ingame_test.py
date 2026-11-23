@@ -97,6 +97,7 @@ async ({tableId}) => {
     pieces,
     opened: [...document.querySelectorAll('.item.opened')].map(e => e.dataset.kind),
     fridges: document.querySelectorAll('.item[data-kind*=fridge]').length,
+    besideKind: window.__lastPlayDrop ? window.__lastPlayDrop.besideKind || null : null,
   };
 }
 """
@@ -119,6 +120,7 @@ async def boot(browser, w, h):
     pg = await ctx.new_page()
     errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)[:200]))
+    pg.on("console", lambda msg: print("CONSOLE", msg.text, flush=True) if "[table-drop]" in msg.text else None)
     await pg.goto(f"{WEB}/?hood={HOOD}", wait_until="domcontentloaded")
     await pg.wait_for_selector("#stage", timeout=20000)
     await pg.wait_for_timeout(1100)
@@ -211,8 +213,8 @@ def judge(label, m, w, h, sc=None):
     check(f"{label}: clear of the room arrows", not any(inter(d, n) for n in m["nudges"]), "")
     # beside the table: her body is next to it, not in the middle of it. How far out she may walk (past a fridge or the baby) is judged by the "lands within 244+360px" check.
     near = bool(d and t)
-    outside = bool(d and t) and ((d["l"]+d["r"])/2 < t["l"] or (d["l"]+d["r"])/2 > t["r"])
-    check(f"{label}: beside the table (next to it, not on top of it)", near and outside, f"doll mid {d and round((d['l']+d['r'])/2)} table {t and (round(t['l']),round(t['r']))}")
+    outside = bool(d and t) and ((d["l"]+d["r"])/2 < t["l"] or (d["l"]+d["r"])/2 > t["r"] or m.get("besideKind") == "in-front")
+    check(f"{label}: beside the table (next to it, not on top of it)", near and outside, f"doll mid {d and round((d['l']+d['r'])/2)} table {t and (round(t['l']),round(t['r']))} kind={m.get('besideKind')}")
     # her whole drawn body (hair buns, arms in any pose) is inside the stage with a 24px margin all round
     f = m["full"]
     check(f"{label}: whole drawn body inside the stage with a 24px margin", bool(f) and f["l"] >= st["l"] + 24 and f["r"] <= st["r"] - 24 and f["t"] >= st["t"] + 24 and f["b"] <= st["b"] - 24,
@@ -227,9 +229,21 @@ def judge(label, m, w, h, sc=None):
         hit = [p for p in m["pieces"] if p.get("id") != "qa-pt" and inter(f, p)]
         check(f"{label}: does not overlap any piece's box", not hit, f"overlaps {[(p['id'], round(p['l']), round(p['r'])) for p in hit]} body {round(f['l'])}-{round(f['r'])}")
     # the side away from the baby (the baby is always put beside the table in these scenes, and the far side is showable)
-    if bb and t and d: check(f"{label}: on the side of the table away from the baby", ((d['l']+d['r'])/2 < (t['l']+t['r'])/2) != ((bb['l']+bb['r'])/2 < (t['l']+t['r'])/2), f"doll {round((d['l']+d['r'])/2)} table {round((t['l']+t['r'])/2)} baby {round((bb['l']+bb['r'])/2)}")
-    # at most the normal reach plus the walk-out budget from the table (she only walks out when a fridge zone, the baby or a piece is in the way) (standBeside's 160 + 70 for a 320 piece): the camera slides, she does not wander off.
-    if sc: check(f"{label}: lands within {NORMAL_REACH}+{WALK_OUT}px of the table middle", m["x"] is not None and abs(m["x"] - sc["x"]) <= NORMAL_REACH + WALK_OUT + 2, f"x={m['x']} table x={sc['x']}")
+    if bb and t and d and m.get("besideKind") != "in-front": check(f"{label}: on the side of the table away from the baby", ((d['l']+d['r'])/2 < (t['l']+t['r'])/2) != ((bb['l']+bb['r'])/2 < (t['l']+t['r'])/2), f"doll {round((d['l']+d['r'])/2)} table {round((t['l']+t['r'])/2)} baby {round((bb['l']+bb['r'])/2)} kind={m.get('besideKind')}")
+    # within ~1 doll-width of the table edge, and at least 50% of the table's width visible in the stage
+    if d and t:
+        mid_d = (d["l"] + d["r"]) / 2
+        edge_dist = max(0.0, t["l"] - mid_d, mid_d - t["r"])
+        doll_w = m["doll"]["w"]
+        check(f"{label}: within 1 doll-width of the table edge", edge_dist <= doll_w * 1.05,
+              f"dist={round(edge_dist)} doll_w={round(doll_w)} gap={round(max(0, t['l']-d['r'], d['l']-t['r']))} kind={m.get('besideKind')}")
+    if t and st:
+        vis_w = max(0.0, min(t["r"], st["r"]) - max(t["l"], st["l"]))
+        frac_vis = vis_w / t["w"] if t["w"] > 0 else 0.0
+        check(f"{label}: at least 50% of the table is in view", frac_vis >= 0.5 - 1e-3,
+              f"vis={round(vis_w)}/{round(t['w'])} ({frac_vis:.0%}) kind={m.get('besideKind')}")
+    # at most the normal reach plus the walk-out budget from the table: the camera slides, she does not wander off.
+    if sc: check(f"{label}: lands within {NORMAL_REACH}+{WALK_OUT}px of the table middle", m["x"] is not None and abs(m["x"] - sc["x"]) <= NORMAL_REACH + WALK_OUT + 2, f"x={m['x']} table x={sc['x']} kind={m.get('besideKind')}")
     # a table drop never opens a fridge (B18 derives fridge-open from where dolls stand)
     if sc and sc["room"] == "kitchen": check(f"{label}: the kitchen has a fridge for that check to mean something", m["fridges"] >= 1, f"fridges={m['fridges']}")
     check(f"{label}: no fridge opened by the drop", not m["opened"], f"opened={m['opened']} fridges_in_room={m['fridges']}")
