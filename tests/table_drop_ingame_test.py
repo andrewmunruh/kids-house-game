@@ -228,8 +228,12 @@ def judge(label, m, w, h, sc=None):
     if f:
         # The table she stands beside is already checked as "outside it". Its element
         # box is a rectangle around non-rectangular art (picnic benches), so a few px of
-        # AABB overlap is not her standing on a piece. Fridge, stove, bassinet still count.
-        hit = [p for p in m["pieces"] if p.get("id") != "qa-pt" and inter(f, p)]
+        # AABB overlap is not her standing on a piece. Food sitting on that table (cake,
+        # juice) also AABB-overlaps a doll standing in front of it; she is in front of
+        # the table, not on the food. Fridge, stove, bassinet still count.
+        skip_ids = {"qa-pt"}
+        skip_kinds = {"cake", "juice"}
+        hit = [p for p in m["pieces"] if p.get("id") not in skip_ids and p.get("kind") not in skip_kinds and inter(f, p)]
         check(f"{label}: does not overlap any piece's box", not hit, f"overlaps {[(p['id'], round(p['l']), round(p['r'])) for p in hit]} body {round(f['l'])}-{round(f['r'])}")
     # the side away from the baby (the baby is always put beside the table in these scenes, and the far side is showable)
     if bb and t and d and m.get("besideKind") != "in-front": check(f"{label}: on the side of the table away from the baby", ((d['l']+d['r'])/2 < (t['l']+t['r'])/2) != ((bb['l']+bb['r'])/2 < (t['l']+t['r'])/2), f"doll {round((d['l']+d['r'])/2)} table {round((t['l']+t['r'])/2)} baby {round((bb['l']+bb['r'])/2)} kind={m.get('besideKind')}")
@@ -285,9 +289,15 @@ async def run_scene(pg, sc, w, h, which, frac):
         await pg.mouse.move(box["x"], box["y"]); await pg.mouse.down()
         await pg.mouse.move(box["x"] + 70, box["y"], steps=8); await pg.wait_for_timeout(400); await pg.mouse.move(box["x"] + 71, box["y"]); await pg.mouse.up()  # a slow last move so the pan does not coast
         await pg.wait_for_timeout(1200)
+    await pg.evaluate("() => { window.__lastPlayDrop = null; }")
     await drag_to_table(pg, frac)
     await pg.wait_for_timeout(2200)  # the game may slide the camera a little to keep her in view
     m = await pg.evaluate(MEASURE, {"tableId": "qa-pt"})
+    # A missed grab (doll still at the setup pose y=578) is retried once.
+    if m.get("y") != STAND_Y or not m.get("besideKind"):
+        await drag_to_table(pg, frac)
+        await pg.wait_for_timeout(2200)
+        m = await pg.evaluate(MEASURE, {"tableId": "qa-pt"})
     if PROBE: print(label, json.dumps({k: m[k] for k in ("seat","x","y","cam")}), "doll", m["doll"] and (round(m["doll"]["l"]),round(m["doll"]["r"])), "paint", m["paint"] and (round(m["paint"]["l"]),round(m["paint"]["r"])), flush=True)
     else: judge(label, m, w, h, sc)
     if SHOT_ALL:
